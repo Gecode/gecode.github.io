@@ -1,0 +1,239 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Branching and FlatZincGecode
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Branching%20and%20FlatZincGecode&In-Reply-To=%3C497F8B02.6050503%40itu.dk%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002204.html">
+   <LINK REL="Next"  HREF="002202.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Branching and FlatZincGecode</H1>
+    <B>Morten Boysen</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Branching%20and%20FlatZincGecode&In-Reply-To=%3C497F8B02.6050503%40itu.dk%3E"
+       TITLE="[gecode-users] Branching and FlatZincGecode">boysen at itu.dk
+       </A><BR>
+    <I>Tue Jan 27 23:30:26 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002204.html">[gecode-users] Branching and FlatZincGecode
+</A></li>
+        <LI>Next message: <A HREF="002202.html">[gecode-users] Variable update problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2207">[ date ]</a>
+              <a href="thread.html#2207">[ thread ]</a>
+              <a href="subject.html#2207">[ subject ]</a>
+              <a href="author.html#2207">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Guido
+
+Thank you very much for the reply. I do have some follow-up questions:
+
+&gt;&gt;<i> 3) I want to make a branching that follows the standard &quot;fail-first&quot;
+</I>&gt;&gt;<i> heuristic, that is, choose the value with the smallest domain possible
+</I>&gt;&gt;<i> and then use a special value heuristic. As I understand I need to
+</I>&gt;&gt;<i> implement a branching for the integer variables in the FlatZincGecode
+</I>&gt;&gt;<i> space and a branching for the boolean variables. If I understand it
+</I>&gt;&gt;<i> correctly, this means the search will process all integer variables
+</I>&gt;&gt;<i> first and then the boolean variables or vice verse, depending on the
+</I>&gt;&gt;<i> order the branching were posted to the space (the branching posted first
+</I>&gt;&gt;<i> is tested first). Is this correct?
+</I>&gt;<i> 
+</I>&gt;<i> Yes, that's right.  For your own branching, you can reuse the 
+</I>&gt;<i> ViewValBranching class, and instantiate it with the BySizeMin view 
+</I>&gt;<i> selector class and your own value selector.  Then you can add support 
+</I>&gt;<i> for that branching to the FlatZinc parser in gecode.cc, in the function 
+</I>&gt;<i> parseSolveAnn.  That's also the place where you can disable the default 
+</I>&gt;<i> branching.  Let us know if you need more help.
+</I>
+Earlier I was advised not to use the ViewValBranching class, but to 
+implement the complete branching (I originally implemented this 
+branching a couple of months ago, but never got around to make it work). 
+  It works now, but I am a bit unsure whether it is as efficient as the 
+standard Gecode branchings (The IConfigurator class can be seen as a 
+black-box, where we can get a set from with some values. We want to find 
+a value, that is not in this set):
+
+class BranchingIntegers : public Gecode::Branching
+{
+public:
+
+   virtual const BranchingDesc* description(const Space* home) const;
+
+   virtual bool status(const Space* home) const;
+   virtual ExecStatus commit(Space* home,
+                             const BranchingDesc* d,
+                             unsigned int a);
+
+   // Copy a BranchingIntegers object.
+   virtual Actor* copy(Space *home, bool share);
+
+   // Add the branching strategy to the space home,
+   // where the home has the IntVarArgs vars
+   static void post( Space* home, IntVarArgs vars, IConfigurator* conf );
+
+private:
+   static const int POS_BEGIN = -1;
+   static const int VAL_BEGIN = -1;
+
+   const IConfigurator&amp; configurator;
+
+   Gecode::ViewArray&lt;Gecode::Int::IntView&gt; vars;
+   mutable int pos; // TODO: Is this neeeded?
+   mutable int val; // TODO: Is this neeeded?
+
+   BranchingIntegers(Space* home,
+                     ViewArray&lt;Int::IntView&gt;&amp; xv,
+                     const IConfigurator&amp; conf);
+
+   BranchingIntegers(Space* home, bool share, BranchingIntegers&amp; b);
+};
+
+
+BranchingIntegers::BranchingIntegers(Space* home, 	
+                                      ViewArray&lt;Int::IntView&gt;&amp; xv,
+                                      const IConfigurator&amp; conf)
+   : Branching( home ),
+     vars( xv ),
+     configurator( conf ),
+     pos( POS_BEGIN ),
+     val( VAL_BEGIN )
+{ }
+
+
+BranchingIntegers::BranchingIntegers(Space* home,
+                                      bool share,
+                                      BranchingIntegers&amp; b)
+   : Branching(home, share, b),
+     configurator(b.configurator),
+     pos(b.pos),
+     val(b.val)
+{
+   vars.update(home, share, b.vars);
+}
+
+// What does this do???
+const BranchingDesc* BranchingIntegers::description(const Space*) const
+{
+   assert( pos != POS_BEGIN &amp;&amp; pos &lt; vars.size() );
+   return new PosValDesc&lt;int,2&gt;(this, pos, val);
+}
+
+// Compute the variable and value to branch on
+bool BranchingIntegers::status(const Space* home) const
+{
+   // First we find the variable to branch one, using the standard
+   // fail-first heuristic where the variable with the smallest domain is
+   // chosen. This is done by iterating over all variable, checking
+   // if they have been assigned, and if not, then we check whether the
+   // domain of the variable is smaller than the smallest seen so far. If
+   // it is, we choose the new one. There is no tiebreaking as the
+   // first variable occuring with the smallest domain is used.
+   int smallest_domain = numeric_limits&lt;int&gt;::max();
+
+   for ( int i = 0; i &lt; vars.size(); ++i ) {
+     if ( !vars[i].assigned() ) {
+       if ( vars[i].size() &lt; smallest_domain ) {
+         pos = i;
+         smallest_domain = vars[i].size();
+       }
+     }
+   }
+   if ( pos == POS_BEGIN ) {
+     // No non-assigned variables left
+     return false;
+   }
+
+   // When the variable has been detected we need to find a value that
+   // does not have support. In case several values does not have
+   // support, we choose the first one. If all values have support
+   // we choose the first one in the domain.
+
+   // Get the valid domains computed so far for variable
+   // we are dealing with.
+   const set&lt;int&gt;&amp; valid = configurator.getValidIntegerDomain( pos );
+
+   // Iterate over the values in the view and take the
+   // first one not found to be valid
+   Int::ViewValues&lt;Int::IntView&gt; vals( vars[pos] );
+   val = vals.val();
+   while ( vals() ) {
+     if ( valid.find( vals.val() ) == valid.end() ) {
+       // This value has not been found to be valid yet, so use it.
+       val = vals.val();
+       return true;
+     }
+     ++vals;
+   }
+
+   // If we reach here, all values were supported,
+   // so use the first one in the domain.
+   return true;
+}
+
+ExecStatus BranchingIntegers::commit(Space *home,
+                                      const BranchingDesc* d,
+                                      unsigned int a)
+{
+   const PosValDesc&lt;int,2&gt; *desc =
+     static_cast&lt;const PosValDesc&lt;int,2&gt;*&gt;( d );
+   pos = POS_BEGIN;
+   val = VAL_BEGIN;
+   if ( a ) {
+     return me_failed( vars[desc-&gt;pos()].nq( home, desc-&gt;val() ) )
+                       ? ES_FAILED : ES_OK;
+   }
+   else {
+     return me_failed( vars[desc-&gt;pos()].eq( home, desc-&gt;val() ) )
+                       ? ES_FAILED : ES_OK;
+   }
+}
+
+// Copy a BranchingIntegers object.
+Actor* BranchingIntegers::copy(Space *home, bool share)
+{
+   return new (home) BranchingIntegers(home, share, *this);
+}
+
+// Add the branching strategy to the space home,
+// where the home has the IntVarArgs vars
+void BranchingIntegers::post( Space* home,
+                               IntVarArgs vars,
+                               IConfigurator* conf )
+{
+   ViewArray&lt;Int::IntView&gt; xv( home, vars );
+   (void) new (home) BranchingIntegers( home, xv, *conf );
+}
+
+Kind regards
+Morten
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002204.html">[gecode-users] Branching and FlatZincGecode
+</A></li>
+	<LI>Next message: <A HREF="002202.html">[gecode-users] Variable update problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2207">[ date ]</a>
+              <a href="thread.html#2207">[ thread ]</a>
+              <a href="subject.html#2207">[ subject ]</a>
+              <a href="author.html#2207">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

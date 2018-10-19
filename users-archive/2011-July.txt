@@ -1,0 +1,2025 @@
+From tack at gecode.org  Fri Jul 15 08:12:47 2011
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 15 Jul 2011 08:12:47 +0200
+Subject: [gecode-users] Gecode 3.6.0 released
+Message-ID: <51095F8C-3714-41BC-B126-001985B27778@gecode.org>
+
+Dear all,
+
+we are releasing a new version of Gecode:
+
+         Gecode 3.6.0
+  http://www.gecode.org
+
+This release adds new constraints (value precedence constraints for integer and set variables, no-overlap constraints for rectangles, constraints for Hamiltonian paths), improves and cleans up a number of existing constraints (scheduling, channeling, relation, bin-packing, lexicographic relations), and adds new functionality (support for externalization of choices for distributed search, support for incremental propagation).
+
+Some models might have to be changed as the graph and scheduling modules have been incorporated into the integer module (removing the respective include directives is sufficient).
+
+On top, there are many small fixes, in particular for FlatZinc.
+
+On our web site, you find source packages, binary packages for Windows and Mac OS, and the full documentation.
+
+Cheers,
+	Guido
+
+
+
+From ChaosAngel at gmx.de  Mon Jul 18 10:05:23 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 10:05:23 +0200
+Subject: [gecode-users] IIS using undoing
+Message-ID: <20110718080523.240360@gmx.net>
+
+Hello,
+
+i want to compute an "Irreducible Infeasible Set" (IIS) and some derivatives.
+This means, given a set of contraints C that are infeasible i want to find the source of infeasibility.
+I'm satisfied with a rather small (but not necessarily optimal) and fast approach.
+A simple way of doing this would now be, trying to remove all single constraints from the set C and see if it is still infeasible. If yes, we can remove the constraint from the set.
+In Gecode i could do this using a lot of copies of the Space, always posting the constraints again.
+Instead of posting them again i could also use reified constraints and set all but one to true.
+But here i also have to copy the space, as i can not ? undo the setting of a variable.
+So is there a clever way of doing this abusing the Gecode SearchEngine ? (what i understood from the manual there is undoing instead of copying at some points).
+
+
+
+The same thing i wanna do with a similar set C and a reified constraint x.
+I wanna find the minimal (small) subset of C that the reified constraint x is still decided (true or false does not matter).
+
+
+Thanks in advance for your proposals.
+
+Best,
+Max
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From ChaosAngel at gmx.de  Mon Jul 18 10:21:27 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 10:21:27 +0200
+Subject: [gecode-users] Initializing domain of IntegerVars
+Message-ID: <20110718082127.262030@gmx.net>
+
+Hello,
+
+currently i have to create some IntegerVariables and some constraints, and i'm doing this using the IntVar/2 constructor, restricting the variables domain.
+
+Due to some design decisions it could be necessary to change this to something like:
+
+IntVar x(*this, MIN_INT,MAX_INT);
+dom(*this, x,2,12);
+or worse
+BoolVar a,b;
+dom(*this, x,2,12, a);
+dom(*this, x,24,42, b);
+rel(*this, a, BOT_OR, b, 1).
+
+
+Afterwards i will do post further constraints and do search.
+Is this bad in terms of performance, and if, why.
+
+(I can understand that i have to post the dom constraint first, because sending a constraint already does some propagation.
+Furthermore: does the second variant (with the BOT_OR) also restrict the domain of the variable?)
+
+Best,
+Max
+
+
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From tack at gecode.org  Mon Jul 18 10:30:35 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 18 Jul 2011 10:30:35 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <20110718080523.240360@gmx.net>
+References: <20110718080523.240360@gmx.net>
+Message-ID: <9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+
+Hello Max,
+
+you may be able to turn this into a constraint problem that you can solve using the Gecode search engines, but they are also copying the spaces under the hood.  The only thing they may do different from plain copying is recomputation (see Sect. 7.2 in Modeling and Programming with Gecode).  There is no mechanism in Gecode to undo any changes to a variable domain.
+
+Cheers,
+Guido
+
+On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+
+> Hello,
+> 
+> i want to compute an "Irreducible Infeasible Set" (IIS) and some derivatives.
+> This means, given a set of contraints C that are infeasible i want to find the source of infeasibility.
+> I'm satisfied with a rather small (but not necessarily optimal) and fast approach.
+> A simple way of doing this would now be, trying to remove all single constraints from the set C and see if it is still infeasible. If yes, we can remove the constraint from the set.
+> In Gecode i could do this using a lot of copies of the Space, always posting the constraints again.
+> Instead of posting them again i could also use reified constraints and set all but one to true.
+> But here i also have to copy the space, as i can not ? undo the setting of a variable.
+> So is there a clever way of doing this abusing the Gecode SearchEngine ? (what i understood from the manual there is undoing instead of copying at some points).
+> 
+> 
+> 
+> The same thing i wanna do with a similar set C and a reified constraint x.
+> I wanna find the minimal (small) subset of C that the reified constraint x is still decided (true or false does not matter).
+> 
+> 
+> Thanks in advance for your proposals.
+> 
+> Best,
+> Max
+> 
+> -- 
+> NEU: FreePhone - kostenlos mobil telefonieren!			
+> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+
+From tack at gecode.org  Mon Jul 18 10:37:32 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 18 Jul 2011 10:37:32 +0200
+Subject: [gecode-users] Initializing domain of IntegerVars
+In-Reply-To: <20110718082127.262030@gmx.net>
+References: <20110718082127.262030@gmx.net>
+Message-ID: <B2A7B8A3-E529-4D0D-8A4B-0A1F612CD9F3@gecode.org>
+
+On 18 Jul 2011, at 10:21, Max Ostrowski wrote:
+
+> Hello,
+> 
+> currently i have to create some IntegerVariables and some constraints, and i'm doing this using the IntVar/2 constructor, restricting the variables domain.
+> 
+> Due to some design decisions it could be necessary to change this to something like:
+> 
+> IntVar x(*this, MIN_INT,MAX_INT);
+
+You should use Gecode::Int::Limits::min and ::max here (otherwise you'll get an exception).
+
+> dom(*this, x,2,12);
+> or worse
+> BoolVar a,b;
+> dom(*this, x,2,12, a);
+> dom(*this, x,24,42, b);
+> rel(*this, a, BOT_OR, b, 1).
+> 
+> 
+> Afterwards i will do post further constraints and do search.
+> Is this bad in terms of performance, and if, why.
+
+In some cases it may lead to less efficient propagators being posted (e.g. linear equation propagators exist in different versions depending on the variable domains).  In the case of the BOT_OR, it may be even worse if you search the x variables before the Boolean variables, because search will try everything in min..max instead of just the two possible sets of values (see below).
+
+> (I can understand that i have to post the dom constraint first, because sending a constraint already does some propagation.
+
+Yes, dom constraints have an immediate effect.
+
+> Furthermore: does the second variant (with the BOT_OR) also restrict the domain of the variable?)
+
+No, it doesn't (it would require something called constructive disjunction, which the BOT_OR constraint in Gecode cannot do).  In this case you'll have to preprocess your input data yourself to determine the smallest possible domains.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+
+From ChaosAngel at gmx.de  Mon Jul 18 11:03:40 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 11:03:40 +0200
+Subject: [gecode-users] Initializing domain of IntegerVars
+In-Reply-To: <B2A7B8A3-E529-4D0D-8A4B-0A1F612CD9F3@gecode.org>
+References: <20110718082127.262030@gmx.net>
+	<B2A7B8A3-E529-4D0D-8A4B-0A1F612CD9F3@gecode.org>
+Message-ID: <20110718090340.5890@gmx.net>
+
+
+-------- Original-Nachricht --------
+> Datum: Mon, 18 Jul 2011 10:37:32 +0200
+> Von: Guido Tack <tack at gecode.org>
+> An: Max Ostrowski <ChaosAngel at gmx.de>
+> CC: users at gecode.org
+> Betreff: Re: [gecode-users] Initializing domain of IntegerVars
+
+> On 18 Jul 2011, at 10:21, Max Ostrowski wrote:
+> 
+> > Hello,
+> > 
+> > currently i have to create some IntegerVariables and some constraints,
+> and i'm doing this using the IntVar/2 constructor, restricting the variables
+> domain.
+> > 
+> > Due to some design decisions it could be necessary to change this to
+> something like:
+> > 
+> > IntVar x(*this, MIN_INT,MAX_INT);
+> 
+> You should use Gecode::Int::Limits::min and ::max here (otherwise you'll
+> get an exception).
+Sorry, this was only Pseudo-code ...
+> 
+> > dom(*this, x,2,12);
+> > or worse
+> > BoolVar a,b;
+> > dom(*this, x,2,12, a);
+> > dom(*this, x,24,42, b);
+> > rel(*this, a, BOT_OR, b, 1).
+> > 
+> > 
+> > Afterwards i will do post further constraints and do search.
+> > Is this bad in terms of performance, and if, why.
+> 
+> In some cases it may lead to less efficient propagators being posted (e.g.
+> linear equation propagators exist in different versions depending on the
+> variable domains).  In the case of the BOT_OR, it may be even worse if you
+> search the x variables before the Boolean variables, because search will try
+> everything in min..max instead of just the two possible sets of values
+> (see below).
+> 
+> > (I can understand that i have to post the dom constraint first, because
+> sending a constraint already does some propagation.
+> 
+> Yes, dom constraints have an immediate effect.
+> 
+> > Furthermore: does the second variant (with the BOT_OR) also restrict the
+> domain of the variable?)
+> 
+> No, it doesn't (it would require something called constructive
+> disjunction, which the BOT_OR constraint in Gecode cannot do).  In this case you'll
+> have to preprocess your input data yourself to determine the smallest
+> possible domains.
+> 
+> Cheers,
+> Guido
+
+Thanks a lot for this information.
+Max
+> 
+> -- 
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+> 
+> 
+> 
+> 
+> 
+
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From ChaosAngel at gmx.de  Mon Jul 18 12:03:27 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 12:03:27 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+Message-ID: <20110718100327.5860@gmx.net>
+
+Thanks for the information.
+Do you think that recomputation in this case could pay off?
+Furthmore, to turn it into a constraint problem, how could i configure my search in a way that the reified constraint xb==x becomes true/false, without labeling xb.
+I can not set xb to true/false, because i want the propagation of the other constraints to be the cause that xb comes true/false.
+
+My first idea was double reification.
+Consider the reified constraint set B=C are the set to minimize so that they still propagate x.
+I do know the values of B.
+I could post the constraints D=C with fresh boolean variables D.
+Adding then boolean reified constraints (val(B)==D)==F.
+So that F_i indicates that the constraint c_i has the predifined value(or not).
+I could then minimize on the number of true F's(branching on F).
+But i do not know how to ensure that x==xb will be decided.
+
+Any ideas?
+
+Best,
+Max
+
+
+-------- Original-Nachricht --------
+> Datum: Mon, 18 Jul 2011 10:30:35 +0200
+> Von: Guido Tack <tack at gecode.org>
+> An: Max Ostrowski <ChaosAngel at gmx.de>
+> CC: users at gecode.org
+> Betreff: Re: [gecode-users] IIS using undoing
+
+> Hello Max,
+> 
+> you may be able to turn this into a constraint problem that you can solve
+> using the Gecode search engines, but they are also copying the spaces under
+> the hood.  The only thing they may do different from plain copying is
+> recomputation (see Sect. 7.2 in Modeling and Programming with Gecode).  There
+> is no mechanism in Gecode to undo any changes to a variable domain.
+> 
+> Cheers,
+> Guido
+> 
+> On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+> 
+> > Hello,
+> > 
+> > i want to compute an "Irreducible Infeasible Set" (IIS) and some
+> derivatives.
+> > This means, given a set of contraints C that are infeasible i want to
+> find the source of infeasibility.
+> > I'm satisfied with a rather small (but not necessarily optimal) and fast
+> approach.
+> > A simple way of doing this would now be, trying to remove all single
+> constraints from the set C and see if it is still infeasible. If yes, we can
+> remove the constraint from the set.
+> > In Gecode i could do this using a lot of copies of the Space, always
+> posting the constraints again.
+> > Instead of posting them again i could also use reified constraints and
+> set all but one to true.
+> > But here i also have to copy the space, as i can not ? undo the setting
+> of a variable.
+> > So is there a clever way of doing this abusing the Gecode SearchEngine ?
+> (what i understood from the manual there is undoing instead of copying at
+> some points).
+> > 
+> > 
+> > 
+> > The same thing i wanna do with a similar set C and a reified constraint
+> x.
+> > I wanna find the minimal (small) subset of C that the reified constraint
+> x is still decided (true or false does not matter).
+> > 
+> > 
+> > Thanks in advance for your proposals.
+> > 
+> > Best,
+> > Max
+> > 
+> > -- 
+> > NEU: FreePhone - kostenlos mobil telefonieren!			
+> > Jetzt informieren: http://www.gmx.net/de/go/freephone
+> > 
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> -- 
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+> 
+> 
+> 
+> 
+> 
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From caj21 at st-andrews.ac.uk  Mon Jul 18 12:09:15 2011
+From: caj21 at st-andrews.ac.uk (Christopher Jefferson)
+Date: Mon, 18 Jul 2011 10:09:15 +0000
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <20110718100327.5860@gmx.net>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+Message-ID: <977F7D7A-232E-4813-A844-E324403D7F6F@st-andrews.ac.uk>
+
+
+On 18 Jul 2011, at 11:03, Max Ostrowski wrote:
+
+> Thanks for the information.
+> Do you think that recomputation in this case could pay off?
+> Furthmore, to turn it into a constraint problem, how could i configure my search in a way that the reified constraint xb==x becomes true/false, without labeling xb.
+
+Don't try to do that. You should always aim to branch on all the variables.
+
+You could put them at the end of the variable ordering, where they should already be assigned. Also, it might well be that allowing them to be branched on early might produce the smallest searches, it is worth exploring the possibilities.
+
+Chris
+
+From ChaosAngel at gmx.de  Mon Jul 18 12:54:21 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 12:54:21 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <977F7D7A-232E-4813-A844-E324403D7F6F@st-andrews.ac.uk>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<977F7D7A-232E-4813-A844-E324403D7F6F@st-andrews.ac.uk>
+Message-ID: <20110718105421.5880@gmx.net>
+
+>?Betreff: Re: [gecode-users] IIS using undoing
+>?
+
+> Thanks for the information.
+> Do you think that recomputation in this case could pay off?
+> Furthmore, to turn it into a constraint problem, how could i configure my search in a way that the reified constraint xb==x becomes true/false, without labeling xb.
+
+Don't try to do that. You should always aim to branch on all the variables.
+
+You could put them at the end of the variable ordering, where they should already be assigned. Also, it might well be that allowing them to be branched on early might produce the smallest searches, it is worth exploring the possibilities.
+
+Chris
+
+Sorry but you got me wrong.
+I will elaborate a bit more this:
+Consider decision machine (outside of Gecode).
+It goes stepwise:
+At first it decides to make
+b_3=true
+then i do propagation, nothing happens
+Then it decides
+b_1=false
+propagation -> nothing
+then it sets
+b_4=true
+propagation -> b_2=true is propagated
+
+
+Now, the simplest reason for this propagation was:
+b_3 /\ -b_1 /\ b_4 -> b_2
+But maybe the constraint -b_1 was not necessary for this propagation, it is about some other problem.
+So maybe only given b_3=true and b_4=true would also made the propagation b_2=true.
+This is only a subset and a much smarter reason for the propagation.
+If i would only test b_3=true nothing would be propagated, so b_3 is not the reason for b_2.
+
+If i would now branch on b_2 the result of the propagation would always be
+satisfiable, but i could not read information out of it.
+I could not find out if the tested subset is enough to decided wether b_2=true or not.
+
+I hope i could clarify the problem a bit.
+
+Best,
+Max
+
+>My first idea was double reification.
+>Consider the reified constraint set B=C are the set to minimize so that >they still propagate x.
+>I do know the values of B.
+>I could post the constraints D=C with fresh boolean variables D.
+>Adding then boolean reified constraints (val(B)==D)==F.
+>So that F_i indicates that the constraint c_i has the predifined value(or not).
+>I could then minimize on the number of true F's(branching on F).
+>But i do not know how to ensure that x==xb will be decided.
+
+Any ideas?
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From tack at gecode.org  Mon Jul 18 12:54:24 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 18 Jul 2011 12:54:24 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <20110718100327.5860@gmx.net>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+Message-ID: <0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+
+On 18 Jul 2011, at 12:03, Max Ostrowski wrote:
+
+> Thanks for the information.
+> Do you think that recomputation in this case could pay off?
+
+I don't know.  In terms of memory, possibly.  In terms of runtime, only if the search tree is deep.
+
+> Furthmore, to turn it into a constraint problem, how could i configure my search in a way that the reified constraint xb==x becomes true/false, without labeling xb.
+> I can not set xb to true/false, because i want the propagation of the other constraints to be the cause that xb comes true/false.
+
+You can't use reification to observe anything about propagation, there's no reliable notion of "cause" here.  The only thing you can observe are solutions of the problem, i.e., whether an assignment satisfies the constraints (including the reified ones) or not.  And for that it doesn't matter if the xb are labeled before or after the other variables (as Chris has pointed out).
+
+Cheers,
+Guido
+
+> 
+> My first idea was double reification.
+> Consider the reified constraint set B=C are the set to minimize so that they still propagate x.
+> I do know the values of B.
+> I could post the constraints D=C with fresh boolean variables D.
+> Adding then boolean reified constraints (val(B)==D)==F.
+> So that F_i indicates that the constraint c_i has the predifined value(or not).
+> I could then minimize on the number of true F's(branching on F).
+> But i do not know how to ensure that x==xb will be decided.
+> 
+> Any ideas?
+> 
+> Best,
+> Max
+> 
+> 
+> -------- Original-Nachricht --------
+>> Datum: Mon, 18 Jul 2011 10:30:35 +0200
+>> Von: Guido Tack <tack at gecode.org>
+>> An: Max Ostrowski <ChaosAngel at gmx.de>
+>> CC: users at gecode.org
+>> Betreff: Re: [gecode-users] IIS using undoing
+> 
+>> Hello Max,
+>> 
+>> you may be able to turn this into a constraint problem that you can solve
+>> using the Gecode search engines, but they are also copying the spaces under
+>> the hood.  The only thing they may do different from plain copying is
+>> recomputation (see Sect. 7.2 in Modeling and Programming with Gecode).  There
+>> is no mechanism in Gecode to undo any changes to a variable domain.
+>> 
+>> Cheers,
+>> Guido
+>> 
+>> On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+>> 
+>>> Hello,
+>>> 
+>>> i want to compute an "Irreducible Infeasible Set" (IIS) and some
+>> derivatives.
+>>> This means, given a set of contraints C that are infeasible i want to
+>> find the source of infeasibility.
+>>> I'm satisfied with a rather small (but not necessarily optimal) and fast
+>> approach.
+>>> A simple way of doing this would now be, trying to remove all single
+>> constraints from the set C and see if it is still infeasible. If yes, we can
+>> remove the constraint from the set.
+>>> In Gecode i could do this using a lot of copies of the Space, always
+>> posting the constraints again.
+>>> Instead of posting them again i could also use reified constraints and
+>> set all but one to true.
+>>> But here i also have to copy the space, as i can not ? undo the setting
+>> of a variable.
+>>> So is there a clever way of doing this abusing the Gecode SearchEngine ?
+>> (what i understood from the manual there is undoing instead of copying at
+>> some points).
+>>> 
+>>> 
+>>> 
+>>> The same thing i wanna do with a similar set C and a reified constraint
+>> x.
+>>> I wanna find the minimal (small) subset of C that the reified constraint
+>> x is still decided (true or false does not matter).
+>>> 
+>>> 
+>>> Thanks in advance for your proposals.
+>>> 
+>>> Best,
+>>> Max
+>>> 
+>>> -- 
+>>> NEU: FreePhone - kostenlos mobil telefonieren!			
+>>> Jetzt informieren: http://www.gmx.net/de/go/freephone
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+>> -- 
+>> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>> 
+>> 
+>> 
+>> 
+>> 
+> 
+> -- 
+> NEU: FreePhone - kostenlos mobil telefonieren!			
+> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+
+From ChaosAngel at gmx.de  Mon Jul 18 13:22:53 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 18 Jul 2011 13:22:53 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+Message-ID: <20110718112253.203710@gmx.net>
+
+Thanks again.
+Last question according to this.
+I finally only need a linear amount of calls to the status function of the space, but as trailsize can be huge i want to avoid overhead.
+So consider i have a space with the reified constraints posted.
+Lets call this the initial Space.
+
+Now i do a copy of the initial Space setting all constraints b_1 ... b_n-1 to true. Calling status i can see if my constraint x is propagated or not.
+If yes, i do not need to consider the constraint b_n anymore.
+
+Now, in the next step, i do a copy of the initial Space setting all constraints b_1 ... b_n-2 to true. Calling statis i can see if my constraint x is propagated or not.
+If yes, i do not need to consider the constraint b_n-1 anymore.
+...
+...
+
+This means i need a linear amount of copies of the space (not at the same time but successively).
+Can i somehow reuse parts of the propagation?
+So, let n=150000, a lot of the propagation could be reused if it does not affect the constraint b_n-2.
+So is there a possibility in Gecode that does (similar) things?
+
+Best,
+Max
+
+
+
+-------- Original-Nachricht --------
+> Datum: Mon, 18 Jul 2011 12:54:24 +0200
+> Von: Guido Tack <tack at gecode.org>
+> An: Max Ostrowski <ChaosAngel at gmx.de>
+> CC: users at gecode.org
+> Betreff: Re: [gecode-users] IIS using undoing
+
+> On 18 Jul 2011, at 12:03, Max Ostrowski wrote:
+> 
+> > Thanks for the information.
+> > Do you think that recomputation in this case could pay off?
+> 
+> I don't know.  In terms of memory, possibly.  In terms of runtime, only if
+> the search tree is deep.
+> 
+> > Furthmore, to turn it into a constraint problem, how could i configure
+> my search in a way that the reified constraint xb==x becomes true/false,
+> without labeling xb.
+> > I can not set xb to true/false, because i want the propagation of the
+> other constraints to be the cause that xb comes true/false.
+> 
+> You can't use reification to observe anything about propagation, there's
+> no reliable notion of "cause" here.  The only thing you can observe are
+> solutions of the problem, i.e., whether an assignment satisfies the constraints
+> (including the reified ones) or not.  And for that it doesn't matter if
+> the xb are labeled before or after the other variables (as Chris has pointed
+> out).
+> 
+> Cheers,
+> Guido
+> 
+> > 
+> > My first idea was double reification.
+> > Consider the reified constraint set B=C are the set to minimize so that
+> they still propagate x.
+> > I do know the values of B.
+> > I could post the constraints D=C with fresh boolean variables D.
+> > Adding then boolean reified constraints (val(B)==D)==F.
+> > So that F_i indicates that the constraint c_i has the predifined
+> value(or not).
+> > I could then minimize on the number of true F's(branching on F).
+> > But i do not know how to ensure that x==xb will be decided.
+> > 
+> > Any ideas?
+> > 
+> > Best,
+> > Max
+> > 
+> > 
+> > -------- Original-Nachricht --------
+> >> Datum: Mon, 18 Jul 2011 10:30:35 +0200
+> >> Von: Guido Tack <tack at gecode.org>
+> >> An: Max Ostrowski <ChaosAngel at gmx.de>
+> >> CC: users at gecode.org
+> >> Betreff: Re: [gecode-users] IIS using undoing
+> > 
+> >> Hello Max,
+> >> 
+> >> you may be able to turn this into a constraint problem that you can
+> solve
+> >> using the Gecode search engines, but they are also copying the spaces
+> under
+> >> the hood.  The only thing they may do different from plain copying is
+> >> recomputation (see Sect. 7.2 in Modeling and Programming with Gecode). 
+> There
+> >> is no mechanism in Gecode to undo any changes to a variable domain.
+> >> 
+> >> Cheers,
+> >> Guido
+> >> 
+> >> On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+> >> 
+> >>> Hello,
+> >>> 
+> >>> i want to compute an "Irreducible Infeasible Set" (IIS) and some
+> >> derivatives.
+> >>> This means, given a set of contraints C that are infeasible i want to
+> >> find the source of infeasibility.
+> >>> I'm satisfied with a rather small (but not necessarily optimal) and
+> fast
+> >> approach.
+> >>> A simple way of doing this would now be, trying to remove all single
+> >> constraints from the set C and see if it is still infeasible. If yes,
+> we can
+> >> remove the constraint from the set.
+> >>> In Gecode i could do this using a lot of copies of the Space, always
+> >> posting the constraints again.
+> >>> Instead of posting them again i could also use reified constraints and
+> >> set all but one to true.
+> >>> But here i also have to copy the space, as i can not ? undo the
+> setting
+> >> of a variable.
+> >>> So is there a clever way of doing this abusing the Gecode SearchEngine
+> ?
+> >> (what i understood from the manual there is undoing instead of copying
+> at
+> >> some points).
+> >>> 
+> >>> 
+> >>> 
+> >>> The same thing i wanna do with a similar set C and a reified
+> constraint
+> >> x.
+> >>> I wanna find the minimal (small) subset of C that the reified
+> constraint
+> >> x is still decided (true or false does not matter).
+> >>> 
+> >>> 
+> >>> Thanks in advance for your proposals.
+> >>> 
+> >>> Best,
+> >>> Max
+> >>> 
+> >>> -- 
+> >>> NEU: FreePhone - kostenlos mobil telefonieren!			
+> >>> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> >>> 
+> >>> _______________________________________________
+> >>> Gecode users mailing list
+> >>> users at gecode.org
+> >>> https://www.gecode.org/mailman/listinfo/gecode-users
+> >> 
+> >> -- 
+> >> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+> >> 
+> >> 
+> >> 
+> >> 
+> >> 
+> > 
+> > -- 
+> > NEU: FreePhone - kostenlos mobil telefonieren!			
+> > Jetzt informieren: http://www.gmx.net/de/go/freephone
+> > 
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> -- 
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+> 
+> 
+> 
+> 
+> 
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From tack at gecode.org  Tue Jul 19 11:42:33 2011
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 19 Jul 2011 11:42:33 +0200
+Subject: [gecode-users] IIS using undoing
+In-Reply-To: <20110718112253.203710@gmx.net>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+	<20110718112253.203710@gmx.net>
+Message-ID: <67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+
+On 18 Jul 2011, at 13:22, Max Ostrowski wrote:
+
+> Thanks again.
+> Last question according to this.
+> I finally only need a linear amount of calls to the status function of the space, but as trailsize can be huge i want to avoid overhead.
+> So consider i have a space with the reified constraints posted.
+> Lets call this the initial Space.
+> 
+> Now i do a copy of the initial Space setting all constraints b_1 ... b_n-1 to true. Calling status i can see if my constraint x is propagated or not.
+> If yes, i do not need to consider the constraint b_n anymore.
+> 
+> Now, in the next step, i do a copy of the initial Space setting all constraints b_1 ... b_n-2 to true. Calling statis i can see if my constraint x is propagated or not.
+> If yes, i do not need to consider the constraint b_n-1 anymore.
+> ...
+> ...
+> 
+> This means i need a linear amount of copies of the space (not at the same time but successively).
+> Can i somehow reuse parts of the propagation?
+> So, let n=150000, a lot of the propagation could be reused if it does not affect the constraint b_n-2.
+> So is there a possibility in Gecode that does (similar) things?
+
+What you're trying to do here is the opposite of search: during search, the variables become monotonically more restricted, so the propagation is reused in that sense (you only propagate the new changes).  Your variables become monotonically less restricted (you start with all being 1, then un-assigning them one by one).  Constraint solvers are not built for this kind of anti-monotonicity, so they can't reuse the propagation (they'd have to find out which constraints are not affected by the variable you are un-assigning, which is the exact opposite of finding our which ones are affected by the new assignment).
+
+Cheers,
+Guido
+
+> 
+> Best,
+> Max
+> 
+> 
+> 
+> -------- Original-Nachricht --------
+>> Datum: Mon, 18 Jul 2011 12:54:24 +0200
+>> Von: Guido Tack <tack at gecode.org>
+>> An: Max Ostrowski <ChaosAngel at gmx.de>
+>> CC: users at gecode.org
+>> Betreff: Re: [gecode-users] IIS using undoing
+> 
+>> On 18 Jul 2011, at 12:03, Max Ostrowski wrote:
+>> 
+>>> Thanks for the information.
+>>> Do you think that recomputation in this case could pay off?
+>> 
+>> I don't know.  In terms of memory, possibly.  In terms of runtime, only if
+>> the search tree is deep.
+>> 
+>>> Furthmore, to turn it into a constraint problem, how could i configure
+>> my search in a way that the reified constraint xb==x becomes true/false,
+>> without labeling xb.
+>>> I can not set xb to true/false, because i want the propagation of the
+>> other constraints to be the cause that xb comes true/false.
+>> 
+>> You can't use reification to observe anything about propagation, there's
+>> no reliable notion of "cause" here.  The only thing you can observe are
+>> solutions of the problem, i.e., whether an assignment satisfies the constraints
+>> (including the reified ones) or not.  And for that it doesn't matter if
+>> the xb are labeled before or after the other variables (as Chris has pointed
+>> out).
+>> 
+>> Cheers,
+>> Guido
+>> 
+>>> 
+>>> My first idea was double reification.
+>>> Consider the reified constraint set B=C are the set to minimize so that
+>> they still propagate x.
+>>> I do know the values of B.
+>>> I could post the constraints D=C with fresh boolean variables D.
+>>> Adding then boolean reified constraints (val(B)==D)==F.
+>>> So that F_i indicates that the constraint c_i has the predifined
+>> value(or not).
+>>> I could then minimize on the number of true F's(branching on F).
+>>> But i do not know how to ensure that x==xb will be decided.
+>>> 
+>>> Any ideas?
+>>> 
+>>> Best,
+>>> Max
+>>> 
+>>> 
+>>> -------- Original-Nachricht --------
+>>>> Datum: Mon, 18 Jul 2011 10:30:35 +0200
+>>>> Von: Guido Tack <tack at gecode.org>
+>>>> An: Max Ostrowski <ChaosAngel at gmx.de>
+>>>> CC: users at gecode.org
+>>>> Betreff: Re: [gecode-users] IIS using undoing
+>>> 
+>>>> Hello Max,
+>>>> 
+>>>> you may be able to turn this into a constraint problem that you can
+>> solve
+>>>> using the Gecode search engines, but they are also copying the spaces
+>> under
+>>>> the hood.  The only thing they may do different from plain copying is
+>>>> recomputation (see Sect. 7.2 in Modeling and Programming with Gecode). 
+>> There
+>>>> is no mechanism in Gecode to undo any changes to a variable domain.
+>>>> 
+>>>> Cheers,
+>>>> Guido
+>>>> 
+>>>> On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+>>>> 
+>>>>> Hello,
+>>>>> 
+>>>>> i want to compute an "Irreducible Infeasible Set" (IIS) and some
+>>>> derivatives.
+>>>>> This means, given a set of contraints C that are infeasible i want to
+>>>> find the source of infeasibility.
+>>>>> I'm satisfied with a rather small (but not necessarily optimal) and
+>> fast
+>>>> approach.
+>>>>> A simple way of doing this would now be, trying to remove all single
+>>>> constraints from the set C and see if it is still infeasible. If yes,
+>> we can
+>>>> remove the constraint from the set.
+>>>>> In Gecode i could do this using a lot of copies of the Space, always
+>>>> posting the constraints again.
+>>>>> Instead of posting them again i could also use reified constraints and
+>>>> set all but one to true.
+>>>>> But here i also have to copy the space, as i can not ? undo the
+>> setting
+>>>> of a variable.
+>>>>> So is there a clever way of doing this abusing the Gecode SearchEngine
+>> ?
+>>>> (what i understood from the manual there is undoing instead of copying
+>> at
+>>>> some points).
+>>>>> 
+>>>>> 
+>>>>> 
+>>>>> The same thing i wanna do with a similar set C and a reified
+>> constraint
+>>>> x.
+>>>>> I wanna find the minimal (small) subset of C that the reified
+>> constraint
+>>>> x is still decided (true or false does not matter).
+>>>>> 
+>>>>> 
+>>>>> Thanks in advance for your proposals.
+>>>>> 
+>>>>> Best,
+>>>>> Max
+>>>>> 
+>>>>> -- 
+>>>>> NEU: FreePhone - kostenlos mobil telefonieren!			
+>>>>> Jetzt informieren: http://www.gmx.net/de/go/freephone
+>>>>> 
+>>>>> _______________________________________________
+>>>>> Gecode users mailing list
+>>>>> users at gecode.org
+>>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>> 
+>>>> -- 
+>>>> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>>>> 
+>>>> 
+>>>> 
+>>>> 
+>>>> 
+>>> 
+>>> -- 
+>>> NEU: FreePhone - kostenlos mobil telefonieren!			
+>>> Jetzt informieren: http://www.gmx.net/de/go/freephone
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+>> -- 
+>> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>> 
+>> 
+>> 
+>> 
+>> 
+> 
+> -- 
+> NEU: FreePhone - kostenlos mobil telefonieren!			
+> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+
+From ChaosAngel at gmx.de  Thu Jul 21 10:49:04 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Thu, 21 Jul 2011 10:49:04 +0200
+Subject: [gecode-users] Computing Variable Domains (Integer)
+In-Reply-To: <67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+	<20110718112253.203710@gmx.net>
+	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+Message-ID: <20110721084904.101250@gmx.net>
+
+Hello everybody,
+
+as variables in gecode need to have a domain, i want to compute the domain of the variables automatically, given the constraints.
+I could also let the constraints restrict the domains of my variables, but as i understood, this is similar to propagation and could take some time.
+There i want to restrict the domain manually for all unary constraints.
+So, given a constraint "(a>5 /\ a<10) \/ (a>100 /\ a<105)"
+the domain should be {6..9,101..104}.
+Therefore i wanted to use some Gecode classes to compute the intersection/union/complement etc.. of the sets.
+Am i right that i can use the Int::Iter::Ranges classes for this?
+And second, how do they work?
+So in this case, i would create a 
+
+IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+
+And them somehow the intersection of this.
+But i was neither able to initialize a set with a Range, nor to combine Ranges recursively.
+
+So, how do i do this using the helping classes of gecode.
+
+Best,
+Max
+
+-- 
+NEU: FreePhone - 0ct/min Handyspartarif mit Geld-zur?ck-Garantie!		
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From cschulte at kth.se  Thu Jul 21 19:14:44 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 21 Jul 2011 19:14:44 +0200
+Subject: [gecode-users] Computing Variable Domains (Integer)
+In-Reply-To: <20110721084904.101250@gmx.net>
+References: <20110718080523.240360@gmx.net>	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>	<20110718100327.5860@gmx.net>	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>	<20110718112253.203710@gmx.net>	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+	<20110721084904.101250@gmx.net>
+Message-ID: <002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+
+The best is to look for examples in the code ;-) Just grep for it.
+
+MinMax is nothing but a base-class for other classes and cannot be used directly. Look for the iterators that take arrays as input, they will do what you want.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Max Ostrowski
+Sent: Thursday, July 21, 2011 10:49 AM
+To: users at gecode.org
+Subject: [gecode-users] Computing Variable Domains (Integer)
+
+Hello everybody,
+
+as variables in gecode need to have a domain, i want to compute the domain of the variables automatically, given the constraints.
+I could also let the constraints restrict the domains of my variables, but as i understood, this is similar to propagation and could take some time.
+There i want to restrict the domain manually for all unary constraints.
+So, given a constraint "(a>5 /\ a<10) \/ (a>100 /\ a<105)"
+the domain should be {6..9,101..104}.
+Therefore i wanted to use some Gecode classes to compute the intersection/union/complement etc.. of the sets.
+Am i right that i can use the Int::Iter::Ranges classes for this?
+And second, how do they work?
+So in this case, i would create a 
+
+IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+
+And them somehow the intersection of this.
+But i was neither able to initialize a set with a Range, nor to combine Ranges recursively.
+
+So, how do i do this using the helping classes of gecode.
+
+Best,
+Max
+
+-- 
+NEU: FreePhone - 0ct/min Handyspartarif mit Geld-zur?ck-Garantie!		
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ashis.k.maity at lmco.com  Fri Jul 22 17:10:36 2011
+From: ashis.k.maity at lmco.com (Maity, Ashis K)
+Date: Fri, 22 Jul 2011 11:10:36 -0400
+Subject: [gecode-users] Compilation trouble in 64 bit environment?
+In-Reply-To: <002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+	<20110718112253.203710@gmx.net>
+	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+	<20110721084904.101250@gmx.net>
+	<002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+Message-ID: <67B0B414F1419D49837D1FCA9B51825A92ABA8B8@HVXMSPB.us.lmco.com>
+
+Hi All,
+
+I have recently upgraded my computer to 64 bit Windows 7 and new visual Studio installation. After this I get a bunch of warnings like the following and the compilation takes a long time. Worse, while running the same problem, the new environment consumes a ton of memory. Did anybody experience similar issues? Any feedback is appreciated.
+
+Thanks,
+
+Ashis
+
+C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) : warning C4275: non dll-interface class 'std::exception' used as base for dll-interface class 'Gecode::Exception'
+1>        C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\include\exception(95) : see declaration of 'std::exception'
+1>        C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) : see declaration of 'Gecode::Exception'
+1>C:\data\amaity\Gecode36\include\gecode/kernel/archive.hpp(246) : warning C4800: 'unsigned int' : forcing value to bool 'true' or 'false' (performance warning)
+1>C:\data\amaity\Gecode36\include\gecode/kernel/region.hpp(75) : warning C4200: nonstandard extension used : zero-sized array in struct/union
+1>        Cannot generate copy-ctor or copy-assignment operator when UDT contains a zero-sized array
+1>C:\data\amaity\Gecode36\include\gecode/gist.hh(162) : warning C4251: 'Gecode::Gist::TextOutput::n' : class 'std::basic_string<_Elem,_Traits,_Ax>' needs to have dll-interface to be used by clients of class 'Gecode::Gist::TextOutput'
+1>        with
+1>        [
+1>            _Elem=char,
+1>            _Traits=std::char_traits<char>,
+1>            _Ax=std::allocator<char>
+1>        ]
+1>C:\data\amaity\Gecode36\include\gecode/driver.hh(485) : warning C4251: 'Gecode::Options::inspect' : class 'Gecode::Options::_I' needs to have dll-interface to be used by clients of class 'Gecode::Options'
+1>        C:\data\amaity\Gecode36\include\gecode/driver.hh(447) : see declaration of 'Gecode::Options::_I'
+1>C:\data\amaity\Gecode36\include\gecode/driver/options.hpp(319) : warning C4800: 'int' : forcing value to bool 'true' or 'false' (performance warning)
+1>.\Scheduler.cpp(178) : warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(220) : warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(245) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(366) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(465) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(466) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(472) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(473) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(489) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(506) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(551) : warning C4267: 'initializing' : conversion from 'size_t' to 'unsigned int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(655) : warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(666) : warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(679) : warning C4267: 'initializing' : conversion from 'size_t' to 'int', possible loss of data
+1>C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(358) : warning C4345: behavior change: an object of POD type constructed with an initializer of the form () will be default-initialized
+1>        C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(376) : see reference to function template instantiation 'T *Gecode::Heap::alloc<Gecode::DFA::Transition>(unsigned long)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+1>        C:\data\amaity\Gecode36\include\gecode/int/extensional/dfa.hpp(87) : see reference to function template instantiation 'T *Gecode::Heap::alloc<Gecode::DFA::Transition>(int)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+
+
+From cschulte at kth.se  Fri Jul 22 17:36:05 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 22 Jul 2011 17:36:05 +0200
+Subject: [gecode-users] Compilation trouble in 64 bit environment?
+In-Reply-To: <67B0B414F1419D49837D1FCA9B51825A92ABA8B8@HVXMSPB.us.lmco.com>
+References: <20110718080523.240360@gmx.net>	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>	<20110718100327.5860@gmx.net>	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>	<20110718112253.203710@gmx.net>	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>	<20110721084904.101250@gmx.net>	<002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+	<67B0B414F1419D49837D1FCA9B51825A92ABA8B8@HVXMSPB.us.lmco.com>
+Message-ID: <001201cc4885$139b3210$3ad19630$@kth.se>
+
+Well, as you do not tell which version of Visual Studio you use...
+
+ But there are no issues: Gecode compiles and runs just fine with MSVC 2008
+and 2010 both for x86 (32 bit) and x64 (64 bit). The MSVC 2010 compilers
+seem to use more memory and seem to take more time, but that's fine. The
+warnings you get can be safely ignored (we also test for warnings), somehow
+you switched on the highest warning level where everything gets you a
+warning (try the standard C++ header files to see what I mean).
+
+I myself use Windows 7 and all the different versions of MSVC mentioned
+above, so I can't real see any issues.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Maity, Ashis K
+Sent: Friday, July 22, 2011 5:11 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: [gecode-users] Compilation trouble in 64 bit environment?
+
+Hi All,
+
+I have recently upgraded my computer to 64 bit Windows 7 and new visual
+Studio installation. After this I get a bunch of warnings like the following
+and the compilation takes a long time. Worse, while running the same
+problem, the new environment consumes a ton of memory. Did anybody
+experience similar issues? Any feedback is appreciated.
+
+Thanks,
+
+Ashis
+
+C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) : warning
+C4275: non dll-interface class 'std::exception' used as base for
+dll-interface class 'Gecode::Exception'
+1>        C:\Program Files (x86)\Microsoft Visual Studio
+9.0\VC\include\exception(95) : see declaration of 'std::exception'
+1>        C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) :
+see declaration of 'Gecode::Exception'
+1>C:\data\amaity\Gecode36\include\gecode/kernel/archive.hpp(246) : warning
+C4800: 'unsigned int' : forcing value to bool 'true' or 'false' (performance
+warning)
+1>C:\data\amaity\Gecode36\include\gecode/kernel/region.hpp(75) : warning
+C4200: nonstandard extension used : zero-sized array in struct/union
+1>        Cannot generate copy-ctor or copy-assignment operator when UDT
+contains a zero-sized array
+1>C:\data\amaity\Gecode36\include\gecode/gist.hh(162) : warning C4251:
+'Gecode::Gist::TextOutput::n' : class 'std::basic_string<_Elem,_Traits,_Ax>'
+needs to have dll-interface to be used by clients of class
+'Gecode::Gist::TextOutput'
+1>        with
+1>        [
+1>            _Elem=char,
+1>            _Traits=std::char_traits<char>,
+1>            _Ax=std::allocator<char>
+1>        ]
+1>C:\data\amaity\Gecode36\include\gecode/driver.hh(485) : warning C4251:
+'Gecode::Options::inspect' : class 'Gecode::Options::_I' needs to have
+dll-interface to be used by clients of class 'Gecode::Options'
+1>        C:\data\amaity\Gecode36\include\gecode/driver.hh(447) : see
+declaration of 'Gecode::Options::_I'
+1>C:\data\amaity\Gecode36\include\gecode/driver/options.hpp(319) : warning
+C4800: 'int' : forcing value to bool 'true' or 'false' (performance warning)
+1>.\Scheduler.cpp(178) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(220) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(245) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(366) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(465) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(466) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(472) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(473) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(489) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(506) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(551) : warning C4267: 'initializing' : conversion from
+'size_t' to 'unsigned int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(655) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(666) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(679) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(358) : warning
+C4345: behavior change: an object of POD type constructed with an
+initializer of the form () will be default-initialized
+1>        C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(376) : see
+reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(unsigned long)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+1>        C:\data\amaity\Gecode36\include\gecode/int/extensional/dfa.hpp(87)
+: see reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(int)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ashis.k.maity at lmco.com  Fri Jul 22 18:02:27 2011
+From: ashis.k.maity at lmco.com (Maity, Ashis K)
+Date: Fri, 22 Jul 2011 12:02:27 -0400
+Subject: [gecode-users] EXTERNAL: RE: Compilation trouble in 64 bit
+	environment?
+In-Reply-To: <001201cc4885$139b3210$3ad19630$@kth.se>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+	<20110718112253.203710@gmx.net>
+	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+	<20110721084904.101250@gmx.net>
+	<002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+	<67B0B414F1419D49837D1FCA9B51825A92ABA8B8@HVXMSPB.us.lmco.com>
+	<001201cc4885$139b3210$3ad19630$@kth.se>
+Message-ID: <67B0B414F1419D49837D1FCA9B51825A92ABA959@HVXMSPB.us.lmco.com>
+
+Christian, 
+
+It is MSVC 2008 (Microsoft Visual Studio 9.0). Our IT installed that in my computer and it had several issues. I had to reinstall Windows SDK and a few other things. Now I can at least compile and run. But it appears something is not right as some memory spikes are really scary. Most importantly the memory spike does not occur in the old executable (that I had saved) when I run the same problem. Would reinstalling Visual Studio help? Is it common to have some visual studio files in "C:\Program Files (x86)\" directory and some in "C:\Program Files". Also I have two Windows SDKs (one C:\Program Files (x86) and one in C:\Program Files) -- is that okay? Would you point me to any documentation that have instructions for Gecode and Visual Studio configurations?
+
+Thanks,
+
+Ashis
+
+-----Original Message-----
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Friday, July 22, 2011 11:36 AM
+To: Maity, Ashis K; users at gecode.org
+Subject: EXTERNAL: RE: [gecode-users] Compilation trouble in 64 bit environment?
+
+Well, as you do not tell which version of Visual Studio you use...
+
+ But there are no issues: Gecode compiles and runs just fine with MSVC 2008
+and 2010 both for x86 (32 bit) and x64 (64 bit). The MSVC 2010 compilers
+seem to use more memory and seem to take more time, but that's fine. The
+warnings you get can be safely ignored (we also test for warnings), somehow
+you switched on the highest warning level where everything gets you a
+warning (try the standard C++ header files to see what I mean).
+
+I myself use Windows 7 and all the different versions of MSVC mentioned
+above, so I can't real see any issues.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Maity, Ashis K
+Sent: Friday, July 22, 2011 5:11 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: [gecode-users] Compilation trouble in 64 bit environment?
+
+Hi All,
+
+I have recently upgraded my computer to 64 bit Windows 7 and new visual
+Studio installation. After this I get a bunch of warnings like the following
+and the compilation takes a long time. Worse, while running the same
+problem, the new environment consumes a ton of memory. Did anybody
+experience similar issues? Any feedback is appreciated.
+
+Thanks,
+
+Ashis
+
+C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) : warning
+C4275: non dll-interface class 'std::exception' used as base for
+dll-interface class 'Gecode::Exception'
+1>        C:\Program Files (x86)\Microsoft Visual Studio
+9.0\VC\include\exception(95) : see declaration of 'std::exception'
+1>        C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) :
+see declaration of 'Gecode::Exception'
+1>C:\data\amaity\Gecode36\include\gecode/kernel/archive.hpp(246) : warning
+C4800: 'unsigned int' : forcing value to bool 'true' or 'false' (performance
+warning)
+1>C:\data\amaity\Gecode36\include\gecode/kernel/region.hpp(75) : warning
+C4200: nonstandard extension used : zero-sized array in struct/union
+1>        Cannot generate copy-ctor or copy-assignment operator when UDT
+contains a zero-sized array
+1>C:\data\amaity\Gecode36\include\gecode/gist.hh(162) : warning C4251:
+'Gecode::Gist::TextOutput::n' : class 'std::basic_string<_Elem,_Traits,_Ax>'
+needs to have dll-interface to be used by clients of class
+'Gecode::Gist::TextOutput'
+1>        with
+1>        [
+1>            _Elem=char,
+1>            _Traits=std::char_traits<char>,
+1>            _Ax=std::allocator<char>
+1>        ]
+1>C:\data\amaity\Gecode36\include\gecode/driver.hh(485) : warning C4251:
+'Gecode::Options::inspect' : class 'Gecode::Options::_I' needs to have
+dll-interface to be used by clients of class 'Gecode::Options'
+1>        C:\data\amaity\Gecode36\include\gecode/driver.hh(447) : see
+declaration of 'Gecode::Options::_I'
+1>C:\data\amaity\Gecode36\include\gecode/driver/options.hpp(319) : warning
+C4800: 'int' : forcing value to bool 'true' or 'false' (performance warning)
+1>.\Scheduler.cpp(178) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(220) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(245) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(366) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(465) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(466) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(472) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(473) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(489) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(506) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(551) : warning C4267: 'initializing' : conversion from
+'size_t' to 'unsigned int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(655) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(666) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(679) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(358) : warning
+C4345: behavior change: an object of POD type constructed with an
+initializer of the form () will be default-initialized
+1>        C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(376) : see
+reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(unsigned long)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+1>        C:\data\amaity\Gecode36\include\gecode/int/extensional/dfa.hpp(87)
+: see reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(int)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Mon Jul 25 14:39:16 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 25 Jul 2011 14:39:16 +0200
+Subject: [gecode-users] EXTERNAL: RE: Compilation trouble in 64 bit
+	environment?
+In-Reply-To: <67B0B414F1419D49837D1FCA9B51825A92ABA959@HVXMSPB.us.lmco.com>
+References: <20110718080523.240360@gmx.net>
+	<9BE0D887-E7F4-477F-83FC-C0ADE03DF06B@gecode.org>
+	<20110718100327.5860@gmx.net>
+	<0E80F6B1-23D5-4FAC-9417-B15BE64E0A2D@gecode.org>
+	<20110718112253.203710@gmx.net>
+	<67055EA5-05A3-469A-BD51-C07916590163@gecode.org>
+	<20110721084904.101250@gmx.net>
+	<002101cc47c9$b01b9ce0$1052d6a0$@kth.se>
+	<67B0B414F1419D49837D1FCA9B51825A92ABA8B8@HVXMSPB.us.lmco.com>
+	<001201cc4885$139b3210$3ad19630$@kth.se>
+	<67B0B414F1419D49837D1FCA9B51825A92ABA959@HVXMSPB.us.lmco.com>
+Message-ID: <000a01cc4ac7$df1eb260$9d5c1720$@kth.se>
+
+Hi Ashis,
+
+The memory spikes: do they appear during compilation or execution?
+
+As far as Gecode is concerned, the installation of Visual Studio is
+sufficient, no Windows SDK is needed. I am no expert as it comes to the SDKs
+but if I remember correctly they also come with the commandline compilers
+(at least they did).
+
+Having files in both directories is to be expected if you install anything
+better than the free express version of Visual Studio as these provide
+compilers for both x86 and x64.
+
+Documentation is in getting started in MPG but it is all straightforward. 
+
+What I might do is to make really really sure that all old binaries created
+are gone and that you do not accidentally mix object files from different
+compiler versions.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Maity, Ashis K [mailto:ashis.k.maity at lmco.com] 
+Sent: Friday, July 22, 2011 6:02 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: RE: EXTERNAL: RE: [gecode-users] Compilation trouble in 64 bit
+environment?
+
+Christian, 
+
+It is MSVC 2008 (Microsoft Visual Studio 9.0). Our IT installed that in my
+computer and it had several issues. I had to reinstall Windows SDK and a few
+other things. Now I can at least compile and run. But it appears something
+is not right as some memory spikes are really scary. Most importantly the
+memory spike does not occur in the old executable (that I had saved) when I
+run the same problem. Would reinstalling Visual Studio help? Is it common to
+have some visual studio files in "C:\Program Files (x86)\" directory and
+some in "C:\Program Files". Also I have two Windows SDKs (one C:\Program
+Files (x86) and one in C:\Program Files) -- is that okay? Would you point me
+to any documentation that have instructions for Gecode and Visual Studio
+configurations?
+
+Thanks,
+
+Ashis
+
+-----Original Message-----
+From: Christian Schulte [mailto:cschulte at kth.se]
+Sent: Friday, July 22, 2011 11:36 AM
+To: Maity, Ashis K; users at gecode.org
+Subject: EXTERNAL: RE: [gecode-users] Compilation trouble in 64 bit
+environment?
+
+Well, as you do not tell which version of Visual Studio you use...
+
+ But there are no issues: Gecode compiles and runs just fine with MSVC 2008
+and 2010 both for x86 (32 bit) and x64 (64 bit). The MSVC 2010 compilers
+seem to use more memory and seem to take more time, but that's fine. The
+warnings you get can be safely ignored (we also test for warnings), somehow
+you switched on the highest warning level where everything gets you a
+warning (try the standard C++ header files to see what I mean).
+
+I myself use Windows 7 and all the different versions of MSVC mentioned
+above, so I can't real see any issues.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Maity, Ashis K
+Sent: Friday, July 22, 2011 5:11 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: [gecode-users] Compilation trouble in 64 bit environment?
+
+Hi All,
+
+I have recently upgraded my computer to 64 bit Windows 7 and new visual
+Studio installation. After this I get a bunch of warnings like the following
+and the compilation takes a long time. Worse, while running the same
+problem, the new environment consumes a ton of memory. Did anybody
+experience similar issues? Any feedback is appreciated.
+
+Thanks,
+
+Ashis
+
+C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) : warning
+C4275: non dll-interface class 'std::exception' used as base for
+dll-interface class 'Gecode::Exception'
+1>        C:\Program Files (x86)\Microsoft Visual Studio
+9.0\VC\include\exception(95) : see declaration of 'std::exception'
+1>        C:\data\amaity\Gecode36\include\gecode/support/exception.hpp(46) :
+see declaration of 'Gecode::Exception'
+1>C:\data\amaity\Gecode36\include\gecode/kernel/archive.hpp(246) : 
+1>warning
+C4800: 'unsigned int' : forcing value to bool 'true' or 'false' (performance
+warning)
+1>C:\data\amaity\Gecode36\include\gecode/kernel/region.hpp(75) : warning
+C4200: nonstandard extension used : zero-sized array in struct/union
+1>        Cannot generate copy-ctor or copy-assignment operator when UDT
+contains a zero-sized array
+1>C:\data\amaity\Gecode36\include\gecode/gist.hh(162) : warning C4251:
+'Gecode::Gist::TextOutput::n' : class 'std::basic_string<_Elem,_Traits,_Ax>'
+needs to have dll-interface to be used by clients of class
+'Gecode::Gist::TextOutput'
+1>        with
+1>        [
+1>            _Elem=char,
+1>            _Traits=std::char_traits<char>,
+1>            _Ax=std::allocator<char>
+1>        ]
+1>C:\data\amaity\Gecode36\include\gecode/driver.hh(485) : warning C4251:
+'Gecode::Options::inspect' : class 'Gecode::Options::_I' needs to have
+dll-interface to be used by clients of class 'Gecode::Options'
+1>        C:\data\amaity\Gecode36\include\gecode/driver.hh(447) : see
+declaration of 'Gecode::Options::_I'
+1>C:\data\amaity\Gecode36\include\gecode/driver/options.hpp(319) : 
+1>warning
+C4800: 'int' : forcing value to bool 'true' or 'false' (performance warning)
+1>.\Scheduler.cpp(178) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(220) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(245) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(366) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(465) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(466) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(472) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(473) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(486) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(489) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(506) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(551) : warning C4267: 'initializing' : conversion from
+'size_t' to 'unsigned int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(609) : warning C4267: 'argument' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(655) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(666) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>.\Scheduler.cpp(679) : warning C4267: 'initializing' : conversion from
+'size_t' to 'int', possible loss of data
+1>C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(358) : warning
+C4345: behavior change: an object of POD type constructed with an
+initializer of the form () will be default-initialized
+1>        C:\data\amaity\Gecode36\include\gecode/support/heap.hpp(376) : 
+1> see
+reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(unsigned long)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+1>        
+1> C:\data\amaity\Gecode36\include\gecode/int/extensional/dfa.hpp(87)
+: see reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(int)' being compiled
+1>        with
+1>        [
+1>            T=Gecode::DFA::Transition
+1>        ]
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mazmanov at kth.se  Thu Jul 28 11:56:45 2011
+From: mazmanov at kth.se (Dimitri Mazmanov)
+Date: Thu, 28 Jul 2011 09:56:45 +0000
+Subject: [gecode-users] Custom variables in Gecode
+Message-ID: <B7BFDF96FFA3414F9997C38FE76F7DB238EE6605@EXDB1.ug.kth.se>
+
+Hello,
+
+I'm thinking of using Gecode as a solver in my project. However the first hinder I've encountered was how to define a space and variables in Gecode. (I have some experience with Gecode, when I used only IntVar-s)
+The problem is following.
+I have a set of objects with some properties of types such as string, double, integer, etc.
+This set defines my domain.
+The input for my program is an object that has dependencies on the objects from the domain. Apart from that the input object puts constraints on the properties of the objects from object domain. Here's an example:
+
+--------------------------------------
+InputObject O1
+    property1 = "name"
+    property2 = 4.321
+    property3 = 2
+
+    dependency1 = "objectName"
+--------------------------------------
+
+Space:
+D1 {obj1, obj2, obj3, ...}
+
+The idea is to select one or more objects from D1 such that the name of an object is "objectName" AND it satisfies the constraints (property1, property2, etc.). There can be dozens of objects with "objectName", but only few can satisfy the constraints. And this chain can be infinite, i.e. if selected object is obj1, it can also have dependencies on others (i.e. obj23), and it goes on and on.
+
+The problem can be solved using DFS + backtracking. But I want to try Gecode first.
+
+So the question is how to define an object in Gecode. Can it be expressed in terms of IntVar, IntVarArray? Should I create custom variable implementations, views, variable arrays?
+
+Thanks!
+
+Kind Regards, Dimitri Mazmanov.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110728/ed3b3df5/attachment.htm>
+
+From tack at gecode.org  Thu Jul 28 12:35:26 2011
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 28 Jul 2011 12:35:26 +0200
+Subject: [gecode-users] Custom variables in Gecode
+In-Reply-To: <B7BFDF96FFA3414F9997C38FE76F7DB238EE6605@EXDB1.ug.kth.se>
+References: <B7BFDF96FFA3414F9997C38FE76F7DB238EE6605@EXDB1.ug.kth.se>
+Message-ID: <B572BDA0-E4BE-43EB-9CAF-C5212BF2802C@gecode.org>
+
+Hi,
+
+the usual way to deal with these kinds of more structured domains in CP is to map them to integer or set problems. In your case, this would mean mapping each name to an integer identifier.
+I'm not sure about the infiniteness in your example.  You probably have a finite number of objects anyway, so what you're looking for is the dependency graph, which is finite, too.  Again, you'd model the graph in terms of integer or set variables and constraints.
+
+Cheers,
+Guido
+
+On 28 Jul 2011, at 11:56, Dimitri Mazmanov wrote:
+
+> Hello,
+> 
+> I'm thinking of using Gecode as a solver in my project. However the first hinder I've encountered was how to define a space and variables in Gecode. (I have some experience with Gecode, when I used only IntVar-s)
+> The problem is following. 
+> I have a set of objects with some properties of types such as string, double, integer, etc.
+> This set defines my domain.
+> The input for my program is an object that has dependencies on the objects from the domain. Apart from that the input object puts constraints on the properties of the objects from object domain. Here's an example:
+> 
+> --------------------------------------
+> InputObject O1
+>     property1 = "name"
+>     property2 = 4.321
+>     property3 = 2
+>     
+>     dependency1 = "objectName"
+> --------------------------------------
+> 
+> Space:
+> D1 {obj1, obj2, obj3, ...}
+> 
+> The idea is to select one or more objects from D1 such that the name of an object is "objectName" AND it satisfies the constraints (property1, property2, etc.). There can be dozens of objects with "objectName", but only few can satisfy the constraints. And this chain can be infinite, i.e. if selected object is obj1, it can also have dependencies on others (i.e. obj23), and it goes on and on.
+> 
+> The problem can be solved using DFS + backtracking. But I want to try Gecode first.
+> 
+> So the question is how to define an object in Gecode. Can it be expressed in terms of IntVar, IntVarArray? Should I create custom variable implementations, views, variable arrays?
+> 
+> Thanks!
+> 
+> Kind Regards, Dimitri Mazmanov.
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110728/7acc109d/attachment.htm>
+
+From hamidehizadyar at gmail.com  Thu Jul 28 13:08:57 2011
+From: hamidehizadyar at gmail.com (hamideh izadyar)
+Date: Thu, 28 Jul 2011 15:38:57 +0430
+Subject: [gecode-users] How to get the Status of the Solver
+Message-ID: <CAMAsEibfhQXZSL4mcteyX4CNxtJAvRhfm3Qt9=6AOM0xvEfd1w@mail.gmail.com>
+
+Hi,
+I have written my code like this:
+
+  *SizeOptions opt("Scheduling");
+  opt.size(5);
+  opt.solutions(0);
+
+  opt.search(Scheduling::SEARCH_BAB);
+  opt.search(Scheduling::SEARCH_DFS, "dfs");
+  opt.search(Scheduling::SEARCH_BAB, "bab");
+  opt.search(Scheduling::SEARCH_RESTART, "restart");
+  opt.parse(argc,argv);
+
+  if (opt.search() == Scheduling::SEARCH_DFS) {
+    Script::run<Scheduling, DFS, SizeOptions>(opt);
+  } else if (opt.search() == Scheduling::SEARCH_RESTART) {
+    MinimizeScript::run<Scheduling, Restart, SizeOptions>(opt);
+  } else {
+    MinimizeScript::run<Scheduling, BAB, SizeOptions>(opt);*
+
+I want to know how can I understand wether the solver founds a solution or
+it fails?
+Thanks
+-- 
+*-------------------------------------------------------------------------
+
+Hamideh Izadyar
+Graduate Student
+Computer Engineering Dep.
+Sharif University of Technology
+http://ce.sharif.edu/~izadyar
+*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110728/f40516ca/attachment.htm>
+
+From cschulte at kth.se  Thu Jul 28 14:07:49 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 28 Jul 2011 14:07:49 +0200
+Subject: [gecode-users] How to get the Status of the Solver
+In-Reply-To: <CAMAsEibfhQXZSL4mcteyX4CNxtJAvRhfm3Qt9=6AOM0xvEfd1w@mail.gmail.com>
+References: <CAMAsEibfhQXZSL4mcteyX4CNxtJAvRhfm3Qt9=6AOM0xvEfd1w@mail.gmail.com>
+Message-ID: <004801cc4d1e$f8b411d0$ea1c3570$@kth.se>
+
+If you need information on how the solution process goes, it might be best
+to not use the ::run method but to invoke a search engine manually. Please
+see Chapter 2 in Modeling and Programming with Gecode how to do that.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of hamideh izadyar
+Sent: Thursday, July 28, 2011 1:09 PM
+To: users at gecode.org
+Subject: [gecode-users] How to get the Status of the Solver
+
+ 
+
+Hi,
+I have written my code like this:
+
+  SizeOptions opt("Scheduling");
+  opt.size(5);
+  opt.solutions(0);
+
+  opt.search(Scheduling::SEARCH_BAB);
+  opt.search(Scheduling::SEARCH_DFS, "dfs");
+  opt.search(Scheduling::SEARCH_BAB, "bab");
+  opt.search(Scheduling::SEARCH_RESTART, "restart");
+  opt.parse(argc,argv);
+
+  if (opt.search() == Scheduling::SEARCH_DFS) {
+    Script::run<Scheduling, DFS, SizeOptions>(opt);
+  } else if (opt.search() == Scheduling::SEARCH_RESTART) {
+    MinimizeScript::run<Scheduling, Restart, SizeOptions>(opt);
+  } else {
+    MinimizeScript::run<Scheduling, BAB, SizeOptions>(opt);
+
+I want to know how can I understand wether the solver founds a solution or
+it fails?
+Thanks
+-- 
+-------------------------------------------------------------------------
+
+Hamideh Izadyar
+Graduate Student
+Computer Engineering Dep.
+Sharif University of Technology
+http://ce.sharif.edu/~izadyar <http://ce.sharif.edu/%7Eizadyar>  
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110728/c16333ee/attachment.htm>
+
+From ChaosAngel at gmx.de  Thu Jul 28 16:11:49 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Thu, 28 Jul 2011 16:11:49 +0200
+Subject: [gecode-users] How to wait for a variable
+In-Reply-To: <004801cc4d1e$f8b411d0$ea1c3570$@kth.se>
+References: <CAMAsEibfhQXZSL4mcteyX4CNxtJAvRhfm3Qt9=6AOM0xvEfd1w@mail.gmail.com>
+	<004801cc4d1e$f8b411d0$ea1c3570$@kth.se>
+Message-ID: <20110728141149.117330@gmx.net>
+
+Hi, i want to use the wait function to get notified what a certain variable has been assigned.
+And i want to do this for some variables, to finally to something with them.
+so i want to have
+
+wait(*this,a,&foo);
+wait(*this,b,&foo);
+
+And in my function foo i want to add the variables into a list or something like this.
+
+void foo(Space&, Var a)
+{
+    do something with a
+
+}
+
+but as foo does not get any information about which variable has been assigned i can not use it.
+Is there another method to find out/get notified when a variable has been assigned, without going through the list of variables and testing each of it.
+
+If the expected function would like to have a boost function pointer this would be great.
+Then you could bind additional information to figure out which variable.
+This would also be advantageous if you have several Spaces running in parallel, there is no easy way to figure out which one triggered the callback.
+
+Best,
+Max
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From cschulte at kth.se  Fri Jul 29 16:26:10 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 29 Jul 2011 16:26:10 +0200
+Subject: [gecode-users] How to wait for a variable
+In-Reply-To: <20110728141149.117330@gmx.net>
+References: <CAMAsEibfhQXZSL4mcteyX4CNxtJAvRhfm3Qt9=6AOM0xvEfd1w@mail.gmail.com>	<004801cc4d1e$f8b411d0$ea1c3570$@kth.se>
+	<20110728141149.117330@gmx.net>
+Message-ID: <001e01cc4dfb$76ef3520$64cd9f60$@kth.se>
+
+Sorry,
+
+There is no way to do that but: define your own wait function. It is in fact
+very simple: check the file gecode/kernel/wait.hh and just extend the
+continuation called in the propagator UnaryWait. How to use it you can see
+in gecode/int/exec.cpp.
+
+Maybe we should change our wait functions such that they do what you suggest
+anyway.
+
+No, we do not want to have dependencies on Boost, but as said you can do it
+yourself.
+
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max Ostrowski
+Sent: Thursday, July 28, 2011 4:12 PM
+To: users at gecode.org
+Subject: [gecode-users] How to wait for a variable
+
+Hi, i want to use the wait function to get notified what a certain variable
+has been assigned.
+And i want to do this for some variables, to finally to something with them.
+so i want to have
+
+wait(*this,a,&foo);
+wait(*this,b,&foo);
+
+And in my function foo i want to add the variables into a list or something
+like this.
+
+void foo(Space&, Var a)
+{
+    do something with a
+
+}
+
+but as foo does not get any information about which variable has been
+assigned i can not use it.
+Is there another method to find out/get notified when a variable has been
+assigned, without going through the list of variables and testing each of
+it.
+
+If the expected function would like to have a boost function pointer this
+would be great.
+Then you could bind additional information to figure out which variable.
+This would also be advantageous if you have several Spaces running in
+parallel, there is no easy way to figure out which one triggered the
+callback.
+
+Best,
+Max
+--
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir belohnen Sie mit
+bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+

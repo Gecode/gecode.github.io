@@ -1,0 +1,247 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Integer Variable Randomization
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Integer%20Variable%20Randomization&In-Reply-To=%3C5357EB0A.8090603%40it.uu.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004391.html">
+   <LINK REL="Next"  HREF="004393.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Integer Variable Randomization</H1>
+    <B>Jean-No&#235;l Monette</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Integer%20Variable%20Randomization&In-Reply-To=%3C5357EB0A.8090603%40it.uu.se%3E"
+       TITLE="[gecode-users] Integer Variable Randomization">jean-noel.monette at it.uu.se
+       </A><BR>
+    <I>Wed Apr 23 18:32:10 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004391.html">[gecode-users] Integer Variable Randomization
+</A></li>
+        <LI>Next message: <A HREF="004393.html">[gecode-users] Integer Variable Randomization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4392">[ date ]</a>
+              <a href="thread.html#4392">[ thread ]</a>
+              <a href="subject.html#4392">[ subject ]</a>
+              <a href="author.html#4392">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Here is my understanding of your problem. If you have N variables, you 
+will need N decisions to reach a &quot;solution&quot;. And at each decision, 
+Gecode will copy the whole model, that is N variables (Christian, 
+correct if I am wrong). So the time spent should be at least quadratic 
+in the number of variables. I am not sure whether the numbers you gave 
+correspond much more to an exponential increase rather than to a 
+quadratic increase. So this could be the explanation of your problem. I 
+think that one way to check this would be to completely disable copying 
+and replace it by recomputation. I am not sure how this is accomplished 
+though.
+
+Cheers,
+
+Jean-No&#235;l
+
+
+On 23/04/14 17:58, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">negate273 at gmail.com</A> wrote:
+&gt;<i> The statistics reveal that the &#8220;Peak depth&#8221; and &#8220;Nodes&#8221; are the same as the number of variables. Where can I get the number of &#8220;Search steps&#8221; ?
+</I>&gt;<i> My model did not have *any* constraints (model is copied below).I modified the bounds of the variables to see if the bounds made a difference in the solution time, but it did not.
+</I>&gt;<i> MODEL -
+</I>&gt;<i>    class Money : public Script {
+</I>&gt;<i>     protected:
+</I>&gt;<i>       /// Number of letters
+</I>&gt;<i>       static const int nl = 70000;     // &lt;---- This number corresponds with NVars listed above.
+</I>&gt;<i>       /// Array of letters
+</I>&gt;<i>       IntVarArray le;
+</I>&gt;<i>     public:
+</I>&gt;<i>       /// Model variants
+</I>&gt;<i>       enum {
+</I>&gt;<i>         MODEL_SINGLE, ///&lt; Use single linear equation
+</I>&gt;<i>         MODEL_CARRY   ///&lt; Use carries
+</I>&gt;<i>       };
+</I>&gt;<i>       /// Actual model
+</I>&gt;<i>       Money(const Options&amp; opt) : le(*this,nl,0,65535) {  // &lt;----------BOUNDS for integer variable
+</I>&gt;<i>         Rnd rnd(314) ;
+</I>&gt;<i>         branch(*this, le, INT_VAR_SIZE_MIN(), INT_VAL_RND(rnd)); // &lt;-------Random numbers to integers.
+</I>&gt;<i>       }
+</I>&gt;<i>       /// Print solution
+</I>&gt;<i>       virtual void
+</I>&gt;<i>       print(std::ostream&amp; os) const {
+</I>&gt;<i>         // os &lt;&lt; &quot;\t&quot; &lt;&lt; le &lt;&lt; std::endl;
+</I>&gt;<i>       }
+</I>&gt;<i>
+</I>&gt;<i>       /// Constructor for cloning \a s
+</I>&gt;<i>       Money(bool share, Money&amp; s) : Script(share,s) {
+</I>&gt;<i>         le.update(*this, share, s.le);
+</I>&gt;<i>       }
+</I>&gt;<i>       /// Copy during cloning
+</I>&gt;<i>       virtual Space*
+</I>&gt;<i>       copy(bool share) {
+</I>&gt;<i>         return new Money(share,*this);
+</I>&gt;<i>       }
+</I>&gt;<i>     };
+</I>&gt;<i>
+</I>&gt;<i>     /** \brief Main-function
+</I>&gt;<i>      *  \relates Money
+</I>&gt;<i>      */
+</I>&gt;<i>     int
+</I>&gt;<i>     main(int argc, char* argv[]) {
+</I>&gt;<i>       Options opt(&quot;SEND+?MORE=MONEY&quot;);
+</I>&gt;<i>       opt.model(Money::MODEL_SINGLE);
+</I>&gt;<i>       opt.solutions(1);
+</I>&gt;<i>       Script::run&lt;Money,DFS,Options&gt;(opt);
+</I>&gt;<i>       std::cout &lt;&lt;  &quot;--- \n&quot; ;
+</I>&gt;<i>       return 0;
+</I>&gt;<i> }
+</I>&gt;<i> On Apr 21, 2014, at 4:12 AM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Just check the number of search steps needed, it can tell you something more
+</I>&gt;&gt;<i> important than time.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Then (I am guessing here), given that your model is based on money it has
+</I>&gt;&gt;<i> lost of linear constraints in it, right? There you will only get propagation
+</I>&gt;&gt;<i> if by branching either the lower or upper bound of the values for a variable
+</I>&gt;&gt;<i> changes. If you just randomize you are likely to choose an inner value which
+</I>&gt;&gt;<i> might not give that much propagation.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;&gt;<i> Of <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">negate273 at gmail.com</A>
+</I>&gt;&gt;<i> Sent: Monday, April 21, 2014 02:47 AM
+</I>&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: [gecode-users] Integer Variable Randomization
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,  I'm seeing an exponential time increase in the time to just randomize
+</I>&gt;&gt;<i> integer variables. My test program is based on &quot;examples/money.cpp&quot; , and I
+</I>&gt;&gt;<i> removed the constraints and simply randomize the integer variables by using
+</I>&gt;&gt;<i> INT_VAL_RND()
+</I>&gt;&gt;<i>     -&gt;    branch(*this, le, INT_VAR_SIZE_MIN(), INT_VAL_RND(rnd));
+</I>&gt;&gt;<i> Is the exponential increase in time with the number of integer random
+</I>&gt;&gt;<i> variables in Gecode expected ? and if so, why. And can this be improved by
+</I>&gt;&gt;<i> modifying the model ?
+</I>&gt;&gt;<i> Thanks..
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> NVars	SolveTime(in Seconds)
+</I>&gt;&gt;<i> 10000	0.734
+</I>&gt;&gt;<i> 20000	3.267
+</I>&gt;&gt;<i> 30000	7.67
+</I>&gt;&gt;<i> 40000	18.262
+</I>&gt;&gt;<i> 50000	31.274
+</I>&gt;&gt;<i> 60000	50.674
+</I>&gt;&gt;<i> 70000	73.82
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Complete Test program -
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     #include &lt;gecode/driver.hh&gt;
+</I>&gt;&gt;<i>     #include &lt;gecode/int.hh&gt;
+</I>&gt;&gt;<i>     #include &lt;gecode/minimodel.hh&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     using namespace Gecode;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     class Money : public Script {
+</I>&gt;&gt;<i>     protected:
+</I>&gt;&gt;<i>       /// Number of letters
+</I>&gt;&gt;<i>       static const int nl = 70000;     // &lt;---- This number corresponds with
+</I>&gt;&gt;<i> NVars listed above.
+</I>&gt;&gt;<i>       /// Array of letters
+</I>&gt;&gt;<i>       IntVarArray le;
+</I>&gt;&gt;<i>     public:
+</I>&gt;&gt;<i>       /// Model variants
+</I>&gt;&gt;<i>       enum {
+</I>&gt;&gt;<i>         MODEL_SINGLE, ///&lt; Use single linear equation
+</I>&gt;&gt;<i>         MODEL_CARRY   ///&lt; Use carries
+</I>&gt;&gt;<i>       };
+</I>&gt;&gt;<i>       /// Actual model
+</I>&gt;&gt;<i>       Money(const Options&amp; opt) : le(*this,nl,0,65535) {  // &lt;----------
+</I>&gt;&gt;<i> BOUNDS for integer variable
+</I>&gt;&gt;<i>         Rnd rnd(314) ;
+</I>&gt;&gt;<i>         branch(*this, le, INT_VAR_SIZE_MIN(), INT_VAL_RND(rnd)); // &lt;-------
+</I>&gt;&gt;<i> Random numbers to integers.
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       /// Print solution
+</I>&gt;&gt;<i>       virtual void
+</I>&gt;&gt;<i>       print(std::ostream&amp; os) const {
+</I>&gt;&gt;<i>         // os &lt;&lt; &quot;\t&quot; &lt;&lt; le &lt;&lt; std::endl;
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>       /// Constructor for cloning \a s
+</I>&gt;&gt;<i>       Money(bool share, Money&amp; s) : Script(share,s) {
+</I>&gt;&gt;<i>         le.update(*this, share, s.le);
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       /// Copy during cloning
+</I>&gt;&gt;<i>       virtual Space*
+</I>&gt;&gt;<i>       copy(bool share) {
+</I>&gt;&gt;<i>         return new Money(share,*this);
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>     };
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     /** \brief Main-function
+</I>&gt;&gt;<i>      *  \relates Money
+</I>&gt;&gt;<i>      */
+</I>&gt;&gt;<i>     int
+</I>&gt;&gt;<i>     main(int argc, char* argv[]) {
+</I>&gt;&gt;<i>       Options opt(&quot;SEND+?MORE=MONEY&quot;);
+</I>&gt;&gt;<i>       opt.model(Money::MODEL_SINGLE);
+</I>&gt;&gt;<i>       opt.solutions(1);
+</I>&gt;&gt;<i>       Script::run&lt;Money,DFS,Options&gt;(opt);
+</I>&gt;&gt;<i>       std::cout &lt;&lt;  &quot;--- \n&quot; ;
+</I>&gt;&gt;<i>       return 0;
+</I>&gt;&gt;<i>     }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     // STATISTICS: example-any
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004391.html">[gecode-users] Integer Variable Randomization
+</A></li>
+	<LI>Next message: <A HREF="004393.html">[gecode-users] Integer Variable Randomization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4392">[ date ]</a>
+              <a href="thread.html#4392">[ thread ]</a>
+              <a href="subject.html#4392">[ subject ]</a>
+              <a href="author.html#4392">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,2006 @@
+From ostrowsk at cs.uni-potsdam.de  Tue Apr 10 11:20:37 2012
+From: ostrowsk at cs.uni-potsdam.de (Max Ostrowski)
+Date: Tue, 10 Apr 2012 11:20:37 +0200
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <008901cd0e71$7de40040$79ac00c0$@kth.se>
+References: <4F7423A0.8010408@it.uu.se>	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>	<4F75655C.4030001@it.uu.se>
+	<008901cd0e71$7de40040$79ac00c0$@kth.se>
+Message-ID: <4F83FB65.8090306@cs.uni-potsdam.de>
+
+I have a small example where i do not understand why no propagation
+takes place.
+
+test is a pointer to the space instance
+x_ is an array of 10 IntVars(0,10)
+b_ is an array of 2 BoolVars(0,1)
+
+
+    LinRel rel1(test->x_[0],IRT_EQ,5);
+    rel1.post(*test,true,ICL_DEF);
+
+    Gecode::distinct(*test,test->x_,ICL_DEF);
+
+    LinRel rel2(test->x_[1],IRT_EQ,5);
+    Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+
+    test->status();
+    if (test->failed())
+        std::cout << "Failed" << std::endl;
+    std::cout << test->x_ << std::endl;
+    std::cout << test->b_ << std::endl;
+
+
+So i post das one of my elements x_[0] is 5, and all elements are distinct.
+Now i have a reified constraint that x_[1] == 5.
+The distinct constraint removes 5 from he domain of x_[1],
+ but the propagator does not fire.
+The result is:
+
+{5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+{0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+
+{[0..1], [0..1]}
+
+
+Even with ICL_DOM the boolean variable is not touched if values are
+removed from the domain.
+Also i think this could be easily done with "Advisors" ?
+I have no experience with this, so my question:
+Is this behavior the desired one?
+Can this be changed if i have reifications like mine where i compare to
+constants?
+
+Thanks a lot,
+
+Max
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120410/72a459f4/attachment.htm>
+
+From tack at gecode.org  Tue Apr 10 12:32:01 2012
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 10 Apr 2012 20:32:01 +1000
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <4F83FB65.8090306@cs.uni-potsdam.de>
+References: <4F7423A0.8010408@it.uu.se>
+	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>
+	<4F75655C.4030001@it.uu.se>
+	<008901cd0e71$7de40040$79ac00c0$@kth.se>
+	<4F83FB65.8090306@cs.uni-potsdam.de>
+Message-ID: <02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+
+This is a current shortcoming of the minimodel library.  For some linear constraints (such as x==5 in this case) the IntConLevel is ignored.  To get the full propagation, you have to post the constraint directly, like this:
+
+Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+
+Cheers,
+Guido
+
+On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+
+> I have a small example where i do not understand why no propagation takes place.
+> 
+> test is a pointer to the space instance
+> x_ is an array of 10 IntVars(0,10)
+> b_ is an array of 2 BoolVars(0,1)
+> 
+> 
+>     LinRel rel1(test->x_[0],IRT_EQ,5);
+>     rel1.post(*test,true,ICL_DEF);
+> 
+>     Gecode::distinct(*test,test->x_,ICL_DEF);
+> 
+>     LinRel rel2(test->x_[1],IRT_EQ,5);
+>     Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+> 
+>     test->status();
+>     if (test->failed())
+>         std::cout << "Failed" << std::endl;
+>     std::cout << test->x_ << std::endl;
+>     std::cout << test->b_ << std::endl;
+> 
+> 
+> So i post das one of my elements x_[0] is 5, and all elements are distinct.
+> Now i have a reified constraint that x_[1] == 5.
+> The distinct constraint removes 5 from he domain of x_[1],
+>  but the propagator does not fire.
+> The result is:
+> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+> {[0..1], [0..1]}
+> 
+> Even with ICL_DOM the boolean variable is not touched if values are removed from the domain.
+> Also i think this could be easily done with "Advisors" ?
+> I have no experience with this, so my question:
+> Is this behavior the desired one?
+> Can this be changed if i have reifications like mine where i compare to constants?
+> 
+> Thanks a lot,
+> 
+> Max 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120410/20570323/attachment.htm>
+
+From ostrowsk at cs.uni-potsdam.de  Tue Apr 10 12:41:48 2012
+From: ostrowsk at cs.uni-potsdam.de (Max Ostrowski)
+Date: Tue, 10 Apr 2012 12:41:48 +0200
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+References: <4F7423A0.8010408@it.uu.se>
+	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>
+	<4F75655C.4030001@it.uu.se>
+	<008901cd0e71$7de40040$79ac00c0$@kth.se>
+	<4F83FB65.8090306@cs.uni-potsdam.de>
+	<02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+Message-ID: <4F840E6C.9080406@cs.uni-potsdam.de>
+
+Thank you very much for the insight.
+Unfortunately this could be a problem,
+as i have to change my data structures.
+
+Will this be fixed in future versions?
+
+Best,
+Max
+
+On 04/10/2012 12:32 PM, Guido Tack wrote:
+> This is a current shortcoming of the minimodel library.  For some
+> linear constraints (such as x==5 in this case) the IntConLevel is
+> ignored.  To get the full propagation, you have to post the constraint
+> directly, like this:
+>
+> Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+>
+> Cheers,
+> Guido
+>
+> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+>
+>> I have a small example where i do not understand why no propagation
+>> takes place.
+>>
+>> test is a pointer to the space instance
+>> x_ is an array of 10 IntVars(0,10)
+>> b_ is an array of 2 BoolVars(0,1)
+>>
+>>
+>>     LinRel rel1(test->x_[0],IRT_EQ,5);
+>>     rel1.post(*test,true,ICL_DEF);
+>>
+>>     Gecode::distinct(*test,test->x_,ICL_DEF);
+>>
+>>     LinRel rel2(test->x_[1],IRT_EQ,5);
+>>     Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+>>
+>>     test->status();
+>>     if (test->failed())
+>>         std::cout << "Failed" << std::endl;
+>>     std::cout << test->x_ << std::endl;
+>>     std::cout << test->b_ << std::endl;
+>>
+>>
+>> So i post das one of my elements x_[0] is 5, and all elements are
+>> distinct.
+>> Now i have a reified constraint that x_[1] == 5.
+>> The distinct constraint removes 5 from he domain of x_[1],
+>>  but the propagator does not fire.
+>> The result is:
+>> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+>> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+>> {[0..1], [0..1]}
+>>
+>> Even with ICL_DOM the boolean variable is not touched if values are
+>> removed from the domain.
+>> Also i think this could be easily done with "Advisors" ?
+>> I have no experience with this, so my question:
+>> Is this behavior the desired one?
+>> Can this be changed if i have reifications like mine where i compare
+>> to constants?
+>>
+>> Thanks a lot,
+>>
+>> Max
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+> -- 
+> Guido Tack,
+> http://www.csse.monash.edu/~guidot/
+> <http://www.csse.monash.edu/%7Eguidot/>
+>
+>
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120410/7c6ce2f7/attachment.htm>
+
+From cschulte at kth.se  Tue Apr 10 13:19:58 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Apr 2012 13:19:58 +0200
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <4F840E6C.9080406@cs.uni-potsdam.de>
+References: <4F7423A0.8010408@it.uu.se>	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>	<4F75655C.4030001@it.uu.se>	<008901cd0e71$7de40040$79ac00c0$@kth.se>	<4F83FB65.8090306@cs.uni-potsdam.de>	<02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+	<4F840E6C.9080406@cs.uni-potsdam.de>
+Message-ID: <006c01cd170b$dd7d54f0$9877fed0$@se>
+
+Maybe, not so clear yet. We will change reification for the next major
+release and might at that time also think how to fix passing the consistency
+level.
+
+ 
+
+For the time being you should stick to what Guido has suggested.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, April 10, 2012 12:42 PM
+To: Guido Tack
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Reified Constraints do not propagate
+
+ 
+
+Thank you very much for the insight.
+Unfortunately this could be a problem,
+as i have to change my data structures.
+
+Will this be fixed in future versions?
+
+Best,
+Max
+
+On 04/10/2012 12:32 PM, Guido Tack wrote: 
+
+This is a current shortcoming of the minimodel library.  For some linear
+constraints (such as x==5 in this case) the IntConLevel is ignored.  To get
+the full propagation, you have to post the constraint directly, like this: 
+
+ 
+
+Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+
+
+
+
+
+I have a small example where i do not understand why no propagation takes
+place.
+
+test is a pointer to the space instance
+x_ is an array of 10 IntVars(0,10)
+b_ is an array of 2 BoolVars(0,1)
+
+
+    LinRel rel1(test->x_[0],IRT_EQ,5);
+    rel1.post(*test,true,ICL_DEF);
+
+    Gecode::distinct(*test,test->x_,ICL_DEF);
+
+    LinRel rel2(test->x_[1],IRT_EQ,5);
+    Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+
+    test->status();
+    if (test->failed())
+        std::cout << "Failed" << std::endl;
+    std::cout << test->x_ << std::endl;
+    std::cout << test->b_ << std::endl;
+
+
+So i post das one of my elements x_[0] is 5, and all elements are distinct.
+Now i have a reified constraint that x_[1] == 5.
+The distinct constraint removes 5 from he domain of x_[1],
+ but the propagator does not fire.
+The result is:
+
+{5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+{0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+
+{[0..1], [0..1]}
+
+
+Even with ICL_DOM the boolean variable is not touched if values are removed
+from the domain.
+Also i think this could be easily done with "Advisors" ?
+I have no experience with this, so my question:
+Is this behavior the desired one?
+Can this be changed if i have reifications like mine where i compare to
+constants?
+
+Thanks a lot,
+
+Max 
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-- 
+
+Guido Tack,
+
+http://www.csse.monash.edu/~guidot/ <http://www.csse.monash.edu/%7Eguidot/> 
+
+ 
+
+ 
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120410/0546bd47/attachment-0001.htm>
+
+From alexis.cothenet at gmail.com  Wed Apr 11 13:22:36 2012
+From: alexis.cothenet at gmail.com (Alexis Cothenet)
+Date: Wed, 11 Apr 2012 13:22:36 +0200
+Subject: [gecode-users] element constraint
+Message-ID: <CANBFYtbR+pKaZr6K9fHcTBS-nYsBQpP_vpHh8hvaHEgyR9DQmA@mail.gmail.com>
+
+Hi,
+
+I have a question regarding element constraint.
+This is a sample code:
+IntArgs test (2)
+test[0]=999;
+test[1]=998;
+
+IntVar lVar1 (*this, 0, 1)
+IntVar lVar2 (*this, 990, 999);
+element (*this, test, lVar1, lVar2, ICL_DOM).
+
+Doing this, i have the results:
+lVar1=[0..1]
+lVar2=[990...999]
+
+where i thought i should have:
+lVar1=[0..1]
+lVar2=[998, 999]
+
+Am i missing something ? Thank you.
+
+PS: I'm working with 3.7.3 release.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120411/9f9e3fba/attachment.htm>
+
+From cschulte at kth.se  Wed Apr 11 14:54:05 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 11 Apr 2012 14:54:05 +0200
+Subject: [gecode-users] element constraint
+In-Reply-To: <CANBFYtbR+pKaZr6K9fHcTBS-nYsBQpP_vpHh8hvaHEgyR9DQmA@mail.gmail.com>
+References: <CANBFYtbR+pKaZr6K9fHcTBS-nYsBQpP_vpHh8hvaHEgyR9DQmA@mail.gmail.com>
+Message-ID: <000901cd17e2$2dc07dd0$89417970$@se>
+
+Please read the tip in MPG "Constraint propagation is explicit"!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alexis Cothenet
+Sent: Wednesday, April 11, 2012 1:23 PM
+To: users at gecode.org
+Subject: [gecode-users] element constraint
+
+ 
+
+Hi,
+
+I have a question regarding element constraint.
+This is a sample code:
+IntArgs test (2)
+test[0]=999;
+test[1]=998;
+
+IntVar lVar1 (*this, 0, 1)
+IntVar lVar2 (*this, 990, 999);
+element (*this, test, lVar1, lVar2, ICL_DOM).
+
+Doing this, i have the results:
+lVar1=[0..1]
+lVar2=[990...999]
+
+where i thought i should have:
+lVar1=[0..1]
+lVar2=[998, 999]
+
+Am i missing something ? Thank you. 
+
+PS: I'm working with 3.7.3 release.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120411/aa038b29/attachment.htm>
+
+From ostrowsk at cs.uni-potsdam.de  Fri Apr 13 13:17:27 2012
+From: ostrowsk at cs.uni-potsdam.de (Max Ostrowski)
+Date: Fri, 13 Apr 2012 13:17:27 +0200
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <006c01cd170b$dd7d54f0$9877fed0$@se>
+References: <4F7423A0.8010408@it.uu.se>	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>	<4F75655C.4030001@it.uu.se>	<008901cd0e71$7de40040$79ac00c0$@kth.se>	<4F83FB65.8090306@cs.uni-potsdam.de>	<02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+	<4F840E6C.9080406@cs.uni-potsdam.de>
+	<006c01cd170b$dd7d54f0$9877fed0$@se>
+Message-ID: <4F880B47.5060801@cs.uni-potsdam.de>
+
+Thanks and sorry for bugging you again.
+
+I tried to analyze the minimodel code.
+I think that posting LinExpr instead of LinRel won't change the problem,
+right?
+So is there any interface so that one can still use the very handy
+LinExpr class?
+I do parse some quite complicated formulas and want to post a linear()
+constraint.
+LinExpr as far as I understood, optimizes this formula and reformulates
+it to fit into the form that is needed for the linear constraint.
+Is there a way to get this linear constraint out of it again to post it
+manually and preserve the ICL?
+
+Or do i have to generate the linear constraint (array of variables and
+numbers) myself to get the full propagation power. Is there a logical
+reason why the ICL is lost during this "translation"?
+
+Best,
+Max
+
+On 04/10/2012 01:19 PM, Christian Schulte wrote:
+>
+> Maybe, not so clear yet. We will change reification for the next major
+> release and might at that time also think how to fix passing the
+> consistency level.
+>
+>  
+>
+> For the time being you should stick to what Guido has suggested.
+>
+>  
+>
+> Christian
+>
+>  
+>
+> --
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>  
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Max Ostrowski
+> *Sent:* Tuesday, April 10, 2012 12:42 PM
+> *To:* Guido Tack
+> *Cc:* users at gecode.org
+> *Subject:* Re: [gecode-users] Reified Constraints do not propagate
+>
+>  
+>
+> Thank you very much for the insight.
+> Unfortunately this could be a problem,
+> as i have to change my data structures.
+>
+> Will this be fixed in future versions?
+>
+> Best,
+> Max
+>
+> On 04/10/2012 12:32 PM, Guido Tack wrote:
+>
+> This is a current shortcoming of the minimodel library.  For some
+> linear constraints (such as x==5 in this case) the IntConLevel is
+> ignored.  To get the full propagation, you have to post the constraint
+> directly, like this:
+>
+>  
+>
+> Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+>
+>  
+>
+> Cheers,
+>
+> Guido
+>
+>  
+>
+> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+>
+>
+>
+> I have a small example where i do not understand why no propagation
+> takes place.
+>
+> test is a pointer to the space instance
+> x_ is an array of 10 IntVars(0,10)
+> b_ is an array of 2 BoolVars(0,1)
+>
+>
+>     LinRel rel1(test->x_[0],IRT_EQ,5);
+>     rel1.post(*test,true,ICL_DEF);
+>
+>     Gecode::distinct(*test,test->x_,ICL_DEF);
+>
+>     LinRel rel2(test->x_[1],IRT_EQ,5);
+>     Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+>
+>     test->status();
+>     if (test->failed())
+>         std::cout << "Failed" << std::endl;
+>     std::cout << test->x_ << std::endl;
+>     std::cout << test->b_ << std::endl;
+>
+>
+> So i post das one of my elements x_[0] is 5, and all elements are
+> distinct.
+> Now i have a reified constraint that x_[1] == 5.
+> The distinct constraint removes 5 from he domain of x_[1],
+>  but the propagator does not fire.
+> The result is:
+>
+> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+>
+> {[0..1], [0..1]}
+>
+>
+> Even with ICL_DOM the boolean variable is not touched if values are
+> removed from the domain.
+> Also i think this could be easily done with "Advisors" ?
+> I have no experience with this, so my question:
+> Is this behavior the desired one?
+> Can this be changed if i have reifications like mine where i compare
+> to constants?
+>
+> Thanks a lot,
+>
+> Max
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org <mailto:users at gecode.org>
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>  
+>
+> -- 
+>
+> Guido Tack,
+>
+> http://www.csse.monash.edu/~guidot/
+> <http://www.csse.monash.edu/%7Eguidot/>
+>
+>  
+>
+>  
+>
+>  
+>
+>  
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120413/df465066/attachment.htm>
+
+From jean-noel.monette at it.uu.se  Mon Apr 16 11:00:19 2012
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Mon, 16 Apr 2012 11:00:19 +0200
+Subject: [gecode-users] Max not bound consistent?
+Message-ID: <4F8BDFA3.8040605@it.uu.se>
+
+Hello,
+
+The "bound consistency" max constraint does not seem to enforce bound 
+consistency. Indeed, with x = {1, 1, [1..2]}, and y = 2, the constraint 
+"max(home, x,y,ICL_BND)" should enforce x[2] = 2, but does not modify 
+the domains (after a call to status()). Is it the expected behavior 
+(because of the cost to check this case or any other reason), or a bug?
+
+Thank you for your answer,
+
+Jean-No?l Monette
+
+
+From cschulte at kth.se  Mon Apr 16 11:35:31 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 16 Apr 2012 11:35:31 +0200
+Subject: [gecode-users] Max not bound consistent?
+In-Reply-To: <4F8BDFA3.8040605@it.uu.se>
+References: <4F8BDFA3.8040605@it.uu.se>
+Message-ID: <002b01cd1bb4$449633d0$cdc29b70$@se>
+
+Hi,
+
+This is indeed the expected behavior due to efficiency reasons. Remember:
+ICL_BND (or ICL_DOM) does not mean "bounds consistency" but "bounds
+propagation" (check MPG).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jean-No?l Monette
+Sent: Monday, April 16, 2012 11:00 AM
+To: users at gecode.org
+Subject: [gecode-users] Max not bound consistent?
+
+Hello,
+
+The "bound consistency" max constraint does not seem to enforce bound
+consistency. Indeed, with x = {1, 1, [1..2]}, and y = 2, the constraint
+"max(home, x,y,ICL_BND)" should enforce x[2] = 2, but does not modify the
+domains (after a call to status()). Is it the expected behavior (because of
+the cost to check this case or any other reason), or a bug?
+
+Thank you for your answer,
+
+Jean-No?l Monette
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Mon Apr 16 11:36:29 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 16 Apr 2012 11:36:29 +0200
+Subject: [gecode-users] Max not bound consistent?
+In-Reply-To: <4F8BDFA3.8040605@it.uu.se>
+References: <4F8BDFA3.8040605@it.uu.se>
+Message-ID: <002e01cd1bb4$67303c10$3590b430$@se>
+
+Sorry, ignore my previous message. This indeed looks fishy and should
+propagate x[2]=2. I'll have a look later.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jean-No?l Monette
+Sent: Monday, April 16, 2012 11:00 AM
+To: users at gecode.org
+Subject: [gecode-users] Max not bound consistent?
+
+Hello,
+
+The "bound consistency" max constraint does not seem to enforce bound
+consistency. Indeed, with x = {1, 1, [1..2]}, and y = 2, the constraint
+"max(home, x,y,ICL_BND)" should enforce x[2] = 2, but does not modify the
+domains (after a call to status()). Is it the expected behavior (because of
+the cost to check this case or any other reason), or a bug?
+
+Thank you for your answer,
+
+Jean-No?l Monette
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Mon Apr 16 19:49:20 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 16 Apr 2012 19:49:20 +0200
+Subject: [gecode-users] Max not bound consistent?
+In-Reply-To: <4F8BDFA3.8040605@it.uu.se>
+References: <4F8BDFA3.8040605@it.uu.se>
+Message-ID: <000c01cd1bf9$41090810$c31b1830$@kth.se>
+
+Hi,
+
+This was indeed a bug, introduced when we added a domain consistent variant
+of max. I fixed it in the trunk and  also attached a patch.
+
+Thanks!
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Jean-No?l Monette
+> Sent: Monday, April 16, 2012 11:00 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Max not bound consistent?
+> 
+> Hello,
+> 
+> The "bound consistency" max constraint does not seem to enforce bound
+> consistency. Indeed, with x = {1, 1, [1..2]}, and y = 2, the constraint
+"max(home,
+> x,y,ICL_BND)" should enforce x[2] = 2, but does not modify the domains
+(after a
+> call to status()). Is it the expected behavior (because of the cost to
+check this
+> case or any other reason), or a bug?
+> 
+> Thank you for your answer,
+> 
+> Jean-No?l Monette
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: max.patch
+Type: application/octet-stream
+Size: 612 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20120416/dbc7ce51/attachment.obj>
+
+From jean-noel.monette at it.uu.se  Mon Apr 16 20:44:10 2012
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Mon, 16 Apr 2012 20:44:10 +0200
+Subject: [gecode-users] Max not bound consistent?
+In-Reply-To: <000c01cd1bf9$41090810$c31b1830$@kth.se>
+References: <4F8BDFA3.8040605@it.uu.se>
+	<000c01cd1bf9$41090810$c31b1830$@kth.se>
+Message-ID: <4F8C687A.4070304@it.uu.se>
+
+Hi,
+
+Thank you for the patch and the always rapid reaction.
+
+Jean-No?l
+
+On 04/16/2012 07:49 PM, Christian Schulte wrote:
+> Hi,
+>
+> This was indeed a bug, introduced when we added a domain consistent variant
+> of max. I fixed it in the trunk and  also attached a patch.
+>
+> Thanks!
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Jean-No?l Monette
+>> Sent: Monday, April 16, 2012 11:00 AM
+>> To: users at gecode.org
+>> Subject: [gecode-users] Max not bound consistent?
+>>
+>> Hello,
+>>
+>> The "bound consistency" max constraint does not seem to enforce bound
+>> consistency. Indeed, with x = {1, 1, [1..2]}, and y = 2, the constraint
+> "max(home,
+>> x,y,ICL_BND)" should enforce x[2] = 2, but does not modify the domains
+> (after a
+>> call to status()). Is it the expected behavior (because of the cost to
+> check this
+>> case or any other reason), or a bug?
+>>
+>> Thank you for your answer,
+>>
+>> Jean-No?l Monette
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From tack at gecode.org  Tue Apr 17 01:20:58 2012
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 17 Apr 2012 09:20:58 +1000
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <4F880B47.5060801@cs.uni-potsdam.de>
+References: <4F7423A0.8010408@it.uu.se>
+	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>
+	<4F75655C.4030001@it.uu.se>
+	<008901cd0e71$7de40040$79ac00c0$@kth.se>
+	<4F83FB65.8090306@cs.uni-potsdam.de>
+	<02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+	<4F840E6C.9080406@cs.uni-potsdam.de>
+	<006c01cd170b$dd7d54f0$9877fed0$@se>
+	<4F880B47.5060801@cs.uni-potsdam.de>
+Message-ID: <74F7188F-0192-4926-8864-9F73ECD3366B@gecode.org>
+
+Hi,
+
+I just added a fix to the svn trunk for the case of a reified equality between an IntVar and an int.  The default ICL for that case is now ICL_DOM (consistent with just using rel directly).
+
+Other cases (e.g. equality between two variables) may still ignore the ICL, but we'll have a look at that, too.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 13/04/2012, at 9:17 PM, Max Ostrowski wrote:
+
+> Thanks and sorry for bugging you again.
+> 
+> I tried to analyze the minimodel code.
+> I think that posting LinExpr instead of LinRel won't change the problem, right?
+> So is there any interface so that one can still use the very handy LinExpr class?
+> I do parse some quite complicated formulas and want to post a linear() constraint.
+> LinExpr as far as I understood, optimizes this formula and reformulates it to fit into the form that is needed for the linear constraint.
+> Is there a way to get this linear constraint out of it again to post it manually and preserve the ICL?
+> 
+> Or do i have to generate the linear constraint (array of variables and numbers) myself to get the full propagation power. Is there a logical reason why the ICL is lost during this "translation"?
+> 
+> Best,
+> Max
+> 
+> On 04/10/2012 01:19 PM, Christian Schulte wrote:
+>> 
+>> Maybe, not so clear yet. We will change reification for the next major release and might at that time also think how to fix passing the consistency level.
+>>  
+>> For the time being you should stick to what Guido has suggested.
+>>  
+>> Christian
+>>  
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>  
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Max Ostrowski
+>> Sent: Tuesday, April 10, 2012 12:42 PM
+>> To: Guido Tack
+>> Cc: users at gecode.org
+>> Subject: Re: [gecode-users] Reified Constraints do not propagate
+>>  
+>> Thank you very much for the insight.
+>> Unfortunately this could be a problem,
+>> as i have to change my data structures.
+>> 
+>> Will this be fixed in future versions?
+>> 
+>> Best,
+>> Max
+>> 
+>> On 04/10/2012 12:32 PM, Guido Tack wrote:
+>> This is a current shortcoming of the minimodel library.  For some linear constraints (such as x==5 in this case) the IntConLevel is ignored.  To get the full propagation, you have to post the constraint directly, like this:
+>>  
+>> Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+>>  
+>> Cheers,
+>> Guido
+>>  
+>> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+>> 
+>> 
+>> I have a small example where i do not understand why no propagation takes place.
+>> 
+>> test is a pointer to the space instance
+>> x_ is an array of 10 IntVars(0,10)
+>> b_ is an array of 2 BoolVars(0,1)
+>> 
+>> 
+>>     LinRel rel1(test->x_[0],IRT_EQ,5);
+>>     rel1.post(*test,true,ICL_DEF);
+>> 
+>>     Gecode::distinct(*test,test->x_,ICL_DEF);
+>> 
+>>     LinRel rel2(test->x_[1],IRT_EQ,5);
+>>     Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+>> 
+>>     test->status();
+>>     if (test->failed())
+>>         std::cout << "Failed" << std::endl;
+>>     std::cout << test->x_ << std::endl;
+>>     std::cout << test->b_ << std::endl;
+>> 
+>> 
+>> So i post das one of my elements x_[0] is 5, and all elements are distinct.
+>> Now i have a reified constraint that x_[1] == 5.
+>> The distinct constraint removes 5 from he domain of x_[1],
+>>  but the propagator does not fire.
+>> The result is:
+>> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+>> {[0..1], [0..1]}
+>> 
+>> Even with ICL_DOM the boolean variable is not touched if values are removed from the domain.
+>> Also i think this could be easily done with "Advisors" ?
+>> I have no experience with this, so my question:
+>> Is this behavior the desired one?
+>> Can this be changed if i have reifications like mine where i compare to constants?
+>> 
+>> Thanks a lot,
+>> 
+>> Max
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>  
+>> -- 
+>> Guido Tack,
+>> http://www.csse.monash.edu/~guidot/
+>>  
+>>  
+>>  
+>>  
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120417/588a3ac6/attachment.htm>
+
+From ostrowsk at cs.uni-potsdam.de  Tue Apr 17 09:41:09 2012
+From: ostrowsk at cs.uni-potsdam.de (Max Ostrowski)
+Date: Tue, 17 Apr 2012 09:41:09 +0200
+Subject: [gecode-users] Reified Constraints do not propagate
+In-Reply-To: <74F7188F-0192-4926-8864-9F73ECD3366B@gecode.org>
+References: <4F7423A0.8010408@it.uu.se>
+	<C375F707-B3A6-47BF-B092-FC16D6B48AE9@gecode.org>
+	<4F75655C.4030001@it.uu.se>
+	<008901cd0e71$7de40040$79ac00c0$@kth.se>
+	<4F83FB65.8090306@cs.uni-potsdam.de>
+	<02ADC044-2466-403D-9853-DD629E3621DB@gecode.org>
+	<4F840E6C.9080406@cs.uni-potsdam.de>
+	<006c01cd170b$dd7d54f0$9877fed0$@se>
+	<4F880B47.5060801@cs.uni-potsdam.de>
+	<74F7188F-0192-4926-8864-9F73ECD3366B@gecode.org>
+Message-ID: <4F8D1E95.1060701@cs.uni-potsdam.de>
+
+Big thanks for this, will make things so much easier.
+
+Best,
+Max
+
+
+On 04/17/2012 01:20 AM, Guido Tack wrote:
+> Hi,
+>
+> I just added a fix to the svn trunk for the case of a reified equality
+> between an IntVar and an int.  The default ICL for that case is now
+> ICL_DOM (consistent with just using rel directly).
+>
+> Other cases (e.g. equality between two variables) may still ignore the
+> ICL, but we'll have a look at that, too.
+>
+> Cheers,
+> Guido
+>
+> -- 
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+> <http://www.csse.monash.edu/%7Eguidot/>
+>
+>
+>
+> On 13/04/2012, at 9:17 PM, Max Ostrowski wrote:
+>
+>> Thanks and sorry for bugging you again.
+>>
+>> I tried to analyze the minimodel code.
+>> I think that posting LinExpr instead of LinRel won't change the
+>> problem, right?
+>> So is there any interface so that one can still use the very handy
+>> LinExpr class?
+>> I do parse some quite complicated formulas and want to post a
+>> linear() constraint.
+>> LinExpr as far as I understood, optimizes this formula and
+>> reformulates it to fit into the form that is needed for the linear
+>> constraint.
+>> Is there a way to get this linear constraint out of it again to post
+>> it manually and preserve the ICL?
+>>
+>> Or do i have to generate the linear constraint (array of variables
+>> and numbers) myself to get the full propagation power. Is there a
+>> logical reason why the ICL is lost during this "translation"?
+>>
+>> Best,
+>> Max
+>>
+>> On 04/10/2012 01:19 PM, Christian Schulte wrote:
+>>>
+>>> Maybe, not so clear yet. We will change reification for the next
+>>> major release and might at that time also think how to fix passing
+>>> the consistency level.
+>>>
+>>>  
+>>>
+>>> For the time being you should stick to what Guido has suggested.
+>>>
+>>>  
+>>>
+>>> Christian
+>>>
+>>>  
+>>>
+>>> --
+>>>
+>>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>>
+>>>  
+>>>
+>>> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org]
+>>> *On Behalf Of *Max Ostrowski
+>>> *Sent:* Tuesday, April 10, 2012 12:42 PM
+>>> *To:* Guido Tack
+>>> *Cc:* users at gecode.org
+>>> *Subject:* Re: [gecode-users] Reified Constraints do not propagate
+>>>
+>>>  
+>>>
+>>> Thank you very much for the insight.
+>>> Unfortunately this could be a problem,
+>>> as i have to change my data structures.
+>>>
+>>> Will this be fixed in future versions?
+>>>
+>>> Best,
+>>> Max
+>>>
+>>> On 04/10/2012 12:32 PM, Guido Tack wrote:
+>>>
+>>> This is a current shortcoming of the minimodel library.  For some
+>>> linear constraints (such as x==5 in this case) the IntConLevel is
+>>> ignored.  To get the full propagation, you have to post the
+>>> constraint directly, like this:
+>>>
+>>>  
+>>>
+>>> Gecode::rel(*test, test->x_[1], IRT_EQ, 5, test->b_[1], ICL_DOM);
+>>>
+>>>  
+>>>
+>>> Cheers,
+>>>
+>>> Guido
+>>>
+>>>  
+>>>
+>>> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+>>>
+>>>
+>>>
+>>> I have a small example where i do not understand why no propagation
+>>> takes place.
+>>>
+>>> test is a pointer to the space instance
+>>> x_ is an array of 10 IntVars(0,10)
+>>> b_ is an array of 2 BoolVars(0,1)
+>>>
+>>>
+>>>     LinRel rel1(test->x_[0],IRT_EQ,5);
+>>>     rel1.post(*test,true,ICL_DEF);
+>>>
+>>>     Gecode::distinct(*test,test->x_,ICL_DEF);
+>>>
+>>>     LinRel rel2(test->x_[1],IRT_EQ,5);
+>>>     Gecode::rel(*test, rel2 == test->b_[1],ICL_DEF);
+>>>
+>>>     test->status();
+>>>     if (test->failed())
+>>>         std::cout << "Failed" << std::endl;
+>>>     std::cout << test->x_ << std::endl;
+>>>     std::cout << test->b_ << std::endl;
+>>>
+>>>
+>>> So i post das one of my elements x_[0] is 5, and all elements are
+>>> distinct.
+>>> Now i have a reified constraint that x_[1] == 5.
+>>> The distinct constraint removes 5 from he domain of x_[1],
+>>>  but the propagator does not fire.
+>>> The result is:
+>>>
+>>> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+>>> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+>>>
+>>> {[0..1], [0..1]}
+>>>
+>>>
+>>> Even with ICL_DOM the boolean variable is not touched if values are
+>>> removed from the domain.
+>>> Also i think this could be easily done with "Advisors" ?
+>>> I have no experience with this, so my question:
+>>> Is this behavior the desired one?
+>>> Can this be changed if i have reifications like mine where i compare
+>>> to constants?
+>>>
+>>> Thanks a lot,
+>>>
+>>> Max
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org <mailto:users at gecode.org>
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>>  
+>>>
+>>> -- 
+>>>
+>>> Guido Tack,
+>>>
+>>> http://www.csse.monash.edu/~guidot/
+>>> <http://www.csse.monash.edu/%7Eguidot/>
+>>>
+>>>  
+>>>
+>>>  
+>>>
+>>>  
+>>>
+>>>  
+>>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120417/aff0129e/attachment-0001.htm>
+
+From aemhm1 at hotmail.com  Fri Apr 20 06:36:46 2012
+From: aemhm1 at hotmail.com (Milton Friedman)
+Date: Fri, 20 Apr 2012 04:36:46 +0000 (UTC)
+Subject: [gecode-users] Multiple separate searches
+Message-ID: <loom.20120420T060724-769@post.gmane.org>
+
+I'm working on a problem with many cases, encoded into an IntArray A, 
+of which some branchings are valid according to a set of constraints, 
+and for each of those valid cases, 
+another IntArray B describes a more detailed analysis, 
+subject to other constraints.
+
+I only need one solution of B for each case.
+
+So what I think I should do in Gecode, is create a loop down in main 
+that runs DFS on Space/model IntArray A, 
+and for each sequential solution A that returns, 
+call a different instance of DFS on Space/model IntArray B DFS 
+to get just one solution.  
+Does that sound like a reasonable approach?
+
+When I tried to do this, I ran into a problem.  
+The MwG document explains how to loop on DFS, 
+using s<-e.next to find the next space, etc, 
+and I've done that for another application.  
+But when I tried to feed DFS the new s, 
+I got an error in Gecode's DFS destructor on the line where it's trying 
+to delete e (called by the end bracket of my loop).  
+So is it legal to have multiple separate DFS engines?  
+Do you need to delete them when you're creating the next one? 
+(delete e didn't work in my code any better than in the destructor).  
+I don't see any examples of this on the Gecode examples page...
+they all look like single calls to the search engine. 
+
+Any thoughts?  Am I going about this w/the right approach?
+Thanks,
+-Milt
+
+
+
+From cschulte at kth.se  Fri Apr 20 12:11:51 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 20 Apr 2012 12:11:51 +0200
+Subject: [gecode-users] Multiple separate searches
+In-Reply-To: <loom.20120420T060724-769@post.gmane.org>
+References: <loom.20120420T060724-769@post.gmane.org>
+Message-ID: <009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+
+Hi,
+
+Multiple engines are not only allowed they are in fact normal ;-)
+
+
+From aemhm1 at hotmail.com  Fri Apr 20 14:16:14 2012
+From: aemhm1 at hotmail.com (Milton Friedman)
+Date: Fri, 20 Apr 2012 12:16:14 +0000 (UTC)
+Subject: [gecode-users] Multiple separate searches
+References: <loom.20120420T060724-769@post.gmane.org>
+	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+Message-ID: <loom.20120420T140634-941@post.gmane.org>
+
+
+Christian Schulte <cschulte at ...> writes:
+
+> 
+> Hi,
+> 
+> Multiple engines are not only allowed they are in fact normal 
+> 
+> From what you describe I can venture a guess: you pass the solution s from
+> the first engine to the second, configure the snd engine to not take a clone
+> of s and then delete s? Is that the case? That could explain the bug: both
+> the snd engine as well as your code delete s, hence the kaboom!
+> 
+> If that is not the case, maybe just sketch in  more detail what you are
+> doing.
+> 
+> Cheers
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> > -----Original Message-----
+> > From: users-bounces at ...
+> [mailto:users-bounces at ...] On
+> > Behalf Of Milton Friedman
+> > Sent: Friday, April 20, 2012 6:37 AM
+> > To: users at ...
+> > Subject: [gecode-users] Multiple separate searches
+> > 
+> > I'm working on a problem with many cases, encoded into an IntArray A, of
+> which
+> > some branchings are valid according to a set of constraints, and for each
+> of
+> > those valid cases, another IntArray B describes a more detailed analysis,
+> subject
+> > to other constraints.
+> > 
+> > I only need one solution of B for each case.
+> > 
+> > So what I think I should do in Gecode, is create a loop down in main that
+> runs
+> > DFS on Space/model IntArray A, and for each sequential solution A that
+> returns,
+> > call a different instance of DFS on Space/model IntArray B DFS to get 
+just
+> one
+> > solution.
+> > Does that sound like a reasonable approach?
+> > 
+> > When I tried to do this, I ran into a problem.
+> > The MwG document explains how to loop on DFS, using s<-e.next to find the
+> > next space, etc, and I've done that for another application.
+> > But when I tried to feed DFS the new s, I got an error in Gecode's DFS
+> destructor
+> > on the line where it's trying to delete e (called by the end bracket of my
+> loop).
+> > So is it legal to have multiple separate DFS engines?
+> > Do you need to delete them when you're creating the next one?
+> > (delete e didn't work in my code any better than in the destructor).
+> > I don't see any examples of this on the Gecode examples page...
+> > they all look like single calls to the search engine.
+> > 
+> > Any thoughts?  Am I going about this w/the right approach?
+> > Thanks,
+> > -Milt
+> > 
+> > 
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at ...
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+Hi Christian...Thanks for responding.
+ 
+You're right!...I must be doing one too many delete s
+When I remove one, it works, though I'm not sure exactly why.
+
+The error I get in Visual Studio (Windows7) is that it breaks in DFS.hpp with:
+Unhandled exception at 0x00643917 (GecodeSearch-3-7-1-d-x86.dll) 
+in ModelsAandB.exe: 0xC0000005: 
+Access violation reading location 0xfeeefeee.
+ 
+To simplify communication, I hardcoded the outer-loop of ModelA in C++ 
+(simple simulated branching with easy constriants),
+so I'm only calling Gecode for ModelB.
+ 
+I put the call to DFS for modelB into a function "DoOneDFS"
+The call to DoOneDFS looks like: DoOneDFS(argc,argv,"ModelB") 
+and it's inside a simple loop in main.
+So there's no s or deleting s outside this function...
+only this function calls Gecode, and this function is called repeatedly.
+ 
+The function code is:
+ 
+void DoOneDFS(int argc, char* argv[],const char* ModelName){
+        SizeOptions optModel(ModelName);          
+        optModel.iterations(1);           
+        optModel.size(3);           
+        optModel.parse(argc,argv);      
+        ModelB* s = new ModelB(optModel);
+        //call once
+        DFS<ModelB> e(s);
+        bool wasBranch = SS_BRANCH==s->status();
+        bool wasSolved = SS_SOLVED==s->status();
+        bool wasFailed = SS_FAILED==s->status();
+        //loop while wasBranch and not null, wasSolved or wasFailed
+        while (wasBranch && s) {        
+                cout<<"Branch"<<endl;
+                s->myprint();
+                delete s;       //in while loop...deletes space we branched from
+                //calls Gecode...then done with this next space
+                Packing2DRectTopology* s = e.next();    
+                wasBranch = SS_BRANCH==s->status();
+                wasSolved = SS_SOLVED==s->status();
+                wasFailed = SS_FAILED==s->status();
+        }              
+        if (wasSolved){                 //record it
+                cout<<"Solved"<<endl;
+                s->myprint();
+                s->mydebugprint();
+                system("PAUSE");
+        }
+        else if (wasFailed){            //ignore it
+                //system("PAUSE");
+        }
+        else {                          //unexpected   
+                cout<<"Shouldn't arrive here. status: "<<s->status()<<endl;
+                system("PAUSE");
+        }
+        //delete s;     //<<<---Works if commented out; fails otherwise...why?
+}
+
+Thanks for your help
+-Milt
+
+
+
+
+From tack at gecode.org  Mon Apr 23 03:45:38 2012
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Apr 2012 11:45:38 +1000
+Subject: [gecode-users] Multiple separate searches
+In-Reply-To: <loom.20120420T140634-941@post.gmane.org>
+References: <loom.20120420T060724-769@post.gmane.org>
+	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+	<loom.20120420T140634-941@post.gmane.org>
+Message-ID: <F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>
+
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 20/04/2012, at 10:16 PM, Milton Friedman wrote:
+> The function code is:
+> 
+> void DoOneDFS(int argc, char* argv[],const char* ModelName){
+>        SizeOptions optModel(ModelName);          
+>        optModel.iterations(1);           
+>        optModel.size(3);           
+>        optModel.parse(argc,argv);      
+>        ModelB* s = new ModelB(optModel);
+>        //call once
+>        DFS<ModelB> e(s);
+>        bool wasBranch = SS_BRANCH==s->status();
+>        bool wasSolved = SS_SOLVED==s->status();
+>        bool wasFailed = SS_FAILED==s->status();
+>        //loop while wasBranch and not null, wasSolved or wasFailed
+>        while (wasBranch && s) {        
+>                cout<<"Branch"<<endl;
+>                s->myprint();
+>                delete s;       //in while loop...deletes space we branched from
+>                //calls Gecode...then done with this next space
+>                Packing2DRectTopology* s = e.next();    
+>                wasBranch = SS_BRANCH==s->status();
+>                wasSolved = SS_SOLVED==s->status();
+>                wasFailed = SS_FAILED==s->status();
+>        }              
+>        if (wasSolved){                 //record it
+>                cout<<"Solved"<<endl;
+>                s->myprint();
+>                s->mydebugprint();
+>                system("PAUSE");
+>        }
+>        else if (wasFailed){            //ignore it
+>                //system("PAUSE");
+>        }
+>        else {                          //unexpected   
+>                cout<<"Shouldn't arrive here. status: "<<s->status()<<endl;
+>                system("PAUSE");
+>        }
+>        //delete s;     //<<<---Works if commented out; fails otherwise...why?
+> }
+> 
+
+When you construct DFS from a space, DFS takes ownership of that space, unless you give it a search options argument where you set clone to false (see the reference documentation for the DFS class).  So here it depends on whether s is still the initial space (in which case you mustn't delete it) or a space returned from e.next (in which case you must delete it).
+
+But that's not the main problem with the code above: a space returned from e.next() is always NULL or SS_SOLVED.
+
+What you probably want to do is to implement your own Brancher that runs a DFS internally.  There is code that does more or less that in gecode/flatzinc/flatzinc.cpp in the current svn trunk, it's called "AuxVarBrancher".  Perhaps that can help you to get started.
+
+Cheers,
+Guido
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120423/e68c607a/attachment.htm>
+
+From mdsolimu at ualberta.ca  Mon Apr 23 05:48:11 2012
+From: mdsolimu at ualberta.ca (Md Solimul Chowdhury)
+Date: Sun, 22 Apr 2012 21:48:11 -0600
+Subject: [gecode-users] Reified Global Constraints
+Message-ID: <CAMm5P0Y8A+QCf_HPLCrD_wCRvs3P0a2UggUHpqtF9x-HVk1yGg@mail.gmail.com>
+
+Hi,
+
+Greetings.
+I am currently engaged with a research project, for which I need to model
+CSPs with reified global constraints. In the Gecode manual, "Modelling and
+Programming with Gecode", I did not find much discussion on modeling CSPs
+with reified global constraints.  In the current version of Gecode, which
+global constraints have reified versions? I am particularly interested with
+the reified versions of Linear and Distinct global constraints, if there is
+any. Any pointer to a resource, which contains a sample Gecode model with
+reified global constraints  will be appreciated.
+
+Thanks in advance.
+
+Solimul Chowdhury
+Department of Computing Science
+University of Alberta, Canada.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120422/ea7bf11e/attachment.htm>
+
+From tack at gecode.org  Mon Apr 23 06:00:30 2012
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Apr 2012 14:00:30 +1000
+Subject: [gecode-users] Reified Global Constraints
+In-Reply-To: <CAMm5P0Y8A+QCf_HPLCrD_wCRvs3P0a2UggUHpqtF9x-HVk1yGg@mail.gmail.com>
+References: <CAMm5P0Y8A+QCf_HPLCrD_wCRvs3P0a2UggUHpqtF9x-HVk1yGg@mail.gmail.com>
+Message-ID: <C93CE6C0-8993-41C8-98FD-09EAEFC7DA1D@gecode.org>
+
+Hi,
+
+you can look through the API documentation (or the int.hh header file) for the constraints that take an additional BoolVar as the last argument, those are the ones that support reification.  Concerning your concrete question, there are reified linear constraints but no reified distinct.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 23/04/2012, at 1:48 PM, Md Solimul Chowdhury wrote:
+
+> Hi,
+> 
+> Greetings. 
+> I am currently engaged with a research project, for which I need to model CSPs with reified global constraints. In the Gecode manual, "Modelling and Programming with Gecode", I did not find much discussion on modeling CSPs with reified global constraints.  In the current version of Gecode, which global constraints have reified versions? I am particularly interested with the reified versions of Linear and Distinct global constraints, if there is any. Any pointer to a resource, which contains a sample Gecode model with reified global constraints  will be appreciated. 
+> 
+> Thanks in advance.
+> 
+> Solimul Chowdhury
+> Department of Computing Science
+> University of Alberta, Canada.
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120423/deda0af5/attachment.htm>
+
+From aemhm1 at hotmail.com  Mon Apr 23 07:31:10 2012
+From: aemhm1 at hotmail.com (Milton Friedman)
+Date: Mon, 23 Apr 2012 05:31:10 +0000 (UTC)
+Subject: [gecode-users] Multiple separate searches
+References: <loom.20120420T060724-769@post.gmane.org>
+	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+	<loom.20120420T140634-941@post.gmane.org>
+	<F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>
+Message-ID: <loom.20120423T072411-735@post.gmane.org>
+
+Guido Tack <tack at ...> writes:
+> 
+> --?
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+> 
+> When you construct DFS from a space, DFS takes ownership of that space, 
+> unless you give it a search options argument where you set clone to false 
+> (see the reference documentation for the DFS class). ?So here it depends 
+> on whether s is still the initial space (in which case you mustn't delete it) 
+> or a space returned from e.next (in which case you must delete it).
+> But that's not the main problem with the code above: 
+> a space returned from e.next() is always NULL or SS_SOLVED.
+> What you probably want to do is to implement your own Brancher 
+> that runs a DFS internally. ?There is code that does more or less that in 
+> gecode/flatzinc/flatzinc.cpp in the current svn trunk, it's called 
+> "AuxVarBrancher". ?Perhaps that can help you to get started.
+> 
+> Cheers,
+> Guido
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at ...
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+Thanks Guido.
+ 
+I see what you mean about DFS only returning NULL & Solved, and not Branch.
+It looks like when you initialize DFS, s.status() returns Branch,
+you're immediately going to use e.next to call DFS,
+so no need to check for Branch.
+ 
+That makes the function simpler, and it works. 
+But now I'm able to delete s in two places,
+as I was originally trying to do: 
+- The first deletion deletes the initial space.
+- The final deletion deletes the space returned by s = e.next()
+So I'm not sure why it's letting me delete both spaces,
+since I didn't use the .clone=false option.
+I must have misunderstood what you meant.
+ 
+void DoOneDFS(int argc, char* argv[],const char* ModelName){
+        SizeOptions optModel(ModelName);         
+        optModel.iterations(1);          
+        optModel.size(3);          
+        optModel.parse(argc,argv);     
+        ModelB* s = new ModelB(optModel);
+        //initialize DFS search engine
+        DFS<modelB> e(s);
+        delete s;       //deletes initial space
+        s = e.next();   //calls DFS
+        if (s)  {               //if not null, then solved
+                if (SS_SOLVED==s->status()){
+                        cout<<"Solved"<<endl;
+                        s->myprint();
+                        s->mydebugprint();
+                        //system("PAUSE");
+                }
+                else if (SS_FAILED==s->status()){
+                        cout<<"Failed"<<endl;
+                        //system("PAUSE");
+                }
+                else { 
+                        cout<<"Shouldn't arrive here. status: "<<s->status()<<endl;
+                        system("PAUSE");
+                }
+        }
+        else     //null...no solution found.
+        delete s;
+  }
+ 
+Thanks for the suggestion about writing my own brancher.
+Would it be significantly faster?  If so, what is the source of the speedup?
+ 
+Thanks,
+-Milt
+
+
+
+
+From tack at gecode.org  Mon Apr 23 07:44:35 2012
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Apr 2012 15:44:35 +1000
+Subject: [gecode-users] Multiple separate searches
+In-Reply-To: <loom.20120423T072411-735@post.gmane.org>
+References: <loom.20120420T060724-769@post.gmane.org>
+	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+	<loom.20120420T140634-941@post.gmane.org>
+	<F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>
+	<loom.20120423T072411-735@post.gmane.org>
+Message-ID: <A20512E0-EC0F-4657-B898-2B4CE4726299@gecode.org>
+
+On 23/04/2012, at 3:31 PM, Milton Friedman wrote:
+
+> Guido Tack <tack at ...> writes:
+>> 
+>> -- 
+>> Guido Tack
+>> http://www.csse.monash.edu/~guidot/
+>> 
+>> When you construct DFS from a space, DFS takes ownership of that space, 
+>> unless you give it a search options argument where you set clone to false 
+>> (see the reference documentation for the DFS class).  So here it depends 
+>> on whether s is still the initial space (in which case you mustn't delete it) 
+>> or a space returned from e.next (in which case you must delete it).
+>> But that's not the main problem with the code above: 
+>> a space returned from e.next() is always NULL or SS_SOLVED.
+>> What you probably want to do is to implement your own Brancher 
+>> that runs a DFS internally.  There is code that does more or less that in 
+>> gecode/flatzinc/flatzinc.cpp in the current svn trunk, it's called 
+>> "AuxVarBrancher".  Perhaps that can help you to get started.
+>> 
+>> Cheers,
+>> Guido
+>> 
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at ...
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+> 
+> Thanks Guido.
+> 
+> I see what you mean about DFS only returning NULL & Solved, and not Branch.
+> It looks like when you initialize DFS, s.status() returns Branch,
+> you're immediately going to use e.next to call DFS,
+> so no need to check for Branch.
+
+As I said, DFS takes ownership of s, so you shouldn't do anything with s after initialising DFS.  You are definitely not allowed to delete it!
+
+> That makes the function simpler, and it works. 
+> But now I'm able to delete s in two places,
+> as I was originally trying to do: 
+> - The first deletion deletes the initial space.
+> - The final deletion deletes the space returned by s = e.next()
+> So I'm not sure why it's letting me delete both spaces,
+> since I didn't use the .clone=false option.
+> I must have misunderstood what you meant.
+
+It may just work by accident.
+
+> void DoOneDFS(int argc, char* argv[],const char* ModelName){
+>        SizeOptions optModel(ModelName);         
+>        optModel.iterations(1);          
+>        optModel.size(3);          
+>        optModel.parse(argc,argv);     
+>        ModelB* s = new ModelB(optModel);
+>        //initialize DFS search engine
+>        DFS<modelB> e(s);
+>        delete s;       //deletes initial space
+>        s = e.next();   //calls DFS
+>        if (s)  {               //if not null, then solved
+>                if (SS_SOLVED==s->status()){
+>                        cout<<"Solved"<<endl;
+>                        s->myprint();
+>                        s->mydebugprint();
+>                        //system("PAUSE");
+>                }
+>                else if (SS_FAILED==s->status()){
+>                        cout<<"Failed"<<endl;
+>                        //system("PAUSE");
+>                }
+>                else { 
+>                        cout<<"Shouldn't arrive here. status: "<<s->status()<<endl;
+>                        system("PAUSE");
+>                }
+>        }
+>        else     //null...no solution found.
+>        delete s;
+>  }
+
+I'm still puzzled what you are trying to do here.  I thought you wanted to run another DFS on a different set of variables when the first DFS finishes, so I would have expected the code to look more or less like this:
+
+DFS<modelB> e(s);
+modelB* sol=NULL;
+while (sol==NULL) {
+  sol = e.next();
+  if (sol==NULL) break; // no more solutions -> done
+  branch(*sol,....); // Add branch for second set of variables
+  DFS<modelB> e2(sol);
+  sol = e2.next();
+}
+if (sol) {
+  sol->print();
+  delete sol; // this is the only object that needs deletion
+}
+
+> Thanks for the suggestion about writing my own brancher.
+> Would it be significantly faster?  If so, what is the source of the speedup?
+
+It wouldn't be faster, it would just be easier to encapsulate (you can run it with any search engine, not just with your own combination of engines).
+
+Cheers,
+Guido
+
+
+
+
+From aemhm1 at hotmail.com  Mon Apr 23 09:09:28 2012
+From: aemhm1 at hotmail.com (Milton Friedman)
+Date: Mon, 23 Apr 2012 07:09:28 +0000 (UTC)
+Subject: [gecode-users] Multiple separate searches
+References: <loom.20120420T060724-769@post.gmane.org>
+	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>
+	<loom.20120420T140634-941@post.gmane.org>
+	<F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>
+	<loom.20120423T072411-735@post.gmane.org>
+	<A20512E0-EC0F-4657-B898-2B4CE4726299@gecode.org>
+Message-ID: <loom.20120423T084128-64@post.gmane.org>
+
+Guido,
+
+Thanks for your suggested approach...it makes sense.  
+I didn't know that branch could be called outside the model (i.e., in main).
+But I'm wondering whether I'm looking at all the relevant documentation,
+examples, ways of modeling using Gecode, etc.
+
+I've been studying M&PwG, consulting the online syntax documentation,
+looking at the example code on the Gecode site, and searching this forum.
+I get the feeling I have only 3 volumes of an encyclopedia, w/o the rest.
+Are there other good sources of info, similar to the M&PwG case studies,
+that give some insight into the approaches people have found to use
+Gecode to do common tasks well?  I'm not as interested in how it was built
+as I am in how to use it well (I'm glad it's built well, but don't intend to 
+build another, or extend it...I'm trying to use it). 
+
+I started this thread with a question about an approach to using multiple
+separate searches.  Christian helpfully indicated that this is a common 
+technique.  Are there articles, papers, blog posts, forum entries where 
+I can learn about common techniques to using Gecode, to use or build on 
+what others have done?
+
+(This isn't a complaint about the documentation...the docs explain their 
+content very carefully and precisely.  I just wonder if anyone's 
+documented elements of Gecode's usage too.)
+
+Thanks,
+-Milt
+
+
+
+From Pierre.Flener at it.uu.se  Mon Apr 23 12:03:38 2012
+From: Pierre.Flener at it.uu.se (Pierre Flener)
+Date: Mon, 23 Apr 2012 12:03:38 +0200
+Subject: [gecode-users] Reified Global Constraints
+In-Reply-To: <C93CE6C0-8993-41C8-98FD-09EAEFC7DA1D@gecode.org>
+References: <CAMm5P0Y8A+QCf_HPLCrD_wCRvs3P0a2UggUHpqtF9x-HVk1yGg@mail.gmail.com>
+	<C93CE6C0-8993-41C8-98FD-09EAEFC7DA1D@gecode.org>
+Message-ID: <4F9528FA.50107@it.uu.se>
+
+See http://soda.swedish-ict.se/5194/ for a recipe on how to reify many global constraints.  For reifying Distinct (called AllDifferent in that technical report), you need Sorted (called Sort there).
+
+Cheers,
+	Pierre
+
+
+Guido Tack wrote, on 2012-04-23 06:00:
+> Hi,
+>
+> you can look through the API documentation (or the int.hh header file) for the constraints that take an additional BoolVar as the last argument, those are the ones that support reification. Concerning your concrete question, there are reified linear constraints but no reified distinct.
+>
+> Cheers,
+> Guido
+>
+> --
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+>
+>
+>
+> On 23/04/2012, at 1:48 PM, Md Solimul Chowdhury wrote:
+>
+>> Hi,
+>>
+>> Greetings.
+>> I am currently engaged with a research project, for which I need to model CSPs with reified global constraints. In the Gecode manual, "Modelling and Programming with Gecode", I did not find much discussion on modeling CSPs with reified global constraints. In the current version of Gecode, which global constraints have reified versions? I am particularly interested with the reified versions of Linear and Distinct global constraints, if there is any. Any pointer to a resource, which contains a sample Gecode model with reified global constraints will be appreciated.
+>>
+>> Thanks in advance.
+>>
+>> Solimul Chowdhury
+>> Department of Computing Science
+>> University of Alberta, Canada.
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From cschulte at kth.se  Mon Apr 23 17:21:43 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Apr 2012 17:21:43 +0200
+Subject: [gecode-users] Multiple separate searches
+In-Reply-To: <loom.20120423T084128-64@post.gmane.org>
+References: <loom.20120420T060724-769@post.gmane.org>	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>	<loom.20120420T140634-941@post.gmane.org>	<F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>	<loom.20120423T072411-735@post.gmane.org>	<A20512E0-EC0F-4657-B898-2B4CE4726299@gecode.org>
+	<loom.20120423T084128-64@post.gmane.org>
+Message-ID: <014301cd2164$cb1a3130$614e9390$@kth.se>
+
+Hi,
+
+I think there is an important aspect here: the kind of knowledge here is not
+Gecode-specific but is really about how to use constraint programming in
+general. And we have decided that material such as MPG focuses on what is
+specific to Gecode, and rely on general constraint programming knowledge as
+background.
+
+So I think you are looking for general resources about constraint
+programming. There are some textbooks, a Constraint journal, conferences,
+and so on. I think I would look into this direction.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Milton Friedman
+Sent: Monday, April 23, 2012 9:09 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Multiple separate searches
+
+Guido,
+
+Thanks for your suggested approach...it makes sense.  
+I didn't know that branch could be called outside the model (i.e., in main).
+But I'm wondering whether I'm looking at all the relevant documentation,
+examples, ways of modeling using Gecode, etc.
+
+I've been studying M&PwG, consulting the online syntax documentation,
+looking at the example code on the Gecode site, and searching this forum.
+I get the feeling I have only 3 volumes of an encyclopedia, w/o the rest.
+Are there other good sources of info, similar to the M&PwG case studies,
+that give some insight into the approaches people have found to use Gecode
+to do common tasks well?  I'm not as interested in how it was built as I am
+in how to use it well (I'm glad it's built well, but don't intend to build
+another, or extend it...I'm trying to use it). 
+
+I started this thread with a question about an approach to using multiple
+separate searches.  Christian helpfully indicated that this is a common
+technique.  Are there articles, papers, blog posts, forum entries where I
+can learn about common techniques to using Gecode, to use or build on what
+others have done?
+
+(This isn't a complaint about the documentation...the docs explain their
+content very carefully and precisely.  I just wonder if anyone's documented
+elements of Gecode's usage too.)
+
+Thanks,
+-Milt
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From aemhm1 at hotmail.com  Wed Apr 25 04:08:49 2012
+From: aemhm1 at hotmail.com (Milton Friedman)
+Date: Wed, 25 Apr 2012 02:08:49 +0000 (UTC)
+Subject: [gecode-users] Multiple separate searches
+References: <loom.20120420T060724-769@post.gmane.org>	<009a01cd1ede$0168a2a0$0439e7e0$@kth.se>	<loom.20120420T140634-941@post.gmane.org>	<F5E600C0-F32C-4C95-BEEE-AB041A908145@gecode.org>	<loom.20120423T072411-735@post.gmane.org>	<A20512E0-EC0F-4657-B898-2B4CE4726299@gecode.org>
+	<loom.20120423T084128-64@post.gmane.org>
+	<014301cd2164$cb1a3130$614e9390$@kth.se>
+Message-ID: <loom.20120425T035022-558@post.gmane.org>
+
+Christian Schulte <cschulte at ...> writes:
+
+> 
+> Hi,
+> 
+> I think there is an important aspect here: the kind of knowledge here is not
+> Gecode-specific but is really about how to use constraint programming in
+> general. And we have decided that material such as MPG focuses on what is
+> specific to Gecode, and rely on general constraint programming knowledge as
+> background.
+> 
+> So I think you are looking for general resources about constraint
+> programming. There are some textbooks, a Constraint journal, conferences,
+> and so on. I think I would look into this direction.
+> 
+> Cheers
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+
+Hi Christian,
+
+Fair enough; good distinction.  There's a lot of Constraint Programming 
+literature out there, e.g., on applications and on solver design.  I'll dig 
+into the application work that seems relevant to Gecode's constraints (the 
+kind of info I'm finding useful so far is documents like your 2007 
+presentation on channeling constraints [black-hole patience application], 
+because it focuses on different options for thinking about solving a problem, 
+and how specific constraint types can be used to enable some of those 
+options.  I'll search for more like that.
+
+I'll focus in this forum on Gecode-specific questions.
+
+Thanks,
+-Milt
+
+
+
+From a.pretto at miriade.it  Thu Apr 26 17:11:33 2012
+From: a.pretto at miriade.it (Andrea Pretto)
+Date: Thu, 26 Apr 2012 17:11:33 +0200
+Subject: [gecode-users] "usage" parameter as IntVar in cumulative constraint
+Message-ID: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>
+
+Hi,
+
+Looking at Gecode documentation and in source code, I don't find a way to
+have the "usage" parameter as variable (only as constant by, IntArgs) on
+the "cumulative" constraint.
+Today the only way to get the usage as variable is to use the "cumulatives"
+constraint, but that deploy different algorithms.
+
+Is there any plan to implement that in the "cumulative" constraint ??
+
+P.S:
+reference algorithm:
+Max Energy Algorithm for Discrete Cumulative Resources
+by Petr Vilim
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120426/44ee79d6/attachment.htm>
+

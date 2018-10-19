@@ -1,0 +1,601 @@
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/examples/golombTimeout.cc /home/rmeneses/src/gecode-1.0.0/examples/golombTimeout.cc
+*** gecode-1.0.0/examples/golombTimeout.cc	1970-01-01 00:00:00.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/examples/golombTimeout.cc	2006-02-24 17:46:49.000000000 +0000
+***************
+*** 0 ****
+--- 1,229 ----
++ 
++ #include "examples/support.hh"
++ #include "minimodel.hh"
++ 
++ #include <sys/time.h>
++ #include <time.h>
++ 
++ 
++ /**
++  * \brief %Example: Finding optimal %Golomb rulers
++  *
++  * The script makes use of two lower bounds taken from:
++  *   Barbara Smith, Kostas Stergiou, Toby Walsh,
++  *   Modelling the Golomb Ruler Problem.
++  *   In IJCAI 99 Workshop on Non-binary Constraints,
++  *   1999.
++  *
++  * \ingroup Example
++  *
++  */
++ class Golomb : public Example {
++ protected:
++   /// Number of marks
++   const int n;
++   /// Array for ruler marks
++   IntVarArray m;
++ public:
++   /// Return index for mark difference between mark \a i and mark \a j
++   int
++   diag(int i, int j) {
++     return (i*(2*n-i-1)) / 2 + j - i - 1;
++   }
++ 
++   /// Actual model
++   Golomb(const Options& opt)
++     : n(opt.size), m(this,n,0,n*n) {
++     const int nn = n*n;
++     const int dn = (n*n-n)/2;
++     IntVarArray d(this,dn,0,nn);
++ 
++     rel(this, m[0], IRT_EQ, 0);
++ 
++     // Setup difference constraints
++     for (int j=1; j<n; j++)
++       d[diag(0,j)] = m[j];
++     for (int i=1; i<n-1; i++)
++       for (int j=i+1; j<n; j++)
++ 	post(this, m[j]-m[i] == d[diag(i,j)]);
++ 
++     // Order marks
++     for (int i=1; i<n; i++)
++       rel(this, m[i-1], IRT_LE, m[i]);
++ 
++     if (opt.naive) {
++       // d[diag(i,j)] must be at least sum of first j-i integers
++       for (int i=0; i<n; i++)
++ 	for (int j=i+1; j<n; j++)
++ 	  rel(this, d[diag(i,j)], IRT_GQ, (j-i)*(j-i+1)/2);
++     } else {
++       static const int length[] = {
++ 	// Length 0-9
++ 	0,0,1,3,6,11,17,25,34,44,
++ 	// Length 10-
++ 	55,72,85,106,127};
++ 
++       // Marks from i to j must be ruler of length j-1+i
++       for (int i=0; i<n; i++)
++ 	for (int j=i+1; j<n; j++)
++ 	  rel(this, d[diag(i,j)], IRT_GQ, length[j-i+1]);
++     }
++     distinct(this, d, opt.icl);
++ 
++     if (n > 2)
++       rel(this, d[diag(0,1)], IRT_LE, d[diag(n-2,n-1)]);
++ 
++     branch(this, m, BVAR_NONE, BVAL_MIN);
++   }
++ 
++   /// Add constraint for next better solution
++   void
++   constrain(Space* s) {
++     rel(this, m[n-1], IRT_LE, static_cast<Golomb*>(s)->m[n-1].val());
++   }
++ 
++   /// Print solution
++   virtual void
++   print(void) {
++     std::cout << "\tm[" << n << "] = {";
++     for (int i = 0; i < n; i++)
++       std::cout << m[i] << ((i<n-1)?",":"};\n");
++   }
++ 
++ 
++   /// Constructor for cloning \a s
++   Golomb(bool share, Golomb& s)
++     : Example(share,s), n(s.n) {
++     m.update(this, share, s.m);
++   }
++   /// Copy during cloning
++   virtual Space*
++   copy(bool share) {
++     return new Golomb(share,*this);
++   }
++ 
++ };
++ 
++ 
++ //Timeout EndCondition
++ 
++ class TimeoutEndCondition: public Gecode::Search::EndCondition {
++ private:
++   struct timeval t0,t1;
++   unsigned int timeout;
++ 
++   unsigned int getMicroseconds(struct timeval &t)
++   {
++     return t.tv_sec*10000000 +t.tv_usec;
++   }
++   
++ public:
++   //Timeout in microseconds
++   TimeoutEndCondition(unsigned int timeout)
++   {
++     this->timeout=timeout;
++     reset();
++   } 
++     
++   void reset()
++   {
++     gettimeofday(&t0,NULL);
++   }
++   
++   bool isTheEnd(Gecode::Search::Statistics *statistics)
++   {
++     gettimeofday(&t1,NULL);
++     if((getMicroseconds(t1)-getMicroseconds(t0))>timeout)
++       {
++ 	std::cout<<"Timeout!!!!!"<<std::endl;
++ 	return true;
++       }
++     return false;
++   }
++ 
++ };
++ 
++ //Memory EndCondition
++ 
++ class MemoryEndCondition: public Gecode::Search::EndCondition {
++ private:
++   unsigned int memoryLimit;
++ public:
++ 
++   MemoryEndCondition(unsigned int memoryLimit)
++   {
++     this->memoryLimit=memoryLimit;
++   }
++   
++   bool isTheEnd(Gecode::Search::Statistics *statistics)
++   {
++     // in KB
++     if (static_cast<unsigned int>((statistics->memory+1023)/1024)>memoryLimit)
++       {
++ 	std::cout<<"Memory limit!!!!!"<<std::endl;
++ 	return true;
++       }
++     else
++       return false;
++   }
++ 
++ };
++ 
++ 
++ 
++ 
++ /** \brief Main-function
++  *  \relates Golomb
++  */
++ int
++ main(int argc, char** argv) {
++   Options o("Golomb");
++   o.solutions = 0;
++   o.size      = 10;
++   o.icl       = ICL_BND;
++   o.naive     = true;
++   o.parse(argc,argv);
++   if(o.size <= 0)
++     return 1;
++   
++   //0.5 seconds
++   TimeoutEndCondition timeCondition(500000); 
++   
++   int i = o.solutions;
++   Golomb* s = new Golomb(o);
++   Gecode::BAB<Golomb> *engine = new Gecode::BAB<Golomb>(s,o.c_d,o.a_d,&timeCondition);
++   delete s;
++ 
++   do {
++     Golomb* ex = engine->next();
++     if (ex == NULL)
++       break;
++     ex->print();
++     delete ex;
++   } while (--i != 0);
++   
++   delete engine;
++ 
++   //10KB memory
++   MemoryEndCondition memCondition(10);
++     
++   i = o.solutions;
++   s = new Golomb(o);
++   engine=new Gecode::BAB<Golomb>(s,o.c_d,o.a_d,&memCondition);
++   delete s;
++   
++   do {
++     Golomb* ex = engine->next();
++     if (ex == NULL)
++       break;
++     ex->print();
++     delete ex;
++   } while (--i != 0);
++   
++   delete engine;
++ 
++   return 0;
++ }
++ 
++ 
++ 
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab.cc /home/rmeneses/src/gecode-1.0.0/search/bab.cc
+*** gecode-1.0.0/search/bab.cc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab.cc	2006-02-24 14:57:55.000000000 +0000
+***************
+*** 24,37 ****
+  
+  namespace Gecode { namespace Search {
+  
+!   BAB::BAB(Space* s, unsigned int c_d, unsigned int a_d, size_t sz) {
+      unsigned int alt;
+      unsigned long int p = 0;
+      Space* c = (s->status(alt,p) == SS_FAILED) ? NULL : s->clone();
+      if (c_d == 1) {
+!       e = new BabCopyEngine(c,sz);
+      } else {
+!       e = new BabReCoEngine(c,c_d,a_d,sz);
+      }
+      e->propagate += p;
+      e->current(s);
+--- 24,37 ----
+  
+  namespace Gecode { namespace Search {
+  
+!   BAB::BAB(Space* s, unsigned int c_d, unsigned int a_d, size_t sz,Search::EndCondition *theEnd) {
+      unsigned int alt;
+      unsigned long int p = 0;
+      Space* c = (s->status(alt,p) == SS_FAILED) ? NULL : s->clone();
+      if (c_d == 1) {
+!       e = new BabCopyEngine(c,sz,theEnd);
+      } else {
+!       e = new BabReCoEngine(c,c_d,a_d,sz,theEnd);
+      }
+      e->propagate += p;
+      e->current(s);
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-copy.cc /home/rmeneses/src/gecode-1.0.0/search/bab-copy.cc
+*** gecode-1.0.0/search/bab-copy.cc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-copy.cc	2006-02-24 15:03:54.000000000 +0000
+***************
+*** 64,70 ****
+      while (true) {
+        if (cur == NULL) {
+        backtrack:
+! 	if (ds.empty()) {
+  	  s1 = NULL;
+  	  return true;
+  	}
+--- 64,70 ----
+      while (true) {
+        if (cur == NULL) {
+        backtrack:
+! 	if (ds.empty()||(theEnd!=NULL&&theEnd->isTheEnd(static_cast<Search::Statistics *>(this)))) {
+  	  s1 = NULL;
+  	  return true;
+  	}
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-copy.hh /home/rmeneses/src/gecode-1.0.0/search/bab-copy.hh
+*** gecode-1.0.0/search/bab-copy.hh	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-copy.hh	2006-02-24 13:58:01.000000000 +0000
+***************
+*** 42,48 ****
+      size_t    sz;       ///< Current total space
+  
+    public:
+!     BabCopyEngine(Space*,size_t);
+      virtual size_t stacksize(void) const;
+      virtual ~BabCopyEngine(void);
+      virtual bool explore(Space*&,Space*&);
+--- 42,48 ----
+      size_t    sz;       ///< Current total space
+  
+    public:
+!     BabCopyEngine(Space*,size_t,Search::EndCondition *theEnd);
+      virtual size_t stacksize(void) const;
+      virtual ~BabCopyEngine(void);
+      virtual bool explore(Space*&,Space*&);
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-copy.icc /home/rmeneses/src/gecode-1.0.0/search/bab-copy.icc
+*** gecode-1.0.0/search/bab-copy.icc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-copy.icc	2006-02-24 13:59:50.000000000 +0000
+***************
+*** 22,29 ****
+  namespace Gecode { namespace Search {
+  
+    forceinline
+!   BabCopyEngine::BabCopyEngine(Space* s, size_t sz)
+!     : BabEngine(sz), mark(0), cur(s), b(NULL) {}
+  
+  }}
+  
+--- 22,29 ----
+  namespace Gecode { namespace Search {
+  
+    forceinline
+!   BabCopyEngine::BabCopyEngine(Space* s, size_t sz,Search::EndCondition *theEnd)
+!     : BabEngine(sz,theEnd), mark(0), cur(s), b(NULL) {}
+  
+  }}
+  
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab.icc /home/rmeneses/src/gecode-1.0.0/search/bab.icc
+*** gecode-1.0.0/search/bab.icc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab.icc	2006-02-24 15:51:57.000000000 +0000
+***************
+*** 33,40 ****
+       */
+      
+      forceinline
+!     BabEngine::BabEngine(size_t sz)
+!       : FullStatistics(sz) {}
+  
+      forceinline void*
+      BabEngine::operator new(size_t s) {
+--- 33,40 ----
+       */
+      
+      forceinline
+!     BabEngine::BabEngine(size_t sz,Search::EndCondition *theEnd)
+!       : FullStatistics(sz),theEnd(theEnd) { }
+  
+      forceinline void*
+      BabEngine::operator new(size_t s) {
+***************
+*** 59,66 ****
+    
+    template <class T>
+    forceinline
+!   BAB<T>::BAB(T* s, unsigned int c_d, unsigned int a_d)
+!     : Search::BAB(s,c_d,a_d,sizeof(T)) {}
+  
+    template <class T>
+    forceinline T*
+--- 59,71 ----
+    
+    template <class T>
+    forceinline
+!   BAB<T>::BAB(T* s, unsigned int c_d, unsigned int a_d,Search::EndCondition *theEnd)
+!     : Search::BAB(s,c_d,a_d,sizeof(T),theEnd) {}
+! 
+!   template <class T>
+!   forceinline
+!   BAB<T>::BAB(T* s, Search::EndCondition *theEnd, unsigned int c_d, unsigned int a_d)
+!     : Search::BAB(s,c_d,a_d,sizeof(T),theEnd) {}
+  
+    template <class T>
+    forceinline T*
+***************
+*** 81,88 ****
+  
+    template <class T>
+    T*
+!   bab(T* s, unsigned int c_d, unsigned int a_d) {
+!     BAB<T> b(s,c_d,a_d);
+      T* l = NULL;
+      while (T* n = b.next()) {
+        delete l; l = n;
+--- 86,93 ----
+  
+    template <class T>
+    T*
+!   bab(T* s, unsigned int c_d, unsigned int a_d,Search::EndCondition *theEnd) {
+!     BAB<T> b(s,c_d,a_d,theEnd);
+      T* l = NULL;
+      while (T* n = b.next()) {
+        delete l; l = n;
+***************
+*** 90,95 ****
+--- 95,106 ----
+      return l;
+    }
+  
++   template <class T>
++   T*
++   bab(T* s, Search::EndCondition *theEnd, unsigned int c_d, unsigned int a_d) {
++     return bab<T>(s,c_d,a_d,theEnd);
++   }
++ 
+  }
+  
+  // STATISTICS: search-any
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-reco.cc /home/rmeneses/src/gecode-1.0.0/search/bab-reco.cc
+*** gecode-1.0.0/search/bab-reco.cc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-reco.cc	2006-02-24 15:04:11.000000000 +0000
+***************
+*** 62,68 ****
+       */
+      while (true) {
+        if (cur == NULL) {
+! 	if (!ds.next(*this)) {
+  	  s1 = NULL;
+  	  return true;
+  	}
+--- 62,68 ----
+       */
+      while (true) {
+        if (cur == NULL) {
+! 	if ((!ds.next(*this))||(theEnd!=NULL&&theEnd->isTheEnd(static_cast<Search::Statistics *>(this)))) {
+  	  s1 = NULL;
+  	  return true;
+  	}
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-reco.hh /home/rmeneses/src/gecode-1.0.0/search/bab-reco.hh
+*** gecode-1.0.0/search/bab-reco.hh	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-reco.hh	2006-02-24 13:58:09.000000000 +0000
+***************
+*** 43,49 ****
+      size_t    sz_cur;   ///< Size of current space
+      size_t    sz;       ///< Current total space
+    public:
+!     BabReCoEngine(Space*,unsigned int,unsigned int,size_t);
+      virtual size_t stacksize(void) const;
+      virtual ~BabReCoEngine(void);
+      virtual bool explore(Space*&,Space*&);
+--- 43,49 ----
+      size_t    sz_cur;   ///< Size of current space
+      size_t    sz;       ///< Current total space
+    public:
+!     BabReCoEngine(Space*,unsigned int,unsigned int,size_t,Search::EndCondition *theEnd);
+      virtual size_t stacksize(void) const;
+      virtual ~BabReCoEngine(void);
+      virtual bool explore(Space*&,Space*&);
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search/bab-reco.icc /home/rmeneses/src/gecode-1.0.0/search/bab-reco.icc
+*** gecode-1.0.0/search/bab-reco.icc	2005-12-06 13:34:56.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search/bab-reco.icc	2006-02-24 13:59:57.000000000 +0000
+***************
+*** 23,30 ****
+  
+    forceinline
+    BabReCoEngine::BabReCoEngine(Space* s, unsigned int c_d0, unsigned int a_d0,
+! 			       size_t sz)
+!     : BabEngine(sz), ds(a_d0), mark(0), cur(s), best(NULL), c_d(c_d0), d(0)
+    {}
+  
+  }}
+--- 23,30 ----
+  
+    forceinline
+    BabReCoEngine::BabReCoEngine(Space* s, unsigned int c_d0, unsigned int a_d0,
+! 			       size_t sz, Search::EndCondition *theEnd)
+!     : BabEngine(sz,theEnd), ds(a_d0), mark(0), cur(s), best(NULL), c_d(c_d0), d(0)
+    {}
+  
+  }}
+diff -c -b -N -r -x '*~' -x '*config*' -x '*.so' -x '*.o' gecode-1.0.0/search.hh /home/rmeneses/src/gecode-1.0.0/search.hh
+*** gecode-1.0.0/search.hh	2005-12-06 13:34:57.000000000 +0000
+--- /home/rmeneses/src/gecode-1.0.0/search.hh	2006-02-24 15:49:01.000000000 +0000
+***************
+*** 115,120 ****
+--- 115,133 ----
+      
+  
+      /**
++      * \brief Search engine optional end condition
++      *
++      * \ingroup TaskIntSearch
++      */
++     
++     class EndCondition{
++     public:
++       /// Return true if is the end of the search
++       virtual bool isTheEnd(Statistics *s)=0;
++     };
++     
++     
++     /**
+       * \brief Interface for depth-first search engines
+       */
+      class PlainEngine : public FullStatistics {
+***************
+*** 137,143 ****
+      };
+      
+      
+- 
+      /**
+       * \brief Depth-first search engine
+       *
+--- 150,155 ----
+***************
+*** 321,329 ****
+       * \brief Interface for depth-first branch-and-bound search engines
+       */
+      class BabEngine : public FullStatistics {
+      public:
+        /// Constructor
+!       BabEngine(size_t sz);
+        /// Destructor
+        GECODE_SEARCH_EXPORT virtual ~BabEngine(void);
+        /**
+--- 333,344 ----
+       * \brief Interface for depth-first branch-and-bound search engines
+       */
+      class BabEngine : public FullStatistics {
++     protected:
++       /// The EndCondition
++       Search::EndCondition *theEnd;
+      public:
+        /// Constructor
+!       BabEngine(size_t sz,Search::EndCondition *theEnd=NULL);
+        /// Destructor
+        GECODE_SEARCH_EXPORT virtual ~BabEngine(void);
+        /**
+***************
+*** 366,372 ****
+         * \param a_d adaptive recomputation distance
+         * \param sz size of one space
+         */
+!       BAB(Space* s, unsigned int c_d, unsigned int a_d, size_t sz);
+        /// Destructor
+        ~BAB(void);
+        /// Return statistics
+--- 381,387 ----
+         * \param a_d adaptive recomputation distance
+         * \param sz size of one space
+         */
+!       BAB(Space* s, unsigned int c_d, unsigned int a_d, size_t sz,Search::EndCondition *theEnd=NULL);
+        /// Destructor
+        ~BAB(void);
+        /// Return statistics
+***************
+*** 396,402 ****
+       */
+      BAB(T* s,
+  	unsigned int c_d=Search::Config::c_d,
+! 	unsigned int a_d=Search::Config::a_d);
+      /// Return next better solution (NULL, if none exists)
+      T* next(void);
+    };
+--- 411,425 ----
+       */
+      BAB(T* s,
+  	unsigned int c_d=Search::Config::c_d,
+! 	unsigned int a_d=Search::Config::a_d,
+! 	Search::EndCondition *theEnd=NULL
+! 	);
+!     BAB(T* s,
+! 	Search::EndCondition *theEnd=NULL,
+! 	unsigned int c_d=Search::Config::c_d,
+! 	unsigned int a_d=Search::Config::a_d
+! 	);
+!     
+      /// Return next better solution (NULL, if none exists)
+      T* next(void);
+    };
+***************
+*** 417,424 ****
+    template <class T>
+    T* bab(T* s,
+  	 unsigned int c_d=Search::Config::c_d,
+! 	 unsigned int a_d=Search::Config::a_d);
+  
+  
+  
+    /**
+--- 440,455 ----
+    template <class T>
+    T* bab(T* s,
+  	 unsigned int c_d=Search::Config::c_d,
+! 	 unsigned int a_d=Search::Config::a_d,
+! 	 Search::EndCondition *theEnd=NULL
+! 	 );
+  
++   template <class T>
++   T* bab(T* s,
++ 	 Search::EndCondition *theEnd=NULL,
++ 	 unsigned int c_d=Search::Config::c_d,
++ 	 unsigned int a_d=Search::Config::a_d
++ 	 );
+  
+  
+    /**

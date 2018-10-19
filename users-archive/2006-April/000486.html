@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Posting propagator : IntView lifetime ?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Posting%20propagator%20%3A%20IntView%20lifetime%20%3F&In-Reply-To=%3C003d01c65e15%24b53e21f0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000487.html">
+   <LINK REL="Next"  HREF="000488.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Posting propagator : IntView lifetime ?</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Posting%20propagator%20%3A%20IntView%20lifetime%20%3F&In-Reply-To=%3C003d01c65e15%24b53e21f0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] Posting propagator : IntView lifetime ?">schulte at imit.kth.se
+       </A><BR>
+    <I>Wed Apr 12 11:44:35 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000487.html">[gecode-users] Posting propagator : IntView lifetime ?
+</A></li>
+        <LI>Next message: <A HREF="000488.html">[gecode-users] Posting propagator : IntView lifetime ?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#486">[ date ]</a>
+              <a href="thread.html#486">[ thread ]</a>
+              <a href="subject.html#486">[ subject ]</a>
+              <a href="author.html#486">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hmmm, I am not sure that I understand correctly but I try to summarize:
+propagators never compute with variables (that is, IntVar) but only with
+IntViews. Both IntVars and IntViews are proxies to integer variable
+implementations.
+
+Posting in general works as follows: a post function takes its arguments as
+IntVars (or IntVarArgs). An example of this function is linear, rel,
+distinct, etc. A post function calls some post member function of a subclass
+of a propagator (this is the static member function post of a propagator).
+Post member functions typically take IntViews (or other views as arguments)
+which means that a post function converts IntVars to IntViews (through a
+copy constructor Int::IntView(const IntVar&amp;)) or explicitly creates
+ViewArrays.
+
+A post member function then uses new together with a constructor to create
+the propagator. What a constructor does is that it stores the views in the
+propagator's state (so views have been created in the post function, have
+been passed to the post member function, have been passed to a constructor,
+and then the constructor stores them). After storing, the propagator will
+also subscribe to the stored views. 
+
+After that a propagator knows its views: the propagators uses these views in
+propagate(...) but also during copy (and in the constructor used during
+cloning) and eventually for cancelling subscriptions in the destructor.
+
+So the answer is that Views live as long as propagators live and they are
+created only once per propagator in the post function. The integer variable
+implementation to which a view is a proxy will live as long as there is a
+proxy to it (be it an IntVar or IntView).
+
+Hope that helps
+Christian
+
+PS: We found the distinction between &quot;post function&quot; and &quot;post member
+function&quot; quite useful in practice. &quot;Post function&quot; typically do consistency
+checking and preprocessing (are all integer values in the right range, can
+overflow happen). Then the &quot;post member function&quot; typiccaly performs tasks
+that are related to the particular propagator (is there a specialized
+version to be posted instead, such as ternary versus n-ary max, etc; is
+there sharing and so on). Post member functions are also used by other
+propagators, for example when an abs(x)=y propagator is rewritten to an
+equality propagator x=y in case that x is known to be non-negative.
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of jeremie.vautard
+Sent: Wednesday, April 12, 2006 11:24 AM
+To: users
+Subject: [gecode-users] Posting propagator : IntView lifetime ?
+
+
+Hi ! 
+
+I have been checking how some of  the public static post members of
+propagator classes works for posting constraints passing IntVar arguments,
+however I get lost in the code. Can anyone tell me exactly how this works ?
+If I understand well, for the subscription part, it is only necessary to
+create the Intview, subscribe the new propagator to this view, and then, the
+view can be destroyed, as the subscription called the InVarImp subscribe
+method. But, concerning the domain shrinking of the variables, I have to
+keep a trace of the views of the variables I possibly modify. During space
+cloning, how is the update of these views managed ? Must I create new views
+from the IntVars each time the propagate() method is called ? 
+
+My point is to create a propagator which concerns two integer variables and
+post it using only the intVars of the concerned two variables. What is the
+best way to do this ? 
+
+
+J&#233;r&#233;mie Vautard
+
+Acc&#233;dez au courrier &#233;lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 &#8364;/mn) ; t&#233;l : 08 92 68 13 50 (0,34&#8364;/mn)
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000487.html">[gecode-users] Posting propagator : IntView lifetime ?
+</A></li>
+	<LI>Next message: <A HREF="000488.html">[gecode-users] Posting propagator : IntView lifetime ?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#486">[ date ]</a>
+              <a href="thread.html#486">[ thread ]</a>
+              <a href="subject.html#486">[ subject ]</a>
+              <a href="author.html#486">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

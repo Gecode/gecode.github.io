@@ -1,0 +1,390 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Gecode BAB Questions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20BAB%20Questions&In-Reply-To=%3C515BE47C.4060300%40it.uu.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003851.html">
+   <LINK REL="Next"  HREF="003857.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Gecode BAB Questions</H1>
+    <B>Jean-No&#235;l Monette</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20BAB%20Questions&In-Reply-To=%3C515BE47C.4060300%40it.uu.se%3E"
+       TITLE="[gecode-users] Gecode BAB Questions">jean-noel.monette at it.uu.se
+       </A><BR>
+    <I>Wed Apr  3 10:12:44 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003851.html">[gecode-users] Gecode BAB Questions
+</A></li>
+        <LI>Next message: <A HREF="003857.html">[gecode-users] Fwd: Windows x86 (32 bit,	MSVC 2010): Gecode-4.0.0-x86-2010.msi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3852">[ date ]</a>
+              <a href="thread.html#3852">[ thread ]</a>
+              <a href="subject.html#3852">[ subject ]</a>
+              <a href="author.html#3852">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello Dean,
+
+I think that the problem is that you want to have a solution even if 
+some variables have an empty domain. Unfortunately(?), in constraint 
+programming and in Gecode in particular, as soon as any variable of the 
+model has an empty domain, the solver considers it as a failure. In your 
+model, if I understand correctly (I did not read the code), you want to 
+get a solution for X, even if one of the Y has an empty domain, which is 
+not possible as such.
+
+One workaround (maybe not the best one?) is to add a &quot;dummy&quot; value to 
+the domain of each of the Y, which is not in the domain of X, so that if 
+everything else is ruled out from the domain of some of the Y, they can 
+still take that value, to avoid triggering a failure. This has the 
+downside that all the constraints on Y (except the one linking Y and X) 
+must be modified so that they do not remove the dummy value.
+
+Regarding the number of solution, I think that if you care about all the 
+solutions, you should not use the BAB engine but the DFS. BAB is to look 
+for a best solution. The number of solutions visited before reaching the 
+best one may very well depend on the branching strategy. Using DFS and 
+looking for all solutions, you should find all the solutions, 
+independently from the cost (but again the order in which the solutions 
+are provided may depend on the branching strategy).
+
+Best,
+
+JN
+
+
+On 04/03/2013 09:52 AM, Christian Schulte wrote:
+&gt;<i> Hi Dean,
+</I>&gt;<i>
+</I>&gt;<i> I tried to understand what you are doing but failed. This is not really a
+</I>&gt;<i> Gecode issue but an issue how you model your problem. In particular your
+</I>&gt;<i> statement that only six solutions are found while there are ten is a little
+</I>&gt;<i> strange. What you could try, though, is: take the values for the variables
+</I>&gt;<i> you believe are solutions which are missing and constrain your variables by
+</I>&gt;<i> hand to these values to verify whether they are solutions according to your
+</I>&gt;<i> model. Then try to remove some constraints to see which of the constraints
+</I>&gt;<i> rule out your intended solutions.
+</I>&gt;<i>
+</I>&gt;<i> Sorry for not being more helpful
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Dean Hiller
+</I>&gt;<i> Sent: Thursday, March 28, 2013 5:19 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Gecode BAB Questions
+</I>&gt;<i>
+</I>&gt;<i> I am very new to constraint programming, but by using the MPG have been able
+</I>&gt;<i> to develop a fairly large Gecode application in a relatively short period of
+</I>&gt;<i> time. Due to my lack of constraint programming knowledge, I may not have
+</I>&gt;<i> selected the best methods for solving my particular problem, but what I have
+</I>&gt;<i> done appears to work with two exceptions which are shown in the attached
+</I>&gt;<i> program.
+</I>&gt;<i> This program is the minimum program I could generate to show what I am doing
+</I>&gt;<i> and to replicate my two problems.
+</I>&gt;<i>
+</I>&gt;<i> In the attached program, I have an IntVar X which is to receive ordered
+</I>&gt;<i> values from Y0, Y1, and Y2 along with an indication of from which Y the
+</I>&gt;<i> value came.
+</I>&gt;<i>
+</I>&gt;<i> The first problem I am having is that the program stops after finding 6 of
+</I>&gt;<i> the 10 possible solutions and I don't understand how to debug this problem.
+</I>&gt;<i>
+</I>&gt;<i> The second problem I am having is that the program fails to find any
+</I>&gt;<i> solutions if the constraints on one of the Y variables results in it not
+</I>&gt;<i> having any solutions even though there are other solutions for X.
+</I>&gt;<i>
+</I>&gt;<i> I have this problem with both the 3.7.3 release and the
+</I>&gt;<i> 4.0.0 release.
+</I>&gt;<i>
+</I>&gt;<i> I would appreciate any assistance you can provide.
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i> Dean
+</I>&gt;<i>
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i> #include &lt;gecode/search.hh&gt;
+</I>&gt;<i> #include &lt;gecode/minimodel.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i> typedef struct Y_s
+</I>&gt;<i> {
+</I>&gt;<i> 	IntVar nY;
+</I>&gt;<i> } Y;
+</I>&gt;<i>
+</I>&gt;<i> class GecodeTest3 : public Space {
+</I>&gt;<i> protected:
+</I>&gt;<i> 	int m_nMin;
+</I>&gt;<i> 	int m_nMax;
+</I>&gt;<i> 	int m_nNumY;
+</I>&gt;<i> 	IntVar m_nX;
+</I>&gt;<i> 	IntVarArray m_naX;
+</I>&gt;<i> 	BoolVarArray m_baX;
+</I>&gt;<i> 	int m_nYIndex;
+</I>&gt;<i> 	IntVar m_nY0;
+</I>&gt;<i> 	IntVar m_nY1;
+</I>&gt;<i> 	IntVar m_nY2;
+</I>&gt;<i> 	IntVar *m_vY[3];
+</I>&gt;<i> 	IntVar m_nCost;
+</I>&gt;<i> 	IntVarArray m_nValue;
+</I>&gt;<i> 	IntArgs m_nC;
+</I>&gt;<i>
+</I>&gt;<i> public:
+</I>&gt;<i> 	void AddY(int* naY, int nSize)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		m_nYIndex++;
+</I>&gt;<i> 		*m_vY[m_nYIndex] = IntVar(*this, m_nMin, m_nMax);
+</I>&gt;<i> 		ConstrainY(naY, nSize);
+</I>&gt;<i> 		rel(*this, m_naX[m_nYIndex] == *m_vY[m_nYIndex]);
+</I>&gt;<i> 		rel(*this, m_baX[m_nYIndex] == (m_naX[m_nYIndex] == m_nX));
+</I>&gt;<i> 		branch(*this, *m_vY[m_nYIndex], INT_VAL_MIN());
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	void ConstrainY(int *naY, int nSize)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		IntArgs nTemp;
+</I>&gt;<i> 		for (int i = 0; i &lt; nSize; i++)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			nTemp &lt;&lt; naY[i];
+</I>&gt;<i> 		}
+</I>&gt;<i> 		IntSet nsTemp(nTemp);
+</I>&gt;<i> 		dom(*this, *m_vY[m_nYIndex], nsTemp);
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	int GetX(void)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		return m_nX.val();
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	int GetWhichY(void)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		return m_nValue[0].val();
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	int GetCost(void)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		return m_nCost.val();
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	GecodeTest3(int nMin, int nMax, int nNumY) :
+</I>&gt;<i> 	m_nMin(nMin), m_nMax(nMax), m_nNumY(nNumY), m_nYIndex(-1)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		if (m_nMin &lt; 0)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			std::cout &lt;&lt; &quot;m_nMin must not be negative&quot; &lt;&lt;
+</I>&gt;<i> std::endl;
+</I>&gt;<i> 		}
+</I>&gt;<i> 		m_vY[0] = &amp;m_nY0;
+</I>&gt;<i> 		m_vY[1] = &amp;m_nY1;
+</I>&gt;<i> 		m_vY[2] = &amp;m_nY2;
+</I>&gt;<i> 		m_nX = IntVar(*this, m_nMin, m_nMax);
+</I>&gt;<i> 		m_naX = IntVarArray(*this, m_nNumY, m_nMin, m_nMax);
+</I>&gt;<i> 		m_baX = BoolVarArray(*this, m_nNumY, 0, 1);
+</I>&gt;<i> 		m_nC &lt;&lt; 1;
+</I>&gt;<i> 		m_nC &lt;&lt; m_nNumY;
+</I>&gt;<i> 		int nTemp =  m_nNumY * m_nMax + m_nNumY;
+</I>&gt;<i> 		m_nCost = IntVar(*this, 0, nTemp);
+</I>&gt;<i> 		nTemp = m_nMax &gt; nNumY ? m_nMax : nNumY;
+</I>&gt;<i> 		m_nValue = IntVarArray(*this, 2, 0, nTemp);
+</I>&gt;<i> 		rel(*this, m_nX == min(m_naX));
+</I>&gt;<i> 		element(*this, m_baX, m_nValue[0], 1);
+</I>&gt;<i> 		rel(*this, m_nValue[1] == m_nX);
+</I>&gt;<i> 		linear(*this, m_nC, m_nValue, IRT_EQ, m_nCost);
+</I>&gt;<i> 		branch(*this, m_naX, INT_VAR_MIN_MIN(), INT_VAL_MIN());
+</I>&gt;<i> 		branch(*this, m_nX, INT_VAL_MIN());
+</I>&gt;<i> 		branch(*this, m_nValue[0], INT_VAL_MIN());
+</I>&gt;<i> 	}
+</I>&gt;<i> 	// search support
+</I>&gt;<i> 	GecodeTest3(bool share, GecodeTest3&amp; s) : Space(share, s) {
+</I>&gt;<i> 		// s.print(std::cout);
+</I>&gt;<i> 		m_vY[0] = &amp;m_nY0;
+</I>&gt;<i> 		m_vY[1] = &amp;m_nY1;
+</I>&gt;<i> 		m_vY[2] = &amp;m_nY2;
+</I>&gt;<i> 		m_nX.update(*this, share, s.m_nX);
+</I>&gt;<i> 		m_naX.update(*this, share, s.m_naX);
+</I>&gt;<i> 		m_baX.update(*this, share, s.m_baX);
+</I>&gt;<i> 		m_nCost.update(*this, share, s.m_nCost);
+</I>&gt;<i> 		m_nY0.update(*this, share, s.m_nY0);
+</I>&gt;<i> 		m_nY1.update(*this, share, s.m_nY1);
+</I>&gt;<i> 		m_nY2.update(*this, share, s.m_nY2);
+</I>&gt;<i> 		m_nValue.update(*this, share, s.m_nValue);
+</I>&gt;<i> 		for (int i = 0; i &lt; 2; i++)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			m_nC &lt;&lt; s.m_nC[i];
+</I>&gt;<i> 		}
+</I>&gt;<i> 	}
+</I>&gt;<i> 	virtual Space* copy(bool share) {
+</I>&gt;<i> 		return new GecodeTest3(share,*this);
+</I>&gt;<i> 	}
+</I>&gt;<i> 	virtual void constrain(const Space&amp; _b)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		const GecodeTest3&amp; b = static_cast&lt;const GecodeTest3&amp;&gt;(_b);
+</I>&gt;<i> 		rel(*this, m_nCost &gt; b.m_nCost);
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	// print solution
+</I>&gt;<i> 	void print(std::ostream&amp; os) const {
+</I>&gt;<i> 		os &lt;&lt; &quot;m_nX:         &quot; &lt;&lt; m_nX &lt;&lt; std::endl;
+</I>&gt;<i> 		for (int i = 0;  i &lt; m_naX.size(); i++)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			os &lt;&lt; &quot;m_naX[&quot; &lt;&lt; i &lt;&lt; &quot;]:   &quot; &lt;&lt; m_naX[i] &lt;&lt; &quot;   &quot;;
+</I>&gt;<i>                 os &lt;&lt; &quot;m_baX[&quot; &lt;&lt; i &lt;&lt; &quot;]:   &quot; &lt;&lt; m_baX[i] &lt;&lt; &quot;   &quot;;
+</I>&gt;<i> 			os &lt;&lt; std::endl;
+</I>&gt;<i> 		}
+</I>&gt;<i> 		for (int i = 0; i &lt; m_nC.size(); i++)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			os &lt;&lt; &quot;m_nC[&quot; &lt;&lt; i &lt;&lt; &quot;]:  &quot; &lt;&lt; m_nC[i] &lt;&lt;
+</I>&gt;<i> std::endl;
+</I>&gt;<i> 		}
+</I>&gt;<i> 		for (int i = 0; i &lt; m_nValue.size(); i++)
+</I>&gt;<i> 		{
+</I>&gt;<i> 			os &lt;&lt; &quot;m_nValue[&quot; &lt;&lt; i &lt;&lt; &quot;]:  &quot; &lt;&lt; m_nValue[i] &lt;&lt;
+</I>&gt;<i> std::endl;
+</I>&gt;<i> 		}
+</I>&gt;<i> 		os &lt;&lt; &quot;m_nCost:  &quot; &lt;&lt; m_nCost &lt;&lt; std::endl;
+</I>&gt;<i> 	}
+</I>&gt;<i> };
+</I>&gt;<i>
+</I>&gt;<i> void BuildAndSolve(bool b2Y1)
+</I>&gt;<i> {
+</I>&gt;<i> 	int Y0[3] = {1, 3, 7};
+</I>&gt;<i> 	int Y1[3] = {2, 4, 5};
+</I>&gt;<i> 	int Y2[4] = {4, 6, 8, 9};
+</I>&gt;<i> 	int Y1a[3] = {1, 3, 8};
+</I>&gt;<i>
+</I>&gt;<i> 	// create model and search engine
+</I>&gt;<i> 	GecodeTest3 *m = new GecodeTest3(0, 20, 3);
+</I>&gt;<i> 	m-&gt;AddY(Y0, sizeof(Y0)/sizeof(int));
+</I>&gt;<i> 	m-&gt;AddY(Y1, sizeof(Y1)/sizeof(int));
+</I>&gt;<i> 	if (b2Y1)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		m-&gt;ConstrainY(Y1a, sizeof(Y1a)/sizeof(int));
+</I>&gt;<i> 	}
+</I>&gt;<i> 	m-&gt;AddY(Y2, sizeof(Y2)/sizeof(int));
+</I>&gt;<i> 	// m-&gt;print(std::cout);
+</I>&gt;<i> 	bool bFailed = true;
+</I>&gt;<i> 	BAB&lt;GecodeTest3&gt; e(m);
+</I>&gt;<i> 	GecodeTest3 *s;
+</I>&gt;<i> 	while (((s = e.next()) != 0))
+</I>&gt;<i> 	{
+</I>&gt;<i> 		bFailed = false;
+</I>&gt;<i> 		// s-&gt;print(std::cout);
+</I>&gt;<i> 		int X = s-&gt;GetX();
+</I>&gt;<i> 		int whichY = s-&gt;GetWhichY();
+</I>&gt;<i> 		int nCost = s-&gt;GetCost();
+</I>&gt;<i> 		std::cout &lt;&lt; &quot;X=&quot; &lt;&lt; X &lt;&lt; &quot; from Y&quot; &lt;&lt; whichY &lt;&lt; &quot;. Cost=&quot;
+</I>&gt;<i> &lt;&lt; nCost &lt;&lt; std::endl;
+</I>&gt;<i> 		// std::cout &lt;&lt; std::endl;
+</I>&gt;<i> 		delete s;
+</I>&gt;<i> 	}
+</I>&gt;<i> 	
+</I>&gt;<i> 	if (bFailed)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		std::cout &lt;&lt; &quot;Model failed&quot; &lt;&lt; std::endl;
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	Search::Statistics stat = e.statistics();
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;Search Statistics&quot; &lt;&lt; std::endl;
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;  Propagations: &quot; &lt;&lt; stat.propagate &lt;&lt; std::endl;
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;  Nodes:        &quot; &lt;&lt; stat.node &lt;&lt; std::endl;
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;  Failures:     &quot; &lt;&lt; stat.fail &lt;&lt; std::endl;
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;  Depth:        &quot; &lt;&lt; stat.depth &lt;&lt; std::endl;
+</I>&gt;<i> 	int nPeakMemoryKB = static_cast&lt;int&gt;((stat.memory+1023) / 1024);
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;  Peak Memory   &quot; &lt;&lt; nPeakMemoryKB &lt;&lt; &quot;KB&quot; &lt;&lt;
+</I>&gt;<i> std::endl;
+</I>&gt;<i> 	std::cout &lt;&lt; std::endl;
+</I>&gt;<i> 	delete m;
+</I>&gt;<i> 	return;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> int GecodeTest3Main(int argc, char* argv[]) {
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;One Y1 constraint&quot; &lt;&lt; std::endl;
+</I>&gt;<i> 	BuildAndSolve(false);
+</I>&gt;<i> 	std::cout &lt;&lt; &quot;Two Y1 constraints&quot; &lt;&lt; std::endl;
+</I>&gt;<i> 	BuildAndSolve(true);
+</I>&gt;<i> 	return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Sample output:
+</I>&gt;<i> One Y1 constraint
+</I>&gt;<i> X=1 from Y0. Cost=3
+</I>&gt;<i> X=2 from Y1. Cost=7
+</I>&gt;<i> X=3 from Y0. Cost=9
+</I>&gt;<i> X=4 from Y1. Cost=13
+</I>&gt;<i> X=4 from Y2. Cost=14
+</I>&gt;<i> X=5 from Y1. Cost=16
+</I>&gt;<i> Search Statistics
+</I>&gt;<i>       Propagations: 149
+</I>&gt;<i>       Nodes:        21
+</I>&gt;<i>       Failures:     5
+</I>&gt;<i>       Depth:        3
+</I>&gt;<i>       Peak Memory   8KB
+</I>&gt;<i>
+</I>&gt;<i> Two Y1 constraints
+</I>&gt;<i> Model failed
+</I>&gt;<i> Search Statistics
+</I>&gt;<i>       Propagations: 0
+</I>&gt;<i>       Nodes:        0
+</I>&gt;<i>       Failures:     1
+</I>&gt;<i>       Depth:        0
+</I>&gt;<i>       Peak Memory   4KB
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003851.html">[gecode-users] Gecode BAB Questions
+</A></li>
+	<LI>Next message: <A HREF="003857.html">[gecode-users] Fwd: Windows x86 (32 bit,	MSVC 2010): Gecode-4.0.0-x86-2010.msi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3852">[ date ]</a>
+              <a href="thread.html#3852">[ thread ]</a>
+              <a href="subject.html#3852">[ subject ]</a>
+              <a href="author.html#3852">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,410 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Cost optimization problem
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cost%20optimization%20problem&In-Reply-To=%3C007201d214b7%24f3a8c3a0%24dafa4ae0%24%40mad-environnement.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004890.html">
+   <LINK REL="Next"  HREF="004892.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Cost optimization problem</H1>
+    <B>Sebastien Delmotte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cost%20optimization%20problem&In-Reply-To=%3C007201d214b7%24f3a8c3a0%24dafa4ae0%24%40mad-environnement.com%3E"
+       TITLE="[gecode-users] Cost optimization problem">delmotte at mad-environnement.com
+       </A><BR>
+    <I>Thu Sep 22 11:59:02 CEST 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004890.html">[gecode-users] Cost optimization problem
+</A></li>
+        <LI>Next message: <A HREF="004892.html">[gecode-users] Cost optimization problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4891">[ date ]</a>
+              <a href="thread.html#4891">[ thread ]</a>
+              <a href="subject.html#4891">[ subject ]</a>
+              <a href="author.html#4891">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear All,
+
+I'm back with my issue of cost optimization with float variables.
+
+I can't solve my problem with integers because : (i) the transformation of
+my model from float to integer makes me using coefficients with high value
+which cause the overtaking of int size; (ii) even with smaller values, the
+time of optimization is around 11h20 for optimizing only 6 coefficients (and
+I have more to optimize).
+
+So, I've tested another example: (i)  I've taken the Hakank diet code
+(<A HREF="http://www.hakank.org/gecode/">http://www.hakank.org/gecode/</A>) written with integer variables; (ii) I've
+transformed the code to solve the model with float variables instead of
+integer variables.
+
+The result is similar than with my model: an exception occurs about
+&quot;unassigned variable&quot; which is probably the cost variable. (I put the code
+at the end of this message).
+
+So it seems that the issue is not a modelling one. Do you have an idea about
+the origin of this exception which occurs with the two models I've tested?
+
+Do you known some other float optimization examples which are solved with
+gecode?
+
+Thank you in advance.
+
+Best regards,
+
+S. D.
+
+Adapted Hakank Code:
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/float.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+
+class Tests : public FloatMinimizeScript  {
+protected:
+    FloatVarArray x;          // amount of each product
+    FloatVar t_cost;          // total cost to minimize
+    static const int n = 4; // number of products
+
+public:
+
+    Tests(const Options&amp; o) :FloatMinimizeScript(o),
+        x(*this, n, 0, 1000),
+        t_cost(*this, 0, 1000)
+    {
+
+        float _price[]  = { 50.f, 20.f, 30.f, 80.f}; // in cents
+        float limits[]  = {500.f,  6.f, 10.f,  8.f}; // requirements for
+each nutrition type
+
+        // nutritions for each product
+        float _calories[]  = {400.f, 200.f, 150.f, 500.f};
+        float _chocolate[] = {  3.f,   2.f,   0.f,   0.f};
+        float _sugar[]     = {  2.f,   2.f,   4.f,   4.f};
+        float _fat[]       = {  2.f,   4.f,   1.f,   5.f};
+
+        FloatVarArgs v_calories;
+        FloatVarArgs v_chocolate;
+        FloatVarArgs v_fat;
+        FloatVarArgs v_sugar;
+        FloatVarArgs v_costs;
+        for(int i = 0;i&lt;4;++i)
+        {
+            v_calories &lt;&lt; expr(*this,x[i]*_calories[i]);
+            v_chocolate &lt;&lt; expr(*this,x[i]*_chocolate[i]);
+            v_fat &lt;&lt; expr(*this,x[i]*_fat[i]);
+            v_sugar &lt;&lt; expr(*this,x[i]*_sugar[i]);
+            v_costs &lt;&lt; expr(*this,x[i]*_price[i]);
+        }
+        rel(*this,expr(*this,sum(v_calories)),FRT_GQ,limits[0]);
+        rel(*this,expr(*this,sum(v_chocolate)),FRT_GQ,limits[1]);
+        rel(*this,expr(*this,sum(v_sugar)),FRT_GQ,limits[2]);
+        rel(*this,expr(*this,sum(v_fat)),FRT_GQ,limits[3]);
+        t_cost = expr(*this,sum(v_costs));
+
+        branch(*this, x, FLOAT_VAR_NONE(), FLOAT_VAL_SPLIT_MIN());
+
+    }
+
+    // Prfloat solution
+    virtual void
+    prfloat(std::ostream&amp; os) const {
+        os &lt;&lt; &quot;\t&quot; &lt;&lt; x &lt;&lt; &quot; t_cost: &quot; &lt;&lt; t_cost &lt;&lt; std::endl;
+    }
+
+    virtual FloatVar cost(void) const{
+        return t_cost;
+    }
+
+    Tests(bool share, Tests&amp; s) : FloatMinimizeScript(share,s) {
+        x.update(*this, share, s.x);
+        t_cost.update(*this, share, s.t_cost);
+    }
+
+    virtual Space*
+    copy(bool share) {
+        return new Tests(share,*this);
+    }
+};
+
+
+float main(float argc, char* argv[]) {
+
+    Options opt(&quot;Test&quot;);
+    opt.solutions(1e9);
+    //opt.threads(8);
+    FloatMinimizeScript::run&lt;Tests,BAB,Options&gt;(opt);
+    return 0;
+}
+
+
+-----Message d'origine-----
+De&#160;: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] De la part
+de Sebastien Delmotte
+Envoy&#233;&#160;: mardi 20 septembre 2016 10:37
+&#192;&#160;: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc&#160;: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Objet&#160;: Re: [gecode-users] Cost optimization problem
+
+Dear Christian,
+
+I've tried to play with the step value but it doesn't change anything. An
+exception related to an unassigned variable (cost) still occurs and it
+prevents the search to be processed. I really don't understand why it works
+with exactly the same code with floats converted to integers, but I surely
+don't use correctly the gecode options. 
+
+I think I will continue with integers for the moment.
+
+Thank you very much.
+
+S. D.
+
+-----Message d'origine-----
+De&#160;: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>] Envoy&#233;&#160;: vendredi 16
+septembre 2016 13:18 &#192;&#160;: 'Sebastien Delmotte'; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> Objet&#160;: RE:
+[gecode-users] Cost optimization problem
+
+Hi,
+
+That's strange... Did you try to play with the step value as explained in
+MPG 7.3?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte Professor of Computer Science,
+KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Sebastien Delmotte
+Sent: Friday, September 16, 2016 13:08
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Cost optimization problem
+
+Dear Christian,
+
+Thank you for your answer.
+
+When I transform all the code from float variables to integer variables (in
+changing the constraints from 1 to 100 for example), that works perfectly.
+So maybe my implementation for float variables is not good. I will try to
+find why.
+
+Best regards,
+
+SD
+
+-----Message d'origine-----
+De&#160;: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>] Envoy&#233;&#160;: jeudi 15 septembre
+2016 17:03 &#192;&#160;: 'Sebastien Delmotte'; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> Objet&#160;: RE:
+[gecode-users] Cost optimization problem
+
+Hi,
+
+Sorry but I think this is really a modelling issue and not a Gecode issue,
+as you have already figured out 3).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte Professor of Computer Science,
+KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Sebastien Delmotte
+Sent: Tuesday, September 13, 2016 14:55
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Cost optimization problem
+
+Dear All,
+
+I have a problem with using Gecode to solve an optimization problem.
+
+Problem description:
+- I have a recipe with two sub-components. Each component has a coefficient
+corresponding to its amount in the recipe. So the sum of the sub-components
+coefficients must be equal to 1;
+- Each of the two sub-components is composed of several raw materials. Each
+raw material has a coefficient corresponding to its amount in its
+sub-component. So, for each sub-component, the sum of the raw materials
+coefficients is equal to 1;
+- At the recipe level, I have some constraints on the raw materials amount
+(e.g. raw material 1 must be in a given interval). The amount of each raw
+material in the recipe is equal to the product of the coefficient of this
+raw material by the coefficient of its sub-component
+- I have to minimize the cost of the recipe accounting for the cost of each
+raw materials. This cost is equal to the sum of the product of each raw
+material coefficient by its unit cost.
+
+Code
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+using namespace Gecode;
+class Tests : public FloatMinimizeScript&#160; {
+protected:
+&#160;&#160;&#160; FloatVarArray _rms_in_sub_c_1; // raw mat in sub-comp1
+&#160;&#160;&#160; FloatVarArray _rms_in_sub_c_2; // raw mat in sub-comp2
+&#160;&#160;&#160; FloatVarArray _sub_c; // 2 sub-comp
+&#160;&#160;&#160; FloatVar _cost; // cost
+public:
+&#160;&#160;&#160; Tests(const Options&amp; o)
+:<i>FloatMinimizeScript(o),_rms_in_sub_c_1(*this,4,0,1),_rms_in_sub_c_2(*this,3
+</I>,0,1),_sub_c(*this,2,0,1),_cost(*this,0,1000)
+&#160;&#160;&#160; {
+//sum of raw mat in sub-comp =1
+FloatVar all_rms_sub1 = expr(*this,sum(_rms_in_sub_c_1));
+rel(*this,all_rms_sub1 ,FRT_EQ,1);
+FloatVar all_rms_sub2 = expr(*this,sum(_rms_in_sub_c_2));
+rel(*this,all_rms_sub2 ,FRT_EQ,1);
+// sum of sub-comp =1
+FloatVar sm = expr(*this,sum(_sub_c));
+rel(*this,sm ,FRT_EQ,1);
+// Global constraints on raw mat in recipe FloatVar rm_0_sub_coef1=
+expr(*this,_rms_in_sub_c_1[0]*_sub_c[0]);
+rel(*this,rm_0_sub_coef1,FRT_GQ,0);
+FloatVar rm_1_sub_coef1= expr(*this,_rms_in_sub_c_1[1]*_sub_c[0]);
+rel(*this,rm_1_sub_coef1,FRT_GQ,0);
+FloatVar rm_2_sub_coef1= expr(*this,_rms_in_sub_c_1[2]*_sub_c[0]);
+rel(*this,rm_2_sub_coef1,FRT_GQ,0);
+FloatVar rm_3_sub_coef1= expr(*this,_rms_in_sub_c_1[3]*_sub_c[0]);
+rel(*this,rm_3_sub_coef1,FRT_GQ,0);
+FloatVar rm_0_sub_coef2= expr(*this,_rms_in_sub_c_2[0]*_sub_c[1]);
+rel(*this,rm_0_sub_coef2,FRT_GQ,0);
+FloatVar rm_1_sub_coef2= expr(*this,_rms_in_sub_c_2[1]*_sub_c[1]);
+rel(*this,rm_1_sub_coef2,FRT_GQ,0);
+FloatVar rm_2_sub_coef2= expr(*this,_rms_in_sub_c_2[2]*_sub_c[1]);
+rel(*this,rm_2_sub_coef2,FRT_GQ,0);
+
+// Cost
+_cost = expr(*this,_sub_c[0]*(_rms_in_sub_c_1[0]*12 +_rms_in_sub_c_1[1]*14 +
+_rms_in_sub_c_1[2] * 22 +_rms_in_sub_c_1[3] * 17 )
++_sub_c[1]*(_rms_in_sub_c_2[0]*9 +_rms_in_sub_c_2[1]*2 + 
++_rms_in_sub_c_2[2]
+* 18 ));
+FloatVarArgs all;
+for(int i = 0; i &lt;4; i++) all &lt;&lt; _rms_in_sub_c_1[i]; for(int i = 0; i &lt;3;
+i++) all &lt;&lt; _rms_in_sub_c_2[i]; for(int i = 0; i &lt;2; i++) all &lt;&lt; 
+i++_sub_c[i];
+
+branch(*this, all, FLOAT_VAR_NONE(), FLOAT_VAL_SPLIT_MIN());
+&#160;&#160;&#160; }
+
+virtual void
+print(std::ostream&amp; os) const {
+os &lt;&lt; &quot;sub-component : &quot; &lt;&lt; _sub_c &lt;&lt; &quot;\nrms 1 : &quot;&lt;&lt; _rms_in_sub_c_1&lt;&lt;
+&quot;\nrms2 : &quot;&lt;&lt; _rms_in_sub_c_2 &lt;&lt;&quot;\ncost : &quot;&lt;&lt; _cost &lt;&lt; std::endl;
+&#160;&#160;&#160; }
+
+virtual FloatVar cost(void) const{
+return _cost;
+&#160;&#160;&#160; }
+Tests(bool share, Tests&amp; s) : FloatMinimizeScript(share,s) { _sub_c.update
+(*this, share, s._sub_c); _rms_in_sub_c_1.update(*this, share,
+s._rms_in_sub_c_1); _rms_in_sub_c_2.update(*this, share, s._rms_in_sub_c_2);
+_cost.update(*this, share, s._cost);
+&#160;&#160;&#160; }
+
+virtual Space*
+copy(bool share) {
+return new Tests(share,*this);
+&#160;&#160;&#160; }
+};
+int main(int argc, char* argv[]) {
+Options opt(&quot;Test&quot;);
+opt.solutions(0);
+FloatMinimizeScript::run&lt;Tests,BAB,Options&gt;(opt);
+return 0;
+}
+
+When executing this code, the result is :
+sub-component : {0, 1}
+rms in sub-component 1 : {0, 0, 0, 1}
+rms in sub-component 2 : {0, 0, 1}
+cost : [18..18]
+
+Exception: FloatVar::val: Attempt to access value of unassigned variable.
+
+Problems:
+1- The resulting solution is trivial but absolutely not optimal for the
+cost: only the second sub-component has a positive coefficient (=1) with
+only one raw material which is not the cheapest one;
+2- In this example, all the constraints for the raw materials are: greater
+than 0. But if I change the value of the constraints (e.g. greater than
+0.1), I don't get any solution;
+3- There is an exception error: FloatVar::val: Attempt to access value of
+unassigned variable. This error disappears when I add the variable cost in
+the branching, but the solution is still non optimal.
+
+I think I have a problem with handling gecode because the problem is simple,
+but I have no idea about the origin of the problem. 
+With many thanks in advance.
+Best regards,
+S.D.
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004890.html">[gecode-users] Cost optimization problem
+</A></li>
+	<LI>Next message: <A HREF="004892.html">[gecode-users] Cost optimization problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4891">[ date ]</a>
+              <a href="thread.html#4891">[ thread ]</a>
+              <a href="subject.html#4891">[ subject ]</a>
+              <a href="author.html#4891">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

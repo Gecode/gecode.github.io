@@ -1,0 +1,2358 @@
+From askri.manel1 at gmail.com  Sun Sep  1 02:49:53 2013
+From: askri.manel1 at gmail.com (manel askri)
+Date: Sun, 1 Sep 2013 01:49:53 +0100
+Subject: [gecode-users] move from a choco model to Gecode model
+Message-ID: <CAKWqT4CG8pLeOwQZHp9WOCe+_nE7gYbLiUxdBW35Y5M3iyih=g@mail.gmail.com>
+
+hi everyone !
+
+i'm trying to move from choco model to gecode model but i got some problems
+while programing
+
+so this is my choco code :
+int [][] g;
+//objective variable
+IntegerVariable  Z= choco.makeIntVar( "gain", 1, 1000000,
+Options.V_OBJECTIVE)
+IntegerVariable [][] X= new IntegerVariable[n][m];
+for( int i=0;i<n;i++){
+for (int  j=0; j<m; j++) {
+X[i][j]=choco.makeIntVar("X"+i+j,0,1);}}
+
+//Objective function
+IntegerExpressionVariable []exp1= new IntegerExpressionVariable [n];
+for (int i =0; i<n;i++)Choco.sum(exp1), Z));
+
+and here is my code in gecode :
+IntArgs g;
+
+BoolVarArray a;
+a = BoolVarArray (*this, n*m, 0,1);
+
+Matrix <BoolVarArray > X(a, m,n);
+
+IntVar gain (*this, 1, 1000000);
+
+g = IntArgs (n*m, 0,1000000);
+//objective function
+
+for(int i =0; i<n;i++)
+{
+IntArgs row=, g.slice(n*i,1,m);
+
+linear (*this , row, X.row(i), IRT_EQ, gain);
+}
+
+but that doesn't work , idon't know where is the error and the compiler
+doesn't tell me any thing so any idea about that and how can i fix it
+
+Thank you very much , and i really did read the MPG and all the examples
+that YOU gave about using matrix
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130901/f2c0d1c9/attachment.html>
+
+From cschulte at kth.se  Sun Sep  1 18:19:08 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 1 Sep 2013 18:19:08 +0200
+Subject: [gecode-users] Adding restart-based search to
+	ECLiPSe's	interface to Gecode
+In-Reply-To: <5220DDF6.2010503@cisco.com>
+References: <520E88B3.1020602@cisco.com>	<000001ce9dde$ba86a590$2f93f0b0$@kth.se>	<521447C7.7050903@cisco.com>	<013001ce9e4b$ec0772d0$c4165870$@se>
+	<5214F3E4.6000301@cisco.com>	<001801ce9e9a$a40e0ee0$ec2a2ca0$@kth.se>	<5215C162.5050300@cisco.com>
+	<024f01ce9f0c$23e90220$6bbb0660$@kth.se>
+	<011e01cea302$8faa7c60$aeff7520$@se> <5220DDF6.2010503@cisco.com>
+Message-ID: <004f01cea72e$fd313dc0$f793b940$@kth.se>
+
+Hi Kish,
+
+No, the engine can only restart based on the number of failures. But, it
+will also restart when it has found a solution. So what you could do is to
+use an embarrassingly large number of failures (ULONG_MAX) and a constant
+cutoff generator (Search::Cutoff::constant(ULONG_MAX)).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: Kish Shen [mailto:kisshen at cisco.com]
+> Sent: Friday, August 30, 2013 8:01 PM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface
+> to Gecode
+> 
+> Hi Christian,
+> 
+> Thanks for the code. This code looks to be more C++ like than what I have
+now,
+> where my GecodeSearch class (equivalent to EngineBase here) has several
+> private engine pointers for the different engine types, and the functions
+like
+> next() switch on the search methods to call the function of the correct
+engine
+> type. I will change my code to be more like what you are doing here.
+Thanks
+> again.
+> 
+> My next question is now about doing the restart: are there any
+alternatives to
+> doing restart based on the number of failures? One alternative is to do
+restart
+> only with a new solution. I assume this is what the old RESTART engine
+did. As
+> the current gfd interface supports this engine, I would like to continue
+to
+> support it. As I said in my previous posting, I am not sure if the next
+solution is
+> done via restart in RBS, because it seem to use DFS or BAB as the "actual"
+search
+> engine, and these engines don't restart (as far as I can tell) with the
+next
+> solution.
+> 
+> Thanks and cheers,
+> 
+> Kish
+> 
+> On 27/08/2013 09:51, Christian Schulte wrote:
+> > Hi Kish,
+> >
+> > Here is a solution built on top of Gecode. It defines a type
+> > Kish::EngineBase that can be passed around irrespective of which
+> > engine it actual is. The other stuff is just for illustration and how
+> > to recast Gecode's engines as engines of type Kish::EngineBase.
+> >
+> > Hope this helps.
+> >
+> > Best
+> > Christian
+> >
+> >
+> > namespace Kish {
+> >
+> >    class EngineBase {
+> >    public:
+> >      EngineBase(void) {}
+> >      virtual Gecode::Space* next(void) = 0;
+> >      virtual Gecode::Search::Statistics statistics(void) const = 0;
+> >      virtual bool stopped(void) const = 0;
+> >      virtual ~EngineBase(void) {}
+> >    };
+> >
+> >    class DFS : public EngineBase {
+> >    protected:
+> >      Gecode::DFS<Gecode::Space> e;
+> >    public:
+> >      DFS(Gecode::Space* s, const Gecode::Search::Options& o)
+> >        : e(s,o) {}
+> >      virtual Gecode::Space* next(void) {
+> >        return e.next();
+> >      }
+> >      virtual Gecode::Search::Statistics statistics(void) const {
+> >        return e.statistics();
+> >      }
+> >      virtual bool stopped(void) const {
+> >        return e.stopped();
+> >      }
+> >      virtual ~DFS(void) {}
+> >    };
+> >
+> >    class BAB : public EngineBase {
+> >    protected:
+> >      Gecode::BAB<Gecode::Space> e;
+> >    public:
+> >      BAB(Gecode::Space* s, const Gecode::Search::Options& o)
+> >        : e(s,o) {}
+> >      virtual Gecode::Space* next(void) {
+> >        return e.next();
+> >      }
+> >      virtual Gecode::Search::Statistics statistics(void) const {
+> >        return e.statistics();
+> >      }
+> >      virtual bool stopped(void) const {
+> >        return e.stopped();
+> >      }
+> >      virtual ~BAB(void) {}
+> >    };
+> >
+> >    template<template<class> class E>
+> >    class RBS : public EngineBase {
+> >    protected:
+> >      Gecode::RBS<E,Gecode::Space> e;
+> >    public:
+> >      RBS(Gecode::Space* s, const Gecode::Search::Options& o)
+> >        : e(s,o) {}
+> >      virtual Gecode::Space* next(void) {
+> >        return e.next();
+> >      }
+> >      virtual Gecode::Search::Statistics statistics(void) const {
+> >        return e.statistics();
+> >      }
+> >      virtual bool stopped(void) const {
+> >        return e.stopped();
+> >      }
+> >      virtual ~RBS(void) {}
+> >    };
+> >
+> >    enum WhichEngine {
+> >      WE_DFS, WE_BAB,
+> >      WE_RBS_DFS, WE_RBS_BAB
+> >    };
+> >
+> >    EngineBase* engine(WhichEngine we,
+> >                       Gecode::Space* s,
+> >                       const Gecode::Search::Options& o) {
+> >      switch (we) {
+> >      case WE_DFS: return new DFS(s,o);
+> >      case WE_BAB: return new BAB(s,o);
+> >      case WE_RBS_DFS: return new RBS<Gecode::DFS>(s,o);
+> >      case WE_RBS_BAB: return new RBS<Gecode::BAB>(s,o);
+> >      }
+> >    }
+> > }
+> >
+> >
+> > --
+> > Christian Schulte, Professor of Computer Science, KTH,
+> > www.ict.kth.se/~cschulte/
+> >
+> >
+> > -----Original Message-----
+> > From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> > Behalf Of Christian Schulte
+> > Sent: Thursday, August 22, 2013 9:50 AM
+> > To: 'Kish Shen'
+> > Cc: users at gecode.org
+> > Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+> > interface to Gecode
+> >
+> > Hi Kish,
+> >
+> > My bad... There is really no common basetype for search engines, the
+> > type I mentioned is actually for the implementations and not the
+interfaces...
+> >
+> > I think you will have to wait until I have added a common basetype
+> > (there is a basetype, but it is not powerful enough), I might be able
+> > to do it until the end of the week.
+> >
+> > Sorry for the confusion!
+> >
+> > Cheers
+> > Christian
+> >
+> > --
+> > Christian Schulte, Professor of Computer Science, KTH,
+> > www.ict.kth.se/~cschulte/
+> >
+> >
+> >
+> > -----Original Message-----
+> > From: Kish Shen [mailto:kisshen at cisco.com]
+> > Sent: Thursday, August 22, 2013 9:45 AM
+> > To: cschulte at kth.se
+> > Cc: users at gecode.org
+> > Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+> > interface to Gecode
+> >
+> > Hi Christian,
+> >
+> > Thanks again!
+> >
+> > On 21/08/2013 19:17, Christian Schulte wrote:
+> >> Try to avoid the Gecode::Search::bab .... functions. Just create as
+> > follows:
+> >> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+> >> work for RBS, and you do not have to create a second engine yourself,
+> >> this will the RBS class do for you.
+> >>
+> >> And do not forget to delete e eventually!
+> >>
+> >
+> > This is the part that I don't know how to do correct -- probably
+> > because of my lack of C++ knowledge, but as far as I can tell,
+> > Gecode::DFS etc are not of class Engine*, according to the doc:
+> >
+> > template<class T>
+> > class Gecode::DFS<T>
+> >
+> > for subclasses T of Space
+> >
+> > T is GecodeSpace in my case, I assume. I am not sure what class DFS
+> > is, but I can't see how it could be Engine*.
+> >
+> > Anway, I tried to do the assignment as you suggested:
+> >
+> >
+> > Search::Engine* segine;
+> > ...
+> > sengine = new DFS<GecodeSpace>(solver, o); and indeed I get the error
+> >
+> > cannot convert 'Gecode::DFS<GecodeSpace>*' to 'Gecode::Search::Engine*'
+> >
+> > (I first tried sengine = new DFS(solver, o) but got an error 'expected
+> > type-specifier')
+> >
+> > So I am not sure what to do -- do I need to change the type of
+> > sengine, and/or the way I assign an engine to sengine?
+> >
+> > Cheers,
+> >
+> > Kish
+> >
+> >
+> >
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+
+
+
+
+From a.mousavinogholi at qut.edu.au  Mon Sep  2 02:30:35 2013
+From: a.mousavinogholi at qut.edu.au (Amin Alah Mousavi Nogholi)
+Date: Mon, 2 Sep 2013 10:30:35 +1000
+Subject: [gecode-users] large Instance
+Message-ID: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+
+Hi,
+
+I need to solve a problem with millions of decision variables and constraints. I could not solve this problem by CPlex Cp optimiser. I am just wondering that Gecode can solve or not? Does anybody has such an instance?
+
+The second question is that I have a 4-dimensional decision variable. Can Gecode handle this decision variable.
+
+Thanks in advance,
+
+Amin
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130902/968c961d/attachment.html>
+
+From ostrowsk at cs.uni-potsdam.de  Mon Sep  2 09:51:57 2013
+From: ostrowsk at cs.uni-potsdam.de (Max Ostrowski)
+Date: Mon, 02 Sep 2013 09:51:57 +0200
+Subject: [gecode-users] large Instance
+In-Reply-To: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+References: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+Message-ID: <5224439D.1010809@cs.uni-potsdam.de>
+
+Like for NP problems this depends on the problem itself.
+But given you have so many variables and call them "decision variables"
+i would guess that most of them are boolean?
+If this is the case you could try an encoding in SAT or ASP (Answer Set
+Programming) where solvers are capable of handling such large numbers of
+variables.
+
+Best
+Max
+
+On 09/02/2013 02:30 AM, Amin Alah Mousavi Nogholi wrote:
+>
+> Hi,
+>
+>  
+>
+> I need to solve a problem with millions of decision variables and
+> constraints. I could not solve this problem by CPlex Cp optimiser. I
+> am just wondering that Gecode can solve or not? Does anybody has such
+> an instance?
+>
+>  
+>
+> The second question is that I have a 4-dimensional decision variable.
+> Can Gecode handle this decision variable.
+>
+>  
+>
+> Thanks in advance,
+>
+>  
+>
+> Amin
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130902/2ce155b1/attachment.html>
+
+From cschulte at kth.se  Mon Sep  2 11:04:38 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 2 Sep 2013 11:04:38 +0200
+Subject: [gecode-users] large Instance
+In-Reply-To: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+References: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+Message-ID: <011a01cea7bb$756b43d0$6041cb70$@kth.se>
+
+Hi,
+
+ 
+
+Almost impossible to say whether this will work or not. Gecode can use
+recomputation to bring down memory requirements during search at the
+expensive of increased runtime. One would have to try.
+
+ 
+
+I have no idea what a 4 dimensional decision variable is.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Amin Alah Mousavi Nogholi
+Sent: Monday, September 02, 2013 2:31 AM
+To: users at gecode.org
+Subject: [gecode-users] large Instance
+
+ 
+
+Hi,
+
+ 
+
+I need to solve a problem with millions of decision variables and
+constraints. I could not solve this problem by CPlex Cp optimiser. I am just
+wondering that Gecode can solve or not? Does anybody has such an instance?
+
+ 
+
+The second question is that I have a 4-dimensional decision variable. Can
+Gecode handle this decision variable.
+
+ 
+
+Thanks in advance,
+
+ 
+
+Amin
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130902/9336d9ab/attachment.html>
+
+From cschulte at kth.se  Mon Sep  2 11:14:15 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 2 Sep 2013 11:14:15 +0200
+Subject: [gecode-users] large Instance
+In-Reply-To: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA783@QUTEXMBX02.qut.edu.au>
+References: <A31C5F89FEBDC0429DD34240BB24F66B179BEAA63E@QUTEXMBX02.qut.edu.au>
+	<011a01cea7bb$756b43d0$6041cb70$@kth.se>
+	<A31C5F89FEBDC0429DD34240BB24F66B179BEAA783@QUTEXMBX02.qut.edu.au>
+Message-ID: <012a01cea7bc$cc06efe0$6414cfa0$@kth.se>
+
+Ah okay,
+
+ 
+
+But this is just a four dimensional array of decision variables, so that's
+no problem of course. The easiest way to do it in Gecode is to map the four
+dimensional array to a simple one-dimensional array (a simple access
+function the does the index computation will do).
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: Amin Alah Mousavi Nogholi [mailto:a.mousavinogholi at qut.edu.au] 
+Sent: Monday, September 02, 2013 11:11 AM
+To: cschulte at kth.se
+Subject: RE: [gecode-users] large Instance
+
+ 
+
+Thanks Christian,
+
+ 
+
+X[i][m][d][t] is such a 4 dimensional decision variable where I,m,d and t
+have finite domain (e.g. i=1,2,.,10000; m=1,..,10; d=1,.10; t=1,.,50;)
+
+ 
+
+Regards,
+
+ 
+
+Amin
+
+ 
+
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Monday, 2 September 2013 7:05 PM
+To: Amin Alah Mousavi Nogholi; users at gecode.org
+Subject: RE: [gecode-users] large Instance
+
+ 
+
+Hi,
+
+ 
+
+Almost impossible to say whether this will work or not. Gecode can use
+recomputation to bring down memory requirements during search at the
+expensive of increased runtime. One would have to try.
+
+ 
+
+I have no idea what a 4 dimensional decision variable is.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Amin Alah Mousavi Nogholi
+Sent: Monday, September 02, 2013 2:31 AM
+To: users at gecode.org
+Subject: [gecode-users] large Instance
+
+ 
+
+Hi,
+
+ 
+
+I need to solve a problem with millions of decision variables and
+constraints. I could not solve this problem by CPlex Cp optimiser. I am just
+wondering that Gecode can solve or not? Does anybody has such an instance?
+
+ 
+
+The second question is that I have a 4-dimensional decision variable. Can
+Gecode handle this decision variable.
+
+ 
+
+Thanks in advance,
+
+ 
+
+Amin
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130902/6d1856fb/attachment-0001.html>
+
+From zzhu at cse.cuhk.edu.hk  Tue Sep  3 04:38:27 2013
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Tue, 3 Sep 2013 10:38:27 +0800
+Subject: [gecode-users] Expr() in GECODE
+Message-ID: <CAE2SAwQ-fM1jjLSQkmrWTSV0H+1z5oxx=BWVwWbcffvpWHqp_Q@mail.gmail.com>
+
+Hi,
+
+I have a question.
+For GECODE,
+When I use expressions:
+     BoolVar sofar = expr( home,( !_A[i]   ||   x[index] != val ));// where
+_A[i] is a BoolVar, and x is IntVarArray, index and val are integer.
+
+If I rewrite it as:
+     if(_A[i].one())
+      sofar = expr( home, x[index] != val);
+     else
+      sofar = expr( home,( !_A[i]   ||   x[index] != val));
+There will be a great improvement on runtime, say 40%.
+
+If I rewrite it as:
+   if(_A[i].one())
+     x[index].nq(val);
+   else
+    sofar = expr( home,( !_A[i]   ||   x[index] != val));
+There will be another improvement on the latest one for runtime, say 30%.
+
+
+For ILOG,
+ IlcConstraint sofar =   (! _A[i]) ||     x[index] != val ) ;
+
+Rewrite as:
+     if(_A[i].isTrue()==IlcTrue)
+        sofar = x[index] != val;
+    else
+       sofar =   (! _A[i]) ||     x[index] != val ) ;
+Running times of the above two methods are the same.
+
+
+
+Is this because the "inefficient" of expr() to handle  Boolean expressions
+and relations in GECODE?
+
+
+Thanks!
+
+Zichen
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130903/def5808f/attachment.html>
+
+From cschulte at kth.se  Tue Sep  3 09:46:03 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 3 Sep 2013 09:46:03 +0200
+Subject: [gecode-users] Expr() in GECODE
+In-Reply-To: <CAE2SAwQ-fM1jjLSQkmrWTSV0H+1z5oxx=BWVwWbcffvpWHqp_Q@mail.gmail.com>
+References: <CAE2SAwQ-fM1jjLSQkmrWTSV0H+1z5oxx=BWVwWbcffvpWHqp_Q@mail.gmail.com>
+Message-ID: <008801cea879$a3e02cd0$eba08670$@se>
+
+Hi Zichen,
+
+ 
+
+Yes, you are right the minimodeling layer (that is expr()) should do a
+better job at avoiding posting reified constraints if it is not necessary
+(as you did in your own improved variants).
+
+ 
+
+I'll write that down for a future release.
+
+ 
+
+Let me try to explain what happens: with your first expression you create
+three Boolean variables b1, b2, b3 and then three reified propagators:
+
+                !_A[i] <=> b1
+
+                (x[index] != val) <=> b2
+
+                b1 || b2 = b3
+
+and expr() returns b3. Unfortunately the constraints might stay on even
+though the disjunction is already satisified (which it is in you example).
+Embarrasingly enough, I am the co-author of a paper (done using Gecode) that
+explains the problem and shows how to eliminate these constraints but it has
+not yet made it into Gecode:
+
+ 
+http://web.it.kth.se/~cschulte/paper.php?id=SchulteStuckey:PPDP:2008
+
+ 
+
+I hope that helps.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Zhu Zichen's cse
+Sent: Tuesday, September 03, 2013 4:38 AM
+To: users at gecode.org
+Subject: [gecode-users] Expr() in GECODE
+
+ 
+
+Hi,
+
+ 
+
+I have a question.
+
+For GECODE,
+
+When I use expressions:
+
+     BoolVar sofar = expr( home,( !_A[i]   ||   x[index] != val ));// where
+_A[i] is a BoolVar, and x is IntVarArray, index and val are integer. 
+
+ 
+
+If I rewrite it as:
+
+     if(_A[i].one())
+
+      sofar = expr( home, x[index] != val);
+
+     else
+
+      sofar = expr( home,( !_A[i]   ||   x[index] != val));
+
+There will be a great improvement on runtime, say 40%.
+
+ 
+
+If I rewrite it as:
+
+   if(_A[i].one())
+
+     x[index].nq(val);
+
+   else
+
+    sofar = expr( home,( !_A[i]   ||   x[index] != val));
+
+There will be another improvement on the latest one for runtime, say 30%.
+
+ 
+
+ 
+
+For ILOG,
+
+ IlcConstraint sofar =   (! _A[i]) ||     x[index] != val ) ;
+
+ 
+
+Rewrite as:
+
+     if(_A[i].isTrue()==IlcTrue) 
+
+        sofar = x[index] != val;
+
+    else
+
+       sofar =   (! _A[i]) ||     x[index] != val ) ;
+
+Running times of the above two methods are the same.
+
+ 
+
+ 
+
+ 
+
+Is this because the "inefficient" of expr() to handle  Boolean expressions
+and relations in GECODE?
+
+ 
+
+ 
+
+Thanks!
+
+ 
+
+Zichen
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130903/bb5606dc/attachment.html>
+
+From tack at gecode.org  Wed Sep  4 07:29:54 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 4 Sep 2013 15:29:54 +1000
+Subject: [gecode-users] move from a choco model to Gecode model
+In-Reply-To: <CAKWqT4CG8pLeOwQZHp9WOCe+_nE7gYbLiUxdBW35Y5M3iyih=g@mail.gmail.com>
+References: <CAKWqT4CG8pLeOwQZHp9WOCe+_nE7gYbLiUxdBW35Y5M3iyih=g@mail.gmail.com>
+Message-ID: <26C41626-8981-4A1A-9AE4-B77F4BC547F6@gecode.org>
+
+Your Java code doesn't seem to have a lot to do with the C++ code, e.g. where do you use X, and what does the last line mean?  If you want us to help you, you'll need to provide code samples that we can understand.  The gecode code doesn't look much better, e.g. what is IntArgs(n*m,0,1000000) supposed to mean?  That will allocate an array of size n*m and initialise the first two elements, but the rest will be uninitialised (probably random).
+
+Cheers,
+Guido
+
+On 01/09/2013, at 10:49 AM, manel askri <askri.manel1 at gmail.com> wrote:
+
+> hi everyone !
+> 
+> i'm trying to move from choco model to gecode model but i got some problems while programing 
+> 
+> so this is my choco code : 
+> int [][] g;
+> //objective variable 
+> IntegerVariable  Z= choco.makeIntVar( "gain", 1, 1000000, Options.V_OBJECTIVE)
+> IntegerVariable [][] X= new IntegerVariable[n][m];
+> for( int i=0;i<n;i++){
+> for (int  j=0; j<m; j++) {
+> X[i][j]=choco.makeIntVar("X"+i+j,0,1);}}
+> 
+> //Objective function
+> IntegerExpressionVariable []exp1= new IntegerExpressionVariable [n];
+> for (int i =0; i<n;i++)Choco.sum(exp1), Z));
+> 
+> and here is my code in gecode :
+> IntArgs g;
+> 
+> BoolVarArray a;
+> a = BoolVarArray (*this, n*m, 0,1);
+> 
+> Matrix <BoolVarArray > X(a, m,n);
+> 
+> IntVar gain (*this, 1, 1000000);
+> 
+> g = IntArgs (n*m, 0,1000000);
+> //objective function 
+> 
+> for(int i =0; i<n;i++)
+> {
+> IntArgs row=, g.slice(n*i,1,m);
+> 
+> linear (*this , row, X.row(i), IRT_EQ, gain);
+> }
+> 
+> but that doesn't work , idon't know where is the error and the compiler doesn't tell me any thing so any idea about that and how can i fix it 
+> 
+> Thank you very much , and i really did read the MPG and all the examples that YOU gave about using matrix 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From askri.manel1 at gmail.com  Thu Sep  5 04:11:22 2013
+From: askri.manel1 at gmail.com (manel askri)
+Date: Thu, 5 Sep 2013 03:11:22 +0100
+Subject: [gecode-users] Fwd:  move from a choco model to Gecode model
+In-Reply-To: <AB3DF990-7ABE-433B-81CA-5794139F4133@gecode.org>
+References: <CAKWqT4CG8pLeOwQZHp9WOCe+_nE7gYbLiUxdBW35Y5M3iyih=g@mail.gmail.com>
+	<26C41626-8981-4A1A-9AE4-B77F4BC547F6@gecode.org>
+	<CAKWqT4B+9R_+665t96FBVNeZmbDfE5c1p1BKHdLnzedmjZpS=A@mail.gmail.com>
+	<AB3DF990-7ABE-433B-81CA-5794139F4133@gecode.org>
+Message-ID: <CAKWqT4CU-yQYZitUEdShHVQ70jRBP=YAzqGdL4CzP4gTeQYLvA@mail.gmail.com>
+
+hi everyone!
+
+what i want to do is represented by this model (see the following figure
+:MMKP Model)
+
+i will also explain what is the problem: I'm trying to solve the
+multidimensional
+and multiple knapsack problems, so i have a problem with the placement of
+the right tester(or testers) in the right node ,we assume that execution
+environment consists of m nodes and we have n test components that may be
+assigned to them. We attempt to find an optimal solution of test component
+placement not violating resource and connectivity constraints and also
+maximizing
+their placement profit.
+
+Ihave solve this problem using the CHoco solver but i got some errors with
+ Gecode
+
+I will send also the wholecode in java with comments :
+
+public class MMKP {
+ //i'm trying to find two defferent types of solution the Optimal one
+wchich has the Objective function and a realizable one which
+     //give me all the solutions
+ public int[][] find_Optimal_Solution(int n, int m, int[]R,
+int[]C,int[]B,int[] Dr,int[] Dc,int[] Db,int[][] g)
+ {
+int [][] results= new int[n][m];
+ //creation du model
+CPModel model = new CPModel();
+ // creation des variables
+ IntegerVariable[][] X = new IntegerVariable[n][m];
+ for (int i = 0; i < n; i++) {
+for (int j = 0; j < m; j++) {
+ X[i][j] = Choco.makeIntVar("X" + i+j, 0, 1);}}
+//objective variable
+    IntegerVariable Z = Choco.makeIntVar("gain", 1,
+1000000,Options.V_OBJECTIVE);
+//creations des contraintes
+ // ... over rows
+Constraint[] rows = new Constraint[n];
+ for (int i = 0; i < n; i++) {
+rows[i] = Choco.eq(Choco.sum(X[i]), 1);
+ }
+model.addConstraints(rows);
+ //... over columns
+// first, get the columns, with a temporary array
+ IntegerVariable[][] XDual = new IntegerVariable[m][n];
+for (int i = 0; i < m; i++) {
+ for (int j = 0; j < n; j++) {
+XDual[i][j] = X[j][i];
+ }
+}
+ Constraint[] cols_ram = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_ram[j] = Choco.leq(Choco.scalar(Dr,XDual[j]),R[j]);
+}
+ Constraint[] cols_cpu = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_cpu[j] = Choco.leq(Choco.scalar(Dc,XDual[j]),C[j]);
+}
+ Constraint[] cols_bat = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_bat[j] = Choco.leq(Choco.scalar(Db,XDual[j]),B[j]);
+}
+ model.addConstraints(cols_ram);
+model.addConstraints(cols_cpu);
+ model.addConstraints(cols_bat);
+ //Objective function : here i can't find with Gecode
+ IntegerExpressionVariable []exp1=new IntegerExpressionVariable [n];
+for (int i = 0; i < n; i++)
+ exp1[i]=Choco.scalar(g[i], X[i]);
+ model.addConstraint(Choco.eq(Choco.sum(exp1),Z));
+ //solve the problem
+    Solver s = new CPSolver();
+    s.read(model);
+    s.maximize(s.getVar(Z), false);
+    System.out.println("Number of solutions found:"+s.getSolutionCount());
+    System.out.println("Solution:"+s.solutionToString());
+ //Print the values
+for (int i = 0; i < n; i++) {
+ for (int j = 0; j < m; j++) {
+System.out.print(s.getVar(X[i][j]).getVal() + " ");
+ results[i][j]=s.getVar(X[i][j]).getVal();
+}
+ System.out.println();
+}
+
+ return results;
+}
+ public int[][] find_realizable_solution(int n, int m, int[]R,
+int[]C,int[]B,int[] Dr,int[] Dc,int[] Db)
+{
+ int[][] results= new int[n][m];
+//creation du model
+ CPModel model = new CPModel();
+// creation des variables
+ IntegerVariable[][] X = new IntegerVariable[n][m];
+for (int i = 0; i < n; i++) {
+ for (int j = 0; j < m; j++) {
+X[i][j] = Choco.makeIntVar("X" + i+j, 0, 1);
+ }
+}
+//objective variable
+    IntegerVariable Z = Choco.makeIntVar("gain", 1,
+1000000,Options.V_OBJECTIVE);
+//creations des contraintes
+ // ... over rows
+Constraint[] rows = new Constraint[n];
+ for (int i = 0; i < n; i++) {
+rows[i] = Choco.eq(Choco.sum(X[i]), 1);
+ }
+model.addConstraints(rows);
+ //... over columns
+// first, get the columns, with a temporary array
+ IntegerVariable[][] XDual = new IntegerVariable[m][n];
+for (int i = 0; i < m; i++) {
+ for (int j = 0; j < n; j++) {
+XDual[i][j] = X[j][i];
+ }
+}
+ Constraint[] cols_ram = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_ram[j] = Choco.leq(Choco.scalar(Dr,XDual[j]),R[j]);
+}
+ Constraint[] cols_cpu = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_cpu[j] = Choco.leq(Choco.scalar(Dc,XDual[j]),C[j]);
+}
+ Constraint[] cols_bat = new Constraint[m];
+for (int j = 0; j < m; j++) {
+ cols_bat[j] = Choco.leq(Choco.scalar(Db,XDual[j]),B[j]);
+}
+ model.addConstraints(cols_ram);
+model.addConstraints(cols_cpu);
+ model.addConstraints(cols_bat);
+
+//solve the problem
+    Solver s = new CPSolver();
+    s.read(model);
+    s.solve();
+    System.out.println("Number of solutions found:"+s.getSolutionCount());
+    System.out.println("Solution:"+s.solutionToString());
+//Print the values
+ for (int i = 0; i < n; i++) {
+for (int j = 0; j < m; j++) {
+ System.out.print(s.getVar(X[i][j]).getVal() + " ");
+results[i][j]=s.getVar(X[i][j]).getVal();
+ }
+System.out.println();
+}
+
+return results;
+}
+ }
+Sorry for the last time i didn't wrote it properly
+
+Now , My code in Gecode :
+
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/search.hh>
+#include <gecode/minimodel.hh>
+
+using namespace Gecode;
+using namespace std;
+
+class MMKP : public Script{
+
+protected:
+static const int n=4 ;//number of testers, number of the rows
+ static const int m=5;// number of nodes, number of the comluns
+static const int max=100;// the max that can be taking by a node or by a
+test
+ IntArgs R;
+IntArgs C;
+IntArgs B;
+ IntArgs Dr;
+IntArgs Dc;
+IntArgs Db;
+ IntArgs g;
+
+ BoolVarArray a;
+IntVar l;
+public :
+enum {
+    find_Optimal_Solution, find_realizable_solution
+  };
+MMKP (const Options& opt) : a(*this,n*m, 0,1){
+
+Matrix <BoolVarArray> X (a,m,n);
+R=IntArgs(m,9,15,17,20,40);
+ C=IntArgs(m,15,20,25,30,46);
+B=IntArgs(m,30,37,59,60,70);
+ Dr=IntArgs(n,3,5,7,10);
+Dc=IntArgs(n,5,10,15,30);
+ Db=IntArgs(n,10,13,17,19);
+
+//creation variables
+
+
+
+// objectiv variable
+ IntVar gain (*this, 1,1000000);
+
+
+ //creation of constraints
+// ... over rows
+ for ( int j=0; j<n;j++)
+{
+
+linear(*this , X.row(j),IRT_EQ,1);
+ }
+
+//... over columns
+ // first, get the columns, we will use an intermidiare matrix XDual
+
+          for (int i = 0; i < m; i++) {
+
+ linear(*this, Dr,X.col(i),IRT_NQ, R[i]);
+                                     }
+
+        for (int i = 0; i < m; i++) {
+           linear (*this, Dc, X.col(i), IRT_NQ,C[i]);
+
+                                 }
+          for (int i = 0; i < m; i++) {
+         linear (*this, Db, X.col(i), IRT_NQ,B[i]);
+
+                           }
+ switch (opt.model()) {
+        case find_Optimal_Solution:
+
+ g=IntArgs( n*m,0,1000);//this is a matrix provided by another class but i
+choose to start with simple example
+ //Objective function: i don't know how to write it
+     for (int i = 0; i < n; i++)
+{ //IntArgs row=g.slice(i*n, 1, m);
+ //BoolVarArray row1=X.row(i);
+
+ //linear(*this, g,X.row(i), IRT_EQ, 1);
+
+}
+
+ break;
+ case find_realizable_solution:
+ cout << "manel"<< endl;
+        break;
+}
+    // post branching
+//branch(*this, a, INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ for( int i=0;i<m;i++)
+{
+branch(*this, X.col(i), INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ }
+
+for( int i=0;i<n;i++)
+ {
+branch(*this, X.row(i), INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ }
+}
+// search support
+     MMKP(bool share, MMKP& s) : Script(share, s){
+ a.update(*this, share, s.a);
+
+    }
+
+    virtual Space* copy(bool share) {
+      return new MMKP(share,*this);
+    }
+
+    // print solution
+    void print(std::ostream& os) const  {
+Matrix <BoolVarArray> X (a,m,n);
+           for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++)
+           os << std::setw(4) << a[i * n + j];
+        os << std::endl;
+   }
+    os << std::endl;
+
+}
+};
+
+ // main function
+int main(int argc, char* argv[]) {
+  Options opt("MMKP");
+  //opt.model(MMKP::find_Optimal_Solution, "optimal","utiliser
+find_Optimal_Solution" );
+  opt.model(MMKP::find_realizable_solution, "r?alisable","utiliser
+find_realizable_solution" );
+
+  opt.parse(argc,argv);
+  Script::run<MMKP,DFS,Options>(opt);
+  system("pause");
+  return 0;
+}
+
+so this is all my work with Gecode
+if YOU have any other quation i'm ready to answer it
+
+I have an other quation : is it possible to passe variables from another
+class to Gecode class , like we always do in C++, because all the variables
+that i use here (IntArgs R;IntArgs C;IntArgs B;IntArgs Dr;IntArgs Dc;IntArgs
+Db;IntArgs g;) there are honnestly provided by some other work in c++
+
+Thank YOU very much for your help
+
+MANEL
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: MMKP Model.png
+Type: image/png
+Size: 29099 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.png>
+
+From kisshen at cisco.com  Fri Sep  6 19:35:39 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Fri, 06 Sep 2013 18:35:39 +0100
+Subject: [gecode-users] Implwmwnring nogood
+Message-ID: <522A126B.3060909@cisco.com>
+
+Hi,
+
+Thanks to the help from Christian, I think I now have restart search 
+working for ECLiPSe's Gecode interface.
+
+I am now trying to add nogood learning to restart search. From the MPG, 
+nogoods are posted via the master() member function of Space. I am not 
+sure how to do this correctly for what I need in the interface, because 
+there is no direct link to any search engines in my version of Space 
+(GecodeSpace), as the search is defined by the user program in ECLiPSe 
+(the search may be done in ECLiPSe, in which case no search engine would 
+be used, and/or it can be done using the engine(s) specified by the user 
+code as often as the user wants).
+
+The configuration of master() depends on the engine chosen by the user 
+at a search, and I am not sure how to specify this in the master() 
+function -- do I have to include a pointer to the "current" search 
+engine in my Space class?
+
+Thanks in advance for any help/information!
+
+Cheers,
+
+Kish
+
+
+From kisshen at cisco.com  Wed Sep 11 21:14:12 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 11 Sep 2013 20:14:12 +0100
+Subject: [gecode-users] Implementing No-goods
+Message-ID: <5230C104.8080007@cisco.com>
+
+Hi,
+
+I am posting this as a new message as my previous one had a spelling 
+error (I was in a rush, sorry about that).
+
+I am looking at implementing no-goods with restart search for ECLiPSe's 
+interface. After posting my last message, I have thought more about 
+this, and I now think I don't have to implement a master() function 
+myself, because the default master() function post no-goods. I assume 
+the default nogoods_limit is 0, so although the master() function does 
+post no-goods by default, there are no no-goods to post unless the 
+no-goods_limit is set to a value > 0, so the default behaviour is that 
+there is no posting of no-goods when restarting the search. Is my 
+understanding correct?
+
+There is one more issue: are the no-goods remembered after the search (I 
+guess this means if the no-goods are copied into the Space that is 
+returned by next()). The reason I ask is that in ECLiPSe's Gecode 
+interface, the user can perform as many searches on the same space as 
+they want (persumably somewhat different searches, on different 
+variables, and perhaps with more constraints). [I am talking about 
+searches on the same branch of the (ECLiPSe) search tree, not some 
+alternative on a different branch]
+
+On a slightly different issue: I am wondering how restart search (with 
+or without no-goods) works with DFS (or any other non-optimising search) 
+if you want to search for more than one solution, i.e. when next() is 
+called more than once. I expect that having returned a solution, another 
+call to next() should return a different solution, but from my reading 
+of the MPS, I think there has to be a no-goods posted for the previous 
+solution, regardless of the settings of nogoods_limit. Is this correct? 
+If so, how can this be done?
+
+Even with this, am I correct to think using no-goods with searching for 
+multiple solutions is probably not a good idea, as most heuristics would 
+probably drive the search towards the first solution before finally 
+failing because of the no-goods.
+
+Cheers,
+
+Kish
+
+
+From kisshen at cisco.com  Wed Sep 11 21:35:55 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 11 Sep 2013 20:35:55 +0100
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <5230C104.8080007@cisco.com>
+References: <5230C104.8080007@cisco.com>
+Message-ID: <5230C61B.8040001@cisco.com>
+
+On 11/09/2013 20:14, Kish Shen wrote:
+
+> There is one more issue: are the no-goods remembered after the search (I
+
+I guess I should clarify what I mean by this: are the no-goods 
+remembered as no-goods (rather than the posted constraint constructed 
+from the no-goods) after the search, i.e. if I do another search, will 
+these old no-goods be used to construct any new no-goods for the new search?
+
+Cheers,
+
+Kish
+
+
+
+From pikapikanaoufel at gmail.com  Thu Sep 12 01:53:08 2013
+From: pikapikanaoufel at gmail.com (peter Tomson)
+Date: Thu, 12 Sep 2013 00:53:08 +0100
+Subject: [gecode-users] operator <<, and use of a Gecode model with GUI
+Message-ID: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+
+hi everyOne!
+
+i'm new with gecode and i hope YOU can help me to solve my problem .
+
+i'm trying to use Gecode as my solvor in my project , i created a project
+with VS2010c++, with some GUI,. In  my class which using gecode, i have to
+get my variables from another class .
+
+I read the MPG , and i find in section :  Dinamiclly argument array , i
+tryed to use it with my vector a like this :
+
+IntVarArgs v;
+std::vector<int> a ;
+for (int i=0;i<5;i++)
+a.push_back(i);
+int u=0;
+while (!a.empty())
+{
+                      v<< IntVar (*this,a[u],a[u+1]);
+  u++;
+
+}
+
+but with this i can't get  the elments from the array  one by one , i just
+added in each iteration 2 elemnt from array a to the IntVarargs v , is
+there any other way to do it ???
+Honnestly what i want to do is this : execute the code in my class that
+contains the code developed by gecode by a click on a  button in a GUI is
+that even possibel ?? because when i added the includes of gecode to a GUI
+it doesn't work
+
+thak YOU very much for any help
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130912/3e51f700/attachment.html>
+
+From tack at gecode.org  Thu Sep 12 02:00:30 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 12 Sep 2013 10:00:30 +1000
+Subject: [gecode-users] operator <<, and use of a Gecode model with GUI
+In-Reply-To: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+References: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+Message-ID: <CEC78E87-9B70-42A5-BC92-8F46FE683D62@gecode.org>
+
+This isn't really a gecode question, it's more about c++.  Your while loop makes no sense (a is never empty).  And it's certainly possible to use gecode in a GUI application.
+
+Cheers,
+Guido
+
+On 12/09/2013, at 9:53 AM, peter Tomson <pikapikanaoufel at gmail.com> wrote:
+
+> hi everyOne!
+> 
+> i'm new with gecode and i hope YOU can help me to solve my problem .
+> 
+> i'm trying to use Gecode as my solvor in my project , i created a project with VS2010c++, with some GUI,. In  my class which using gecode, i have to get my variables from another class .
+> 
+> I read the MPG , and i find in section :  Dinamiclly argument array , i tryed to use it with my vector a like this :
+> 
+> IntVarArgs v;
+> std::vector<int> a ;
+> 		for (int i=0;i<5;i++)
+> 			a.push_back(i);
+> 		int u=0;
+> 		while (!a.empty())
+> 		{
+>                       v<< IntVar (*this,a[u],a[u+1]);
+> 		  u++;
+> 
+> 		}
+> 
+> but with this i can't get  the elments from the array  one by one , i just added in each iteration 2 elemnt from array a to the IntVarargs v , is there any other way to do it ???
+> Honnestly what i want to do is this : execute the code in my class that contains the code developed by gecode by a click on a  button in a GUI is that even possibel ?? because when i added the includes of gecode to a GUI it doesn't work
+>  
+> thak YOU very much for any help 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130912/4d3aec1d/attachment.html>
+
+From pikapikanaoufel at gmail.com  Thu Sep 12 02:35:36 2013
+From: pikapikanaoufel at gmail.com (peter Tomson)
+Date: Thu, 12 Sep 2013 01:35:36 +0100
+Subject: [gecode-users] operator <<, and use of a Gecode model with GUI
+In-Reply-To: <CEC78E87-9B70-42A5-BC92-8F46FE683D62@gecode.org>
+References: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+	<CEC78E87-9B70-42A5-BC92-8F46FE683D62@gecode.org>
+Message-ID: <CACFyxUot6wDHBaa2wusqMiPDgv9XoOuyUiaxhXjPfwWi18_=XQ@mail.gmail.com>
+
+Ok , thank You
+
+ but about using GUI when i just added the includes like #include < gecode/
+int.hh> in my project ( i use windows form in VS2010c++) it doesn't work i
+really don't know why , i reread it again but no use , even the examples ,
+no one of them use GUI ?????
+
+Do YOU any thing about that
+
+Thank YOU Peter
+
+
+2013/9/12 Guido Tack <tack at gecode.org>
+
+> This isn't really a gecode question, it's more about c++.  Your while loop
+> makes no sense (a is never empty).  And it's certainly possible to use
+> gecode in a GUI application.
+>
+> Cheers,
+> Guido
+>
+> On 12/09/2013, at 9:53 AM, peter Tomson <pikapikanaoufel at gmail.com> wrote:
+>
+> hi everyOne!
+>
+> i'm new with gecode and i hope YOU can help me to solve my problem .
+>
+> i'm trying to use Gecode as my solvor in my project , i created a project
+> with VS2010c++, with some GUI,. In  my class which using gecode, i have to
+> get my variables from another class .
+>
+> I read the MPG , and i find in section :  Dinamiclly argument array , i
+> tryed to use it with my vector a like this :
+>
+> IntVarArgs v;
+> std::vector<int> a ;
+>  for (int i=0;i<5;i++)
+> a.push_back(i);
+> int u=0;
+> while (!a.empty())
+>  {
+>                       v<< IntVar (*this,a[u],a[u+1]);
+>   u++;
+>
+> }
+>
+> but with this i can't get  the elments from the array  one by one , i just
+> added in each iteration 2 elemnt from array a to the IntVarargs v , is
+> there any other way to do it ???
+> Honnestly what i want to do is this : execute the code in my class that
+> contains the code developed by gecode by a click on a  button in a GUI is
+> that even possibel ?? because when i added the includes of gecode to a GUI
+> it doesn't work
+>
+> thak YOU very much for any help
+>  _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130912/e0d69f5d/attachment.html>
+
+From pikapikanaoufel at gmail.com  Thu Sep 12 02:42:15 2013
+From: pikapikanaoufel at gmail.com (peter Tomson)
+Date: Thu, 12 Sep 2013 01:42:15 +0100
+Subject: [gecode-users] operator <<, and use of a Gecode model with GUI
+In-Reply-To: <CACFyxUot6wDHBaa2wusqMiPDgv9XoOuyUiaxhXjPfwWi18_=XQ@mail.gmail.com>
+References: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+	<CEC78E87-9B70-42A5-BC92-8F46FE683D62@gecode.org>
+	<CACFyxUot6wDHBaa2wusqMiPDgv9XoOuyUiaxhXjPfwWi18_=XQ@mail.gmail.com>
+Message-ID: <CACFyxUq19kwoJhDZBm_VD6fxsZ8hnOaiprwYOSYxihPReBM_7A@mail.gmail.com>
+
+Ok , thank You
+
+ but about using GUI when i just added the includes like #include < gecode/
+int.hh> in my project ( i use windows form in VS2010c++) it doesn't work i
+really don't know why , i reread MPG it again but no use , even the
+examples , no one of them use GUI ?????
+
+Do YOU Know any thing about that
+
+Thank YOU Peter
+
+
+2013/9/12 peter Tomson <pikapikanaoufel at gmail.com>
+
+> Ok , thank You
+>
+>  but about using GUI when i just added the includes like #include <
+> gecode/ int.hh> in my project ( i use windows form in VS2010c++) it doesn't
+> work i really don't know why , i reread it again but no use , even the
+> examples , no one of them use GUI ?????
+>
+> Do YOU any thing about that
+>
+> Thank YOU Peter
+>
+>
+> 2013/9/12 Guido Tack <tack at gecode.org>
+>
+>> This isn't really a gecode question, it's more about c++.  Your while
+>> loop makes no sense (a is never empty).  And it's certainly possible to use
+>> gecode in a GUI application.
+>>
+>> Cheers,
+>> Guido
+>>
+>> On 12/09/2013, at 9:53 AM, peter Tomson <pikapikanaoufel at gmail.com>
+>> wrote:
+>>
+>> hi everyOne!
+>>
+>> i'm new with gecode and i hope YOU can help me to solve my problem .
+>>
+>> i'm trying to use Gecode as my solvor in my project , i created a project
+>> with VS2010c++, with some GUI,. In  my class which using gecode, i have to
+>> get my variables from another class .
+>>
+>> I read the MPG , and i find in section :  Dinamiclly argument array , i
+>> tryed to use it with my vector a like this :
+>>
+>> IntVarArgs v;
+>> std::vector<int> a ;
+>>  for (int i=0;i<5;i++)
+>> a.push_back(i);
+>> int u=0;
+>> while (!a.empty())
+>>  {
+>>                       v<< IntVar (*this,a[u],a[u+1]);
+>>   u++;
+>>
+>> }
+>>
+>> but with this i can't get  the elments from the array  one by one , i
+>> just added in each iteration 2 elemnt from array a to the IntVarargs v , is
+>> there any other way to do it ???
+>> Honnestly what i want to do is this : execute the code in my class that
+>> contains the code developed by gecode by a click on a  button in a GUI is
+>> that even possibel ?? because when i added the includes of gecode to a GUI
+>> it doesn't work
+>>
+>> thak YOU very much for any help
+>>  _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130912/e031475d/attachment-0001.html>
+
+From tack at gecode.org  Thu Sep 12 03:05:57 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 12 Sep 2013 11:05:57 +1000
+Subject: [gecode-users] operator <<, and use of a Gecode model with GUI
+In-Reply-To: <CACFyxUq19kwoJhDZBm_VD6fxsZ8hnOaiprwYOSYxihPReBM_7A@mail.gmail.com>
+References: <CACFyxUqRJAxR-wPdS1nVhDGo13S0uhhr6u6uXo__Rwpg732_mQ@mail.gmail.com>
+	<CEC78E87-9B70-42A5-BC92-8F46FE683D62@gecode.org>
+	<CACFyxUot6wDHBaa2wusqMiPDgv9XoOuyUiaxhXjPfwWi18_=XQ@mail.gmail.com>
+	<CACFyxUq19kwoJhDZBm_VD6fxsZ8hnOaiprwYOSYxihPReBM_7A@mail.gmail.com>
+Message-ID: <957B8C88-785E-4FB1-941D-5D94DEF596F2@gecode.org>
+
+I honestly can't help you if you just say that it doesn't work but don't give any details.  You can definitely use Gecode from inside Visual Studio but you'll have to set all the paths correctly, and MPG has a section on how to do that.
+
+Cheers,
+Guido
+
+On 12/09/2013, at 10:42 AM, peter Tomson <pikapikanaoufel at gmail.com> wrote:
+
+> Ok , thank You 
+> 
+>  but about using GUI when i just added the includes like #include < gecode/ int.hh> in my project ( i use windows form in VS2010c++) it doesn't work i really don't know why , i reread MPG it again but no use , even the examples , no one of them use GUI ?????
+> 
+> Do YOU Know any thing about that 
+> 
+> Thank YOU Peter 
+> 
+> 
+> 
+> 2013/9/12 peter Tomson <pikapikanaoufel at gmail.com>
+> Ok , thank You 
+> 
+>  but about using GUI when i just added the includes like #include < gecode/ int.hh> in my project ( i use windows form in VS2010c++) it doesn't work i really don't know why , i reread it again but no use , even the examples , no one of them use GUI ?????
+> 
+> Do YOU any thing about that 
+> 
+> Thank YOU Peter 
+> 
+> 
+> 2013/9/12 Guido Tack <tack at gecode.org>
+> This isn't really a gecode question, it's more about c++.  Your while loop makes no sense (a is never empty).  And it's certainly possible to use gecode in a GUI application.
+> 
+> Cheers,
+> Guido
+> 
+> On 12/09/2013, at 9:53 AM, peter Tomson <pikapikanaoufel at gmail.com> wrote:
+> 
+>> hi everyOne!
+>> 
+>> i'm new with gecode and i hope YOU can help me to solve my problem .
+>> 
+>> i'm trying to use Gecode as my solvor in my project , i created a project with VS2010c++, with some GUI,. In  my class which using gecode, i have to get my variables from another class .
+>> 
+>> I read the MPG , and i find in section :  Dinamiclly argument array , i tryed to use it with my vector a like this :
+>> 
+>> IntVarArgs v;
+>> std::vector<int> a ;
+>> 		for (int i=0;i<5;i++)
+>> 			a.push_back(i);
+>> 		int u=0;
+>> 		while (!a.empty())
+>> 		{
+>>                       v<< IntVar (*this,a[u],a[u+1]);
+>> 		  u++;
+>> 
+>> 		}
+>> 
+>> but with this i can't get  the elments from the array  one by one , i just added in each iteration 2 elemnt from array a to the IntVarargs v , is there any other way to do it ???
+>> Honnestly what i want to do is this : execute the code in my class that contains the code developed by gecode by a click on a  button in a GUI is that even possibel ?? because when i added the includes of gecode to a GUI it doesn't work
+>>  
+>> thak YOU very much for any help 
+>> 
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130912/5b9735d7/attachment.html>
+
+From cschulte at kth.se  Thu Sep 12 10:22:02 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 12 Sep 2013 10:22:02 +0200
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <5230C61B.8040001@cisco.com>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+Message-ID: <009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+
+Hi Kish,
+
+Yes, the default master() function should do the trick and, yes, you have to
+set the nogoods_limit accordingly.
+
+Please re-read MPG on how restart-based search works: the no-goods are
+posted in the master space (that's why the master() function does it) and
+are hence re-used for each restart (as it starts from the master).
+
+If you do nothing extra (such as randomization or BAB where the constrain()
+function is called on the master etc) restarting after having found a
+solution will produce the same solution again.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Wednesday, September 11, 2013 9:36 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Implementing No-goods
+
+On 11/09/2013 20:14, Kish Shen wrote:
+
+> There is one more issue: are the no-goods remembered after the search 
+> (I
+
+I guess I should clarify what I mean by this: are the no-goods remembered as
+no-goods (rather than the posted constraint constructed from the no-goods)
+after the search, i.e. if I do another search, will these old no-goods be
+used to construct any new no-goods for the new search?
+
+Cheers,
+
+Kish
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kisshen at cisco.com  Fri Sep 13 06:11:58 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Fri, 13 Sep 2013 05:11:58 +0100
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+	<009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+Message-ID: <5232908E.9050004@cisco.com>
+
+Hi Christian,
+
+Thanks for your reply!
+
+On 12/09/2013 09:22, Christian Schulte wrote:
+> Please re-read MPG on how restart-based search works: the no-goods are
+> posted in the master space (that's why the master() function does it) and
+> are hence re-used for each restart (as it starts from the master).
+>
+
+I was thinking about what happens when there is more than one search, 
+i.e. after  a search -- search1 --  in a space (using a subset of 
+variables of the space), another search (with a different subset of 
+variables) -- search2 -- is done on the space. Each of these search will 
+use their own search engines, and can use different search engines, with 
+different options.
+
+I understand that the no-goods are posted in the master space, but I 
+assume the master space in search1 is not the same as search2. My 
+question was if the no-goods gathered in search1 will be posted in 
+search2 (assuming both are doing a restart search with no-goods).
+As far as I can see, there is no need to post these no-goods from 
+search1, because a different subset of variables are used in search2, 
+and in addition I assume the no-goods from search1 will be represented 
+as constraints in the master space of search2.
+
+> If you do nothing extra (such as randomization or BAB where the constrain()
+> function is called on the master etc) restarting after having found a
+> solution will produce the same solution again.
+>
+
+I am thinking here of what to do with next() when using a restart DFS 
+search engine in the context of the ECLiPSe interface.
+
+For Gecode, I can understand that you want to leave any extra thing to 
+be done to the user.
+
+For the interface, the user is programming in ECLiPSe, and anything 
+extra must be done by the interface. After obtaining a solution, I want 
+a call to next() to return a different answer (if this exist), and 
+potentially to be able to return all the solutions, as in a non-restart 
+DFS. The only way I can think of doing this is to post the previous 
+solution as a no-good, and this has to be done regardless of what 
+nogoods_limit is. Is this possible, and/or is there some other way of 
+ensuring that the previous solution will not be returned?
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+From cschulte at kth.se  Fri Sep 13 13:20:24 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 13 Sep 2013 13:20:24 +0200
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <5232908E.9050004@cisco.com>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+	<009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+	<5232908E.9050004@cisco.com>
+Message-ID: <00f901ceb073$3f3ca630$bdb5f290$@se>
+
+Hi Kish,
+
+In your idea of doing several searches after each other I assume that you
+use the next() function to get a space and then continue search. As the
+no-goods are posted in the master space they will be contained in the space
+returned by next() as well (unless they already have been found out to be
+useless).
+
+As for making sure that the same solution is not found again there is some
+support but not really the right one. For integer variable arrays x and y
+(also for Boolean arrays) you can post by
+	rel(home, x, IRT_NQ, y);
+cannot be the same, that is there is at least one i for which x_i is
+different from y_i.
+
+For other variable types this does not exist but you can always use
+reification like this: assume that x is an array of integer (or set, float,
+... ) variables and y is an array of integers (or floats, or sets, or
+whatever). Then the following code snippet does  what you want:
+	BoolVarArgs b(x.size());
+	for (int i=0; i<x.size(); i++)
+        b[i] = expr(home, x[i] != y[i]);
+      rel(home, BOT_OR, b, 1);
+
+Hope that helps!
+
+Best
+Christian
+
+
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Kish Shen [mailto:kisshen at cisco.com] 
+Sent: Friday, September 13, 2013 6:12 AM
+To: cschulte at kth.se
+Cc: gecode-users at gecode.org
+Subject: Re: [gecode-users] Implementing No-goods
+
+Hi Christian,
+
+Thanks for your reply!
+
+On 12/09/2013 09:22, Christian Schulte wrote:
+> Please re-read MPG on how restart-based search works: the no-goods are 
+> posted in the master space (that's why the master() function does it) 
+> and are hence re-used for each restart (as it starts from the master).
+>
+
+I was thinking about what happens when there is more than one search, i.e.
+after  a search -- search1 --  in a space (using a subset of variables of
+the space), another search (with a different subset of
+variables) -- search2 -- is done on the space. Each of these search will use
+their own search engines, and can use different search engines, with
+different options.
+
+I understand that the no-goods are posted in the master space, but I assume
+the master space in search1 is not the same as search2. My question was if
+the no-goods gathered in search1 will be posted in
+search2 (assuming both are doing a restart search with no-goods).
+As far as I can see, there is no need to post these no-goods from search1,
+because a different subset of variables are used in search2, and in addition
+I assume the no-goods from search1 will be represented as constraints in the
+master space of search2.
+
+> If you do nothing extra (such as randomization or BAB where the 
+> constrain() function is called on the master etc) restarting after 
+> having found a solution will produce the same solution again.
+>
+
+I am thinking here of what to do with next() when using a restart DFS search
+engine in the context of the ECLiPSe interface.
+
+For Gecode, I can understand that you want to leave any extra thing to be
+done to the user.
+
+For the interface, the user is programming in ECLiPSe, and anything extra
+must be done by the interface. After obtaining a solution, I want a call to
+next() to return a different answer (if this exist), and potentially to be
+able to return all the solutions, as in a non-restart DFS. The only way I
+can think of doing this is to post the previous solution as a no-good, and
+this has to be done regardless of what nogoods_limit is. Is this possible,
+and/or is there some other way of ensuring that the previous solution will
+not be returned?
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+
+From kisshen at cisco.com  Wed Sep 25 20:47:33 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 25 Sep 2013 19:47:33 +0100
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <00f901ceb073$3f3ca630$bdb5f290$@se>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+	<009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+	<5232908E.9050004@cisco.com> <00f901ceb073$3f3ca630$bdb5f290$@se>
+Message-ID: <52432FC5.6080509@cisco.com>
+
+Hi Christian,
+
+Thanks for your reply. I haven't been able to look again at this issue 
+until now, so sorry for the delay...
+
+On 13/09/2013 12:20, Christian Schulte wrote:
+>
+> As for making sure that the same solution is not found again there is some
+> support but not really the right one. For integer variable arrays x and y
+> (also for Boolean arrays) you can post by
+> 	rel(home, x, IRT_NQ, y);
+> cannot be the same, that is there is at least one i for which x_i is
+> different from y_i.
+>
+
+Am I correct that for the above, x would be the variables that are being 
+labelled by the search (i.e. the variables passed to branch()), and y is 
+the solution values for these variables (x and y can be swapped, of 
+course)? Also, this rel constraint should be posted in master()?
+
+I am not quite sure how to pass y to the master() function -- I assume 
+you need to somehow remember it (as with the no-goods).
+
+If this is not easy to do, then I think an alternative behaviour I can 
+implement is to not allow the user to ask for an alternative solution if 
+restart is used with DFS. Am I correct in thinking that restart is 
+probably not that useful if you want to search for multiple solutions of 
+a problem, because the search (unless you use some randomisation, as you 
+mentioned) will always drive you close to solutions you already found, 
+before exploring other parts of the search space.
+
+Cheers,
+
+Kish
+
+
+
+From kisshen at cisco.com  Wed Sep 25 21:11:42 2013
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 25 Sep 2013 20:11:42 +0100
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <00f901ceb073$3f3ca630$bdb5f290$@se>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+	<009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+	<5232908E.9050004@cisco.com> <00f901ceb073$3f3ca630$bdb5f290$@se>
+Message-ID: <5243356E.5010005@cisco.com>
+
+On 13/09/2013 12:20, Christian Schulte wrote:
+> In your idea of doing several searches after each other I assume that you
+> use the next() function to get a space and then continue search. As the
+> no-goods are posted in the master space they will be contained in the space
+> returned by next() as well (unless they already have been found out to be
+> useless).
+
+
+Hi Christian,
+
+I thought I better separate the two issues into different posts....
+
+Thinking about the restart search more, I think my question may arise 
+from a (mis)understanding of what the master space is. Please let me 
+know if the following is correct:
+
+master(.., const Space* s, NoGoods& ng)
+
+I had assumed that each time master is called, there is a fresh copy of 
+the space s, i.e. a clone of the space before search was started. In 
+this case, then you need to remember NoGoods for all the previous 
+restarts in ng.
+
+However, thinking about it more, it seems to make more sense that you 
+use the same master space (s) in all the restarts of a search; in this 
+case ng would only need to be the NoGoods in the single "pass" since the 
+last restart, because all the previous NoGoods would already be posted 
+to s by previous calls to master().
+
+If a different search is done after this, as I suggested previously, 
+then you have a different master space s from the previous search.
+
+Cheers,
+
+Kish
+
+
+
+
+From cschulte at kth.se  Wed Sep 25 21:17:59 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 25 Sep 2013 21:17:59 +0200
+Subject: [gecode-users] Implementing No-goods
+In-Reply-To: <5243356E.5010005@cisco.com>
+References: <5230C104.8080007@cisco.com> <5230C61B.8040001@cisco.com>
+	<009c01ceaf91$2953f590$7bfbe0b0$@kth.se>
+	<5232908E.9050004@cisco.com> <00f901ceb073$3f3ca630$bdb5f290$@se>
+	<5243356E.5010005@cisco.com>
+Message-ID: <008901ceba23$f30b0350$d92109f0$@kth.se>
+
+It uses the same master (well, an equivalent one).
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: Kish Shen [mailto:kisshen at cisco.com]
+> Sent: Wednesday, September 25, 2013 9:12 PM
+> To: cschulte at kth.se
+> Cc: gecode-users at gecode.org
+> Subject: Re: [gecode-users] Implementing No-goods
+> 
+> On 13/09/2013 12:20, Christian Schulte wrote:
+> > In your idea of doing several searches after each other I assume that
+> > you use the next() function to get a space and then continue search.
+> > As the no-goods are posted in the master space they will be contained
+> > in the space returned by next() as well (unless they already have been
+> > found out to be useless).
+> 
+> 
+> Hi Christian,
+> 
+> I thought I better separate the two issues into different posts....
+> 
+> Thinking about the restart search more, I think my question may arise from
+a
+> (mis)understanding of what the master space is. Please let me know if the
+> following is correct:
+> 
+> master(.., const Space* s, NoGoods& ng)
+> 
+> I had assumed that each time master is called, there is a fresh copy of
+the space
+> s, i.e. a clone of the space before search was started. In this case, then
+you need
+> to remember NoGoods for all the previous restarts in ng.
+> 
+> However, thinking about it more, it seems to make more sense that you use
+the
+> same master space (s) in all the restarts of a search; in this case ng
+would only
+> need to be the NoGoods in the single "pass" since the last restart,
+because all
+> the previous NoGoods would already be posted to s by previous calls to
+> master().
+> 
+> If a different search is done after this, as I suggested previously, then
+you have a
+> different master space s from the previous search.
+> 
+> Cheers,
+> 
+> Kish
+> 
+
+
+
+
+From b.j.conijn at student.tue.nl  Thu Sep 26 16:40:14 2013
+From: b.j.conijn at student.tue.nl (Conijn, B.J.)
+Date: Thu, 26 Sep 2013 14:40:14 +0000
+Subject: [gecode-users] What is an 'oriented intersection-graph'?
+Message-ID: <16E958B8722B734792C877EB8238059C1F9397F2@XSERVER22A.campus.tue.nl>
+
+Hi,
+
+I was wondering what an oriented intersection-graph is? This term is mentioned in the documentation for Gecode::Int::Sorted::computesccs, but it is unclear how the orientations of the edges are defined. I suspect that computesccs does not compute the sccs of the oriented intersection-graph, which causes the bug in the sorted constraint.
+
+Kind regards,
+
+Bauke
+
+From ktorpi at gmail.com  Sun Sep 29 17:37:27 2013
+From: ktorpi at gmail.com (kTorpi)
+Date: Sun, 29 Sep 2013 17:37:27 +0200
+Subject: [gecode-users] Heap memory exhausted when copying a model
+Message-ID: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+
+Hello,
+
+In my application i'm building a model through a long process, and in the
+middle of the process I'd like to make a copy of the actual model, post
+some constraints to the copied and get the solution.
+But when I make a copy of the model with is copy constructor and than I
+create the DFS object I get a Gecode::MemoryExhausted exception.
+Please, help me. I attached a small example that reproduces the error.
+
+Thanks you,
+Steve
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130929/c16b23ad/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: send-more-money-de-mystified.cpp
+Type: text/x-c++src
+Size: 2050 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20130929/c16b23ad/attachment.cpp>
+
+From tack at gecode.org  Sun Sep 29 19:01:18 2013
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 29 Sep 2013 19:01:18 +0200
+Subject: [gecode-users] Heap memory exhausted when copying a model
+In-Reply-To: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+References: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+Message-ID: <888E8284-23CD-479D-9296-FC7F442EA5DE@gecode.org>
+
+Hi,
+
+you cannot call the copy constructor directly.  Just change the line where you're trying to make the copy into
+
+  SendMoreMoney* m2 = static_cast<SendMoreMoney*>(m->clone(true));
+
+and it will work.  (It's a little unfortunate that there is no better error message, but if you call "internal" functionality in Gecode things like this can happen.)
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 29/09/2013, at 5:37 PM, kTorpi <ktorpi at gmail.com> wrote:
+
+> Hello,
+> 
+> In my application i'm building a model through a long process, and in the middle of the process I'd like to make a copy of the actual model, post some constraints to the copied and get the solution.
+> But when I make a copy of the model with is copy constructor and than I create the DFS object I get a Gecode::MemoryExhausted exception.
+> Please, help me. I attached a small example that reproduces the error.
+> 
+> Thanks you,
+> Steve
+> <send-more-money-de-mystified.cpp>_______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130929/009f6bbc/attachment.html>
+
+From ktorpi at gmail.com  Sun Sep 29 21:41:13 2013
+From: ktorpi at gmail.com (kTorpi)
+Date: Sun, 29 Sep 2013 21:41:13 +0200
+Subject: [gecode-users] Heap memory exhausted when copying a model
+In-Reply-To: <888E8284-23CD-479D-9296-FC7F442EA5DE@gecode.org>
+References: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+	<888E8284-23CD-479D-9296-FC7F442EA5DE@gecode.org>
+Message-ID: <CAL1Z-6y3NR2gHZcVBhXbSXYfH0pSi_srp-P2-fj=0ScQqHjdPg@mail.gmail.com>
+
+Thank you very much.
+Now when I use the clone function I get another exception: "Space::clone:
+Attempt to invoke operation on not stable space" I've read in MPG that this
+is because the space is failed or not stable, but I don't know what this
+realy means. Why can my space be unstable? I can post constraints and I can
+get the solutions, so everything seems to be fine.
+
+Thanks in advance,
+Steve
+
+
+2013/9/29 Guido Tack <tack at gecode.org>
+
+> Hi,
+>
+> you cannot call the copy constructor directly.  Just change the line where
+> you're trying to make the copy into
+>
+>   SendMoreMoney* m2 = static_cast<SendMoreMoney*>(m->clone(true));
+>
+> and it will work.  (It's a little unfortunate that there is no better
+> error message, but if you call "internal" functionality in Gecode things
+> like this can happen.)
+>
+> Cheers,
+> Guido
+>
+> --
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+>
+>
+>
+> On 29/09/2013, at 5:37 PM, kTorpi <ktorpi at gmail.com> wrote:
+>
+> Hello,
+>
+> In my application i'm building a model through a long process, and in the
+> middle of the process I'd like to make a copy of the actual model, post
+> some constraints to the copied and get the solution.
+> But when I make a copy of the model with is copy constructor and than I
+> create the DFS object I get a Gecode::MemoryExhausted exception.
+> Please, help me. I attached a small example that reproduces the error.
+>
+> Thanks you,
+> Steve
+> <send-more-money-de-mystified.cpp>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130929/cd09429e/attachment.html>
+
+From tack at gecode.org  Sun Sep 29 21:47:33 2013
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 29 Sep 2013 21:47:33 +0200
+Subject: [gecode-users] Heap memory exhausted when copying a model
+In-Reply-To: <CAL1Z-6y3NR2gHZcVBhXbSXYfH0pSi_srp-P2-fj=0ScQqHjdPg@mail.gmail.com>
+References: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+	<888E8284-23CD-479D-9296-FC7F442EA5DE@gecode.org>
+	<CAL1Z-6y3NR2gHZcVBhXbSXYfH0pSi_srp-P2-fj=0ScQqHjdPg@mail.gmail.com>
+Message-ID: <FBB446AC-E96A-456D-8D7C-8AD7038608ED@gecode.org>
+
+Please read MPG on cloning, stable spaces etc.  You have to call status() before you can clone a space if you have posted propagators in the space.  And you have to check if status returns failed, because then you cannot clone either (but in your case I would guess that the space can never be failed at that point).
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 29/09/2013, at 9:41 PM, kTorpi <ktorpi at gmail.com> wrote:
+
+> Thank you very much.
+> Now when I use the clone function I get another exception: "Space::clone: Attempt to invoke operation on not stable space" I've read in MPG that this is because the space is failed or not stable, but I don't know what this realy means. Why can my space be unstable? I can post constraints and I can get the solutions, so everything seems to be fine.
+> 
+> Thanks in advance,
+> Steve
+> 
+> 
+> 2013/9/29 Guido Tack <tack at gecode.org>
+> Hi,
+> 
+> you cannot call the copy constructor directly.  Just change the line where you're trying to make the copy into
+> 
+>   SendMoreMoney* m2 = static_cast<SendMoreMoney*>(m->clone(true));
+> 
+> and it will work.  (It's a little unfortunate that there is no better error message, but if you call "internal" functionality in Gecode things like this can happen.)
+> 
+> Cheers,
+> Guido
+> 
+> -- 
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+> 
+> 
+> 
+> On 29/09/2013, at 5:37 PM, kTorpi <ktorpi at gmail.com> wrote:
+> 
+>> Hello,
+>> 
+>> In my application i'm building a model through a long process, and in the middle of the process I'd like to make a copy of the actual model, post some constraints to the copied and get the solution.
+>> But when I make a copy of the model with is copy constructor and than I create the DFS object I get a Gecode::MemoryExhausted exception.
+>> Please, help me. I attached a small example that reproduces the error.
+>> 
+>> Thanks you,
+>> Steve
+>> <send-more-money-de-mystified.cpp>_______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130929/cbb9050a/attachment.html>
+
+From ktorpi at gmail.com  Mon Sep 30 15:30:50 2013
+From: ktorpi at gmail.com (kTorpi)
+Date: Mon, 30 Sep 2013 15:30:50 +0200
+Subject: [gecode-users] Heap memory exhausted when copying a model
+In-Reply-To: <FBB446AC-E96A-456D-8D7C-8AD7038608ED@gecode.org>
+References: <CAL1Z-6xAg1O_j2HBV2iDBJENnntwmWERaTbVCi5An7J_pWsrgA@mail.gmail.com>
+	<888E8284-23CD-479D-9296-FC7F442EA5DE@gecode.org>
+	<CAL1Z-6y3NR2gHZcVBhXbSXYfH0pSi_srp-P2-fj=0ScQqHjdPg@mail.gmail.com>
+	<FBB446AC-E96A-456D-8D7C-8AD7038608ED@gecode.org>
+Message-ID: <CAL1Z-6yG=Wjzu_pH7jHPSx_jvci5kdyJW2DNJjdSX0rcf7ydQg@mail.gmail.com>
+
+I see, thank you very much. :)
+
+Steve
+
+
+2013/9/29 Guido Tack <tack at gecode.org>
+
+> Please read MPG on cloning, stable spaces etc.  You have to call status()
+> before you can clone a space if you have posted propagators in the space.
+>  And you have to check if status returns failed, because then you cannot
+> clone either (but in your case I would guess that the space can never be
+> failed at that point).
+>
+> Cheers,
+> Guido
+>
+> --
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/
+>
+>
+>
+> On 29/09/2013, at 9:41 PM, kTorpi <ktorpi at gmail.com> wrote:
+>
+> Thank you very much.
+> Now when I use the clone function I get another exception: "Space::clone:
+> Attempt to invoke operation on not stable space" I've read in MPG that this
+> is because the space is failed or not stable, but I don't know what this
+> realy means. Why can my space be unstable? I can post constraints and I can
+> get the solutions, so everything seems to be fine.
+>
+> Thanks in advance,
+> Steve
+>
+>
+> 2013/9/29 Guido Tack <tack at gecode.org>
+>
+>> Hi,
+>>
+>> you cannot call the copy constructor directly.  Just change the line
+>> where you're trying to make the copy into
+>>
+>>   SendMoreMoney* m2 = static_cast<SendMoreMoney*>(m->clone(true));
+>>
+>> and it will work.  (It's a little unfortunate that there is no better
+>> error message, but if you call "internal" functionality in Gecode things
+>> like this can happen.)
+>>
+>> Cheers,
+>> Guido
+>>
+>>  --
+>> Guido Tack
+>> http://www.csse.monash.edu/~guidot/
+>>
+>>
+>>
+>> On 29/09/2013, at 5:37 PM, kTorpi <ktorpi at gmail.com> wrote:
+>>
+>> Hello,
+>>
+>> In my application i'm building a model through a long process, and in the
+>> middle of the process I'd like to make a copy of the actual model, post
+>> some constraints to the copied and get the solution.
+>> But when I make a copy of the model with is copy constructor and than I
+>> create the DFS object I get a Gecode::MemoryExhausted exception.
+>> Please, help me. I attached a small example that reproduces the error.
+>>
+>> Thanks you,
+>> Steve
+>> <send-more-money-de-mystified.cpp>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130930/4b842183/attachment.html>
+

@@ -1,0 +1,240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Iterating/filtering IntView in Gecode 3.x
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Iterating/filtering%20IntView%20in%20Gecode%203.x&In-Reply-To=%3CC620C5A2-EEDF-4856-9A23-3CABCC308A9F%40gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002854.html">
+   <LINK REL="Next"  HREF="002858.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Iterating/filtering IntView in Gecode 3.x</H1>
+    <B>Peter Vanhee</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Iterating/filtering%20IntView%20in%20Gecode%203.x&In-Reply-To=%3CC620C5A2-EEDF-4856-9A23-3CABCC308A9F%40gmail.com%3E"
+       TITLE="[gecode-users] Iterating/filtering IntView in Gecode 3.x">peter.vanhee at gmail.com
+       </A><BR>
+    <I>Fri Mar 19 16:37:52 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002854.html">[gecode-users] Iterating/filtering IntView in Gecode 3.x
+</A></li>
+        <LI>Next message: <A HREF="002858.html">[gecode-users] Iterating/filtering IntView in Gecode 3.x
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2857">[ date ]</a>
+              <a href="thread.html#2857">[ thread ]</a>
+              <a href="subject.html#2857">[ subject ]</a>
+              <a href="author.html#2857">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Thanks Martin, 
+
+this is very helpful.
+
+I modified my code to use std::set as well with your range iterator, and I have a huge speed increase.
+Note that I used narrow_r instead of inter_r.
+
+Thanks!
+Peter
+
+On 19 Mar 2010, at 15:58, Martin Mann wrote:
+
+&gt;<i> 
+</I>&gt;<i> Hi Peter,
+</I>&gt;<i> 
+</I>&gt;<i> I solved that problem for Gecode 1.3.0 (still running for 3.*) by a dedicated implementation of a Gecode RangeIterator for a std::set (source attached). The source code can be easily adapted for your purpose either by sorting the std::vector after filling or by ensuring that you fill it with values of increasing order.
+</I>&gt;<i> 
+</I>&gt;<i> Dont know if there is a &quot;native&quot; Gecode support in 3.*, havent checked since I wrote it. :)
+</I>&gt;<i> 
+</I>&gt;<i> the application is than quite simple:
+</I>&gt;<i> 
+</I>&gt;<i> ////////////////////////////////////////////////////
+</I>&gt;<i>  std::set&lt;int&gt; data; // fill data
+</I>&gt;<i>  GC_StlSetRangeIterator dataIt(&amp;data);
+</I>&gt;<i>  x.inter_r(*home, dataIt);
+</I>&gt;<i> ////////////////////////////////////////////////////
+</I>&gt;<i> 
+</I>&gt;<i> Hope it helps,
+</I>&gt;<i> 
+</I>&gt;<i> Martin
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Peter Vanhee schrieb:
+</I>&gt;&gt;<i> Hey all,
+</I>&gt;&gt;<i> I have more or less the same problem as mentioned here: <A HREF="http://thread.gmane.org/gmane.comp.lib.gecode.user/919,">http://thread.gmane.org/gmane.comp.lib.gecode.user/919,</A>
+</I>&gt;&gt;<i> however the solution seems to be outdated for gecode 3.x: e.g. GECODE_AUTOARRAY is not existing anymore etc.
+</I>&gt;&gt;<i> Within the binary propagator, and when one variable is assigned (x0), I need to filter values in the other variable (x1). What I do right  now is:
+</I>&gt;&gt;<i> // loop over all values of x1 and push to remove if necessary
+</I>&gt;&gt;<i> vector&lt;int&gt; remove;
+</I>&gt;&gt;<i> for (IntVarValues i(*x1); i(); ++i) {
+</I>&gt;&gt;<i> 	if (!predicate(home, x0-&gt;val(), i.val())) remove.push_back(i.val());
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i> // remove values from domain
+</I>&gt;&gt;<i> for(vector&lt;int&gt;::iterator i=remove.begin(); i!=remove.end(); ++i) {
+</I>&gt;&gt;<i> 	GECODE_ME_CHECK(x1-&gt;nq(_home, r));
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i> This is not at all efficient:  90% of the time is spent in Int::IntVarImp::nq_full, and 38% in Int::IntVarImp::RangeList::min().
+</I>&gt;&gt;<i> How can I change this? I have variables with big domains (into the millions of values) that have few continuous ranges.
+</I>&gt;&gt;<i> Thanks,
+</I>&gt;&gt;<i> Peter
+</I>&gt;<i> 
+</I>&gt;<i> -- 
+</I>&gt;<i> Martin Mann, Dipl. Bioinf.
+</I>&gt;<i> Bioinformatics - Inst. of Computer Science
+</I>&gt;<i> Albert-Ludwigs-University Freiburg
+</I>&gt;<i> Tel: ++49-761-203-8259
+</I>&gt;<i> Fax: ++49-761-203-7462
+</I>&gt;<i> <A HREF="http://www.bioinf.uni-freiburg.de/~mmann/">http://www.bioinf.uni-freiburg.de/~mmann/</A>
+</I>&gt;<i> /*
+</I>&gt;<i> *  Main authors:
+</I>&gt;<i> *     Martin Mann <A HREF="http://www.bioinf.uni-freiburg.de/~mmann/">http://www.bioinf.uni-freiburg.de/~mmann/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  Contributing authors:
+</I>&gt;<i> *     Sebastian Will <A HREF="http://www.bioinf.uni-freiburg.de/~will/">http://www.bioinf.uni-freiburg.de/~will/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  Copyright:
+</I>&gt;<i> *     Martin Mann, 2007
+</I>&gt;<i> *
+</I>&gt;<i> *  This file is part of the CPSP-tools package:
+</I>&gt;<i> *     <A HREF="http://www.bioinf.uni-freiburg.de/sw/cpsp/">http://www.bioinf.uni-freiburg.de/sw/cpsp/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  See the file &quot;LICENSE&quot; for information on usage and
+</I>&gt;<i> *  redistribution of this file, and for a
+</I>&gt;<i> *     DISCLAIMER OF ALL WARRANTIES.
+</I>&gt;<i> *
+</I>&gt;<i> */
+</I>&gt;<i> 
+</I>&gt;<i> #ifndef GC_STLSETRANGEITERATOR_HH_
+</I>&gt;<i> #define GC_STLSETRANGEITERATOR_HH_
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> #include &lt;set&gt;
+</I>&gt;<i> #include &lt;iostream&gt;
+</I>&gt;<i> 	
+</I>&gt;<i>  		/**
+</I>&gt;<i>  		 * Provides a constant Gecode RangeIterator of a std::set&lt;int&gt; that 
+</I>&gt;<i>  		 * calculates the ranges on demand.
+</I>&gt;<i>  		 */
+</I>&gt;<i> 	class GC_StlSetRangeIterator
+</I>&gt;<i> 	{
+</I>&gt;<i> 	private:
+</I>&gt;<i> 		const std::set&lt;int&gt;* data;
+</I>&gt;<i> 		std::set&lt;int&gt;::const_iterator actElem;
+</I>&gt;<i> 		
+</I>&gt;<i> 		bool noFurtherRange;
+</I>&gt;<i> 		
+</I>&gt;<i> 		int nextMin, nextMax;
+</I>&gt;<i> 		
+</I>&gt;<i> 			//! searchs for the next range and sets the inner members
+</I>&gt;<i> 		void getNextRange();
+</I>&gt;<i> 	public:
+</I>&gt;<i> 		GC_StlSetRangeIterator();
+</I>&gt;<i> 		GC_StlSetRangeIterator(const std::set&lt;int&gt;* data_);
+</I>&gt;<i> 		virtual ~GC_StlSetRangeIterator();
+</I>&gt;<i> 		
+</I>&gt;<i> 		void init(const std::set&lt;int&gt;* const data_) {
+</I>&gt;<i> 			data = data_;
+</I>&gt;<i> 			noFurtherRange = false;
+</I>&gt;<i> 			if (data != NULL) 
+</I>&gt;<i> 				actElem = data-&gt;begin();
+</I>&gt;<i> 			getNextRange();
+</I>&gt;<i> 		}
+</I>&gt;<i> 		
+</I>&gt;<i> 		bool operator()(void) const { return !noFurtherRange; }
+</I>&gt;<i> 		void operator++(void) { getNextRange(); }
+</I>&gt;<i> 		
+</I>&gt;<i> 		int min(void) const { return nextMin; }
+</I>&gt;<i> 		int max(void) const { return nextMax; }
+</I>&gt;<i> 		unsigned int width(void) { return nextMax-nextMin+1; }
+</I>&gt;<i> 		
+</I>&gt;<i> 		
+</I>&gt;<i> 	};
+</I>&gt;<i> 	
+</I>&gt;<i> 
+</I>&gt;<i> #endif /*GC_STLSETRANGEITERATOR_HH_*/
+</I>&gt;<i> /*
+</I>&gt;<i> *  Main authors:
+</I>&gt;<i> *     Martin Mann <A HREF="http://www.bioinf.uni-freiburg.de/~mmann/">http://www.bioinf.uni-freiburg.de/~mmann/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  Contributing authors:
+</I>&gt;<i> *     Sebastian Will <A HREF="http://www.bioinf.uni-freiburg.de/~will/">http://www.bioinf.uni-freiburg.de/~will/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  Copyright:
+</I>&gt;<i> *     Martin Mann, 2007
+</I>&gt;<i> *
+</I>&gt;<i> *  This file is part of the CPSP-tools package:
+</I>&gt;<i> *     <A HREF="http://www.bioinf.uni-freiburg.de/sw/cpsp/">http://www.bioinf.uni-freiburg.de/sw/cpsp/</A>
+</I>&gt;<i> *
+</I>&gt;<i> *  See the file &quot;LICENSE&quot; for information on usage and
+</I>&gt;<i> *  redistribution of this file, and for a
+</I>&gt;<i> *     DISCLAIMER OF ALL WARRANTIES.
+</I>&gt;<i> *
+</I>&gt;<i> */
+</I>&gt;<i> 
+</I>&gt;<i> #include &quot;cpsp/GC_StlSetRangeIterator.hh&quot;
+</I>&gt;<i> 
+</I>&gt;<i>  	
+</I>&gt;<i>  	GC_StlSetRangeIterator::GC_StlSetRangeIterator() :
+</I>&gt;<i>  		data(NULL), noFurtherRange(true)
+</I>&gt;<i>  	{
+</I>&gt;<i>  		getNextRange();
+</I>&gt;<i>  	}
+</I>&gt;<i>  		
+</I>&gt;<i> 	GC_StlSetRangeIterator::GC_StlSetRangeIterator(const std::set&lt;int&gt;* data_) :
+</I>&gt;<i> 		data(data_), noFurtherRange(false)
+</I>&gt;<i> 	{
+</I>&gt;<i> 		if (data != NULL) 
+</I>&gt;<i> 			actElem = data-&gt;begin();
+</I>&gt;<i> 		getNextRange();
+</I>&gt;<i> 	}
+</I>&gt;<i> 	
+</I>&gt;<i> 	GC_StlSetRangeIterator::~GC_StlSetRangeIterator()
+</I>&gt;<i> 	{
+</I>&gt;<i> 	}
+</I>&gt;<i> 	
+</I>&gt;<i> 	void
+</I>&gt;<i> 	GC_StlSetRangeIterator::getNextRange() {
+</I>&gt;<i> 		if (data==NULL || actElem == data-&gt;end()) {
+</I>&gt;<i> 			noFurtherRange = true;
+</I>&gt;<i> 			return;
+</I>&gt;<i> 		}
+</I>&gt;<i> 			// find next range
+</I>&gt;<i> 		nextMin = *actElem;
+</I>&gt;<i> 		nextMax = nextMin;
+</I>&gt;<i> 			// build up new upper bound until end of set reached or gap in 
+</I>&gt;<i> 			// sequence
+</I>&gt;<i> 		while ( (++actElem != data-&gt;end()) &amp;&amp; (*actElem == (nextMax+1))) {
+</I>&gt;<i> 			nextMax++;
+</I>&gt;<i> 		}
+</I>&gt;<i> 	}
+</I>&gt;<i> 
+</I>
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002854.html">[gecode-users] Iterating/filtering IntView in Gecode 3.x
+</A></li>
+	<LI>Next message: <A HREF="002858.html">[gecode-users] Iterating/filtering IntView in Gecode 3.x
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2857">[ date ]</a>
+              <a href="thread.html#2857">[ thread ]</a>
+              <a href="subject.html#2857">[ subject ]</a>
+              <a href="author.html#2857">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,396 @@
+From dooms at info.ucl.ac.be  Mon May 23 17:28:17 2005
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Mon, 23 May 2005 17:28:17 +0200
+Subject: [Gecode] bug: equal and the empty set
+Message-ID: <4291F691.9090909@info.ucl.ac.be>
+
+Hi,
+Here is an example code for a bug I ran into : void equals(Space *, 
+SetVar x, SetVar y)
+segfaults  when y is instanciated to the empty set.
+
+I also attach a patch against set/reified/propagators.cc 1.25
+(this is a CVS version Christian sent me a few weeks ago - I have no CVS 
+access).
+
+All the best,
+--
+Gr?goire Dooms
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: bug.cc
+Type: text/x-c++src
+Size: 959 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050523/3ea35cc7/attachment.cc>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: patch_equal.diff
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050523/3ea35cc7/attachment.asc>
+
+From dooms at info.ucl.ac.be  Mon May 23 18:09:31 2005
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Mon, 23 May 2005 18:09:31 +0200
+Subject: [Gecode] bug: equal and the empty set
+In-Reply-To: <4291F691.9090909@info.ucl.ac.be>
+References: <4291F691.9090909@info.ucl.ac.be>
+Message-ID: <4292003B.1030709@info.ucl.ac.be>
+
+Gr?goire Dooms wrote:
+
+>
+> I also attach a patch against set/reified/propagators.cc 1.25
+> (this is a CVS version Christian sent me a few weeks ago - I have no 
+> CVS access).
+>
+
+Should read twice before posting.
+The previous patch does not fix it in other cases (two sets not equal 
+but neither being empty).
+This one should be better;
+
+--
+Gr?goire
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: patch_equal.diff
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050523/ed7130d3/attachment.txt>
+
+From tack at ps.uni-sb.de  Mon May 23 21:36:33 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 23 May 2005 21:36:33 +0200 (CEST)
+Subject: [Gecode] bug: equal and the empty set
+In-Reply-To: <4292003B.1030709@info.ucl.ac.be>
+References: <4291F691.9090909@info.ucl.ac.be> <4292003B.1030709@info.ucl.ac.be>
+Message-ID: <34391.217.235.109.113.1116876993.squirrel@217.235.109.113>
+
+Hi Gr?goire.
+
+Gr?goire Dooms wrote:
+>> I also attach a patch against set/reified/propagators.cc 1.25
+>> (this is a CVS version Christian sent me a few weeks ago - I have no
+>> CVS access).
+>[...]
+> The previous patch does not fix it in other cases (two sets not equal
+> but neither being empty).
+> This one should be better;
+
+Thanks a lot! I've already added your fix to the CVS. I'm very interested
+in feedback on the set propagators, as they are less well tested than the
+integers. Also, requests for propagators that should be there but aren't
+are very welcome ;-)
+
+Cheers,
+   Guido
+
+
+From d00-mla at nada.kth.se  Thu May 26 11:29:16 2005
+From: d00-mla at nada.kth.se (Mikael 'Zayenz' Lagerkvist)
+Date: Thu, 26 May 2005 11:29:16 +0200 (MEST)
+Subject: [Gecode] Problem with operator== for views, equality vs. aliasing.
+Message-ID: <Pine.GSO.4.58.0505261119510.14159@my.nada.kth.se>
+
+Hi,
+
+I recently found that there is a problem with the equality-operators
+for views in Gecode. The operators are defined to handle aliasing,
+that is, the operation checks for usage of the same base variable.
+
+However, the usage is (at least in some places), based on operator==
+testing semantic equality.  As an example, take
+Int::Rel::Le<View>::post(...) from int/rel/lq-le.icc, lines 95-103:
+
+	template <class View>
+	ExecStatus
+	Le<View>::post(Space* home, View x0, View x1) {
+	  if (x0 != x1) {
+	    (void) new (home) Le<View>(home,x0,x1);
+	    return ES_OK;
+	  }
+	  return ES_FAILED;
+	}
+
+Consider this when invoked using two scale-views representing 3*x and
+5*x. Then the invocation will erroneously fail.
+
+
+So, what should the equality-operator mean, and what do we call the
+other operation?
+
+
+Regards,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, http://www.imit.kth.se/~zayenz/
+
+
+From schulte at imit.kth.se  Thu May 26 15:15:53 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 26 May 2005 15:15:53 +0200
+Subject: [Gecode] Problem with operator== for views, equality vs. aliasing.
+In-Reply-To: <Pine.GSO.4.58.0505261119510.14159@my.nada.kth.se>
+Message-ID: <001801c561f5$0b4091f0$acd4ed82@beule>
+
+Hi,
+
+the code is of course complete rubbish as Mikael points out correctly. What
+I never really understood is what "==" is supposed to mean. What I had in
+mind is that it means aliasing: two views refer to the same variable. This
+is of course important in many cases, however here clearly it means
+"identical". So what we should do is the following:
+
+x == y <=> the two views need to be of the same kind and are identical (same
+var, same constants, etc)
+
+x aliases y <=> the two views of whatever type depend on the same variable
+
+Another relation on views is x < y: the variable associated with view x is
+less (wrt to some order on variables) than the variable associated with y.
+
+So what needs to be done:
+ - replace "==" to mean identity 
+ - introduce something for "aliases". How about "&" (along the lines that
+two views have something in common). Or just "aliases" textually.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Mikael 'Zayenz' Lagerkvist
+Sent: Thursday, May 26, 2005 11:29 AM
+To: Technical discussions about Gecode
+Subject: [Gecode] Problem with operator== for views, equality vs. aliasing.
+
+
+Hi,
+
+I recently found that there is a problem with the equality-operators for
+views in Gecode. The operators are defined to handle aliasing, that is, the
+operation checks for usage of the same base variable.
+
+However, the usage is (at least in some places), based on operator== testing
+semantic equality.  As an example, take
+Int::Rel::Le<View>::post(...) from int/rel/lq-le.icc, lines 95-103:
+
+	template <class View>
+	ExecStatus
+	Le<View>::post(Space* home, View x0, View x1) {
+	  if (x0 != x1) {
+	    (void) new (home) Le<View>(home,x0,x1);
+	    return ES_OK;
+	  }
+	  return ES_FAILED;
+	}
+
+Consider this when invoked using two scale-views representing 3*x and 5*x.
+Then the invocation will erroneously fail.
+
+
+So, what should the equality-operator mean, and what do we call the other
+operation?
+
+
+Regards,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, http://www.imit.kth.se/~zayenz/
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From dooms at info.ucl.ac.be  Fri May 27 16:05:51 2005
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Fri, 27 May 2005 16:05:51 +0200
+Subject: [Gecode] technical support about gecode
+Message-ID: <4297293F.8030407@info.ucl.ac.be>
+
+Hi,
+
+I'm currently implementing Graph variables, constraints on these variables
+and  new set propagators in Gecode as part of my PhD thesis on 
+biochemical network analysis.
+
+I am suffering a bit from the lack of developper documentation on gecode.
+I'm currently doing it with trial and error and "reverse-engineering" of 
+the source code.
+
+Do you have a text describing the design choices that were made in gecode ?
+If I remember well, some work on the documentation was planned around 
+these months.
+I am willing to contribute to the documentation project as I anyway have 
+to understand how gecode works.
+
+Is this mailing list the sole place to ask questions about gecode (the 
+very low traffic scares me a bit ;-) ?
+
+All the best,
+--
+Gr?goire Dooms
+
+
+
+
+
+
+From schulte at imit.kth.se  Fri May 27 21:56:38 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 27 May 2005 21:56:38 +0200
+Subject: [Gecode] technical support about gecode
+In-Reply-To: <4297293F.8030407@info.ucl.ac.be>
+Message-ID: <000301c562f6$32470840$0301a8c0@dator>
+
+Dear Gr?goire,
+
+So far the is no text. We intend to write a text ove summer. However, please
+find me puzzled: we warned you that Gecode is in the making, so all what you
+observe is what we meant by "in the making".
+
+Christian
+
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Gr?goire Dooms
+Sent: Friday, May 27, 2005 4:06 PM
+To: Technical discussions about Gecode
+Subject: [Gecode] technical support about gecode
+
+
+Hi,
+
+I'm currently implementing Graph variables, constraints on these variables
+and  new set propagators in Gecode as part of my PhD thesis on 
+biochemical network analysis.
+
+I am suffering a bit from the lack of developper documentation on gecode.
+I'm currently doing it with trial and error and "reverse-engineering" of 
+the source code.
+
+Do you have a text describing the design choices that were made in gecode ?
+If I remember well, some work on the documentation was planned around 
+these months.
+I am willing to contribute to the documentation project as I anyway have 
+to understand how gecode works.
+
+Is this mailing list the sole place to ask questions about gecode (the 
+very low traffic scares me a bit ;-) ?
+
+All the best,
+--
+Gr?goire Dooms
+
+
+
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From dooms at info.ucl.ac.be  Sun May 29 19:44:16 2005
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Sun, 29 May 2005 19:44:16 +0200
+Subject: [Gecode] technical support about gecode
+In-Reply-To: <000301c562f6$32470840$0301a8c0@dator>
+References: <000301c562f6$32470840$0301a8c0@dator>
+Message-ID: <4299FF70.6040601@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>Dear Gr?goire,
+>
+>So far the is no text. We intend to write a text ove summer. However, please
+>find me puzzled: we warned you that Gecode is in the making, so all what you
+>observe is what we meant by "in the making".
+>
+>Christian
+>  
+>
+It's ok, I knew there was no docs yet. I was just wondering if there was 
+a draft.
+I'll post my questions on the mailing list then.
+All the best,
+--
+Gr?goire
+
+
+
+
+From schulte at imit.kth.se  Tue May 31 18:06:24 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 31 May 2005 18:06:24 +0200
+Subject: [Gecode] Copy versus update...
+Message-ID: <001201c565fa$b1759670$acd4ed82@beule>
+
+Dear all,
+
+one reason why Gecode did not compile with GCC 4.0 was that copying arrays
+and variables was modelled by a function returning a copy. The problem was
+that this required copy constructors which by themselves required copy
+constructors which by themselves required copy constructors... This problem
+was hacked up by some bizarre overloading which just happened to work for
+MSVC and GCC 3.*.
+
+I changed that: instead of c=x.copy(home) returning a copy c of an object x,
+one has to use c.update(home,x). This avoids all the copy constructor
+hassel. However, to make it work c now needs a default constructor.
+
+And voila, now Gecode compiles with GCC 4.0. I just tried a couple of
+examples and it appears as if the code is _really MUCH MUCH faster_ than
+3.*.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From ggutierrez at atlas.puj.edu.co  Tue May 31 18:27:31 2005
+From: ggutierrez at atlas.puj.edu.co (Gustavo Gutierrez)
+Date: Tue, 31 May 2005 11:27:31 -0500
+Subject: [Gecode] GECODE CVS
+Message-ID: <1117556852.7997.20.camel@localhost.localdomain>
+
+Hi All,
+
+Is there any way to get the last version of GECODE via anonymous  cvs? I
+think the version i have is out of date (Feb. 2005) and i would like to
+update it. 
+
+Thanks in advance,
+
+Gustavo Gutierrez
+
+
+
+From schulte at imit.kth.se  Tue May 31 23:29:56 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 31 May 2005 23:29:56 +0200
+Subject: [Gecode] Header changed
+Message-ID: <000c01c56627$e439fb50$0301a8c0@dator>
+
+Dear all,
+
+The toplevel header files to be included (gecode-*) are now available
+without the gecode- prefix. This is as Gecode will always be installed in a
+gecode subdirectory.
+
+Christian
+
+
+

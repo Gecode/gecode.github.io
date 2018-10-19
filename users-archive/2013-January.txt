@@ -1,0 +1,2092 @@
+From icastine at ucm.es  Wed Jan  9 18:13:29 2013
+From: icastine at ucm.es (=?iso-8859-1?Q?Ignacio_Casti=F1eiras?=)
+Date: Wed, 9 Jan 2013 18:13:29 +0100
+Subject: [gecode-users] About the different performance of two "apparently
+	similar" Gecode models
+Message-ID: <551217FB9A5346B38459DF432BB70C4C@userPC>
+
+Hi all, 
+
+We are obtaining a different performance in two ?apparently similar? Gecode
+models, and after performing some test we are blocked in finding out where
+this different performance comes from. 
+
+ 
+
+CONTEXT:
+
+We are performing a modelling and solving comparison of the Golomb Ruler
+problem between Gecode and our Constraint Functional Logic Programming
+system TOY(FDg) (which uses Gecode for finite domain constraint solving).
+Our hypothesis is that, being Golomb an optimization combinatorial problem,
+as soon as it scales, the time spent on search will be almost the 100% of
+the total elapsed time (making the inherent surcharge of interfacing
+TOY(FDg) to Gecode nearly negligible). 
+
+ 
+
+Unfortunately (at least for us :-)) this does not hold. For example, whereas
+for Golomb-11 the Gocode model spends 28sec, the TOY(FDg) model spends 42sec
+(a 50% of time more). This difference directly comes from the time they
+spent on the search, which is strange, as both models are using the same
+formulation (in the sense of a same number of variables with same domain, a
+same set of constraints and a same search strategy). Of course the resulting
+Gecode code of our TOY(FDg) interfaced model results to be less natural than
+the one obtained when modelling directly over Gecode (in the sense of having
+to use a single variable vector and devoted predicates for adding each new
+variable and constraint arising in the TOY(FDg) goal, as some of its
+drawbacks). 
+
+ 
+
+To find out the reason of such this difference we have performed some tests,
+which I describe to you (all the files I talk about are attached to this
+email). We are using Gecode 3.7.3 with Visual Studio 2008.
+
+ 
+
+TEST 1.
+
+The test uses:
+
+-          golomb_5_gist_natural.cpp (model using Gecode directly).
+
+-          golomb_5_gist_natural.res (log of the results from running the
+model). 
+
+-          golomb_5_gist_natural.pdf (gist tree obtained by running the
+model). 
+
+ 
+
+-          golomb_5_gist_interfaced.cpp (simulation of the resulting Gecode
+model obtained from TOY(FDg)).
+
+-          golomb_5_gist_interfaced.res (log of the results from running the
+model).
+
+-          golomb_5_gist_interfaced.pdf (gist tree obtained by running the
+model). 
+
+ 
+
+Both models solve Golomb-5, which contain: 
+
+-          Variables: m[0,m0,m1,m2,m3]; d[d0,d1,d2,d3,d4,d5,d6,d7,d8,d9]. 
+
+-          Constraints: m[i] < m[i+1]; d represents the pairwise differences
+m; all_different(d); d[0] < d[last]. 
+
+-          Search: Label m in textual order, minimizing m[last]
+
+ 
+
+Conclusions: 
+
+1.	The pdf files show that the Gist tree of the Gecode and TOY(FDg)
+models are exactly the same. 
+2.	The res files show that the propagation is the same in almost of
+nodes, but not in the node remarked in grey in the pdf files. For this node
+Gecode makes m = {0, 1, 6, 8, 10} and d = {1, 6, 8, 10, [5..6], [6..7], 9,
+2, 4, 3} (lines 73-76 of golomb_5_gist_natural.res), but TOY(FDg) makes
+varsSearch = {1, 6, 7, 10, 1, 6, 7, 10, 5, 6, 9, 2, 4, 3} (lines 60-62 of
+golomb_5_gist_interfaced.res). As it is seen in the gist trees, both systems
+fail in this node, but TOY(FDg) has to do more work to discover it). 
+
+ 
+
+TEST 2.
+
+The test uses:
+
+-          golomb_5_bab_natural.cpp (model using Gecode directly).
+
+-          golomb_5_bab_natural.res (log of the results from running the
+model). 
+
+ 
+
+-          golomb_5_bab_interfaced.cpp (simulation of the resulting Gecode
+model obtained from TOY(FDg)).
+
+-          golomb_5_bab_interfaced.res (log of the results from running the
+model).
+
+ 
+
+Both models use a search engine (for obtaining statistics of the search) and
+the user-defined constraint ?checkwhenpruned?, which prints in the log each
+modification in the domain of the variables. With that we can control how
+the domains of the variables evolve during the search. 
+
+ 
+
+Conclusions: 
+
+1.	The res files show that both models explore 19 nodes, with 8 fails.
+However, whereas the number of propagators in Gecode is 542, for TOY(FDg) is
+544 (possibly the two extra propagators of node remarked in grey in the pdf
+files). 
+2.	The res files show that there also two more kind of differences in
+the propagation of Gecode and TOY(FDg). Lets focus in the lines 66-83 of
+golomb_5_bab_natural.res and the lines 71-89 of golomb_5_bab_interfaced.res.
+They represent the propagation performed in the node remarked in yellow in
+the pdf files (initial state m = {0, 1, [3..11], [6..13], [10..15]} and d =
+{1, [3..11], [6..13], [10..15], [2..10], [5..12], [9..14], [2..10], [3..12],
+[2..9]} --> final state m = {0, 1, 3, [7..11], [11..15]} and d = {1, 3,
+[7..11], [11..15], 2, [6..10], [10..14], [4..8], [8..12], [4..8]}, thus
+affecting to all the variables): 
+
+2.1.  The order in which the variables see their domain pruned in different
+in Gecode and TOY(FDg), which could come from a different order in which the
+constraints are being propagated. 
+
+2.2.  The number of prunnings is different. For example, in Gecode there are
+18 variable notifications, but in TOY(FDg) there are 19 (the pruning d[5] =
+[6..12] appears in TOY(FDg) but not in Gecode. As it is seen in the gist
+trees, both systems success in propagation of this node, but TOY(FDg) has to
+do more work to discover it).
+
+ 
+
+TEST 3.
+
+The test uses:
+
+-          golomb_11_bab_natural.cpp (model using Gecode directly).
+
+-          golomb_11_bab_natural.res (log of the results from running the
+model). 
+
+ 
+
+-          golomb_11_bab_interfaced.cpp (simulation of the resulting Gecode
+model obtained from TOY(FDg)).
+
+-          golomb_11_bab_interfaced.res (log of the results from running the
+model).
+
+ 
+
+Both models use the computer clock to measure the elapsed time in running
+the problem.
+
+ 
+
+Conclusions: 
+
+1.	Again, both models explore the same search tree (2968201 nodes and
+1484086 fails). But, again, the number of propagators is different
+(320150379 for Gecode and 295041321 for TOY(FDg)). Interestingly, for
+Golomb-11 is Gecode the one that has (much) more propagators. For Golomb-5
+it was TOY(FDg) the one that had (just) two more propagators). 
+2.	Regarding the elapsed time for the search, Gecode (28sec) clearly
+outperforms TOY(FDg) (42sec). 
+
+ 
+
+WE NEED HELP:
+
+1.	Do you think that the big performance difference of Test3 is because
+of the reasons we have found in Test1 and Test2 (where TOY(FDg) always has
+to work more than Gecode for obtaining the same propagation results)? 
+2.	If you think this is not the case, do you have any insight of where
+does the performance difference come from? 
+
+ 
+
+Thank you very much in advance for spend your time reading this (so long)
+email and helping us. 
+
+ 
+
+Best regards, 
+
+Nacho Casti?eiras 
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130109/dc532c66/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tests.zip
+Type: application/x-zip-compressed
+Size: 24792 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20130109/dc532c66/attachment-0001.bin>
+
+From cschulte at kth.se  Wed Jan  9 20:08:44 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 9 Jan 2013 20:08:44 +0100
+Subject: [gecode-users] About the different performance of two
+	"apparently	similar" Gecode models
+In-Reply-To: <551217FB9A5346B38459DF432BB70C4C@userPC>
+References: <551217FB9A5346B38459DF432BB70C4C@userPC>
+Message-ID: <004401cdee9c$c0259610$4070c230$@kth.se>
+
+Hi,
+
+ 
+
+Just two things completely off my head:
+
+-        How does your search control recomputation? Gecode is quite clever,
+in particular during BAB.
+
+-        I saw that your variable domains are always from MIN_INT to
+MAX_INT. Gecode?s aren?t. This makes quite some difference for Golomb. Check
+the MPG case study on Golomb.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Ignacio Casti?eiras
+Sent: Wednesday, January 09, 2013 6:13 PM
+To: users at gecode.org
+Subject: [gecode-users] About the different performance of two "apparently
+similar" Gecode models
+
+ 
+
+Hi all, 
+
+We are obtaining a different performance in two ?apparently similar? Gecode
+models, and after performing some test we are blocked in finding out where
+this different performance comes from. 
+
+ 
+
+CONTEXT:
+
+We are performing a modelling and solving comparison of the Golomb Ruler
+problem between Gecode and our Constraint Functional Logic Programming
+system TOY(FDg) (which uses Gecode for finite domain constraint solving).
+Our hypothesis is that, being Golomb an optimization combinatorial problem,
+as soon as it scales, the time spent on search will be almost the 100% of
+the total elapsed time (making the inherent surcharge of interfacing
+TOY(FDg) to Gecode nearly negligible). 
+
+ 
+
+Unfortunately (at least for us J) this does not hold. For example, whereas
+for Golomb-11 the Gocode model spends 28sec, the TOY(FDg) model spends 42sec
+(a 50% of time more). This difference directly comes from the time they
+spent on the search, which is strange, as both models are using the same
+formulation (in the sense of a same number of variables with same domain, a
+same set of constraints and a same search strategy). Of course the resulting
+Gecode code of our TOY(FDg) interfaced model results to be less natural than
+the one obtained when modelling directly over Gecode (in the sense of having
+to use a single variable vector and devoted predicates for adding each new
+variable and constraint arising in the TOY(FDg) goal, as some of its
+drawbacks). 
+
+ 
+
+To find out the reason of such this difference we have performed some tests,
+which I describe to you (all the files I talk about are attached to this
+email). We are using Gecode 3.7.3 with Visual Studio 2008.
+
+ 
+
+TEST 1.
+
+The test uses:
+
+-      golomb_5_gist_natural.cpp (model using Gecode directly).
+
+-      golomb_5_gist_natural.res (log of the results from running the
+model). 
+
+-      golomb_5_gist_natural.pdf (gist tree obtained by running the model). 
+
+ 
+
+-      golomb_5_gist_interfaced.cpp (simulation of the resulting Gecode
+model obtained from TOY(FDg)).
+
+-      golomb_5_gist_interfaced.res (log of the results from running the
+model).
+
+-      golomb_5_gist_interfaced.pdf (gist tree obtained by running the
+model). 
+
+ 
+
+Both models solve Golomb-5, which contain: 
+
+-      Variables: m[0,m0,m1,m2,m3]; d[d0,d1,d2,d3,d4,d5,d6,d7,d8,d9]. 
+
+-      Constraints: m[i] < m[i+1]; d represents the pairwise differences m;
+all_different(d); d[0] < d[last]. 
+
+-      Search: Label m in textual order, minimizing m[last]
+
+ 
+
+Conclusions: 
+
+1.	The pdf files show that the Gist tree of the Gecode and TOY(FDg)
+models are exactly the same. 
+2.	The res files show that the propagation is the same in almost of
+nodes, but not in the node remarked in grey in the pdf files. For this node
+Gecode makes m = {0, 1, 6, 8, 10} and d = {1, 6, 8, 10, [5..6], [6..7], 9,
+2, 4, 3} (lines 73-76 of golomb_5_gist_natural.res), but TOY(FDg) makes
+varsSearch = {1, 6, 7, 10, 1, 6, 7, 10, 5, 6, 9, 2, 4, 3} (lines 60-62 of
+golomb_5_gist_interfaced.res). As it is seen in the gist trees, both systems
+fail in this node, but TOY(FDg) has to do more work to discover it). 
+
+ 
+
+TEST 2.
+
+The test uses:
+
+-      golomb_5_bab_natural.cpp (model using Gecode directly).
+
+-      golomb_5_bab_natural.res (log of the results from running the model).
+
+
+ 
+
+-      golomb_5_bab_interfaced.cpp (simulation of the resulting Gecode model
+obtained from TOY(FDg)).
+
+-      golomb_5_bab_interfaced.res (log of the results from running the
+model).
+
+ 
+
+Both models use a search engine (for obtaining statistics of the search) and
+the user-defined constraint ?checkwhenpruned?, which prints in the log each
+modification in the domain of the variables. With that we can control how
+the domains of the variables evolve during the search. 
+
+ 
+
+Conclusions: 
+
+1.	The res files show that both models explore 19 nodes, with 8 fails.
+However, whereas the number of propagators in Gecode is 542, for TOY(FDg) is
+544 (possibly the two extra propagators of node remarked in grey in the pdf
+files). 
+2.	The res files show that there also two more kind of differences in
+the propagation of Gecode and TOY(FDg). Lets focus in the lines 66-83 of
+golomb_5_bab_natural.res and the lines 71-89 of golomb_5_bab_interfaced.res.
+They represent the propagation performed in the node remarked in yellow in
+the pdf files (initial state m = {0, 1, [3..11], [6..13], [10..15]} and d =
+{1, [3..11], [6..13], [10..15], [2..10], [5..12], [9..14], [2..10], [3..12],
+[2..9]} ? final state m = {0, 1, 3, [7..11], [11..15]} and d = {1, 3,
+[7..11], [11..15], 2, [6..10], [10..14], [4..8], [8..12], [4..8]}, thus
+affecting to all the variables): 
+
+2.1.  The order in which the variables see their domain pruned in different
+in Gecode and TOY(FDg), which could come from a different order in which the
+constraints are being propagated. 
+
+2.2.  The number of prunnings is different. For example, in Gecode there are
+18 variable notifications, but in TOY(FDg) there are 19 (the pruning d[5] =
+[6..12] appears in TOY(FDg) but not in Gecode. As it is seen in the gist
+trees, both systems success in propagation of this node, but TOY(FDg) has to
+do more work to discover it).
+
+ 
+
+TEST 3.
+
+The test uses:
+
+-      golomb_11_bab_natural.cpp (model using Gecode directly).
+
+-      golomb_11_bab_natural.res (log of the results from running the
+model). 
+
+ 
+
+-      golomb_11_bab_interfaced.cpp (simulation of the resulting Gecode
+model obtained from TOY(FDg)).
+
+-      golomb_11_bab_interfaced.res (log of the results from running the
+model).
+
+ 
+
+Both models use the computer clock to measure the elapsed time in running
+the problem.
+
+ 
+
+Conclusions: 
+
+1.	Again, both models explore the same search tree (2968201 nodes and
+1484086 fails). But, again, the number of propagators is different
+(320150379 for Gecode and 295041321 for TOY(FDg)). Interestingly, for
+Golomb-11 is Gecode the one that has (much) more propagators. For Golomb-5
+it was TOY(FDg) the one that had (just) two more propagators). 
+2.	Regarding the elapsed time for the search, Gecode (28sec) clearly
+outperforms TOY(FDg) (42sec). 
+
+ 
+
+WE NEED HELP:
+
+1.	Do you think that the big performance difference of Test3 is because
+of the reasons we have found in Test1 and Test2 (where TOY(FDg) always has
+to work more than Gecode for obtaining the same propagation results)? 
+2.	If you think this is not the case, do you have any insight of where
+does the performance difference come from? 
+
+ 
+
+Thank you very much in advance for spend your time reading this (so long)
+email and helping us. 
+
+ 
+
+Best regards, 
+
+Nacho Casti?eiras 
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130109/032f3979/attachment-0001.html>
+
+From ostrowsk at uni-potsdam.de  Wed Jan  9 12:51:43 2013
+From: ostrowsk at uni-potsdam.de (ostrowsk at uni-potsdam.de)
+Date: Wed, 09 Jan 2013 12:51:43 +0100
+Subject: [gecode-users] Copying Integer Variables between spaces
+In-Reply-To: <2E9945A8-5802-40B7-AA09-691CDFC17D1D@gecode.org>
+References: <508BFC5A.2070604@gmail.com>
+	<A0D8E02E-6C23-4F25-9194-C1E05063D955@gecode.org>
+	<508D01DB.8010103@gmail.com>
+	<2E9945A8-5802-40B7-AA09-691CDFC17D1D@gecode.org>
+Message-ID: <20130109125143.sjdb58fxuo0s4cok@webmail.uni-potsdam.de>
+
+I want to use the information about pruned values from an Integer  
+Variable in another space.
+
+So i have a Space with variable x and some constraints.
+I do propagation, now x is constrained somehow according to the  
+constraints and the propagator strength, e.g. x = {1..3,5..9}.
+
+Now i want to create a second Space with a variable y, whose domain is  
+is a copy of the current domain of x. (so that y={1..3,5..9})
+
+These variables do have nothing in common and are not connected  
+somehow by the constraints.
+
+I tried to use the IntVar constructor that takes another IntVar or the  
+IntView of x, but i think this is wrong (get segfault when copying  
+spaces).
+So, how do i transfer the domain, without sharing the VarImp.
+
+Thanks a lot,
+
+Max
+
+
+
+From tack at gecode.org  Wed Jan  9 23:42:56 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 10 Jan 2013 09:42:56 +1100
+Subject: [gecode-users] Copying Integer Variables between spaces
+In-Reply-To: <20130109125143.sjdb58fxuo0s4cok@webmail.uni-potsdam.de>
+References: <508BFC5A.2070604@gmail.com>
+	<A0D8E02E-6C23-4F25-9194-C1E05063D955@gecode.org>
+	<508D01DB.8010103@gmail.com>
+	<2E9945A8-5802-40B7-AA09-691CDFC17D1D@gecode.org>
+	<20130109125143.sjdb58fxuo0s4cok@webmail.uni-potsdam.de>
+Message-ID: <3C20C85F-9F95-41D9-9764-A4529E410D43@gecode.org>
+
+On 09/01/2013, at 10:51 PM, ostrowsk at uni-potsdam.de wrote:
+
+> I want to use the information about pruned values from an Integer Variable in another space.
+> 
+> So i have a Space with variable x and some constraints.
+> I do propagation, now x is constrained somehow according to the constraints and the propagator strength, e.g. x = {1..3,5..9}.
+> 
+> Now i want to create a second Space with a variable y, whose domain is is a copy of the current domain of x. (so that y={1..3,5..9})
+> 
+> These variables do have nothing in common and are not connected somehow by the constraints.
+> 
+> I tried to use the IntVar constructor that takes another IntVar or the IntView of x, but i think this is wrong (get segfault when copying spaces).
+
+Right, that won't work.
+
+> So, how do i transfer the domain, without sharing the VarImp.
+
+You have to use iterators. Let's say you want to create a new variable y in space s with the domain of x:
+
+    IntVarRanges ir(x);
+    IntVar y(s,IntSet(ir));
+
+Cheers,
+Guido
+
+
+
+From ncasti at fdi.ucm.es  Thu Jan 10 16:05:00 2013
+From: ncasti at fdi.ucm.es (=?ISO-8859-1?Q?Ignacio_Casti=F1eiras_P=E9rez?=)
+Date: Thu, 10 Jan 2013 16:05:00 +0100
+Subject: [gecode-users] About the different performance of two
+ "apparently similar" Gecode models
+In-Reply-To: <004401cdee9c$c0259610$4070c230$@kth.se>
+References: <551217FB9A5346B38459DF432BB70C4C@userPC>
+	<004401cdee9c$c0259610$4070c230$@kth.se>
+Message-ID: <CAAg+6WhBLek5PSjcFvhsethpNHAgGpfpEKfehqAhmxycVxxQWw@mail.gmail.com>
+
+Hi Christian,
+Awesome! I changed the variable domains to no longer being from MIN_INT to
+MAX_INT and the difference in time and number of propagators just
+dissapear.
+
+Really, thank you very much for your reply!
+
+Best regards,
+Nacho
+
+
+2013/1/9 Christian Schulte <cschulte at kth.se>
+
+> Hi,****
+>
+> ** **
+>
+> Just two things completely off my head:****
+>
+> **-        **How does your search control recomputation? Gecode is quite
+> clever, in particular during BAB.****
+>
+> **-        **I saw that your variable domains are always from MIN_INT to
+> MAX_INT. Gecode?s aren?t. This makes quite some difference for Golomb.
+> Check the MPG case study on Golomb.****
+>
+> ** **
+>
+> Best****
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Ignacio Casti?eiras
+> *Sent:* Wednesday, January 09, 2013 6:13 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] About the different performance of two
+> "apparently similar" Gecode models****
+>
+> ** **
+>
+> Hi all, ****
+>
+> We are obtaining a different performance in two ?apparently similar?
+> Gecode models, and after performing some test we are blocked in finding out
+> where this different performance comes from. ****
+>
+> ** **
+>
+> *CONTEXT:*
+>
+> We are performing a modelling and solving comparison of the Golomb Ruler
+> problem between Gecode and our Constraint Functional Logic Programming
+> system TOY(FDg) (which uses Gecode for finite domain constraint solving).
+> Our hypothesis is that, being Golomb an optimization combinatorial problem,
+> as soon as it scales, the time spent on search will be almost the 100% of
+> the total elapsed time (making the inherent surcharge of interfacing
+> TOY(FDg) to Gecode nearly negligible). ****
+>
+> ** **
+>
+> Unfortunately (at least for us J) this does not hold. For example,
+> whereas for Golomb-11 the Gocode model spends 28sec, the TOY(FDg) model
+> spends 42sec (a 50% of time more). This difference directly comes from the
+> time they spent on the search, which is strange, as both models are using
+> the *same formulation* (in the sense of a same number of variables with
+> same domain, a same set of constraints and a same search strategy). Of
+> course the resulting Gecode code of our TOY(FDg) interfaced model results
+> to be less natural than the one obtained when modelling directly over
+> Gecode (in the sense of having to use a single variable vector and devoted
+> predicates for adding each new variable and constraint arising in the
+> TOY(FDg) goal, as some of its drawbacks). ****
+>
+> ** **
+>
+> To find out the reason of such this difference we have performed some
+> tests, which I describe to you (all the files I talk about are attached to
+> this email). We are using Gecode 3.7.3 with Visual Studio 2008.****
+>
+> ** **
+>
+> *TEST 1.*
+>
+> The test uses:****
+>
+> **-      **golomb_5_gist_natural.cpp (model using Gecode directly).****
+>
+> **-      **golomb_5_gist_natural.res (log of the results from running the
+> model). ****
+>
+> **-      **golomb_5_gist_natural.pdf (gist tree obtained by running the
+> model). ****
+>
+> ** **
+>
+> **-      **golomb_5_gist_interfaced.cpp (simulation of the resulting
+> Gecode model obtained from TOY(FDg)).****
+>
+> **-      **golomb_5_gist_interfaced.res (log of the results from running
+> the model).****
+>
+> **-      **golomb_5_gist_interfaced.pdf (gist tree obtained by running
+> the model). ****
+>
+> ** **
+>
+> Both models solve Golomb-5, which contain: ****
+>
+> **-      **Variables: *m[0,m0,m1,m2,m3]*; *
+> d[d0,d1,d2,d3,d4,d5,d6,d7,d8,d9]*. ****
+>
+> **-      **Constraints: *m[i]* < *m[i+1]*; *d* represents the pairwise
+> differences *m*; all_different(*d*); *d[0]* < *d[last]*. ****
+>
+> **-      **Search: Label *m* in textual order, minimizing *m[last]*****
+>
+> ** **
+>
+> Conclusions: ****
+>
+>    1. The *pdf* files show that the Gist tree of the Gecode and TOY(FDg)
+>    models are exactly the same. ****
+>    2. The *res* files show that the propagation is the same in almost of
+>    nodes, *but not in the node remarked in grey in the pdf files*. For
+>    this node Gecode makes m = {0, 1, 6, *8,* 10} and d = {1, 6, *8,* 10, *[5..6],
+>    [6..7],* 9, 2, 4, 3} (lines 73-76 of golomb_5_gist_natural.res), but
+>    TOY(FDg) makes varsSearch = {1, 6, *7,* 10, 1, 6, *7,* 10, *5, 6,* 9,
+>    2, 4, 3} (lines 60-62 of golomb_5_gist_interfaced.res). As it is seen in
+>    the gist trees, both systems fail in this node, but TOY(FDg) has to do more
+>    work to discover it). ****
+>
+> ** **
+>
+> *TEST 2.*
+>
+> The test uses:****
+>
+> **-      **golomb_5_bab_natural.cpp (model using Gecode directly).****
+>
+> **-      **golomb_5_bab_natural.res (log of the results from running the
+> model). ****
+>
+> ** **
+>
+> **-      **golomb_5_bab_interfaced.cpp (simulation of the resulting
+> Gecode model obtained from TOY(FDg)).****
+>
+> **-      **golomb_5_bab_interfaced.res (log of the results from running
+> the model).****
+>
+> ** **
+>
+> Both models use a search engine (for obtaining statistics of the search)
+> and the user-defined constraint ?checkwhenpruned?, which prints in the log
+> each modification in the domain of the variables. With that we can control
+> how the domains of the variables evolve during the search. ****
+>
+> ** **
+>
+> Conclusions: ****
+>
+>    1. The res files show that both models explore 19 nodes, with 8 fails.
+>    However, whereas the number of propagators in Gecode is 542, for TOY(FDg)
+>    is 544 (possibly the two extra propagators of node remarked in grey in the
+>    pdf files). ****
+>    2. The res files show that there also two more kind of differences in
+>    the propagation of Gecode and TOY(FDg). Lets focus in the lines 66-83 of
+>    golomb_5_bab_natural.res and the lines 71-89 of
+>    golomb_5_bab_interfaced.res. They represent the propagation performed in
+>    the node remarked in yellow in the pdf files (initial state m = {0, 1,
+>    [3..11], [6..13], [10..15]} and d = {1, [3..11], [6..13], [10..15],
+>    [2..10], [5..12], [9..14], [2..10], [3..12], [2..9]} ? final state m =
+>    {0, 1, 3, [7..11], [11..15]} and d = {1, 3, [7..11], [11..15], 2, [6..10],
+>    [10..14], [4..8], [8..12], [4..8]}, thus affecting to *all the
+>    variables*): ****
+>
+> **2.1.  **The order in which the variables see their domain pruned in
+> different in Gecode and TOY(FDg), which could come from a different order
+> in which the constraints are being propagated. ****
+>
+> **2.2.  **The number of prunnings is different. For example, *in Gecode
+> there are 18 variable notifications, but in TOY(FDg) there are 19 (the
+> pruning d[5] = [6..12] appears in TOY(FDg) but not in Gecode*. As it is
+> seen in the gist trees, both systems success in propagation of this node,
+> but TOY(FDg) has to do more work to discover it).****
+>
+> ** **
+>
+> *TEST 3.*
+>
+> The test uses:****
+>
+> **-      **golomb_11_bab_natural.cpp (model using Gecode directly).****
+>
+> **-      **golomb_11_bab_natural.res (log of the results from running the
+> model). ****
+>
+> ** **
+>
+> **-      **golomb_11_bab_interfaced.cpp (simulation of the resulting
+> Gecode model obtained from TOY(FDg)).****
+>
+> **-      **golomb_11_bab_interfaced.res (log of the results from running
+> the model).****
+>
+> ** **
+>
+> Both models use the computer clock to measure the elapsed time in running
+> the problem.****
+>
+> ** **
+>
+> Conclusions: ****
+>
+>    1. Again, both models explore the same search tree (2968201 nodes and
+>    1484086 fails). But, again, the number of propagators is different
+>    (320150379 for Gecode and 295041321 for TOY(FDg)). Interestingly, for
+>    Golomb-11 is Gecode the one that has (much) more propagators. For Golomb-5
+>    it was TOY(FDg) the one that had (just) two more propagators). ****
+>    2. Regarding the elapsed time for the search, Gecode (28sec) clearly
+>    outperforms TOY(FDg) (42sec). ****
+>
+> ** **
+>
+> *WE NEED HELP:*
+>
+>    1. Do you think that the big performance difference of Test3 is
+>    because of the reasons we have found in Test1 and Test2 (where TOY(FDg)
+>    always has to work more than Gecode for obtaining the same propagation
+>    results)? ****
+>    2. If you think this is not the case, do you have any insight of where
+>    does the performance difference come from? ****
+>
+> ** **
+>
+> Thank you very much in advance for spend your time reading this (so long)
+> email and helping us. ****
+>
+> ** **
+>
+> Best regards, ****
+>
+> Nacho Casti?eiras ****
+>
+> ** **
+>
+> ** **
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130110/9b5dc68b/attachment-0001.html>
+
+From tack at gecode.org  Mon Jan 14 04:01:21 2013
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 14 Jan 2013 14:01:21 +1100
+Subject: [gecode-users] Copying Integer Variables between spaces
+In-Reply-To: <20130111124437.g4etmntpoow8kckc@webmail.uni-potsdam.de>
+References: <508BFC5A.2070604@gmail.com>
+	<A0D8E02E-6C23-4F25-9194-C1E05063D955@gecode.org>
+	<508D01DB.8010103@gmail.com>
+	<2E9945A8-5802-40B7-AA09-691CDFC17D1D@gecode.org>
+	<20130109125143.sjdb58fxuo0s4cok@webmail.uni-potsdam.de>
+	<3C20C85F-9F95-41D9-9764-A4529E410D43@gecode.org>
+	<20130111124437.g4etmntpoow8kckc@webmail.uni-potsdam.de>
+Message-ID: <B5C9BB40-2302-467A-9CBD-3EC0D11AEC9C@gecode.org>
+
+There's a bit on iterators in Sect. 23.3 (p 268), but I agree we could add some examples.
+
+Cheers,
+Guido
+
+On 11/01/2013, at 10:44 PM, ostrowsk at uni-potsdam.de wrote:
+
+> Thx a lot, this now works perfectly.
+> 
+> I'm still not very familiar with your iterators,
+> would it be possible to have some examples using them
+> (for computing domains etc...) in your "Gecode Modelling"?
+> 
+> 
+> Best
+> Max
+> 
+> 
+> Quoting Guido Tack <tack at gecode.org>:
+> 
+>> On 09/01/2013, at 10:51 PM, ostrowsk at uni-potsdam.de wrote:
+>> 
+>>> I want to use the information about pruned values from an Integer  Variable in another space.
+>>> 
+>>> So i have a Space with variable x and some constraints.
+>>> I do propagation, now x is constrained somehow according to the  constraints and the propagator strength, e.g. x = {1..3,5..9}.
+>>> 
+>>> Now i want to create a second Space with a variable y, whose domain  is is a copy of the current domain of x. (so that y={1..3,5..9})
+>>> 
+>>> These variables do have nothing in common and are not connected  somehow by the constraints.
+>>> 
+>>> I tried to use the IntVar constructor that takes another IntVar or  the IntView of x, but i think this is wrong (get segfault when  copying spaces).
+>> 
+>> Right, that won't work.
+>> 
+>>> So, how do i transfer the domain, without sharing the VarImp.
+>> 
+>> You have to use iterators. Let's say you want to create a new  variable y in space s with the domain of x:
+>> 
+>>    IntVarRanges ir(x);
+>>    IntVar y(s,IntSet(ir));
+>> 
+>> Cheers,
+>> Guido
+>> 
+>> 
+> 
+> 
+> 
+
+
+
+From mailing-list at francq.info  Wed Jan 16 14:43:59 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Wed, 16 Jan 2013 14:43:59 +0100
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+Message-ID: <50F6AE9F.8080901@francq.info>
+
+Hi,
+I am using GeCode to find a set of parameters that maximize some
+function. I inherit therefore from the class 'MaximizeSpace' class. The
+problem is that the function to maximize isn't a direct combination of
+the parameters determined by GeCode.
+So, I need to rewrite the 'virtual IntVar cost(void) const;' method to
+compute for each possible combination of the parameters the value of the
+function to maximize. But here is my problem : I don't found how to
+return this result in the function.
+
+virtual MyClass::IntVar cost(void) const
+{
+   int res(function(C)); // C is an 'IntVarArray'
+   IntVar ret=res; // <- Here is my problem !!!!!
+   return(ret);
+}
+
+Any idea ?
+
+Thanks.
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From cschulte at kth.se  Wed Jan 16 16:01:59 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 16 Jan 2013 16:01:59 +0100
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+In-Reply-To: <50F6AE9F.8080901@francq.info>
+References: <50F6AE9F.8080901@francq.info>
+Message-ID: <005e01cdf3fa$6fe6c260$4fb44720$@se>
+
+Hi,
+
+I am not sure I get the question. Is it that you try to return an integer
+variable assigned to an integer called res?
+
+Then the magic is:
+	IntVar ret(*this, res, res);
+	return ret;
+Just read up on integer variables in MPG.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Pascal Francq (Mailing lists)
+Sent: Wednesday, January 16, 2013 2:44 PM
+To: users at gecode.org
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+
+Hi,
+I am using GeCode to find a set of parameters that maximize some function. I
+inherit therefore from the class 'MaximizeSpace' class. The problem is that
+the function to maximize isn't a direct combination of the parameters
+determined by GeCode.
+So, I need to rewrite the 'virtual IntVar cost(void) const;' method to
+compute for each possible combination of the parameters the value of the
+function to maximize. But here is my problem : I don't found how to return
+this result in the function.
+
+virtual MyClass::IntVar cost(void) const {
+   int res(function(C)); // C is an 'IntVarArray'
+   IntVar ret=res; // <- Here is my problem !!!!!
+   return(ret);
+}
+
+Any idea ?
+
+Thanks.
+--
+Dr. Pascal Francq
+Belgium
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Thu Jan 17 05:19:26 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 17 Jan 2013 15:19:26 +1100
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+In-Reply-To: <005e01cdf3fa$6fe6c260$4fb44720$@se>
+References: <50F6AE9F.8080901@francq.info> <005e01cdf3fa$6fe6c260$4fb44720$@se>
+Message-ID: <7A7E9456-7FE5-42ED-BC65-BB3FF70FA8B2@gecode.org>
+
+Hi,
+the cost function is const, which means that you can't create new variables inside the function.  It has to return an existing variable that is constrained in the model to be equal to the cost.  Branch-and-bound relies on the cost being a variable, because it posts constraints on the cost that make sure each solution is better than the previous one.  If you can't express your cost as a constraint, you can't use branch-and-bound.
+
+Cheers,
+Guido
+
+
+On 17/01/2013, at 2:01 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi,
+> 
+> I am not sure I get the question. Is it that you try to return an integer
+> variable assigned to an integer called res?
+> 
+> Then the magic is:
+> 	IntVar ret(*this, res, res);
+> 	return ret;
+> Just read up on integer variables in MPG.
+> 
+> Best
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Pascal Francq (Mailing lists)
+> Sent: Wednesday, January 16, 2013 2:44 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+> 
+> Hi,
+> I am using GeCode to find a set of parameters that maximize some function. I
+> inherit therefore from the class 'MaximizeSpace' class. The problem is that
+> the function to maximize isn't a direct combination of the parameters
+> determined by GeCode.
+> So, I need to rewrite the 'virtual IntVar cost(void) const;' method to
+> compute for each possible combination of the parameters the value of the
+> function to maximize. But here is my problem : I don't found how to return
+> this result in the function.
+> 
+> virtual MyClass::IntVar cost(void) const {
+>   int res(function(C)); // C is an 'IntVarArray'
+>   IntVar ret=res; // <- Here is my problem !!!!!
+>   return(ret);
+> }
+> 
+> Any idea ?
+> 
+> Thanks.
+> --
+> Dr. Pascal Francq
+> Belgium
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130117/3657530e/attachment.html>
+
+From mailing-list at francq.info  Wed Jan 23 18:59:40 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Wed, 23 Jan 2013 18:59:40 +0100
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+In-Reply-To: <7A7E9456-7FE5-42ED-BC65-BB3FF70FA8B2@gecode.org>
+References: <50F6AE9F.8080901@francq.info> <005e01cdf3fa$6fe6c260$4fb44720$@se>
+	<7A7E9456-7FE5-42ED-BC65-BB3FF70FA8B2@gecode.org>
+Message-ID: <5100250C.3050804@francq.info>
+
+Hi,
+I have create a variable which represents the cost. My problem is that
+this variable is defined by an expression with several very closed real
+numbers that, when transformed in integers, become equals. The result
+found by GeCode makes therefore no sense.
+
+Le 17/01/13 05:19, Guido Tack a ?crit :
+> Hi,
+> the cost function is const, which means that you can't create new
+> variables inside the function.  It has to return an existing variable
+> that is /constrained/ in the model to be equal to the cost.
+>  Branch-and-bound relies on the cost being a variable, because it posts
+> constraints on the cost that make sure each solution is better than the
+> previous one.  If you can't express your cost as a constraint, you can't
+> use branch-and-bound.
+> 
+> Cheers,
+> Guido
+> 
+> 
+> On 17/01/2013, at 2:01 AM, Christian Schulte <cschulte at kth.se
+> <mailto:cschulte at kth.se>> wrote:
+> 
+>> Hi,
+>>
+>> I am not sure I get the question. Is it that you try to return an integer
+>> variable assigned to an integer called res?
+>>
+>> Then the magic is:
+>> IntVar ret(*this, res, res);
+>> return ret;
+>> Just read up on integer variables in MPG.
+>>
+>> Best
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>> <http://www.ict.kth.se/~cschulte/>
+>>
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org <mailto:users-bounces at gecode.org>
+>> [mailto:users-bounces at gecode.org <mailto:bounces at gecode.org>] On Behalf
+>> Of Pascal Francq (Mailing lists)
+>> Sent: Wednesday, January 16, 2013 2:44 PM
+>> To: users at gecode.org <mailto:users at gecode.org>
+>> Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+>>
+>> Hi,
+>> I am using GeCode to find a set of parameters that maximize some
+>> function. I
+>> inherit therefore from the class 'MaximizeSpace' class. The problem is
+>> that
+>> the function to maximize isn't a direct combination of the parameters
+>> determined by GeCode.
+>> So, I need to rewrite the 'virtual IntVar cost(void) const;' method to
+>> compute for each possible combination of the parameters the value of the
+>> function to maximize. But here is my problem : I don't found how to return
+>> this result in the function.
+>>
+>> virtual MyClass::IntVar cost(void) const {
+>>   int res(function(C)); // C is an 'IntVarArray'
+>>   IntVar ret=res; // <- Here is my problem !!!!!
+>>   return(ret);
+>> }
+>>
+>> Any idea ?
+>>
+>> Thanks.
+>> --
+>> Dr. Pascal Francq
+>> Belgium
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From tack at gecode.org  Wed Jan 23 23:31:18 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 24 Jan 2013 09:31:18 +1100
+Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+In-Reply-To: <5100250C.3050804@francq.info>
+References: <50F6AE9F.8080901@francq.info> <005e01cdf3fa$6fe6c260$4fb44720$@se>
+	<7A7E9456-7FE5-42ED-BC65-BB3FF70FA8B2@gecode.org>
+	<5100250C.3050804@francq.info>
+Message-ID: <2BF9A913-F4FD-447C-8670-D2497653E0F2@gecode.org>
+
+Hi,
+
+I assume that the variables in your model are all integers, but the cost expression involves real numbers (as coefficients or other constants).  You have two options: implement your own propagator for the constraint that represents the cost function. The propagator can compute with floating point numbers internally and avoid the rounding.  Or use the experimental support for floating point variables in the svn trunk (which will be released with Gecode 4.0 soonish).  In any case, as I said, you have to express the cost as a constraint, otherwise branch-and-bound does not work.
+
+Cheers,
+Guido
+
+On 24/01/2013, at 4:59 AM, Pascal Francq (Mailing lists) <mailing-list at francq.info> wrote:
+
+> Hi,
+> I have create a variable which represents the cost. My problem is that
+> this variable is defined by an expression with several very closed real
+> numbers that, when transformed in integers, become equals. The result
+> found by GeCode makes therefore no sense.
+> 
+> Le 17/01/13 05:19, Guido Tack a ?crit :
+>> Hi,
+>> the cost function is const, which means that you can't create new
+>> variables inside the function.  It has to return an existing variable
+>> that is /constrained/ in the model to be equal to the cost.
+>> Branch-and-bound relies on the cost being a variable, because it posts
+>> constraints on the cost that make sure each solution is better than the
+>> previous one.  If you can't express your cost as a constraint, you can't
+>> use branch-and-bound.
+>> 
+>> Cheers,
+>> Guido
+>> 
+>> 
+>> On 17/01/2013, at 2:01 AM, Christian Schulte <cschulte at kth.se
+>> <mailto:cschulte at kth.se>> wrote:
+>> 
+>>> Hi,
+>>> 
+>>> I am not sure I get the question. Is it that you try to return an integer
+>>> variable assigned to an integer called res?
+>>> 
+>>> Then the magic is:
+>>> IntVar ret(*this, res, res);
+>>> return ret;
+>>> Just read up on integer variables in MPG.
+>>> 
+>>> Best
+>>> Christian
+>>> 
+>>> --
+>>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>> <http://www.ict.kth.se/~cschulte/>
+>>> 
+>>> 
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org <mailto:users-bounces at gecode.org>
+>>> [mailto:users-bounces at gecode.org <mailto:bounces at gecode.org>] On Behalf
+>>> Of Pascal Francq (Mailing lists)
+>>> Sent: Wednesday, January 16, 2013 2:44 PM
+>>> To: users at gecode.org <mailto:users at gecode.org>
+>>> Subject: [gecode-users] Fix IntVar value (MaximizeSpace::cost)
+>>> 
+>>> Hi,
+>>> I am using GeCode to find a set of parameters that maximize some
+>>> function. I
+>>> inherit therefore from the class 'MaximizeSpace' class. The problem is
+>>> that
+>>> the function to maximize isn't a direct combination of the parameters
+>>> determined by GeCode.
+>>> So, I need to rewrite the 'virtual IntVar cost(void) const;' method to
+>>> compute for each possible combination of the parameters the value of the
+>>> function to maximize. But here is my problem : I don't found how to return
+>>> this result in the function.
+>>> 
+>>> virtual MyClass::IntVar cost(void) const {
+>>>  int res(function(C)); // C is an 'IntVarArray'
+>>>  IntVar ret=res; // <- Here is my problem !!!!!
+>>>  return(ret);
+>>> }
+>>> 
+>>> Any idea ?
+>>> 
+>>> Thanks.
+>>> --
+>>> Dr. Pascal Francq
+>>> Belgium
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org <mailto:users at gecode.org>
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+> 
+> 
+> -- 
+> Dr. Pascal Francq
+> Belgium
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From richard.croad at gmail.com  Fri Jan 25 08:11:03 2013
+From: richard.croad at gmail.com (Richard Croad)
+Date: Fri, 25 Jan 2013 20:11:03 +1300
+Subject: [gecode-users] Compiling Gecode under native Windows using the
+	Mingw g++ 32-bit compiler [solved]
+Message-ID: <000401cdfacb$24fc44f0$6ef4ced0$@gmail.com>
+
+I have been able to compile and run a fair sample of the gecode examples on
+a Windows 7 (Dell computer with a core i7 Intel microprocessor) using the
+Mingw g++ 32-bit (GCC) compiler version 4.6.2 and GNU make version 3.8.1.
+Native Windows executables were created without the need for Cygwin.  All
+steps were carried out in a Msys window.  The required steps are:
+
+Run configure as follows:
+
+./configure --with-host-os=windows CC=gcc CXX=g++
+
+Manually modify the following lines in
+".\gecode-3.7.3\gecode\support\config.hpp" as follows: 
+
+/* Whether unistd.h is available */
+
+/* Manually commented out -- #define GECODE_HAS_UNISTD_H 1 */
+
+/* Whether we have posix threads */
+
+/* Manually commented out -- #define GECODE_THREADS_PTHREADS 1 */
+
+Note that GECODE_THREADS_WINDOWS remains defined so that the Windows threads
+will be used. 
+
+Manually modify the following inline module in
+".\gecode-3.7.3\gecode\int\sorted\sortsup.hpp" as follows (the comments
+preceding the code snippet explains the reasons for this change):
+
+/* Int "small" was modified to "small_" to eliminate an unexpected
+unqualified-id error when compiling using the Mingw g++ comiler version
+4.6.2; the underlying cause of this compiler error has not been determined.
+Int "large" was modified to "large_" purely for aesthetic reasons alongside
+"small_".
+
+*/
+
+                forceinline void
+
+                OfflineMin::unite(int a, int b, int c) {
+
+                // c is the union of a and b
+
+                int ra = sequence[a].root;
+
+                int rb = sequence[b].root;
+
+                int large_ = rb;
+
+                int small_ = ra;
+
+                if (sequence[ra].rank > sequence[rb].rank)  {
+
+                large_ = ra;
+
+                small_ = rb;
+
+                }
+
+                sequence[small_].parent = large_;
+
+                sequence[large_].rank  += sequence[small_].rank;
+
+                sequence[large_].name   = c;
+
+                sequence[c].root        = large_;
+
+                }
+
+ 
+
+Run make in the normal way.  The static libraries "*.a" will be placed in
+the gecode-3.7.3 folder, and the example executables will be found
+".\gecode-3.7.3\examples" folder.
+
+ 
+
+Copy "libgcc_s_dw2-1.dll" and "libstdc++-6.dll" dynamic link library files
+from the bin folder in Mingw to the ".\gecode-3.7.3\examples" folder (along
+with the executables)
+
+ 
+
+Run the examples in the Msys window; they should all work.
+
+ 
+
+I have not attempted to compile Gist.
+
+ 
+
+Cheers . Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130125/1b3cfa52/attachment.html>
+
+From richard.croad at gmail.com  Fri Jan 25 10:15:31 2013
+From: richard.croad at gmail.com (Richard Croad)
+Date: Fri, 25 Jan 2013 22:15:31 +1300
+Subject: [gecode-users] Compiling Gecode under native Windows using the
+	Mingw g++ 32-bit compiler [solved][corrected]
+Message-ID: <000901cdfadc$887dfe40$9979fac0$@gmail.com>
+
+I forgot to mention one additional, initial step, namely:
+
+Modify the "configure" file to replace the switch "-pthread" with
+"-mthreads" as follows:
+
+$as_echo "#define GECODE_THREADS_PTHREADS 1" >>confdefs.h
+
+ 
+
+   CFLAGS="-mthreads${CFLAGS:+ }${CFLAGS}"
+
+    CXXFLAGS="-mthreads${CXXFLAGS:+ }${CXXFLAGS}"
+
+   DLLFLAGS="-mthreads${DLLFLAGS:+ }${DLLFLAGS}"
+
+ 
+
+else
+
+etc.
+
+Cheers . Richard
+
+From: Richard Croad [mailto:richard.croad at gmail.com] 
+Sent: Friday, 25 January 2013 8:11 p.m.
+
+
+
+I have been able to compile and run a fair sample of the gecode examples on
+a Windows 7 (Dell computer with a core i7 Intel microprocessor) using the
+Mingw g++ 32-bit (GCC) compiler version 4.6.2 and GNU make version 3.8.1.
+Native Windows executables were created without the need for Cygwin.  All
+steps were carried out in a Msys window.  The required steps are:
+
+Run configure as follows:
+
+./configure --with-host-os=windows CC=gcc CXX=g++
+
+Manually modify the following lines in
+".\gecode-3.7.3\gecode\support\config.hpp" as follows: 
+
+/* Whether unistd.h is available */
+
+/* Manually commented out -- #define GECODE_HAS_UNISTD_H 1 */
+
+/* Whether we have posix threads */
+
+/* Manually commented out -- #define GECODE_THREADS_PTHREADS 1 */
+
+Note that GECODE_THREADS_WINDOWS remains defined so that the Windows threads
+will be used. 
+
+Manually modify the following inline module in
+".\gecode-3.7.3\gecode\int\sorted\sortsup.hpp" as follows (the comments
+preceding the code snippet explains the reasons for this change):
+
+/* Int "small" was modified to "small_" to eliminate an unexpected
+unqualified-id error when compiling using the Mingw g++ comiler version
+4.6.2; the underlying cause of this compiler error has not been determined.
+Int "large" was modified to "large_" purely for aesthetic reasons alongside
+"small_".
+
+*/
+
+                forceinline void
+
+                OfflineMin::unite(int a, int b, int c) {
+
+                // c is the union of a and b
+
+                int ra = sequence[a].root;
+
+                int rb = sequence[b].root;
+
+                int large_ = rb;
+
+                int small_ = ra;
+
+                if (sequence[ra].rank > sequence[rb].rank)  {
+
+                large_ = ra;
+
+                small_ = rb;
+
+                }
+
+                sequence[small_].parent = large_;
+
+                sequence[large_].rank  += sequence[small_].rank;
+
+                sequence[large_].name   = c;
+
+                sequence[c].root        = large_;
+
+                }
+
+ 
+
+Run make in the normal way.  The static libraries "*.a" will be placed in
+the gecode-3.7.3 folder, and the example executables will be found
+".\gecode-3.7.3\examples" folder.
+
+ 
+
+Copy "libgcc_s_dw2-1.dll" and "libstdc++-6.dll" dynamic link library files
+from the bin folder in Mingw to the ".\gecode-3.7.3\examples" folder (along
+with the executables)
+
+ 
+
+Run the examples in the Msys window; they should all work.
+
+ 
+
+I have not attempted to compile Gist.
+
+ 
+
+Cheers . Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130125/293de7e9/attachment-0001.html>
+
+From mmann at informatik.uni-freiburg.de  Sun Jan 27 12:09:02 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Sun, 27 Jan 2013 12:09:02 +0100
+Subject: [gecode-users] splitting branching in full enumeration and
+	first-fail check
+Message-ID: <51050ACE.70704@informatik.uni-freiburg.de>
+
+
+Dear Gecoders,
+
+I am working on a small problem where the CSP variables are split into 
+two subsets A and B.
+
+For set A, a full enumeration of all valid assignments is wanted while 
+for set B a single check for a valid assignment is sufficent.
+
+Some years ago with Gecode 1.3 I wrote my own branching that did the 
+latter part.
+Thus, first normal branch on A followed by pseudo-branching on B. The 
+latter stopped the subsearch for B after the first solution was found 
+such that the search in A was continued and so on.
+
+So my question: is there a direct support for such a scheme in Gecode 
+3.7? Or do I have to find my old branching implementation and make it 
+ready for the new version? I am crossing fingers you have something 
+ready.. :/
+
+Thanks for your help,
+Martin
+
+
+-- 
+Dr. Martin Mann, Postdoc assistant
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Mon Jan 28 10:00:21 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 28 Jan 2013 10:00:21 +0100
+Subject: [gecode-users] splitting branching in full enumeration
+	and	first-fail check
+In-Reply-To: <51050ACE.70704@informatik.uni-freiburg.de>
+References: <51050ACE.70704@informatik.uni-freiburg.de>
+Message-ID: <006d01cdfd35$e7866110$b6932330$@se>
+
+That should be easy enough: set up a search engine with branching on A.
+Suppose you get a solution there (a space): then post the simple assignment
+branching on B on use a different search engine to find a solution there.
+
+You might want to read about assignment branchings in MPG.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Sunday, January 27, 2013 12:09 PM
+To: gecode user list
+Subject: [gecode-users] splitting branching in full enumeration and
+first-fail check
+
+
+Dear Gecoders,
+
+I am working on a small problem where the CSP variables are split into two
+subsets A and B.
+
+For set A, a full enumeration of all valid assignments is wanted while for
+set B a single check for a valid assignment is sufficent.
+
+Some years ago with Gecode 1.3 I wrote my own branching that did the latter
+part.
+Thus, first normal branch on A followed by pseudo-branching on B. The latter
+stopped the subsearch for B after the first solution was found such that the
+search in A was continued and so on.
+
+So my question: is there a direct support for such a scheme in Gecode 3.7?
+Or do I have to find my old branching implementation and make it ready for
+the new version? I am crossing fingers you have something ready.. :/
+
+Thanks for your help,
+Martin
+
+
+--
+Dr. Martin Mann, Postdoc assistant
+Bioinformatics - Inst. of Computer Science Albert-Ludwigs-University
+Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From mmann at informatik.uni-freiburg.de  Mon Jan 28 10:36:00 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Mon, 28 Jan 2013 10:36:00 +0100
+Subject: [gecode-users] splitting branching in full enumeration
+ and	first-fail check
+In-Reply-To: <006d01cdfd35$e7866110$b6932330$@se>
+References: <51050ACE.70704@informatik.uni-freiburg.de>
+	<006d01cdfd35$e7866110$b6932330$@se>
+Message-ID: <51064680.20108@informatik.uni-freiburg.de>
+
+
+Great! Thanks Christian!
+
+Had a look into MPG yesterday but somehow skipped it.. Thanks for the 
+help and exactly the piece of code I was looking for! :)
+
+If I am right the following statements at the end of my Space 
+constructor should do right?
+
+   branch( *this, A, ..);
+   assign( *this, B, ..);
+
+So the overall reported solutions should show all valid assignments for 
+A but for each only one valid assignment for B, right?
+
+Please let me know if I am wrong and thanks again for the quick help!
+
+Cheers,
+Martin
+
+
+
+Am 28.01.2013 10:00, schrieb Christian Schulte:
+> That should be easy enough: set up a search engine with branching on A.
+> Suppose you get a solution there (a space): then post the simple assignment
+> branching on B on use a different search engine to find a solution there.
+>
+> You might want to read about assignment branchings in MPG.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Sunday, January 27, 2013 12:09 PM
+> To: gecode user list
+> Subject: [gecode-users] splitting branching in full enumeration and
+> first-fail check
+>
+>
+> Dear Gecoders,
+>
+> I am working on a small problem where the CSP variables are split into two
+> subsets A and B.
+>
+> For set A, a full enumeration of all valid assignments is wanted while for
+> set B a single check for a valid assignment is sufficent.
+>
+> Some years ago with Gecode 1.3 I wrote my own branching that did the latter
+> part.
+> Thus, first normal branch on A followed by pseudo-branching on B. The latter
+> stopped the subsearch for B after the first solution was found such that the
+> search in A was continued and so on.
+>
+> So my question: is there a direct support for such a scheme in Gecode 3.7?
+> Or do I have to find my old branching implementation and make it ready for
+> the new version? I am crossing fingers you have something ready.. :/
+>
+> Thanks for your help,
+> Martin
+>
+
+
+
+From cschulte at kth.se  Mon Jan 28 10:38:41 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 28 Jan 2013 10:38:41 +0100
+Subject: [gecode-users] splitting branching in full enumeration
+	and	first-fail check
+In-Reply-To: <51064680.20108@informatik.uni-freiburg.de>
+References: <51050ACE.70704@informatik.uni-freiburg.de>	<006d01cdfd35$e7866110$b6932330$@se>
+	<51064680.20108@informatik.uni-freiburg.de>
+Message-ID: <009901cdfd3b$425aff10$c710fd30$@se>
+
+Yes, that should do the trick as assign only creates a single alternative
+(so there will be no branching on B).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, January 28, 2013 10:36 AM
+To: 'gecode user list'
+Subject: Re: [gecode-users] splitting branching in full enumeration and
+first-fail check
+
+
+Great! Thanks Christian!
+
+Had a look into MPG yesterday but somehow skipped it.. Thanks for the help
+and exactly the piece of code I was looking for! :)
+
+If I am right the following statements at the end of my Space constructor
+should do right?
+
+   branch( *this, A, ..);
+   assign( *this, B, ..);
+
+So the overall reported solutions should show all valid assignments for A
+but for each only one valid assignment for B, right?
+
+Please let me know if I am wrong and thanks again for the quick help!
+
+Cheers,
+Martin
+
+
+
+Am 28.01.2013 10:00, schrieb Christian Schulte:
+> That should be easy enough: set up a search engine with branching on A.
+> Suppose you get a solution there (a space): then post the simple 
+> assignment branching on B on use a different search engine to find a
+solution there.
+>
+> You might want to read about assignment branchings in MPG.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Martin Mann
+> Sent: Sunday, January 27, 2013 12:09 PM
+> To: gecode user list
+> Subject: [gecode-users] splitting branching in full enumeration and 
+> first-fail check
+>
+>
+> Dear Gecoders,
+>
+> I am working on a small problem where the CSP variables are split into 
+> two subsets A and B.
+>
+> For set A, a full enumeration of all valid assignments is wanted while 
+> for set B a single check for a valid assignment is sufficent.
+>
+> Some years ago with Gecode 1.3 I wrote my own branching that did the 
+> latter part.
+> Thus, first normal branch on A followed by pseudo-branching on B. The 
+> latter stopped the subsearch for B after the first solution was found 
+> such that the search in A was continued and so on.
+>
+> So my question: is there a direct support for such a scheme in Gecode 3.7?
+> Or do I have to find my old branching implementation and make it ready 
+> for the new version? I am crossing fingers you have something ready.. 
+> :/
+>
+> Thanks for your help,
+> Martin
+>
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Mon Jan 28 22:55:34 2013
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 29 Jan 2013 08:55:34 +1100
+Subject: [gecode-users] splitting branching in full enumeration	and
+	first-fail check
+In-Reply-To: <009901cdfd3b$425aff10$c710fd30$@se>
+References: <51050ACE.70704@informatik.uni-freiburg.de>
+	<006d01cdfd35$e7866110$b6932330$@se>
+	<51064680.20108@informatik.uni-freiburg.de>
+	<009901cdfd3b$425aff10$c710fd30$@se>
+Message-ID: <B8700C75-A28F-426F-8EC7-2296B2A42EE6@gecode.org>
+
+Hi guys,
+
+just using assign after branching on A doesn't work. Assign has a very different semantics, you can only use it if you are guaranteed to find a solution using the leftmost branch.
+What you need here is either the two-stage search Christian mentioned: for every solution to A, run a new search engine that finds a single solution for the rest of the variables. Or implement something like the "once" combinator. I think our radiotherapy example includes code for this.
+We can't provide a generic solution very easily, because it's a combinator that modifies another search heuristic (so it would have to be "wrapped around" the existing branchers).
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+
+
+On 28/01/2013, at 20:38, Christian Schulte <cschulte at kth.se> wrote:
+
+> Yes, that should do the trick as assign only creates a single alternative
+> (so there will be no branching on B).
+> 
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Monday, January 28, 2013 10:36 AM
+> To: 'gecode user list'
+> Subject: Re: [gecode-users] splitting branching in full enumeration and
+> first-fail check
+> 
+> 
+> Great! Thanks Christian!
+> 
+> Had a look into MPG yesterday but somehow skipped it.. Thanks for the help
+> and exactly the piece of code I was looking for! :)
+> 
+> If I am right the following statements at the end of my Space constructor
+> should do right?
+> 
+>   branch( *this, A, ..);
+>   assign( *this, B, ..);
+> 
+> So the overall reported solutions should show all valid assignments for A
+> but for each only one valid assignment for B, right?
+> 
+> Please let me know if I am wrong and thanks again for the quick help!
+> 
+> Cheers,
+> Martin
+> 
+> 
+> 
+> Am 28.01.2013 10:00, schrieb Christian Schulte:
+>> That should be easy enough: set up a search engine with branching on A.
+>> Suppose you get a solution there (a space): then post the simple 
+>> assignment branching on B on use a different search engine to find a
+> solution there.
+>> 
+>> You might want to read about assignment branchings in MPG.
+>> 
+>> Best
+>> Christian
+>> 
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>> 
+>> 
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>> Behalf Of Martin Mann
+>> Sent: Sunday, January 27, 2013 12:09 PM
+>> To: gecode user list
+>> Subject: [gecode-users] splitting branching in full enumeration and 
+>> first-fail check
+>> 
+>> 
+>> Dear Gecoders,
+>> 
+>> I am working on a small problem where the CSP variables are split into 
+>> two subsets A and B.
+>> 
+>> For set A, a full enumeration of all valid assignments is wanted while 
+>> for set B a single check for a valid assignment is sufficent.
+>> 
+>> Some years ago with Gecode 1.3 I wrote my own branching that did the 
+>> latter part.
+>> Thus, first normal branch on A followed by pseudo-branching on B. The 
+>> latter stopped the subsearch for B after the first solution was found 
+>> such that the search in A was continued and so on.
+>> 
+>> So my question: is there a direct support for such a scheme in Gecode 3.7?
+>> Or do I have to find my old branching implementation and make it ready 
+>> for the new version? I am crossing fingers you have something ready.. 
+>> :/
+>> 
+>> Thanks for your help,
+>> Martin
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From mmann at informatik.uni-freiburg.de  Tue Jan 29 12:08:12 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 29 Jan 2013 12:08:12 +0100
+Subject: [gecode-users] splitting branching in full enumeration	and
+ first-fail check
+In-Reply-To: <B8700C75-A28F-426F-8EC7-2296B2A42EE6@gecode.org>
+References: <51050ACE.70704@informatik.uni-freiburg.de>
+	<006d01cdfd35$e7866110$b6932330$@se>
+	<51064680.20108@informatik.uni-freiburg.de>
+	<009901cdfd3b$425aff10$c710fd30$@se>
+	<B8700C75-A28F-426F-8EC7-2296B2A42EE6@gecode.org>
+Message-ID: <5107AD9C.5070909@informatik.uni-freiburg.de>
+
+Hi Guido,
+
+mhh... that was my gut feeling when reading the assign documentation. So 
+it basically does not really do a search for solutions but just assigns 
+the (first) variable, does propagation, continues with the remaining 
+variables until all are assign or no solution is found...
+
+no, that's not what I need. True enough.
+
+So either I do the external handling as Christian suggested, ie. 
+something like
+
+//////////////////////////////////////
+CSP p = new CSP();
+   // branch on A
+branch(p, p.A, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+Gecode::DFS<CSP> dfsA(p);
+delete p;
+   // get all solutions for valid A assignments
+while ( CSP solA = dfsA.next() ) {
+     // branch on B
+   branch( solA, solA.B, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+   Gecode::DFS<CSP> dfsB(solA);
+     // get first solution for B assignment
+   if( CSP solAB = dfsB.next() ) {
+     cout <<"overall solution = " <<solAB <<endl;
+     delete solAB;
+   }
+   delete solA;
+}
+//////////////////////////////////////
+
+or I am back to my first guess, ie. I have to write my own branching 
+that stops after the first solution on B to fall back to the branching 
+on A...
+
+:/ what a pitty. :)  Was hopeing on something hidden in the space (as 
+the branching) without much work.
+
+But thanks for your thoughts. Helped a lot to clearify the problem.
+
+So long,
+Martin
+
+
+Am 28.01.2013 22:55, schrieb Guido Tack:
+> Hi guys,
+>
+> just using assign after branching on A doesn't work. Assign has a very different semantics, you can only use it if you are guaranteed to find a solution using the leftmost branch.
+> What you need here is either the two-stage search Christian mentioned: for every solution to A, run a new search engine that finds a single solution for the rest of the variables. Or implement something like the "once" combinator. I think our radiotherapy example includes code for this.
+> We can't provide a generic solution very easily, because it's a combinator that modifies another search heuristic (so it would have to be "wrapped around" the existing branchers).
+>
+> Cheers,
+> Guido
+>
+
+
+From cschulte at kth.se  Tue Jan 29 15:10:34 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 29 Jan 2013 15:10:34 +0100
+Subject: [gecode-users] splitting branching in full enumeration	and
+	first-fail check
+In-Reply-To: <5107AD9C.5070909@informatik.uni-freiburg.de>
+References: <51050ACE.70704@informatik.uni-freiburg.de>	<006d01cdfd35$e7866110$b6932330$@se>	<51064680.20108@informatik.uni-freiburg.de>	<009901cdfd3b$425aff10$c710fd30$@se>	<B8700C75-A28F-426F-8EC7-2296B2A42EE6@gecode.org>
+	<5107AD9C.5070909@informatik.uni-freiburg.de>
+Message-ID: <01ca01cdfe2a$68318610$38949230$@se>
+
+Hi Martin,
+
+Please try the sketch that should work just fine and that's what I meant in
+the first place...
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Tuesday, January 29, 2013 12:08 PM
+To: Guido Tack
+Cc: gecode user list
+Subject: Re: [gecode-users] splitting branching in full enumeration and
+first-fail check
+
+Hi Guido,
+
+mhh... that was my gut feeling when reading the assign documentation. So it
+basically does not really do a search for solutions but just assigns the
+(first) variable, does propagation, continues with the remaining variables
+until all are assign or no solution is found...
+
+no, that's not what I need. True enough.
+
+So either I do the external handling as Christian suggested, ie. 
+something like
+
+//////////////////////////////////////
+CSP p = new CSP();
+   // branch on A
+branch(p, p.A, INT_VAR_SIZE_MIN, INT_VAL_MIN); Gecode::DFS<CSP> dfsA(p);
+delete p;
+   // get all solutions for valid A assignments while ( CSP solA =
+dfsA.next() ) {
+     // branch on B
+   branch( solA, solA.B, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+   Gecode::DFS<CSP> dfsB(solA);
+     // get first solution for B assignment
+   if( CSP solAB = dfsB.next() ) {
+     cout <<"overall solution = " <<solAB <<endl;
+     delete solAB;
+   }
+   delete solA;
+}
+//////////////////////////////////////
+
+or I am back to my first guess, ie. I have to write my own branching that
+stops after the first solution on B to fall back to the branching on A...
+
+:/ what a pitty. :)  Was hopeing on something hidden in the space (as the
+branching) without much work.
+
+But thanks for your thoughts. Helped a lot to clearify the problem.
+
+So long,
+Martin
+
+
+Am 28.01.2013 22:55, schrieb Guido Tack:
+> Hi guys,
+>
+> just using assign after branching on A doesn't work. Assign has a very
+different semantics, you can only use it if you are guaranteed to find a
+solution using the leftmost branch.
+> What you need here is either the two-stage search Christian mentioned: for
+every solution to A, run a new search engine that finds a single solution
+for the rest of the variables. Or implement something like the "once"
+combinator. I think our radiotherapy example includes code for this.
+> We can't provide a generic solution very easily, because it's a combinator
+that modifies another search heuristic (so it would have to be "wrapped
+around" the existing branchers).
+>
+> Cheers,
+> Guido
+>
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+

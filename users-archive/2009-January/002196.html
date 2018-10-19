@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Interfacing GeCode to ECLiPSe
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C497DF17A.8000903%40cisco.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002175.html">
+   <LINK REL="Next"  HREF="002197.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Interfacing GeCode to ECLiPSe</H1>
+    <B>Kish Shen</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C497DF17A.8000903%40cisco.com%3E"
+       TITLE="[gecode-users] Interfacing GeCode to ECLiPSe">kisshen at cisco.com
+       </A><BR>
+    <I>Mon Jan 26 18:23:06 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002175.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+        <LI>Next message: <A HREF="002197.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2196">[ date ]</a>
+              <a href="thread.html#2196">[ thread ]</a>
+              <a href="subject.html#2196">[ subject ]</a>
+              <a href="author.html#2196">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Guido Tack wrote:
+&gt;<i> Hi Kish.
+</I>&gt;<i> 
+</I>&gt;<i> Kish Shen wrote:
+</I>&gt;&gt;<i> We have been thinking about developing an interface to GeCode for the
+</I>&gt;&gt;<i> Constraint Logic Programming language ECLiPSe for a while now, and
+</I>&gt;&gt;<i> finally I can devote some time and resource to this.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The idea is to provide an alternative FD solver for ECLiPSe, in addition
+</I>&gt;&gt;<i> to the existing native FD solver(s) already available.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have been looking at the available documentation, which seems to be
+</I>&gt;&gt;<i> mostly documentation for the procedures. I am wondering if there are
+</I>&gt;&gt;<i> more documentations available, especially for the purpose of interfacing
+</I>&gt;&gt;<i> to other languages.
+</I>&gt;<i> 
+</I>&gt;<i> No, there's (currently) no such documentation.  Most of the interfaces 
+</I>&gt;<i> to Gecode use some kind of interface generator, like swig for the Java 
+</I>&gt;<i> interface, which basically takes the C++ header files and generates the 
+</I>&gt;<i> interfacing code.
+</I>&gt;<i> 
+</I>&gt;<i> However, interfacing is not so much different from programming models 
+</I>&gt;<i> directly in C++.  You have to provide ways to construct a space and 
+</I>&gt;<i> variables, and the post functions for constraints and branchings.
+</I>&gt;<i> 
+</I>&gt;<i> Alternatively, you can use the reflection API for interfacing (as done 
+</I>&gt;<i> in gecode/serialization/javascript.{hh,cpp} and 
+</I>&gt;<i> examples/javascript.cpp), which has the advantage that the necessary 
+</I>&gt;<i> interface is much smaller.
+</I>&gt;<i> 
+</I>&gt;&gt;<i> What I would like to do is to provide both a black-box search, i.e.
+</I>&gt;&gt;<i> with the constraints posted by ECLiPSe to GeCode, and then the GeCode
+</I>&gt;&gt;<i> search invoked. Secondly, I would like to do the search in ECLiPSe, with
+</I>&gt;&gt;<i> GeCode doing the propagation. Do you think these are sensible approaches?
+</I>&gt;<i> 
+</I>&gt;<i> Yes, that's should be doable.  In particular the black-box approach 
+</I>&gt;<i> should work easily.  The interaction with the ECLiPSe search should also 
+</I>&gt;<i> be doable, but requires a little more engineering, I guess.
+</I>&gt;<i> 
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i> 
+</I>Hi Guido, Mauricio and Raffaele,
+
+Thanks for your replies!
+
+I am not sure what are the trade-offs between the two APIs Guido 
+outlined -- is it simply that using reflection will be less flexible?
+
+I am not very familiar with interface generators like SWIG, although I 
+did take a look at it briefly several years ago, and my impression was 
+that it mainly serve to map the data structures between C/C++ and the 
+target language. In ECLiPSe's interface to MP solvers such as CPLEX, we 
+needed to do quite a lot of extra coding in C, in addition to the data 
+transformation between C and ECLiPSe, and I suspect we might require 
+such extra coding for the interface to GeCode as well. In particular, I 
+don't expect a direct mapping from ECLiPSe to the GeCode methods at the 
+ECLiPSe level.
+
+I expect that at the ECLiPSe level, we will use syntax that looks a lot 
+like the existing syntacx for the native solvers. I expect that at a 
+minimum, we would need to be able to add both constraints and variables 
+dynamically. In the backbox search approach, I think we will also need 
+to be able to be able to `backtrack' into the search to obtain further 
+solutions after the initially one. In the case where the search is done 
+by ECLiPSe, my initial thought is that we need to do only the 
+propagation in GeCode, but do the search in ECLiPSe. This would mean 
+that we need someway of `undoing' the effects of a propagation step, 
+without directly using the search/branching facilities of GeCode. Do you 
+expect that I can use Reflection API for both the black-box and the 
+ECLiPSe search approach?
+
+I have taken a brief look at the GeList wrapper that Mauricio posted 
+about. I think this is not done using an interface generator, and does 
+not use the Reflection mechanism. Am I correct?
+
+If I understood Raffaele correctly, his interface generates a GeCode 
+script (i.e a C++ program) from the model given in MiniZinc/SICStus,
+and this C++ program is then run independently from the host language. I 
+don't think this is the approach I am thinking of doing -- Instead we 
+want GeCode to be run as part of an ECLiPSe execution.
+
+Thanks and cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002175.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+	<LI>Next message: <A HREF="002197.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2196">[ date ]</a>
+              <a href="thread.html#2196">[ thread ]</a>
+              <a href="subject.html#2196">[ subject ]</a>
+              <a href="author.html#2196">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

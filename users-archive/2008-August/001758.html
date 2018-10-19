@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] reified linear sum of booleans
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3C001d01c8f615%24fa9abc50%24efd034f0%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001756.html">
+   <LINK REL="Next"  HREF="001759.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] reified linear sum of booleans</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3C001d01c8f615%24fa9abc50%24efd034f0%24%40se%3E"
+       TITLE="[gecode-users] reified linear sum of booleans">cschulte at kth.se
+       </A><BR>
+    <I>Mon Aug  4 11:39:23 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001756.html">[gecode-users] reified linear sum of booleans
+</A></li>
+        <LI>Next message: <A HREF="001759.html">[gecode-users] Non-monotonic propagator.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1758">[ date ]</a>
+              <a href="thread.html#1758">[ thread ]</a>
+              <a href="subject.html#1758">[ subject ]</a>
+              <a href="author.html#1758">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>That's another constraint I know some day would be requested: a clause
+constraint for both positive and negative literals. Also added to my list of
+things to add, but might make it only to 3.x and not 3.0.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Tias Guns
+Sent: Tuesday, July 29, 2008 6:16 PM
+To: Guido Tack
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] reified linear sum of booleans
+
+On Tue, 29 Jul 2008 08:59:26 +0200, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> Hi Tias,
+</I>
+Thank you for your answers,
+
+&gt;<i> Tias Guns wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Greetings,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm
+</I>&gt;&gt;<i> currently
+</I>&gt;&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>&gt;<i>
+</I>&gt;<i> The reified Boolean sums are currently not implemented by special
+</I>&gt;<i> propagators but using a decomposition that is not very efficient.
+</I>&gt;<i>
+</I>&gt;&gt;<i> The first batch of constraints are regular reified linear sums, they are
+</I>&gt;&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'
+</I>&gt;&gt;<i> which
+</I>&gt;&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;&gt;<i> reified to the variable representing that row:
+</I>&gt;&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>   // make row
+</I>&gt;&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> You may want to use Boolean disjunction here, although you'll have to
+</I>&gt;<i> use another temporary Boolean variable.  Something like this:
+</I>&gt;<i>
+</I>&gt;<i> for (int r = 0; r != nr_r; r++) {
+</I>&gt;<i>    BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+</I>&gt;<i>    for (int i = 0, int c = 0; c != nr_c; c++) {
+</I>&gt;<i>      if (tdb[r][c])
+</I>&gt;<i>       col[i++] = col_varsBool[c];
+</I>&gt;<i>    }
+</I>&gt;<i>    BoolVar tmp(this, 0, 1);
+</I>&gt;<i>    rel(this, BOT_OR, col, tmp);
+</I>&gt;<i>    rel(this, tmp, IRT_NQ, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> I'm not sure whether this is going to be more efficient, but the
+</I>&gt;<i> specialized Boolean propagators should be better.
+</I>
+Unfortunately it's not more efficient. The number of propagations
+increases, probably because of the extra constraints. The runtime behaves
+worse and worse as the problem instances become larger and harder. I've
+looked into posting an NaryOr constraint with a BoolViewArray and a
+NegBoolView directly, but the current templating of NaryOr doesn't allow
+it. I'm hoping/thinking that a reified linear sum of booleans would be
+able to achieve equal propagation..
+
+&gt;&gt;<i> The second batch of constraints are imply-reified linear sums, having
+</I>&gt;&gt;<i> one
+</I>&gt;&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;&gt;<i> manage it:
+</I>&gt;&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>   // make col
+</I>&gt;&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,
+</I>&gt;&gt;<i> reformulation
+</I>&gt;&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> As suggested above, you could post the first linear constraint using
+</I>&gt;<i> just the row_vars for which col[r] is 1, but in this case it probably
+</I>&gt;<i> isn't more efficient (since the linear will immediately throw away all
+</I>&gt;<i> the variables with 0 coefficients anyway).
+</I>&gt;<i>
+</I>&gt;&gt;<i> This model works very well but still, I'm wondering if there would be a
+</I>&gt;&gt;<i> better or cleaner way to model this, and if there are any plans to
+</I>&gt;&gt;<i> improve
+</I>&gt;&gt;<i> the reified linear sum of boolean constraints.
+</I>&gt;<i>
+</I>&gt;<i> Yes, the reified linear Boolean sum is going to be reimplemented, but
+</I>&gt;<i> not for the (upcoming) 2.2.0 release.
+</I>
+Excellent, thanks in advance.
+
+
+Greetings,
+Tias
+
+&gt;<i> Cheers,
+</I>&gt;<i>       Guido
+</I>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001756.html">[gecode-users] reified linear sum of booleans
+</A></li>
+	<LI>Next message: <A HREF="001759.html">[gecode-users] Non-monotonic propagator.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1758">[ date ]</a>
+              <a href="thread.html#1758">[ thread ]</a>
+              <a href="subject.html#1758">[ subject ]</a>
+              <a href="author.html#1758">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

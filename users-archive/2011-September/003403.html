@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Problems with some REG and some suggestions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problems%20with%20some%20REG%20and%20some%20suggestions&In-Reply-To=%3C87ehz22uch.fsf%40epiano.texitoi.eu%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003402.html">
+   <LINK REL="Next"  HREF="003406.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Problems with some REG and some suggestions</H1>
+    <B>TeXitoi</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problems%20with%20some%20REG%20and%20some%20suggestions&In-Reply-To=%3C87ehz22uch.fsf%40epiano.texitoi.eu%3E"
+       TITLE="[gecode-users] Problems with some REG and some suggestions">texitoi+news at texitoi.eu
+       </A><BR>
+    <I>Tue Sep 27 11:43:58 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003402.html">[gecode-users] Problems with some REG and some suggestions
+</A></li>
+        <LI>Next message: <A HREF="003406.html">[gecode-users] Problems with some REG and some suggestions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3403">[ date ]</a>
+              <a href="thread.html#3403">[ thread ]</a>
+              <a href="subject.html#3403">[ subject ]</a>
+              <a href="author.html#3403">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; writes:
+
+&gt;<i> Maybe there are better algorithms that combine DFA construction with
+</I>&gt;<i> minimization to deal with the DFAs but for most cases it works fine for
+</I>&gt;<i> Gecode...
+</I>
+OK
+
+&gt;<i> Is your regexp related to a real example or did you want to torture Gecode
+</I>&gt;<i> ;-)
+</I>
+I work on about 400 integer variables (about 15 months), and I have
+regex that are applied on different intervals (year, semester, month,
+week...).  To improve the performances, I would like to combine some
+of the constraints on a unique DFA. So, the idea I had was generating
+a regex that affect only a period but that have the length of my
+problem:
+  - first month : myReg + any(nbDaysIn14Month,nbDaysIn14Month)
+  - second month : any(nbDaysIn1Month,nbDaysIn1Month) + myReg +
+        any(nbDaysIn13Month,nbDaysIn13Month)
+  - ...
+  - first semester : ...
+  - ...
+and then I compute the intersection of the DFA.
+
+&gt;<i> I never thought about operations on DFAs as I thought one would use regexps
+</I>&gt;<i> anyway. The only hard part is in fact intersection, the rest is very simple.
+</I>&gt;<i> What do you need them for?
+</I>
+Naive intersection is quite simple because we can easily generate a
+DFA, and then, Gecode minimizes it.  But an effective implementation
+may be difficult.
+
+I use inverse (giving the alphabet) a lot because sometime it is
+easier to write the regex of the forbidden pattern than the allowed
+one.  As a simple example, I have this kind of forbidden pattern:
+ 0110 (on a subsequence of 4 variables) which is very simple to write
+using the inverse:
+  inverse(DFA(REG(0)+REG(1)+REG(1)+REG(0)), alphabet)
+but much more difficult to write directly.
+
+I have pattern rules of the type &quot;this pattern or that pattern&quot;. Here,
+the union is useful, especially when one pattern is easier to write
+with an inverse (else I can do REG r = firstPattern | secondPattern).
+
+I can do what I have explain earlier using concatenation and
+intersection of DFA (here, &quot;+&quot; is the concatenation of DFA):
+  - first month: intersection(DFA(myReg), DFA(any(nbDaysIn1Month,
+       nbDaysIn1Month))) + DFA(*any)
+  - second month: DFA(any(nbDaysIn1Month,nbDaysIn1Month)) + 
+        intersection(DFA(myReg,DFA(any(nbDaysIn1Month,nbDaysIn1Month)))) +
+        DFA(*any)
+  - ...
+
+But maybe you have a better solution for the special problem I have
+now: I have at least n_i &quot;1&quot; on each month_i, exactly m_j &quot;1&quot; on each
+semester_j, and minimum one &quot;1&quot; on a slidding horizon of 7, and a
+minimum of two &quot;1&quot; on a slidding horizon of 11.  The problem I have is
+when there is a lot of possibilities for the first semester, but none
+for the second (because of the 4 constraints, not because directly of
+one of them), but the propagation do not detect the infeasibility of
+the second semester. Of course, I cannot solve each semester
+separatedly because there is pattern constraint that overlap.  For the
+moment, I have a variable that &quot;count&quot; the &quot;1&quot; on each month, I use
+rel to constraint these variables according to my data for the month
+and the semester constraints, and I use sequence (in reality a count
+for each interval of length 11, and an extensional for 1 on 7, which
+is much faster than sequence) for the slidding constraints.  I also
+have extensional version of these constraints.  The idea was to
+combine the DFA to detect directly the infeasability.
+
+I hope I am understandable.  Thanks for your attention.
+
+-- 
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003402.html">[gecode-users] Problems with some REG and some suggestions
+</A></li>
+	<LI>Next message: <A HREF="003406.html">[gecode-users] Problems with some REG and some suggestions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3403">[ date ]</a>
+              <a href="thread.html#3403">[ thread ]</a>
+              <a href="subject.html#3403">[ subject ]</a>
+              <a href="author.html#3403">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,36 @@
+#include "gecode/set.hh"
+#include "gecode/search.hh"
+
+using namespace Gecode;
+
+template <class C>
+class Test : public Space {
+protected:  SetVarArray q;
+public:
+  Test(void)
+    : q(this,1,IntSet::empty,0,9) {
+    C c; c.c(this, q[0]);
+    branch(this, q, SETBVAR_NONE, SETBVAL_MIN);
+  }
+
+  Test(bool share, Test& s) : Space(share, s) { q.update(this, share, s.q); }
+  virtual Space* copy(bool share) { return new Test(share,*this); }
+  virtual void print(void) { std::cout << q[0] << std::endl; }
+};
+
+class C {
+public:
+  static void c(Space* home, SetVar s) { cardinality(home, s, 3,3); }
+};
+
+int
+main(int argc, char** argv) {
+  Test<C>* t = new Test<C>();
+  DFS<Test<C> > d(t);
+  if (Test<C>* sol = d.next()) {
+    sol->print();
+    delete sol;
+  }
+  delete t;
+  return 0;
+}

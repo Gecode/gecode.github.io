@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] List of pruned values
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20List%20of%20pruned%20values&In-Reply-To=%3C001201cce255%24e6e55af0%24b4b010d0%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003534.html">
+   <LINK REL="Next"  HREF="003536.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] List of pruned values</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20List%20of%20pruned%20values&In-Reply-To=%3C001201cce255%24e6e55af0%24b4b010d0%24%40se%3E"
+       TITLE="[gecode-users] List of pruned values">cschulte at kth.se
+       </A><BR>
+    <I>Fri Feb  3 10:26:24 CET 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003534.html">[gecode-users] List of pruned values
+</A></li>
+        <LI>Next message: <A HREF="003536.html">[gecode-users] thanks very much
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3535">[ date ]</a>
+              <a href="thread.html#3535">[ thread ]</a>
+              <a href="subject.html#3535">[ subject ]</a>
+              <a href="author.html#3535">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+ 
+
+Guido's idea is in fact the better one: what you pay for with wait is to
+have one propagator for each Boolean variable which costs at least 24 bytes
+plus 8 bytes for the function to be called on a 64 bit machine. Advisors are
+in fact cheaper, they only cost 16 bytes. Also copying of advisors is in
+fact much much faster: the trick is that how advisors are designed their
+copying can in fact be inlined. This is not possible for a propagator such
+as wait. Furthermore for Boolean variables it is even better as an advisor
+subscribed to it will only be called when the variable is assigned, that is
+at most once.
+
+ 
+
+I wouldn't use a list for recording which variable has changed, check the
+bit arrays that come with Gecode, they are very highly optimized (in
+particular iterating over them uses special  instructions on most hardware).
+And maybe it is even sufficient to record inside an advisor if it has
+changed and later iterate over all advisors of the propagator to find which
+variables have changed.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Friday, February 03, 2012 9:59 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] List of pruned values
+
+ 
+
+Hi everybody,
+
+i have to step into this discussion as i have similar demands ;)
+I want to be notified whenever a boolean variable is assigned.
+Currently i do this with a modified version of &quot;wait&quot;. So i'm using a
+propagator
+that watches the boolean variable. It furthermore has a 4byte member
+variable which
+then says me which variable i do watch.
+During propagation i then can add the changed variable to the list of
+assigned variables.
+I do not change the domain of anything.
+Now my question:
+Is it in this case more clever to use advisors? I do not need to propagate,
+but as i'm not doing any propagation there should be no overhead.
+Currently the performance of my systems suffers a bit because i have to
+subscribe to every boolean variable.
+Every propagator has a 4byte member. All this is copied during cloning of a
+space, which happens quite often.
+Can i avoid this using advisors?
+
+Any idea how i can avoid copying the 4byte identifier of my propagator.
+It is just used for the identification of which boolean variable i'm
+subscribed to.
+I do not need a copy of the propagator for each space.
+
+
+Best,
+Max
+
+On 02/03/2012 09:07 AM, Guido Tack wrote: 
+
+Hi Matthew, 
+
+ 
+
+Gecode does not keep track of domain modifications on that level.  The first
+thing I'd try is whether iterating through the variables is really too
+expensive.  After all, checking whether the domain has changed is really
+cheap - just compare the domain sizes before and after (accessing them is
+constant time).
+
+ 
+
+If iteration is prohibitively expensive, you have to implement a custom
+propagator that doesn't implement a constraint but simply &quot;listens&quot; to
+domain modifications.   It would be posted for all variables you're
+interested in, create advisors to be notified of modifications (so that it
+doesn't have to iterate), and simply record that information in an external
+data structure.  It doesn't ever have to be scheduled for propagation.  Our
+tutorial documentation should contain all the information to get you
+started.  Note that this approach also incurs an overhead, because each
+modification needs to be recorded somewhere, but that's just unavoidable.
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+On 3 Feb 2012, at 15:14, Matthew Kitching wrote:
+
+
+
+
+
+Hi all,
+
+After calling &quot;status&quot; is it possible to get a list of all the domain values
+pruned, or even a list of all the variables who had their domains pruned? I
+am able to iterate through all variables and compare their domains, but this
+is of course, not very fast.
+
+Thanks a lot, 
+
+Matthew
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+ 
+
+-- 
+
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+&lt;<A HREF="http://people.cs.kuleuven.be/%7Eguido.tack/">http://people.cs.kuleuven.be/%7Eguido.tack/</A>&gt; 
+
+ 
+
+
+
+
+
+ 
+
+ 
+ 
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+  
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120203/fe8c038e/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20120203/fe8c038e/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003534.html">[gecode-users] List of pruned values
+</A></li>
+	<LI>Next message: <A HREF="003536.html">[gecode-users] thanks very much
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3535">[ date ]</a>
+              <a href="thread.html#3535">[ thread ]</a>
+              <a href="subject.html#3535">[ subject ]</a>
+              <a href="author.html#3535">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

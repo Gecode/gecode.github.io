@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] my first propagator - Nq
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20my%20first%20propagator%20-%20Nq&In-Reply-To=%3C000001c74e85%2404921d50%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000799.html">
+   <LINK REL="Next"  HREF="000801.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] my first propagator - Nq</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20my%20first%20propagator%20-%20Nq&In-Reply-To=%3C000001c74e85%2404921d50%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] my first propagator - Nq">cschulte at kth.se
+       </A><BR>
+    <I>Mon Feb 12 10:05:58 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000799.html">[gecode-users] my first propagator - Nq
+</A></li>
+        <LI>Next message: <A HREF="000801.html">[gecode-users] help me on compiling gecode
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#800">[ date ]</a>
+              <a href="thread.html#800">[ thread ]</a>
+              <a href="subject.html#800">[ subject ]</a>
+              <a href="author.html#800">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Congratulations!
+
+Maybe some comments. Never do this:
+
+	if (Nq::post(home, view1, view2) &lt; ES_OK)
+	   home-&gt;fail();
+
+as you should not rely on the order of ES_* (actually, they will change in
+Gecode 2.0)! The other way is safe, or test for == ES_FAILED. (No matter
+what the macros themselves do, as their implementation will change
+consistently with changes to ExecStatus).
+
+The cost you give is way too high: you know that if the propagator is
+invoked, it will be subsumed. So, PC_UNARY_LO is more like it.
+
+If you assume that an integer view x is assigned, us x.val() rather than
+x.min(); it will have an assertion that it is really assumed.
+
+Posting can be smarter: if you know that just one of the views is assigned,
+you can immediately do the propagation.
+
+Cheers
+Christian
+
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kilian Sprotte
+Sent: Saturday, February 10, 2007 2:34 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] my first propagator - Nq
+
+
+Hi,
+
+I have written my first propagator... :)
+
+Its basically a translation of Nq in the java Queens example.
+I hope it is correct, I am posting it here, in case anyone might find it
+useful as a starting point.
+
+The class is below - you can post it with:
+
+if (Nq::post(home, view1, view2) &lt; ES_OK)
+   home-&gt;fail();
+
+or (if you are inside a void function)
+
+GECODE_ES_FAIL(home, Nq::post(s, view1, view2));
+
+Cheers,
+   Kilian
+
+--
+
+using namespace Gecode;
+
+class Nq : public BinaryPropagator&lt;Int::IntView, Int::PC_INT_VAL&gt; {
+public:
+   Nq(Space* home, Int::IntView x0, Int::IntView x1)
+     : BinaryPropagator&lt;Int::IntView,Int::PC_INT_VAL&gt;(home,x0,x1) {
+   }
+   Nq(Space* home, bool share, Nq&amp; p)
+     : BinaryPropagator&lt;Int::IntView,Int::PC_INT_VAL&gt;(home,share,p) {
+   }
+   Actor* copy(Space* home, bool share) {
+     return new (home) Nq(home, share,*this);
+   }
+   PropCost cost () {
+     return PC_BINARY_HI;
+   }
+   ExecStatus propagate (Space* home) {
+   std::cout &lt;&lt; &quot;propagate head: &quot;&lt;&lt; x0 &lt;&lt; &quot; &quot; &lt;&lt; x1 &lt;&lt; &quot;\n&quot;;
+   if (x0.assigned()) {
+      GECODE_ME_CHECK(x1.nq(home,x0.min()));
+      std::cout &lt;&lt; &quot;propagate subsumed: &quot;&lt;&lt; x0 &lt;&lt; &quot; &quot; &lt;&lt; x1 &lt;&lt; &quot;\n&quot;;
+      return ES_SUBSUMED;
+   } else { // x1 is assigned
+      GECODE_ME_CHECK(x0.nq(home,x1.min()));
+      std::cout &lt;&lt; &quot;propagate subsumed: &quot;&lt;&lt; x0 &lt;&lt; &quot; &quot; &lt;&lt; x1 &lt;&lt; &quot;\n&quot;;
+      return ES_SUBSUMED;
+     }
+   }
+   static ExecStatus post (Space* home, Int::IntView x0, Int::IntView  
+x1) {
+     if (x0.assigned() &amp;&amp; x1.assigned() &amp;&amp; (x0.min()==x1.min())) {
+       return ES_FAILED;
+     }
+     (void) new (home) Nq(home, x0, x1);
+     return ES_OK;
+   }
+};
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000799.html">[gecode-users] my first propagator - Nq
+</A></li>
+	<LI>Next message: <A HREF="000801.html">[gecode-users] help me on compiling gecode
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#800">[ date ]</a>
+              <a href="thread.html#800">[ thread ]</a>
+              <a href="subject.html#800">[ subject ]</a>
+              <a href="author.html#800">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

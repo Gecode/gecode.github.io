@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Cloning problems
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cloning%20problems&In-Reply-To=%3C49956121.8050607%40logis.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002248.html">
+   <LINK REL="Next"  HREF="002250.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Cloning problems</H1>
+    <B>Filip Konvi&#269;ka</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cloning%20problems&In-Reply-To=%3C49956121.8050607%40logis.cz%3E"
+       TITLE="[gecode-users] Cloning problems">filip.konvicka at logis.cz
+       </A><BR>
+    <I>Fri Feb 13 13:01:37 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002248.html">[gecode-users] Cloning problems
+</A></li>
+        <LI>Next message: <A HREF="002250.html">[gecode-users] Cloning problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2249">[ date ]</a>
+              <a href="thread.html#2249">[ thread ]</a>
+              <a href="subject.html#2249">[ subject ]</a>
+              <a href="author.html#2249">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+first, thanks for the thorough explanation!
+
+&gt;<i> Before I start with rambling about cloning, a tip:
+</I>&gt;<i> Gecode supports unary branchings (with a single alternatiuve only). So you
+</I>&gt;<i> could have a unary branching and don't have to have a mock-up empty branch.
+</I>&gt;<i> The search engines even optimize that case. If you are looking for an
+</I>&gt;<i> example, check the assign function in gecode/int.hh for assigning variables.
+</I>&gt;<i>   
+</I>
+We know about this (and use it for our own &quot;assignment&quot; branchings), but 
+I don't see how this applies to our case? Clearly if the first 
+alternative fails and we need to go on without that commit, we need 
+another branch...? I'm sure we could do it all just manually without any 
+branching or search engine, but this allowed us to test it with the DFS 
+engine and compare to ours.
+
+&gt;<i> In VarImp&lt;VIC&gt;::enter, the --idx[0] makes room for an additional entry. Then
+</I>&gt;<i> you keep moving actors to a free entry and by this create a new free entry
+</I>&gt;<i> for the propagation condition i. When the loop is done, you know that there
+</I>&gt;<i> is a free entry for propagation condition pc and that's where the propagator
+</I>&gt;<i> is entered.
+</I>&gt;<i>   
+</I>
+I see - seems like I misinterpreted the loop statement... too many *s 
+and &amp;s for one day, I guess :-)
+
+&gt;<i> Let me come up with some idea where the trouble could be:
+</I>&gt;<i>  - you forget to update a variable or view at some place. Either in your
+</I>&gt;<i> branching, propagator, or model.
+</I>&gt;<i>    Then you can see an invalid pointer in the dependency array.
+</I>&gt;<i>    You might want to change the default constructor of VarBase in
+</I>&gt;<i> gecode/kernel/var.icc and the default constructor
+</I>&gt;<i>    of VarViewBase in gecode/kernel/view.icc so that they set varimp to NULL
+</I>&gt;<i> (actually, I just did that yesterday in the trunk as well). Then you will be
+</I>&gt;<i> sure that when you forget to update, you'll see a NULL pointer.
+</I>&gt;<i>   
+</I>
+Well, I checked that once again now (we've done that at least ten times 
+in the last week :-)). I re-checked how the propagators 
+subscribe/update/cancel, it is consistent with the IntVar propagators 
+(BTW, in ReLinBin&lt;Val,A,B,pc,Ctrl&gt; in int-bin.hpp, you subscribe with 
+PC_INT_VAL and cancel with PC_BOOL_VAL). The branching does not need any 
+views or anything (it talks to the space directly via a static_cast).
+
+&gt;<i>  - you commit a heinous crime in that you change the dependencies of a
+</I>&gt;<i> variable with cancel/subscribe during 
+</I>&gt;<i>    cloning. That is illegal and will for sure break everything. Note that
+</I>&gt;<i> creating a propagator during
+</I>&gt;<i>    cloning will commit that crime, too.
+</I>&gt;<i>   
+</I>
+We're not trying to do anything illegal :-) Even if we did that, I'm 
+sure that the other testcases would fail too. But it's just those few :-)
+
+&gt;<i> Hope that helps. Please do not hesitate to ask some more
+</I>&gt;<i>   
+</I>
+Yes it does, big thanks for the overview! We'll let you know (soon, I 
+hope...)
+
+Have a nice weekend,
+Filip
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002248.html">[gecode-users] Cloning problems
+</A></li>
+	<LI>Next message: <A HREF="002250.html">[gecode-users] Cloning problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2249">[ date ]</a>
+              <a href="thread.html#2249">[ thread ]</a>
+              <a href="subject.html#2249">[ subject ]</a>
+              <a href="author.html#2249">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Operation of precede constraint on array of sets
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Operation%20of%20precede%20constraint%20on%20array%20of%20sets&In-Reply-To=%3CFBCDC069-0E35-489F-A764-2832AFF98898%40frungy.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="005000.html">
+   <LINK REL="Next"  HREF="005002.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Operation of precede constraint on array of sets</H1>
+    <B>Tim Potter</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Operation%20of%20precede%20constraint%20on%20array%20of%20sets&In-Reply-To=%3CFBCDC069-0E35-489F-A764-2832AFF98898%40frungy.org%3E"
+       TITLE="[gecode-users] Operation of precede constraint on array of sets">tpot at frungy.org
+       </A><BR>
+    <I>Mon Nov 27 22:52:19 CET 2017</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="005000.html">[gecode-users] Operation of precede constraint on array of sets
+</A></li>
+        <LI>Next message: <A HREF="005002.html">[gecode-users] Operation of precede constraint on array of sets
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5001">[ date ]</a>
+              <a href="thread.html#5001">[ thread ]</a>
+              <a href="subject.html#5001">[ subject ]</a>
+              <a href="author.html#5001">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Thanks Chris and Sebastian for your replies.  I agree that your parsing of the mathematical description of the constraint is valid but I don't think the result is in the spirit of the constraint, as much as I can divine this from the documentation.  
+
+&quot;Value precedence constraints over set variables enforce that a value pieces another value in a set of array variables&quot; is the overview of the precede() constraint in Modelling and Programming with Gecode.  Surely if there is any case where the first value is not placed before, i.e is preceded by, the second then there doesn't seem to be any point to the constraint.
+
+I think I'll dive into the source code and test case to try and get some more insight.
+
+(I forgot to mention in my original message that the constraint is documented in MPG, p.93).
+
+
+Thanks,
+
+Tim.
+
+&gt;<i> On 27 Nov 2017, at 11:45 am, Chris Mears &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">chris at cmears.id.au</A>&gt; wrote:
+</I>&gt;<i> 
+</I>&gt;<i> Hello Tim,
+</I>&gt;<i> 
+</I>&gt;<i> I think you might be misreading this version of the constraint. The constraint means &quot;if s and t are ever treated differently -- that is, if there's a set where one of them is present but not the other -- then you'll get a set with only s before you get any set with only t.&quot; So your example satisfies the constraint because s and t are always either both present or both absent.
+</I>&gt;<i> 
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Chris
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> On 25 November 2017 at 08:38, Tim Potter &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tpot at frungy.org</A>&gt; wrote:
+</I>&gt;<i> Hi everyone.  I hope this isn't some silly misunderstanding but I'm having trouble figuring out how the precede() constraint works when applied to SetVarArray.
+</I>&gt;<i> 
+</I>&gt;<i> Imagine I have a set of tasks with dependencies, for example 1-&gt;2, 2-&gt;3 and 3-&gt;4 to keep things simple.  I've added the following constraints:
+</I>&gt;<i> 
+</I>&gt;<i>     // Array of sets of integers from {1..4}
+</I>&gt;<i> 
+</I>&gt;<i>     SetVarArray deps(*this, 4, IntSet::empty, IntSet(1, 4));
+</I>&gt;<i> 
+</I>&gt;<i>     // Enforce pairwise disjointedness
+</I>&gt;<i> 
+</I>&gt;<i>     sequence(*this, deps);
+</I>&gt;<i> 
+</I>&gt;<i>     // Final task must appear
+</I>&gt;<i> 
+</I>&gt;<i>     rel(*this, setunion(deps) &gt;= IntSet(IntArgs(1, 4)));
+</I>&gt;<i> 
+</I>&gt;<i>     // Task ordering constraints
+</I>&gt;<i> 
+</I>&gt;<i>     precede(*this, deps, 1, 2);
+</I>&gt;<i>     precede(*this, deps, 2, 3);
+</I>&gt;<i>     precede(*this, deps, 3, 4);
+</I>&gt;<i> 
+</I>&gt;<i> Now this should produce at least a solution like {{1}, {2}, {3}, {4}}.  However I get this as my first solution in the output:
+</I>&gt;<i> 
+</I>&gt;<i>         {{1..4}, {}, {}, {}}
+</I>&gt;<i> 
+</I>&gt;<i> which indicates that the precede() constraint is not behaving as I think it should.
+</I>&gt;<i> 
+</I>&gt;<i> According to to the documentation the precede(home, x, s, t) version of the value precedence constraint as applied to set variables says that s is not an element of x_j and t is an element of x_j, then i &lt; j such that s is an element of x_i and t is not an element of x_i.
+</I>&gt;<i> 
+</I>&gt;<i> I don't understand how the solution above satisfies the above unless maybe the i &lt; j is really acting as i &lt;= j.  This seems to be the case based on the other solutions as they're sorted but that could be a side effect of the sequence() constraint.
+</I>&gt;<i> 
+</I>&gt;<i> Does anyone know what I'm doing wrong here?
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Thanks,
+</I>&gt;<i> 
+</I>&gt;<i> Tim.
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> 
+</I>
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="005000.html">[gecode-users] Operation of precede constraint on array of sets
+</A></li>
+	<LI>Next message: <A HREF="005002.html">[gecode-users] Operation of precede constraint on array of sets
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5001">[ date ]</a>
+              <a href="thread.html#5001">[ thread ]</a>
+              <a href="subject.html#5001">[ subject ]</a>
+              <a href="author.html#5001">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

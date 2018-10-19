@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Quicksort bug
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C4eff48ac0812131003w6ed6f0d2he7761a454c0db169%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002094.html">
+   <LINK REL="Next"  HREF="002097.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Quicksort bug</H1>
+    <B>Michal D.</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C4eff48ac0812131003w6ed6f0d2he7761a454c0db169%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Quicksort bug">michal.dobrogost at gmail.com
+       </A><BR>
+    <I>Sat Dec 13 19:03:28 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002094.html">[gecode-users] Estimating propagation times
+</A></li>
+        <LI>Next message: <A HREF="002097.html">[gecode-users] Quicksort bug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2096">[ date ]</a>
+              <a href="thread.html#2096">[ thread ]</a>
+              <a href="subject.html#2096">[ subject ]</a>
+              <a href="author.html#2096">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi All,
+
+I had one hell of a bug hunt recently. What started as a crash on
+winxp x64 ended up in a &quot;true&quot; being changed to a &quot;false&quot; on freebsd
+(so I could sanely debug into the Gecode code base). The culprit was
+FullTupleCompare (gecode/int/extensional/tuple-set.cc) but quicksort
+also got hit in the cross-fire.
+
+FullTupleCompare implements a less than or equal (&lt;=) operator and not
+a strict less than (&lt;) operator. In effect, for the case where both
+tuples are identical up the arity it returns true instead of false.
+This causes quicksort massive problems. See tuple-set.cc.diff for the
+fix.
+
+The gecode quicksort assumes that its stack will never exceed a depth
+of 32. This was getting exceeded when used on a large tupleset with
+the above comparison operator. However, in general this assumption is
+wrong. Stack usage for quicksort is worst case O(n) depending on the
+values that are chosen for the pivot! Exceeding the stack current
+results in an outright crash as an out of bounds pointer is
+dereferenced. I toyed with two fixes:
+
+1) make push return a success/failure code and if the push fails then
+call quicksort recursively instead of pushing onto the stack. See
+sort.icc.diff.
+
+2) start off with an static stack and expand it dynamically if it's
+exceeded. I'm not sure if Memory::malloc() / Memory::free() are the
+right ways to go about grabbing memory. There is no performance
+penalty if the stack depth does not exceed 32 entries. See
+sort.icc.diff2.
+
+Both solutions have the overhead of checking if the stack is going to
+exceed 32 entries on a push. This doesn't seem significant especially
+since most of the work should be happening in partition. My vote is
+for fix # 2 as it seems to be the more robust solution (no potential
+stack overflow).
+
+Cheers,
+
+Michal
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tuple-set.cc.diff
+Type: application/octet-stream
+Size: 833 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment.obj">http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment.obj</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sort.icc.diff
+Type: application/octet-stream
+Size: 2954 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0001.obj">http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0001.obj</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sort.icc.diff2
+Type: application/octet-stream
+Size: 2937 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0002.obj">http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0002.obj</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002094.html">[gecode-users] Estimating propagation times
+</A></li>
+	<LI>Next message: <A HREF="002097.html">[gecode-users] Quicksort bug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2096">[ date ]</a>
+              <a href="thread.html#2096">[ thread ]</a>
+              <a href="subject.html#2096">[ subject ]</a>
+              <a href="author.html#2096">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

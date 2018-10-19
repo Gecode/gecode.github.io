@@ -1,0 +1,2239 @@
+From aqwzsxaqwzsx at orange.fr  Sun Jun  1 00:41:22 2014
+From: aqwzsxaqwzsx at orange.fr (Philippe)
+Date: Sat, 31 May 2014 22:41:22 +0000 (UTC)
+Subject: [gecode-users] Help to express a  constraint
+Message-ID: <loom.20140601T003323-373@post.gmane.org>
+
+Hello all,
+
+
+I want to increase the starting time of the successor of task t in machine m
+(eg. time(succ(t,m),m)) by 10 only if status(t,m) != 3 and 
+status(succ(t,m)) != 3
+
+with status = Matrix<IntArgs>
+          t = int
+          m = int
+     succ   = Maxtrix<IntVarArray>
+     time   = Matrix<IntVarArray>
+
+I have dirty/wrong/long code to do this (I am shameful to show you it), 
+I'm certainly going in a wrong direction (comparing to elegant/natural code
+seen in the examples). 
+Could you help me please ?
+Thanks for your help
+Philippe
+
+note:
+I've read the tips 7.3 page 106 of gecode manual and i'm not using
+scheduling constraint since i don't feel comfortable yet with it).
+
+
+
+
+
+
+From cschulte at kth.se  Sun Jun  1 19:51:42 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 1 Jun 2014 19:51:42 +0200
+Subject: [gecode-users] Help to express a  constraint
+In-Reply-To: <loom.20140601T003323-373@post.gmane.org>
+References: <loom.20140601T003323-373@post.gmane.org>
+Message-ID: <017f01cf7dc2$261ce8f0$7256bad0$@kth.se>
+
+Hmm, why not just write a bunch of reified constraints?  Did you try that?
+
+You basically have an implication something like tihsfollows:
+	rel(*this, (status(t,m) != 3) && (status(succ(t,m)) != 3) >>
+(time(succ(t,m),m)) ? 10));
+
+I have to admit that I do not know what "increase by 10" means. I would
+expect that you can express it as a constraint (that's why I write a ?
+above).
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Philippe
+> Sent: Sunday, June 01, 2014 12:41 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Help to express a constraint
+> 
+> Hello all,
+> 
+> 
+> I want to increase the starting time of the successor of task t in machine
+m (eg.
+> time(succ(t,m),m)) by 10 only if status(t,m) != 3 and
+> status(succ(t,m)) != 3
+> 
+> with status = Matrix<IntArgs>
+>           t = int
+>           m = int
+>      succ   = Maxtrix<IntVarArray>
+>      time   = Matrix<IntVarArray>
+> 
+> I have dirty/wrong/long code to do this (I am shameful to show you it),
+I'm
+> certainly going in a wrong direction (comparing to elegant/natural code
+seen in
+> the examples).
+> Could you help me please ?
+> Thanks for your help
+> Philippe
+> 
+> note:
+> I've read the tips 7.3 page 106 of gecode manual and i'm not using
+scheduling
+> constraint since i don't feel comfortable yet with it).
+> 
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From aqwzsxaqwzsx at orange.fr  Mon Jun  2 22:34:32 2014
+From: aqwzsxaqwzsx at orange.fr (Philippe)
+Date: Mon, 2 Jun 2014 20:34:32 +0000 (UTC)
+Subject: [gecode-users] Help to express a  constraint
+References: <loom.20140601T003323-373@post.gmane.org>
+	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>
+Message-ID: <loom.20140602T220941-70@post.gmane.org>
+
+Hello Christian,
+
+Thanks for your answer. 
+1) I realized during the WE that i don't really understand the difference
+between an "rel" and a "expr" (not from a pure C++ point of view).
+
+2) The example that i have provided point on some confusion :
+I have written status(t,m) which is correct but 
+status(succ(t,m)) is incorrect, the correct form is status(succ(t,m),m).
+Thus,  element(Status, Succ(t,m)) is syntactically correct but wrong.
+
+3) I've found a similar solution than yours (after hard work!). With however
+a big difference (probably because i'm perverted by years of imperative
+programming) : 
+I have written :
+
+if (Status(t, m) != 3)
+{
+  BoolVar not_inprogress = 
+  expr(*this, element(Status.row(m), Succ(t,m)) != 3);
+  BoolVar toa_of_succ = 
+  expr(*this, element(Time.row(m), Succ(t, m)) > ETOA[m] + 10);
+  rel(*this, not_inprogress >> toa_of_succ);
+}
+
+Thus, the (Status(t, m) != 3) is not part of the constraint, what are the
+implications of doing this ? (that's more a constraint programming question
+than a question related to gecode, i admit).
+
+
+4) Is it a good point to be able to express things like that (and i could
+may be try to propose some patches) :
+
+Example 1 :
+==========
+
+expr1.1 : expr(*this, element(Status.row(m), Succ(t,m)) != 3) 
+
+compile, but :
+
+expr1.2 : expr(*this, Status(Succ(t,m), m) != 3);
+
+don't, however, the first form seems to me more elegant.
+
+Example 2 :
+===========
+
+expr2.1 :
+IntVar task(*this, t, t);
+expr(*this, Succ(t,m) != task);
+
+compile, but :
+
+expr2.2 : expr(*this, Succ(t,m) != t) 
+
+don't. Here again, the second form seems more elegant.
+
+Best,
+Philippe
+
+
+
+
+From cschulte at kth.se  Tue Jun  3 09:55:45 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 3 Jun 2014 09:55:45 +0200
+Subject: [gecode-users] Help to express a  constraint
+In-Reply-To: <loom.20140602T220941-70@post.gmane.org>
+References: <loom.20140601T003323-373@post.gmane.org>	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>
+	<loom.20140602T220941-70@post.gmane.org>
+Message-ID: <013201cf7f01$3a55f380$af01da80$@kth.se>
+
+Hi Philippe,
+
+I am sorry but at this point in time you first need to understand:
+ - the difference between a C++ integer and a Gecode integer variable
+ - the difference between an expression (a la expr) and a constraint (a la
+rel)
+ - the original constructor in your model is supposed to create constraints
+and is only executed once and then solved by search, so your use of a C++
+if-statement strikes me as maybe not what you intend.
+
+Your code snippets seem to confuse these concepts which are not really
+Gecode specific but general for modeling with constraints. You might to
+consider first training modeling (you might consider the case studies
+included in Modeling and Programming with Gecode plus the intro).
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Philippe
+Sent: Monday, June 02, 2014 10:35 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Help to express a constraint
+
+Hello Christian,
+
+Thanks for your answer. 
+1) I realized during the WE that i don't really understand the difference
+between an "rel" and a "expr" (not from a pure C++ point of view).
+
+2) The example that i have provided point on some confusion :
+I have written status(t,m) which is correct but
+status(succ(t,m)) is incorrect, the correct form is status(succ(t,m),m).
+Thus,  element(Status, Succ(t,m)) is syntactically correct but wrong.
+
+3) I've found a similar solution than yours (after hard work!). With however
+a big difference (probably because i'm perverted by years of imperative
+programming) : 
+I have written :
+
+if (Status(t, m) != 3)
+{
+  BoolVar not_inprogress =
+  expr(*this, element(Status.row(m), Succ(t,m)) != 3);
+  BoolVar toa_of_succ =
+  expr(*this, element(Time.row(m), Succ(t, m)) > ETOA[m] + 10);
+  rel(*this, not_inprogress >> toa_of_succ); }
+
+Thus, the (Status(t, m) != 3) is not part of the constraint, what are the
+implications of doing this ? (that's more a constraint programming question
+than a question related to gecode, i admit).
+
+
+4) Is it a good point to be able to express things like that (and i could
+may be try to propose some patches) :
+
+Example 1 :
+==========
+
+expr1.1 : expr(*this, element(Status.row(m), Succ(t,m)) != 3) 
+
+compile, but :
+
+expr1.2 : expr(*this, Status(Succ(t,m), m) != 3);
+
+don't, however, the first form seems to me more elegant.
+
+Example 2 :
+===========
+
+expr2.1 :
+IntVar task(*this, t, t);
+expr(*this, Succ(t,m) != task);
+
+compile, but :
+
+expr2.2 : expr(*this, Succ(t,m) != t) 
+
+don't. Here again, the second form seems more elegant.
+
+Best,
+Philippe
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From aqwzsxaqwzsx at orange.fr  Tue Jun  3 21:47:59 2014
+From: aqwzsxaqwzsx at orange.fr (Philippe)
+Date: Tue, 3 Jun 2014 19:47:59 +0000 (UTC)
+Subject: [gecode-users] Help to express a  constraint
+References: <loom.20140601T003323-373@post.gmane.org>	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>
+	<loom.20140602T220941-70@post.gmane.org>
+	<013201cf7f01$3a55f380$af01da80$@kth.se>
+Message-ID: <loom.20140603T214411-778@post.gmane.org>
+
+Hi Chirstian,
+
+Yes i definitively need a training/formation (I have asked for) and be sure
+that the gecode manual is my bedside book (by the way, i suspect a mistake
+in figures 4.5/4.6 pages 72/73, for me, the initial domain of variable x0 is
+{1,2} not {1,2,3}).
+ 
+1) Nevertheless, the difference between a integer and a IntVar is pretty
+clear for me.
+ 
+2) Page 97 of the manual gives me the answer of the rel vs. expr question:
+   IntVar z = expr(home, 3x-4y+2) is strictly equivalent to 
+   rel(home, z == 3x-4y+2). Clearly written, clearly understood !
+
+3) The "if (Status(t, m) != 3)" is clearly not a constraint for me ! 
+  (since Status(t, m) is an IntArg, it is defined before the search,
+  it's more here to say something like "if this input data of the problem
+  states that condition, then i have to post a constraint, otherwise, not"
+  I'm clearly not trying to post the constraint that Status(t,m) must be
+  different than 3 !
+  However, i will do as you have suggested because i suspect (but not sure
+  since i'm a newbie) that it could help propagation for the problem to 
+  solve (?)
+
+4) Do you have any opinion of allowing :
+   expr(home, IntVarArray(IntVar, int) op int) 
+   expr(home, IntVarArray(int, IntVar) op int) construct be possible ? 
+   (op in {+,-}, int = C++ integer)
+
+Thanks again,
+Philippe
+
+
+
+
+From cschulte at kth.se  Wed Jun  4 10:10:59 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 4 Jun 2014 10:10:59 +0200
+Subject: [gecode-users] Help to express a  constraint
+In-Reply-To: <loom.20140603T214411-778@post.gmane.org>
+References: <loom.20140601T003323-373@post.gmane.org>	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>	<loom.20140602T220941-70@post.gmane.org>	<013201cf7f01$3a55f380$af01da80$@kth.se>
+	<loom.20140603T214411-778@post.gmane.org>
+Message-ID: <00dd01cf7fcc$857e5a20$907b0e60$@se>
+
+Hi Philippe,
+
+The figures are correct, of course your choice of initial values would also
+work.
+
+As for 4) I am not sure what you mean, can you give some examples?
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Philippe
+Sent: Tuesday, June 03, 2014 9:48 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Help to express a constraint
+
+Hi Chirstian,
+
+Yes i definitively need a training/formation (I have asked for) and be sure
+that the gecode manual is my bedside book (by the way, i suspect a mistake
+in figures 4.5/4.6 pages 72/73, for me, the initial domain of variable x0 is
+{1,2} not {1,2,3}).
+ 
+1) Nevertheless, the difference between a integer and a IntVar is pretty
+clear for me.
+ 
+2) Page 97 of the manual gives me the answer of the rel vs. expr question:
+   IntVar z = expr(home, 3x-4y+2) is strictly equivalent to 
+   rel(home, z == 3x-4y+2). Clearly written, clearly understood !
+
+3) The "if (Status(t, m) != 3)" is clearly not a constraint for me ! 
+  (since Status(t, m) is an IntArg, it is defined before the search,
+  it's more here to say something like "if this input data of the problem
+  states that condition, then i have to post a constraint, otherwise, not"
+  I'm clearly not trying to post the constraint that Status(t,m) must be
+  different than 3 !
+  However, i will do as you have suggested because i suspect (but not sure
+  since i'm a newbie) that it could help propagation for the problem to
+  solve (?)
+
+4) Do you have any opinion of allowing :
+   expr(home, IntVarArray(IntVar, int) op int) 
+   expr(home, IntVarArray(int, IntVar) op int) construct be possible ? 
+   (op in {+,-}, int = C++ integer)
+
+Thanks again,
+Philippe
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From aqwzsxaqwzsx at orange.fr  Wed Jun  4 20:12:27 2014
+From: aqwzsxaqwzsx at orange.fr (Philippe)
+Date: Wed, 4 Jun 2014 18:12:27 +0000 (UTC)
+Subject: [gecode-users] Help to express a  constraint
+References: <loom.20140601T003323-373@post.gmane.org>	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>	<loom.20140602T220941-70@post.gmane.org>	<013201cf7f01$3a55f380$af01da80$@kth.se>
+	<loom.20140603T214411-778@post.gmane.org>
+	<00dd01cf7fcc$857e5a20$907b0e60$@se>
+Message-ID: <loom.20140604T201124-799@post.gmane.org>
+
+
+Sorry for the wrong form i've provided. 
+Here is an example of what i wanted to express :
+
+1) Given the fact that Status and Succ are matrix interfaces of 
+   two IntVarArray and t, m are integers, the expression :
+
+ expr(*this, Status(Succ(t,m), m) != 3);  // don't compile
+ 
+ is more "elegant" than : 
+
+ expr(*this, element(Status.row(m), Succ(t,m)) != 3) 
+
+But it seems difficult to implement the first one.
+
+2) I have another exemple in mind  :
+ 
+ expr(*this, Succ(t,m) != t); // don't compile
+
+ For now, one have to write this to compile :
+
+ IntVar T(*this, t, t);
+ expr(*this, Succ(t,m) != T);
+
+ Anyway, it's just syntaxic sugar... sorry to bother you with these remarks.
+
+Best,
+Philippe
+
+
+
+
+From cschulte at kth.se  Thu Jun  5 16:20:17 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 5 Jun 2014 16:20:17 +0200
+Subject: [gecode-users] Help to express a  constraint
+In-Reply-To: <loom.20140604T201124-799@post.gmane.org>
+References: <loom.20140601T003323-373@post.gmane.org>	<017f01cf7dc2$261ce8f0$7256bad0$@kth.se>	<loom.20140602T220941-70@post.gmane.org>	<013201cf7f01$3a55f380$af01da80$@kth.se>	<loom.20140603T214411-778@post.gmane.org>	<00dd01cf7fcc$857e5a20$907b0e60$@se>
+	<loom.20140604T201124-799@post.gmane.org>
+Message-ID: <02bf01cf80c9$47147aa0$d53d6fe0$@kth.se>
+
+Hi Philippe,
+
+Both are not possible due to restrictions in C++...
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Philippe
+Sent: Wednesday, June 04, 2014 8:12 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Help to express a constraint
+
+
+Sorry for the wrong form i've provided. 
+Here is an example of what i wanted to express :
+
+1) Given the fact that Status and Succ are matrix interfaces of 
+   two IntVarArray and t, m are integers, the expression :
+
+ expr(*this, Status(Succ(t,m), m) != 3);  // don't compile
+ 
+ is more "elegant" than : 
+
+ expr(*this, element(Status.row(m), Succ(t,m)) != 3) 
+
+But it seems difficult to implement the first one.
+
+2) I have another exemple in mind  :
+ 
+ expr(*this, Succ(t,m) != t); // don't compile
+
+ For now, one have to write this to compile :
+
+ IntVar T(*this, t, t);
+ expr(*this, Succ(t,m) != T);
+
+ Anyway, it's just syntaxic sugar... sorry to bother you with these remarks.
+
+Best,
+Philippe
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From richard.portell at gmail.com  Mon Jun  9 14:48:16 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Mon, 9 Jun 2014 14:48:16 +0200
+Subject: [gecode-users] probability to apply constraint
+Message-ID: <CAPigQkcAVCDGVyKYNwcm3PY9nMXpOg1gsgA5NVoXm+utC=nX5A@mail.gmail.com>
+
+Hello,
+Is it possible to apply a constraint with a probability associated?
+For example I have an array of 10 integers which has two constraint :
+1) The sum should be equal to 100;
+2) The numbers of even array index should be equal to 0.
+
+To the 2) constraint, I would like to add a probability saying that the
+constraint apply in 80% of the cases.
+I know that what could work would be for each even array index to pick a
+number between 0 and 100 and apply the rule dynamically depending on the
+number picked (<80 -> apply, otherwise doesn'y apply).
+However, I would like to know if there would be a more elegant way.
+
+Cheers
+
+Richard
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140609/c34ec82e/attachment.html>
+
+From cschulte at kth.se  Mon Jun  9 15:59:59 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 9 Jun 2014 15:59:59 +0200
+Subject: [gecode-users] probability to apply constraint
+In-Reply-To: <CAPigQkcAVCDGVyKYNwcm3PY9nMXpOg1gsgA5NVoXm+utC=nX5A@mail.gmail.com>
+References: <CAPigQkcAVCDGVyKYNwcm3PY9nMXpOg1gsgA5NVoXm+utC=nX5A@mail.gmail.com>
+Message-ID: <004101cf83eb$1a751e30$4f5f5a90$@se>
+
+Hi, Sorry that is not possible and I cannot see how to model it easily. Best Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Richard Portelli
+Sent: Monday, June 09, 2014 2:48 PM
+To: users at gecode.org
+Subject: [gecode-users] probability to apply constraint
+
+ 
+
+Hello,
+
+Is it possible to apply a constraint with a probability associated?
+
+For example I have an array of 10 integers which has two constraint :
+
+1) The sum should be equal to 100;
+
+2) The numbers of even array index should be equal to 0.
+
+ 
+
+To the 2) constraint, I would like to add a probability saying that the constraint apply in 80% of the cases.
+
+I know that what could work would be for each even array index to pick a number between 0 and 100 and apply the rule dynamically depending on the number picked (<80 -> apply, otherwise doesn'y apply).
+
+However, I would like to know if there would be a more elegant way.
+
+ 
+
+Cheers
+
+ 
+
+Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140609/8f48d386/attachment.html>
+
+From richard.portell at gmail.com  Tue Jun 10 20:21:10 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Tue, 10 Jun 2014 20:21:10 +0200
+Subject: [gecode-users] Cleaner way for if/then constraint condition
+Message-ID: <CAPigQke5Y2_pjCJxA8ui+UW0j0tTeoVHEO6TCX_15vOCWfW0sw@mail.gmail.com>
+
+Hello,
+
+I am looking for the "best" way to implement if/then type of constraint
+propagation.
+An example would be : I have an array of 10 integers with sum =100. If one
+element is equal to 10, the following one should be 11.
+Adding a lot of these constraint is it ressource intensive or not necessary?
+Thanks for your help,
+Cheers,
+Richard
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140610/4cc285b7/attachment.html>
+
+From cschulte at kth.se  Tue Jun 10 22:25:00 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Jun 2014 22:25:00 +0200
+Subject: [gecode-users] Cleaner way for if/then constraint condition
+In-Reply-To: <CAPigQke5Y2_pjCJxA8ui+UW0j0tTeoVHEO6TCX_15vOCWfW0sw@mail.gmail.com>
+References: <CAPigQke5Y2_pjCJxA8ui+UW0j0tTeoVHEO6TCX_15vOCWfW0sw@mail.gmail.com>
+Message-ID: <008e01cf84ea$0f96d2b0$2ec47810$@kth.se>
+
+Hi,
+
+ 
+
+This depends very much on whether you want to express your condition:
+
+-          For each and every element in the array, or
+
+-          Just for a particular element at a certain position in the array which is statically known, or
+
+-          Just for a particular element where the index is not yet know, or
+
+-          How large the array would be in practice, or
+
+-          ?
+
+ 
+
+Same more info might help.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Richard Portelli
+Sent: Tuesday, June 10, 2014 08:21 PM
+To: users at gecode.org
+Subject: [gecode-users] Cleaner way for if/then constraint condition
+
+ 
+
+Hello,
+
+I am looking for the "best" way to implement if/then type of constraint propagation.
+
+An example would be : I have an array of 10 integers with sum =100. If one element is equal to 10, the following one should be 11.
+
+Adding a lot of these constraint is it ressource intensive or not necessary?
+
+Thanks for your help,
+
+Cheers,
+Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140610/e008b559/attachment.html>
+
+From cschulte at kth.se  Wed Jun 11 10:29:57 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 11 Jun 2014 10:29:57 +0200
+Subject: [gecode-users] Cleaner way for if/then constraint condition
+In-Reply-To: <CAPigQkc43a6z6b_yODNvsjBvTeWEihLsgGRUJBMNKdpuNSHgaA@mail.gmail.com>
+References: <CAPigQke5Y2_pjCJxA8ui+UW0j0tTeoVHEO6TCX_15vOCWfW0sw@mail.gmail.com>	<008e01cf84ea$0f96d2b0$2ec47810$@kth.se>
+	<CAPigQkc43a6z6b_yODNvsjBvTeWEihLsgGRUJBMNKdpuNSHgaA@mail.gmail.com>
+Message-ID: <011c01cf854f$54861e20$fd925a60$@se>
+
+Thanks for the info.
+
+ 
+
+The simplest version would be as before by reification: for each array index i but the last one, post:
+
+                rel(*this, (x[i] == 10) >> (x[i+1] == 11));
+
+ 
+
+If that turns out to be not efficient enough (most likely that is the case if you have arrays with 20000 elements), then you could implement a simple propagator. This is described in Part P of MPG. You want to make the propagator incremental by reading about Advisors in that part.
+
+ 
+
+However, first I would make really sure that your model is correct before indulging in an implementation exercise.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+
+ 
+
+From: Richard Portelli [mailto:richard.portell at gmail.com] 
+Sent: Tuesday, June 10, 2014 11:11 PM
+To: cschulte at kth.se
+Subject: Re: [gecode-users] Cleaner way for if/then constraint condition
+
+ 
+
+Hello Christian,
+
+Thank you for your quick answer.
+
+The maximum number of numbers I could have in my array would be around 20 000. I, for example, know that there will be some numbers of these array (determined by gecode) that will be equal to a certain value(known before gecode generation). Lets say 10. I don't know where these numbers with value 10 will be. However, I know that the numbers just after these number with 10 values should have the value 10+1.
+
+I hope my explanations are clear enough :)
+
+I really appreciate your help.
+Cheers,
+Richard
+
+ 
+
+2014-06-10 22:25 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+
+Hi,
+
+ 
+
+This depends very much on whether you want to express your condition:
+
+-          For each and every element in the array, or
+
+-          Just for a particular element at a certain position in the array which is statically known, or
+
+-          Just for a particular element where the index is not yet know, or
+
+-          How large the array would be in practice, or
+
+-          ?
+
+ 
+
+Same more info might help.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Richard Portelli
+Sent: Tuesday, June 10, 2014 08:21 PM
+To: users at gecode.org
+Subject: [gecode-users] Cleaner way for if/then constraint condition
+
+ 
+
+Hello,
+
+I am looking for the "best" way to implement if/then type of constraint propagation.
+
+An example would be : I have an array of 10 integers with sum =100. If one element is equal to 10, the following one should be 11.
+
+Adding a lot of these constraint is it ressource intensive or not necessary?
+
+Thanks for your help,
+
+Cheers,
+Richard
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140611/3b85d5a7/attachment-0001.html>
+
+From richard.portell at gmail.com  Thu Jun 12 10:32:16 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Thu, 12 Jun 2014 10:32:16 +0200
+Subject: [gecode-users] Constraints on "wave" form
+Message-ID: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+
+Hello Christian,
+I would like to know if there is an easy way to implement a special
+constraint.
+I have an array with 10 numbers.
+My constraint would be : if you plot the array values in function of the
+index,  you should have a wave aspect /\.
+For example with 10 numbers
+
+1 3 5 9 11 7 6 5 4 2 0 (increasing then decreasing) There is no importance
+at witch index there is the inflexion point.
+
+Would you have an idea how to implement that in a clean way?
+
+Cheers,
+Richard
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140612/4a44d97d/attachment.html>
+
+From zayenz at gmail.com  Thu Jun 12 11:50:35 2014
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 12 Jun 2014 11:50:35 +0200
+Subject: [gecode-users] Constraints on "wave" form
+In-Reply-To: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+References: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+Message-ID: <539977EB.5020400@gmail.com>
+
+Richard Portelli skrev 12/06/14 10:32:
+> Hello Christian,
+> I would like to know if there is an easy way to implement a special 
+> constraint.
+> I have an array with 10 numbers.
+> My constraint would be : if you plot the array values in function of 
+> the index,  you should have a wave aspect /\.
+> For example with 10 numbers
+>
+> 1 3 5 9 11 7 6 5 4 2 0 (increasing then decreasing) There is no 
+> importance at witch index there is the inflexion point.
+>
+> Would you have an idea how to implement that in a clean way?
+>
+
+For reference, this is similar to the inflexion constraint 
+(http://www.emn.fr/z-info/sdemasse/gccat/Cinflexion.html) with the 
+number of inflexions set to 1 (assuming that valleys are also ok).
+
+The simplest way in my opinion to model this constraint would be the 
+following.
+
+   Assume the sequence of numbers is called x and has n entries.
+   Define a new boolean array of variables y with n-1 values.
+   For each place i in y, add the constraint
+     y[i] = (x[i] < y[i])
+   (that is, reified ordering).
+   On the y variables, add the constraint regular(y, 1*0*)
+
+The ordering constraint and the regular expression can be modified to 
+suit your particular needs.
+
+Cheers,
+Mikael
+
+
+From richard.portell at gmail.com  Thu Jun 12 12:48:38 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Thu, 12 Jun 2014 12:48:38 +0200
+Subject: [gecode-users] Constraints on "wave" form
+In-Reply-To: <539977EB.5020400@gmail.com>
+References: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+	<539977EB.5020400@gmail.com>
+Message-ID: <CAPigQkea6cEcyJtPC+0yMmkLB=J-UXULV9Z1ejv2S+-7mGmfbw@mail.gmail.com>
+
+Sorry it's RIchard again,
+you meant :
+
+
+2014-06-12 11:50 GMT+02:00 Mikael Zayenz Lagerkvist <zayenz at gmail.com>:
+
+> Richard Portelli skrev 12/06/14 10:32:
+>
+>  Hello Christian,
+>> I would like to know if there is an easy way to implement a special
+>> constraint.
+>> I have an array with 10 numbers.
+>> My constraint would be : if you plot the array values in function of the
+>> index,  you should have a wave aspect /\.
+>> For example with 10 numbers
+>>
+>> 1 3 5 9 11 7 6 5 4 2 0 (increasing then decreasing) There is no
+>> importance at witch index there is the inflexion point.
+>>
+>> Would you have an idea how to implement that in a clean way?
+>>
+>>
+> For reference, this is similar to the inflexion constraint (
+> http://www.emn.fr/z-info/sdemasse/gccat/Cinflexion.html) with the number
+> of inflexions set to 1 (assuming that valleys are also ok).
+>
+> The simplest way in my opinion to model this constraint would be the
+> following.
+>
+>   Assume the sequence of numbers is called x and has n entries.
+>   Define a new boolean array of variables y with n-1 values.
+>   For each place i in y, add the constraint
+>     y[i] = (x[i] < y[i])
+>   (that is, reified ordering).
+>   On the y variables, add the constraint regular(y, 1*0*)
+>
+> The ordering constraint and the regular expression can be modified to suit
+> your particular needs.
+>
+> Cheers,
+> Mikael
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140612/bdb1d346/attachment.html>
+
+From richard.portell at gmail.com  Thu Jun 12 12:49:13 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Thu, 12 Jun 2014 12:49:13 +0200
+Subject: [gecode-users] Constraints on "wave" form
+In-Reply-To: <CAPigQkea6cEcyJtPC+0yMmkLB=J-UXULV9Z1ejv2S+-7mGmfbw@mail.gmail.com>
+References: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+	<539977EB.5020400@gmail.com>
+	<CAPigQkea6cEcyJtPC+0yMmkLB=J-UXULV9Z1ejv2S+-7mGmfbw@mail.gmail.com>
+Message-ID: <CAPigQkeLPStocjxuTqgwGni=zkO-6i5U6QMwN_y6NuBq1gQZuQ@mail.gmail.com>
+
+Sorry it's RIchard again,
+you meant :
+
+y[i] = (x[i] < y[i])
+
+or
+
+y[i] = (x[i] < x[i-1])
+
+
+
+2014-06-12 12:48 GMT+02:00 Richard Portelli <richard.portell at gmail.com>:
+
+> Sorry it's RIchard again,
+> you meant :
+>
+>
+> 2014-06-12 11:50 GMT+02:00 Mikael Zayenz Lagerkvist <zayenz at gmail.com>:
+>
+>> Richard Portelli skrev 12/06/14 10:32:
+>>
+>>  Hello Christian,
+>>> I would like to know if there is an easy way to implement a special
+>>> constraint.
+>>> I have an array with 10 numbers.
+>>> My constraint would be : if you plot the array values in function of the
+>>> index,  you should have a wave aspect /\.
+>>> For example with 10 numbers
+>>>
+>>> 1 3 5 9 11 7 6 5 4 2 0 (increasing then decreasing) There is no
+>>> importance at witch index there is the inflexion point.
+>>>
+>>> Would you have an idea how to implement that in a clean way?
+>>>
+>>>
+>> For reference, this is similar to the inflexion constraint (
+>> http://www.emn.fr/z-info/sdemasse/gccat/Cinflexion.html) with the number
+>> of inflexions set to 1 (assuming that valleys are also ok).
+>>
+>> The simplest way in my opinion to model this constraint would be the
+>> following.
+>>
+>>   Assume the sequence of numbers is called x and has n entries.
+>>   Define a new boolean array of variables y with n-1 values.
+>>   For each place i in y, add the constraint
+>>     y[i] = (x[i] < y[i])
+>>   (that is, reified ordering).
+>>   On the y variables, add the constraint regular(y, 1*0*)
+>>
+>> The ordering constraint and the regular expression can be modified to
+>> suit your particular needs.
+>>
+>> Cheers,
+>> Mikael
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140612/66e0351b/attachment.html>
+
+From zayenz at gmail.com  Thu Jun 12 13:02:14 2014
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 12 Jun 2014 13:02:14 +0200
+Subject: [gecode-users] Constraints on "wave" form
+In-Reply-To: <CAPigQkeLPStocjxuTqgwGni=zkO-6i5U6QMwN_y6NuBq1gQZuQ@mail.gmail.com>
+References: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>	<539977EB.5020400@gmail.com>	<CAPigQkea6cEcyJtPC+0yMmkLB=J-UXULV9Z1ejv2S+-7mGmfbw@mail.gmail.com>
+	<CAPigQkeLPStocjxuTqgwGni=zkO-6i5U6QMwN_y6NuBq1gQZuQ@mail.gmail.com>
+Message-ID: <539988B6.5040903@gmail.com>
+
+Richard Portelli skrev 12/06/14 12:49:
+> Sorry it's RIchard again,
+> you meant :
+> y[i] = (x[i] < y[i])
+>
+> or
+>
+> y[i] = (x[i] < x[i-1])
+>
+Yes, I meant the latter of course.
+
+Cheers,
+Mikael
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140612/4ceda61b/attachment.html>
+
+From zayenz at gmail.com  Thu Jun 12 13:04:32 2014
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 12 Jun 2014 13:04:32 +0200
+Subject: [gecode-users] Constraints on "wave" form
+In-Reply-To: <539988B6.5040903@gmail.com>
+References: <CAPigQkdrDvCbmoRbZhtH7jsBdQGAq0WVMBG5LB+uiNoiKtdpMg@mail.gmail.com>
+	<539977EB.5020400@gmail.com>
+	<CAPigQkea6cEcyJtPC+0yMmkLB=J-UXULV9Z1ejv2S+-7mGmfbw@mail.gmail.com>
+	<CAPigQkeLPStocjxuTqgwGni=zkO-6i5U6QMwN_y6NuBq1gQZuQ@mail.gmail.com>
+	<539988B6.5040903@gmail.com>
+Message-ID: <CAPKxCj6dON=aKJgrYWzhNKu44r_pn-CiNsY8Cz=MYsRAQBD0gA@mail.gmail.com>
+
+On Thu, Jun 12, 2014 at 1:02 PM, Mikael Zayenz Lagerkvist <zayenz at gmail.com>
+wrote:
+
+> Richard Portelli skrev 12/06/14 12:49:
+>
+>  Sorry it's RIchard again,
+> you meant :
+>
+> y[i] = (x[i] < y[i])
+>
+>  or
+>
+>  y[i] = (x[i] < x[i-1])
+>
+>   Yes, I meant the latter of course.
+
+
+And I sent too soon without reading what you wrote.
+
+What I actually meant is y[i] = (x[i] < x[i+1])
+
+Cheers,
+Mikael
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140612/f091ef9e/attachment.html>
+
+From philipp.keck at gmx.de  Thu Jun 12 15:26:38 2014
+From: philipp.keck at gmx.de (Philipp Keck)
+Date: Thu, 12 Jun 2014 15:26:38 +0200
+Subject: [gecode-users] Gecode terminates on incomplete solution
+In-Reply-To: <5379B47B.1030501@cs.uni-potsdam.de>
+References: <5378E1FE.8010709@gmx.de> <5379B47B.1030501@cs.uni-potsdam.de>
+Message-ID: <5399AA8E.2010108@gmx.de>
+
+Hi Guido, Hi Max,
+
+thank you very much for taking your time! Your tips and ideas just 
+doubled the size of my todo list :-), that's why it took me so long to 
+reply. In particular, the tip about pseudo-boolean solvers was great. I 
+am now experimenting with Sat4J (both PB and MinCostSAT), which is a lot 
+slower than Gecode, but solves some more problem instances on which 
+Gecode needs to search a large tree. But because it is only quick on 
+decision problems and too inefficient for my optimization problems, I 
+continue my experiments with Gecode.
+
+About the initial problem mentioned in the subject of this mail: 
+BoolVarArray was indeed the solution. I didn't copy it from the examples 
+at first, because I don't know in advance how much variables there will 
+be, so I thought I couldn't use it. But by first reading all the 
+variables to a list and then placing them in an (uninitialized) 
+BoolVarArray works fine. Thank you!
+
+Thanks to Gist, I can now try to experiment with different kinds of 
+constraints. It looks like the search space is simply too large right 
+now. With Gist activated, Gecode explores around 500 failures every two 
+seconds - no matter which way I model the constraints. In comparison to 
+the entire (binary) search tree, that's almost nothing. After a few 
+hours, more than 90% of the search tree is still linear (to the left), 
+i.e. has not yet been explored.
+
+Is it true that alldifferent/distinct/atmost/count only exist for 
+integer variables? And according to the manual BoolVars can't be casted 
+to IntVars. But maybe this is a solution (I don't know enough C++ to 
+tell): As described in the manual Figure 27.4, one could use 
+Gecode::Int::Count::LqInt<VX,VY> to implement a "count" or "atmost" 
+method that accepts a BoolVarArray instead of a IntVarArray. Is that 
+possible?
+The kind of constraint I need should ensure that at most one of a given 
+list of boolean variables is true. So it could be "all different except 
+0", "distinct except 0", "Multi-XOR", or it could be modeled with 
+"atmost" or "count", if they are able to handle boolean variables.
+
+Best,
+Philipp
+
+Am 19.05.2014 09:36, schrieb Max Ostrowski:
+> Hi,
+>
+> On 05/18/2014 06:38 PM, Philipp Keck wrote:
+>> Hi,
+>>
+>> I am new to Gecode and also to Constraint Programming. While my first
+>> problem may be a general CP question (so off-topic here? In that case
+>> ignore it please.), my second problem is Gecode-specific.
+>>
+>> My first problem is that Gecode either finds a solution immediately
+>> (<1ms) and without any backtracking (peak-depth equals explored
+>> nodes-1), or takes longer than I want to wait (at least 2 hours). This
+>> problem might be related to my problem instances, because or-tools shows
+>> exactly the same behaviour. My problem instances have 1,000 to 10,000
+>> boolean variables and 400 to 2,500 constraints. There are both large and
+>> small instances that can be solved within milliseconds, and both large
+>> and small instances that take a long time. For those that take more than
+>> 2 hours, I still am sure that there is a solution, because Gurobi finds
+>> one when I formulate the same problem as an LP.
+>> How could I improve the running time of Gecode here? Does adding more
+>> constraints make finding (any feasible) solution faster (because the
+>> search space is more restricted and therefore the search tree is
+>> smaller) or slower (because there are simply less solutions)? Should I
+>> add redundant constraints?
+> If adding more constraints make the search faster or not can not be said
+> in general.
+> Adding redundant constraints is always worse a try, if you can improve
+> propagation strength with it.
+>> For a set of boolean variables, if I want at most one of them to be 1,
+>> is it better to add "a+b+c+... <= 1" using a linear-Constraint, or
+>> should I use "a!=b", "a!=c", "b!=c", ... instead? Unfortunately I have
+>> difficulties finding out the answers by experimenting because Gecode
+>> runs for such long times. Is there a way to get some output during the
+>> computation?
+> The first thing you can try is using global cosntraints that exactly fit
+> your needs.
+> In this case, allDifferent or atmost, etc...
+> They usually perform much better than linear constraints.
+> (It may be the case that Gecode automatically detects this in your case
+> and replaces the linear constraints with the global constraints. )
+>
+> Furthermore, your problem sounds like a PB(Pseudo-Boolean) problem.
+> So maybe you should try a PB solver.
+>
+> Best,
+> Max
+>
+>> My second problem is a weird behaviour of Gecode terminating with some
+>> variables remaining unassigned:
+>> My models have the following structure: I have boolean variables only
+>> and two kinds of constraints. The first kind of constraints requires
+>> exactly c variables out of a certain subset to be 1, e.g. "a+c+d+x+y =
+>> 3" or "a+b = 1". The second kind allows at most one variable to be 1,
+>> e.g. "a+b+r <= 1". That's all.
+>> As mentioned above, Gecode either terminates immediately, or takes a
+>> very long time. However, I have a particular problem instances that
+>> makes Gecode terminate and report "solutions: 1" without having all the
+>> variables set. So there are variables that still have [0..1] instead of
+>> a specific value and val() throws ValOfUnassignedVar. Why does Gecode
+>> terminate before it has a solution?
+>> I call it like this:
+>> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN());
+>> Using this call on the other hand makes Gecode compute forever (i.e.
+>> more than 2 hours):
+>> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd),
+>> INT_VAL_RND(someOtherRnd));
+>>
+>> The problem might be related to how I implemented the copy function. I
+>> have my variables inside a std::map<std::string, BoolVar> *and* inside a
+>> BoolVarArgs and clone them like this:
+>> variablesMap = s.variablesMap;
+>> allVariablesArgs = BoolVarArgs(s.allVariablesArgs);
+>> I don't know if that's the correct way to go. In particular, my copy
+>> implementation never uses the share-parameter.
+>> After reading the thread "Integer Variable Randomization" on this
+>> mailing list, I also tried setting -c-d and -a-d to high values, but
+>> still the copy-method was called many times.
+>>
+>> Thank you for any help!
+>> Philipp
+>>
+>> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Thu Jun 12 17:19:37 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 12 Jun 2014 17:19:37 +0200
+Subject: [gecode-users] Gecode terminates on incomplete solution
+In-Reply-To: <5399AA8E.2010108@gmx.de>
+References: <5378E1FE.8010709@gmx.de> <5379B47B.1030501@cs.uni-potsdam.de>
+	<5399AA8E.2010108@gmx.de>
+Message-ID: <00e001cf8651$b9d15350$2d73f9f0$@se>
+
+Hi,
+
+Yes, it is true that these constraints do not exist for 0/1 as they are not
+needed:
+ - distinct for Boolean variables is inequality
+ - atmost/count is linear for 0/1! Check MPG.
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Philipp Keck
+Sent: Thursday, June 12, 2014 3:27 PM
+To: Max Ostrowski; tack at gecode.org; users at gecode.org
+Subject: Re: [gecode-users] Gecode terminates on incomplete solution
+
+Hi Guido, Hi Max,
+
+thank you very much for taking your time! Your tips and ideas just doubled
+the size of my todo list :-), that's why it took me so long to reply. In
+particular, the tip about pseudo-boolean solvers was great. I am now
+experimenting with Sat4J (both PB and MinCostSAT), which is a lot slower
+than Gecode, but solves some more problem instances on which Gecode needs to
+search a large tree. But because it is only quick on decision problems and
+too inefficient for my optimization problems, I continue my experiments with
+Gecode.
+
+About the initial problem mentioned in the subject of this mail: 
+BoolVarArray was indeed the solution. I didn't copy it from the examples at
+first, because I don't know in advance how much variables there will be, so
+I thought I couldn't use it. But by first reading all the variables to a
+list and then placing them in an (uninitialized) BoolVarArray works fine.
+Thank you!
+
+Thanks to Gist, I can now try to experiment with different kinds of
+constraints. It looks like the search space is simply too large right now.
+With Gist activated, Gecode explores around 500 failures every two seconds -
+no matter which way I model the constraints. In comparison to the entire
+(binary) search tree, that's almost nothing. After a few hours, more than
+90% of the search tree is still linear (to the left), i.e. has not yet been
+explored.
+
+Is it true that alldifferent/distinct/atmost/count only exist for integer
+variables? And according to the manual BoolVars can't be casted to IntVars.
+But maybe this is a solution (I don't know enough C++ to
+tell): As described in the manual Figure 27.4, one could use
+Gecode::Int::Count::LqInt<VX,VY> to implement a "count" or "atmost" 
+method that accepts a BoolVarArray instead of a IntVarArray. Is that
+possible?
+The kind of constraint I need should ensure that at most one of a given list
+of boolean variables is true. So it could be "all different except 0",
+"distinct except 0", "Multi-XOR", or it could be modeled with "atmost" or
+"count", if they are able to handle boolean variables.
+
+Best,
+Philipp
+
+Am 19.05.2014 09:36, schrieb Max Ostrowski:
+> Hi,
+>
+> On 05/18/2014 06:38 PM, Philipp Keck wrote:
+>> Hi,
+>>
+>> I am new to Gecode and also to Constraint Programming. While my first 
+>> problem may be a general CP question (so off-topic here? In that case 
+>> ignore it please.), my second problem is Gecode-specific.
+>>
+>> My first problem is that Gecode either finds a solution immediately
+>> (<1ms) and without any backtracking (peak-depth equals explored 
+>> nodes-1), or takes longer than I want to wait (at least 2 hours). 
+>> This problem might be related to my problem instances, because 
+>> or-tools shows exactly the same behaviour. My problem instances have 
+>> 1,000 to 10,000 boolean variables and 400 to 2,500 constraints. There 
+>> are both large and small instances that can be solved within 
+>> milliseconds, and both large and small instances that take a long 
+>> time. For those that take more than
+>> 2 hours, I still am sure that there is a solution, because Gurobi 
+>> finds one when I formulate the same problem as an LP.
+>> How could I improve the running time of Gecode here? Does adding more 
+>> constraints make finding (any feasible) solution faster (because the 
+>> search space is more restricted and therefore the search tree is
+>> smaller) or slower (because there are simply less solutions)? Should 
+>> I add redundant constraints?
+> If adding more constraints make the search faster or not can not be 
+> said in general.
+> Adding redundant constraints is always worse a try, if you can improve 
+> propagation strength with it.
+>> For a set of boolean variables, if I want at most one of them to be 
+>> 1, is it better to add "a+b+c+... <= 1" using a linear-Constraint, or 
+>> should I use "a!=b", "a!=c", "b!=c", ... instead? Unfortunately I 
+>> have difficulties finding out the answers by experimenting because 
+>> Gecode runs for such long times. Is there a way to get some output 
+>> during the computation?
+> The first thing you can try is using global cosntraints that exactly 
+> fit your needs.
+> In this case, allDifferent or atmost, etc...
+> They usually perform much better than linear constraints.
+> (It may be the case that Gecode automatically detects this in your 
+> case and replaces the linear constraints with the global constraints. 
+> )
+>
+> Furthermore, your problem sounds like a PB(Pseudo-Boolean) problem.
+> So maybe you should try a PB solver.
+>
+> Best,
+> Max
+>
+>> My second problem is a weird behaviour of Gecode terminating with 
+>> some variables remaining unassigned:
+>> My models have the following structure: I have boolean variables only 
+>> and two kinds of constraints. The first kind of constraints requires 
+>> exactly c variables out of a certain subset to be 1, e.g. "a+c+d+x+y 
+>> = 3" or "a+b = 1". The second kind allows at most one variable to be 
+>> 1, e.g. "a+b+r <= 1". That's all.
+>> As mentioned above, Gecode either terminates immediately, or takes a 
+>> very long time. However, I have a particular problem instances that 
+>> makes Gecode terminate and report "solutions: 1" without having all 
+>> the variables set. So there are variables that still have [0..1] 
+>> instead of a specific value and val() throws ValOfUnassignedVar. Why 
+>> does Gecode terminate before it has a solution?
+>> I call it like this:
+>> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN()); Using 
+>> this call on the other hand makes Gecode compute forever (i.e.
+>> more than 2 hours):
+>> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd), 
+>> INT_VAL_RND(someOtherRnd));
+>>
+>> The problem might be related to how I implemented the copy function. 
+>> I have my variables inside a std::map<std::string, BoolVar> *and* 
+>> inside a BoolVarArgs and clone them like this:
+>> variablesMap = s.variablesMap;
+>> allVariablesArgs = BoolVarArgs(s.allVariablesArgs); I don't know if 
+>> that's the correct way to go. In particular, my copy implementation 
+>> never uses the share-parameter.
+>> After reading the thread "Integer Variable Randomization" on this 
+>> mailing list, I also tried setting -c-d and -a-d to high values, but 
+>> still the copy-method was called many times.
+>>
+>> Thank you for any help!
+>> Philipp
+>>
+>> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From philipp.keck at gmx.de  Thu Jun 12 21:15:28 2014
+From: philipp.keck at gmx.de (Philipp Keck)
+Date: Thu, 12 Jun 2014 21:15:28 +0200
+Subject: [gecode-users] Gecode terminates on incomplete solution
+In-Reply-To: <00e001cf8651$b9d15350$2d73f9f0$@se>
+References: <5378E1FE.8010709@gmx.de> <5379B47B.1030501@cs.uni-potsdam.de>
+	<5399AA8E.2010108@gmx.de> <00e001cf8651$b9d15350$2d73f9f0$@se>
+Message-ID: <5399FC50.2040306@gmx.de>
+
+Hi Christian,
+
+thanks for your reply!
+
+You are right, the boolean variants of these constraints can be modeled 
+like that. In fact, my current solution works fine with "linear" - but 
+it's slow. Therefore, I was looking for specialized constraints like 
+"distinct" or "atmost", because Max indicated that they might be faster 
+("They usually perform much better than linear constraints.").
+If however the "linear" constraint in Gecode is already as good as 
+possible (I use the first one here 
+http://www.gecode.org/doc-latest/reference/group__TaskModelIntLB.html#ga7dbaf2c0ceb605f34731328004c73b57), 
+I'll stick with that. Since I don't know that much about constraint 
+propagation, I imagine (!) that a linear constraint requires some sort 
+of computation to sum up a (weighted) array, while an implementation of 
+"atmost_1" would only need to store the single variable from the array 
+that is currently true, and then prevent the rest from being set to 
+true. That's why I currently believe (!) that "linear" might by 
+unnecessarily powerful and not optimally efficient for my use case. 
+Again, I may well be wrong.
+
+A "distinct" constraint on boolean variables would only make sense for 
+two variables, obviously. What I need is something like "distinct except 
+0" 
+(http://www.emn.fr/z-info/sdemasse/gccat/Calldifferent_except_0.html), 
+i.e. variables set to zero/false are ignored and only one variable is 
+allowed to be true/one. I can't achieve that with inequality, because 
+two variables may be 0, actually even all variables may be 0.
+
+It does work with a pair-wise NAND constraint implemented like that:
+forall i != j do: rel(*this, variables[i], BOT_AND, variables[j], 0);
+But that gives me O(n^2) constraints only to express the single 
+requirement that at most one of these variables can be true. And I have 
+O(m^2) of these if m is my problem size, so I would end up with O(m^4) 
+constraints in Gecode. Am I overlooking something like an inequality 
+constraint for multiple boolean variables?
+
+Best
+Philipp
+
+Am 12.06.2014 17:19, schrieb Christian Schulte:
+> Hi,
+>
+> Yes, it is true that these constraints do not exist for 0/1 as they are not
+> needed:
+>   - distinct for Boolean variables is inequality
+>   - atmost/count is linear for 0/1! Check MPG.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Philipp Keck
+> Sent: Thursday, June 12, 2014 3:27 PM
+> To: Max Ostrowski; tack at gecode.org; users at gecode.org
+> Subject: Re: [gecode-users] Gecode terminates on incomplete solution
+>
+> Hi Guido, Hi Max,
+>
+> thank you very much for taking your time! Your tips and ideas just doubled
+> the size of my todo list :-), that's why it took me so long to reply. In
+> particular, the tip about pseudo-boolean solvers was great. I am now
+> experimenting with Sat4J (both PB and MinCostSAT), which is a lot slower
+> than Gecode, but solves some more problem instances on which Gecode needs to
+> search a large tree. But because it is only quick on decision problems and
+> too inefficient for my optimization problems, I continue my experiments with
+> Gecode.
+>
+> About the initial problem mentioned in the subject of this mail:
+> BoolVarArray was indeed the solution. I didn't copy it from the examples at
+> first, because I don't know in advance how much variables there will be, so
+> I thought I couldn't use it. But by first reading all the variables to a
+> list and then placing them in an (uninitialized) BoolVarArray works fine.
+> Thank you!
+>
+> Thanks to Gist, I can now try to experiment with different kinds of
+> constraints. It looks like the search space is simply too large right now.
+> With Gist activated, Gecode explores around 500 failures every two seconds -
+> no matter which way I model the constraints. In comparison to the entire
+> (binary) search tree, that's almost nothing. After a few hours, more than
+> 90% of the search tree is still linear (to the left), i.e. has not yet been
+> explored.
+>
+> Is it true that alldifferent/distinct/atmost/count only exist for integer
+> variables? And according to the manual BoolVars can't be casted to IntVars.
+> But maybe this is a solution (I don't know enough C++ to
+> tell): As described in the manual Figure 27.4, one could use
+> Gecode::Int::Count::LqInt<VX,VY> to implement a "count" or "atmost"
+> method that accepts a BoolVarArray instead of a IntVarArray. Is that
+> possible?
+> The kind of constraint I need should ensure that at most one of a given list
+> of boolean variables is true. So it could be "all different except 0",
+> "distinct except 0", "Multi-XOR", or it could be modeled with "atmost" or
+> "count", if they are able to handle boolean variables.
+>
+> Best,
+> Philipp
+>
+> Am 19.05.2014 09:36, schrieb Max Ostrowski:
+>> Hi,
+>>
+>> On 05/18/2014 06:38 PM, Philipp Keck wrote:
+>>> Hi,
+>>>
+>>> I am new to Gecode and also to Constraint Programming. While my first
+>>> problem may be a general CP question (so off-topic here? In that case
+>>> ignore it please.), my second problem is Gecode-specific.
+>>>
+>>> My first problem is that Gecode either finds a solution immediately
+>>> (<1ms) and without any backtracking (peak-depth equals explored
+>>> nodes-1), or takes longer than I want to wait (at least 2 hours).
+>>> This problem might be related to my problem instances, because
+>>> or-tools shows exactly the same behaviour. My problem instances have
+>>> 1,000 to 10,000 boolean variables and 400 to 2,500 constraints. There
+>>> are both large and small instances that can be solved within
+>>> milliseconds, and both large and small instances that take a long
+>>> time. For those that take more than
+>>> 2 hours, I still am sure that there is a solution, because Gurobi
+>>> finds one when I formulate the same problem as an LP.
+>>> How could I improve the running time of Gecode here? Does adding more
+>>> constraints make finding (any feasible) solution faster (because the
+>>> search space is more restricted and therefore the search tree is
+>>> smaller) or slower (because there are simply less solutions)? Should
+>>> I add redundant constraints?
+>> If adding more constraints make the search faster or not can not be
+>> said in general.
+>> Adding redundant constraints is always worse a try, if you can improve
+>> propagation strength with it.
+>>> For a set of boolean variables, if I want at most one of them to be
+>>> 1, is it better to add "a+b+c+... <= 1" using a linear-Constraint, or
+>>> should I use "a!=b", "a!=c", "b!=c", ... instead? Unfortunately I
+>>> have difficulties finding out the answers by experimenting because
+>>> Gecode runs for such long times. Is there a way to get some output
+>>> during the computation?
+>> The first thing you can try is using global cosntraints that exactly
+>> fit your needs.
+>> In this case, allDifferent or atmost, etc...
+>> They usually perform much better than linear constraints.
+>> (It may be the case that Gecode automatically detects this in your
+>> case and replaces the linear constraints with the global constraints.
+>> )
+>>
+>> Furthermore, your problem sounds like a PB(Pseudo-Boolean) problem.
+>> So maybe you should try a PB solver.
+>>
+>> Best,
+>> Max
+>>
+>>> My second problem is a weird behaviour of Gecode terminating with
+>>> some variables remaining unassigned:
+>>> My models have the following structure: I have boolean variables only
+>>> and two kinds of constraints. The first kind of constraints requires
+>>> exactly c variables out of a certain subset to be 1, e.g. "a+c+d+x+y
+>>> = 3" or "a+b = 1". The second kind allows at most one variable to be
+>>> 1, e.g. "a+b+r <= 1". That's all.
+>>> As mentioned above, Gecode either terminates immediately, or takes a
+>>> very long time. However, I have a particular problem instances that
+>>> makes Gecode terminate and report "solutions: 1" without having all
+>>> the variables set. So there are variables that still have [0..1]
+>>> instead of a specific value and val() throws ValOfUnassignedVar. Why
+>>> does Gecode terminate before it has a solution?
+>>> I call it like this:
+>>> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN()); Using
+>>> this call on the other hand makes Gecode compute forever (i.e.
+>>> more than 2 hours):
+>>> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd),
+>>> INT_VAL_RND(someOtherRnd));
+>>>
+>>> The problem might be related to how I implemented the copy function.
+>>> I have my variables inside a std::map<std::string, BoolVar> *and*
+>>> inside a BoolVarArgs and clone them like this:
+>>> variablesMap = s.variablesMap;
+>>> allVariablesArgs = BoolVarArgs(s.allVariablesArgs); I don't know if
+>>> that's the correct way to go. In particular, my copy implementation
+>>> never uses the share-parameter.
+>>> After reading the thread "Integer Variable Randomization" on this
+>>> mailing list, I also tried setting -c-d and -a-d to high values, but
+>>> still the copy-method was called many times.
+>>>
+>>> Thank you for any help!
+>>> Philipp
+>>>
+>>> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From cschulte at kth.se  Thu Jun 12 21:30:00 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 12 Jun 2014 21:30:00 +0200
+Subject: [gecode-users] Gecode terminates on incomplete solution
+In-Reply-To: <5399FC50.2040306@gmx.de>
+References: <5378E1FE.8010709@gmx.de> <5379B47B.1030501@cs.uni-potsdam.de>
+	<5399AA8E.2010108@gmx.de> <00e001cf8651$b9d15350$2d73f9f0$@se>
+	<5399FC50.2040306@gmx.de>
+Message-ID: <002a01cf8674$b44edfb0$1cec9f10$@kth.se>
+
+The linear constraints for Boolean are in fact specialized versions that are
+as smart as possible, they are linear only by name ;-)
+
+But there is one thing that will never go away: Gecode has not been built to
+be good at Booleans! You might be much better off with a SAT solver or a
+Pseudo Boolean solver... If you have a mix of integers and Booleans then
+Gecode is fine.
+
+Cheers
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: Philipp Keck [mailto:philipp.keck at gmx.de] 
+Sent: Thursday, June 12, 2014 09:15 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Gecode terminates on incomplete solution
+
+Hi Christian,
+
+thanks for your reply!
+
+You are right, the boolean variants of these constraints can be modeled like
+that. In fact, my current solution works fine with "linear" - but it's slow.
+Therefore, I was looking for specialized constraints like "distinct" or
+"atmost", because Max indicated that they might be faster ("They usually
+perform much better than linear constraints.").
+If however the "linear" constraint in Gecode is already as good as possible
+(I use the first one here
+http://www.gecode.org/doc-latest/reference/group__TaskModelIntLB.html#ga7dba
+f2c0ceb605f34731328004c73b57),
+I'll stick with that. Since I don't know that much about constraint
+propagation, I imagine (!) that a linear constraint requires some sort of
+computation to sum up a (weighted) array, while an implementation of
+"atmost_1" would only need to store the single variable from the array that
+is currently true, and then prevent the rest from being set to true. That's
+why I currently believe (!) that "linear" might by unnecessarily powerful
+and not optimally efficient for my use case. 
+Again, I may well be wrong.
+
+A "distinct" constraint on boolean variables would only make sense for two
+variables, obviously. What I need is something like "distinct except 0" 
+(http://www.emn.fr/z-info/sdemasse/gccat/Calldifferent_except_0.html),
+i.e. variables set to zero/false are ignored and only one variable is
+allowed to be true/one. I can't achieve that with inequality, because two
+variables may be 0, actually even all variables may be 0.
+
+It does work with a pair-wise NAND constraint implemented like that:
+forall i != j do: rel(*this, variables[i], BOT_AND, variables[j], 0); But
+that gives me O(n^2) constraints only to express the single requirement that
+at most one of these variables can be true. And I have
+O(m^2) of these if m is my problem size, so I would end up with O(m^4)
+constraints in Gecode. Am I overlooking something like an inequality
+constraint for multiple boolean variables?
+
+Best
+Philipp
+
+Am 12.06.2014 17:19, schrieb Christian Schulte:
+> Hi,
+>
+> Yes, it is true that these constraints do not exist for 0/1 as they 
+> are not
+> needed:
+>   - distinct for Boolean variables is inequality
+>   - atmost/count is linear for 0/1! Check MPG.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH, 
+> www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Philipp Keck
+> Sent: Thursday, June 12, 2014 3:27 PM
+> To: Max Ostrowski; tack at gecode.org; users at gecode.org
+> Subject: Re: [gecode-users] Gecode terminates on incomplete solution
+>
+> Hi Guido, Hi Max,
+>
+> thank you very much for taking your time! Your tips and ideas just 
+> doubled the size of my todo list :-), that's why it took me so long to 
+> reply. In particular, the tip about pseudo-boolean solvers was great. 
+> I am now experimenting with Sat4J (both PB and MinCostSAT), which is a 
+> lot slower than Gecode, but solves some more problem instances on 
+> which Gecode needs to search a large tree. But because it is only 
+> quick on decision problems and too inefficient for my optimization 
+> problems, I continue my experiments with Gecode.
+>
+> About the initial problem mentioned in the subject of this mail:
+> BoolVarArray was indeed the solution. I didn't copy it from the 
+> examples at first, because I don't know in advance how much variables 
+> there will be, so I thought I couldn't use it. But by first reading 
+> all the variables to a list and then placing them in an (uninitialized)
+BoolVarArray works fine.
+> Thank you!
+>
+> Thanks to Gist, I can now try to experiment with different kinds of 
+> constraints. It looks like the search space is simply too large right now.
+> With Gist activated, Gecode explores around 500 failures every two 
+> seconds - no matter which way I model the constraints. In comparison 
+> to the entire
+> (binary) search tree, that's almost nothing. After a few hours, more 
+> than 90% of the search tree is still linear (to the left), i.e. has 
+> not yet been explored.
+>
+> Is it true that alldifferent/distinct/atmost/count only exist for 
+> integer variables? And according to the manual BoolVars can't be casted to
+IntVars.
+> But maybe this is a solution (I don't know enough C++ to
+> tell): As described in the manual Figure 27.4, one could use 
+> Gecode::Int::Count::LqInt<VX,VY> to implement a "count" or "atmost"
+> method that accepts a BoolVarArray instead of a IntVarArray. Is that 
+> possible?
+> The kind of constraint I need should ensure that at most one of a 
+> given list of boolean variables is true. So it could be "all different 
+> except 0", "distinct except 0", "Multi-XOR", or it could be modeled 
+> with "atmost" or "count", if they are able to handle boolean variables.
+>
+> Best,
+> Philipp
+>
+> Am 19.05.2014 09:36, schrieb Max Ostrowski:
+>> Hi,
+>>
+>> On 05/18/2014 06:38 PM, Philipp Keck wrote:
+>>> Hi,
+>>>
+>>> I am new to Gecode and also to Constraint Programming. While my 
+>>> first problem may be a general CP question (so off-topic here? In 
+>>> that case ignore it please.), my second problem is Gecode-specific.
+>>>
+>>> My first problem is that Gecode either finds a solution immediately
+>>> (<1ms) and without any backtracking (peak-depth equals explored 
+>>> nodes-1), or takes longer than I want to wait (at least 2 hours).
+>>> This problem might be related to my problem instances, because 
+>>> or-tools shows exactly the same behaviour. My problem instances have
+>>> 1,000 to 10,000 boolean variables and 400 to 2,500 constraints. 
+>>> There are both large and small instances that can be solved within 
+>>> milliseconds, and both large and small instances that take a long 
+>>> time. For those that take more than
+>>> 2 hours, I still am sure that there is a solution, because Gurobi 
+>>> finds one when I formulate the same problem as an LP.
+>>> How could I improve the running time of Gecode here? Does adding 
+>>> more constraints make finding (any feasible) solution faster 
+>>> (because the search space is more restricted and therefore the 
+>>> search tree is
+>>> smaller) or slower (because there are simply less solutions)? Should 
+>>> I add redundant constraints?
+>> If adding more constraints make the search faster or not can not be 
+>> said in general.
+>> Adding redundant constraints is always worse a try, if you can 
+>> improve propagation strength with it.
+>>> For a set of boolean variables, if I want at most one of them to be 
+>>> 1, is it better to add "a+b+c+... <= 1" using a linear-Constraint, 
+>>> or should I use "a!=b", "a!=c", "b!=c", ... instead? Unfortunately I 
+>>> have difficulties finding out the answers by experimenting because 
+>>> Gecode runs for such long times. Is there a way to get some output 
+>>> during the computation?
+>> The first thing you can try is using global cosntraints that exactly 
+>> fit your needs.
+>> In this case, allDifferent or atmost, etc...
+>> They usually perform much better than linear constraints.
+>> (It may be the case that Gecode automatically detects this in your 
+>> case and replaces the linear constraints with the global constraints.
+>> )
+>>
+>> Furthermore, your problem sounds like a PB(Pseudo-Boolean) problem.
+>> So maybe you should try a PB solver.
+>>
+>> Best,
+>> Max
+>>
+>>> My second problem is a weird behaviour of Gecode terminating with 
+>>> some variables remaining unassigned:
+>>> My models have the following structure: I have boolean variables 
+>>> only and two kinds of constraints. The first kind of constraints 
+>>> requires exactly c variables out of a certain subset to be 1, e.g. 
+>>> "a+c+d+x+y = 3" or "a+b = 1". The second kind allows at most one 
+>>> variable to be 1, e.g. "a+b+r <= 1". That's all.
+>>> As mentioned above, Gecode either terminates immediately, or takes a 
+>>> very long time. However, I have a particular problem instances that 
+>>> makes Gecode terminate and report "solutions: 1" without having all 
+>>> the variables set. So there are variables that still have [0..1] 
+>>> instead of a specific value and val() throws ValOfUnassignedVar. Why 
+>>> does Gecode terminate before it has a solution?
+>>> I call it like this:
+>>> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN()); 
+>>> Using this call on the other hand makes Gecode compute forever (i.e.
+>>> more than 2 hours):
+>>> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd), 
+>>> INT_VAL_RND(someOtherRnd));
+>>>
+>>> The problem might be related to how I implemented the copy function.
+>>> I have my variables inside a std::map<std::string, BoolVar> *and* 
+>>> inside a BoolVarArgs and clone them like this:
+>>> variablesMap = s.variablesMap;
+>>> allVariablesArgs = BoolVarArgs(s.allVariablesArgs); I don't know if 
+>>> that's the correct way to go. In particular, my copy implementation 
+>>> never uses the share-parameter.
+>>> After reading the thread "Integer Variable Randomization" on this 
+>>> mailing list, I also tried setting -c-d and -a-d to high values, but 
+>>> still the copy-method was called many times.
+>>>
+>>> Thank you for any help!
+>>> Philipp
+>>>
+>>> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From kemmar.amina at gmail.com  Sat Jun 14 12:35:27 2014
+From: kemmar.amina at gmail.com (Amina Kemmar)
+Date: Sat, 14 Jun 2014 12:35:27 +0200
+Subject: [gecode-users] Reification of the extensional constraint
+Message-ID: <539C256F.5010000@gmail.com>
+
+Hi all,
+
+I want to use a reification version of the extensional constraint, but I 
+think that it is not implemented in Gecode.
+The chapter 24 explains how to implement a reification version of a 
+constraint, I understand that we need the negation of the automata DFA. 
+So, I want to know if there is an easy way to do this with extensional 
+constraint? If you have any details about this, it will be very helpful 
+for me.
+
+Thanks.
+
+Best regards,
+---
+Amina
+
+
+From tack at gecode.org  Sun Jun 15 04:05:51 2014
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 15 Jun 2014 12:05:51 +1000
+Subject: [gecode-users] Reification of the extensional constraint
+In-Reply-To: <539C256F.5010000@gmail.com>
+References: <539C256F.5010000@gmail.com>
+Message-ID: <913984BB-53FD-4AF5-A115-44B8F4318411@gecode.org>
+
+Hi,
+
+you're right that you'd have to implement your own propagator for that.  Before you do that you should check if you actually need full reification (i.e. b <-> c) or if an implication would be enough (b -> c).  In the latter case, you don't need to implement the negation of c (where c is your extensional constraint).
+
+If you implement the full version, negating a DFA is (in principle) easy, just make all accepting states rejecting and all rejecting states accepting.  In the Gecode representation the rejecting states aren't represented directly so you'll have to work around that a bit.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 14 Jun 2014, at 8:35 pm, Amina Kemmar <kemmar.amina at gmail.com> wrote:
+
+> Hi all,
+> 
+> I want to use a reification version of the extensional constraint, but I think that it is not implemented in Gecode.
+> The chapter 24 explains how to implement a reification version of a constraint, I understand that we need the negation of the automata DFA. So, I want to know if there is an easy way to do this with extensional constraint? If you have any details about this, it will be very helpful for me.
+> 
+> Thanks.
+> 
+> Best regards,
+> ---
+> Amina
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140615/ded773e5/attachment.html>
+
+From kemmar.amina at gmail.com  Fri Jun 20 10:09:17 2014
+From: kemmar.amina at gmail.com (Amina Kemmar)
+Date: Fri, 20 Jun 2014 10:09:17 +0200
+Subject: [gecode-users] Reification of the extensional constraint
+In-Reply-To: <913984BB-53FD-4AF5-A115-44B8F4318411@gecode.org>
+References: <539C256F.5010000@gmail.com>
+	<913984BB-53FD-4AF5-A115-44B8F4318411@gecode.org>
+Message-ID: <53A3EC2D.4080504@gmail.com>
+
+Hi everybody,
+
+Thanks for the explanation. I need just a half reification of the 
+extensional constraint. For that, i implement a class named "reg" 
+allowing to specify a control variable "b" as follow:
+
+template <class View>
+   class reg : public Propagator{
+   protected:
+         ViewArray<View> x;
+         DFA dfa;
+         Int::BoolView b;
+     /// Constructor for posting
+     reg(Space& home, ViewArray<View>& x0, Int::BoolView b0);
+     /// Constructor for cloning \a p
+     reg(Space& home, bool share, reg& p);
+   public:
+     /// Copy propagator during cloning
+     virtual Actor*     copy(Space& home, bool share);
+     /// Perform propagation
+     virtual ExecStatus propagate(Space& home, const ModEventDelta& med);
+     virtual size_t dispose(Space& home);
+     /// Post propagator for view array \a x
+     static ExecStatus post(Space& home, const IntVarArgs& x0, const 
+DFA& dfa, Int::BoolView b0);
+   };
+
+the constructor:
+
+template <class View>
+   forceinline
+   reg<View>::reg(Space& home, ViewArray<View>& x0, Int::BoolView b0)
+     : Propagator(home), x(x0), b(b0) {
+             x.subscribe(home,*this,PC_INT_VAL);
+             b.subscribe(home,*this,PC_BOOL_VAL);
+     }
+
+The post function:
+
+   template <class View>
+   ExecStatus
+   reg<View>::post_amina(Space& home,  const IntVarArgs& x0, const DFA& 
+dfa, Int::BoolView b){
+
+      ViewArray<IntView> xv(home,x0);
+*(void) new (home) reg<View>(home,xv,b);*
+     return ES_OK;
+   }
+
+After compilation, I obtained the following error:
+
+regular.hpp:115:5: error: cannot allocate an object of abstract type 
+'myprop::reg<Gecode::Int::IntView>'
+regular.hpp:41:9: note:   because the following virtual functions are 
+pure within 'myprop::reg<Gecode::Int::IntView>':
+/usr/local/include/gecode/kernel/core.hpp:811:22: note: virtual 
+Gecode::PropCost Gecode::Propagator::cost(const Gecode::Space&, const 
+ModEventDelta&) const
+
+ 1. This error is due to the line : *(void) new (home)
+    reg<View>(home,xv,b); *if anyone have any idea about this, it will
+    be very helpful for me.
+ 2. In the propagate function I call
+    Gecode::Int::Extensional::post_lgp(home,x,dfa); x is of type
+    IntVarArgs and not ViewArray, I want to know if it is the right way
+    to to this?
+
+Thanks.
+---
+Amina
+
+
+
+On 06/15/2014 04:05 AM, Guido Tack wrote:
+> Hi,
+>
+> you're right that you'd have to implement your own propagator for 
+> that.  Before you do that you should check if you actually need full 
+> reification (i.e. b <-> c) or if an implication would be enough (b -> 
+> c).  In the latter case, you don't need to implement the negation of c 
+> (where c is your extensional constraint).
+>
+> If you implement the full version, negating a DFA is (in principle) 
+> easy, just make all accepting states rejecting and all rejecting 
+> states accepting.  In the Gecode representation the rejecting states 
+> aren't represented directly so you'll have to work around that a bit.
+>
+> Cheers,
+> Guido
+>
+> -- 
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/ 
+> <http://www.csse.monash.edu/%7Eguidot/>
+>
+>
+>
+> On 14 Jun 2014, at 8:35 pm, Amina Kemmar <kemmar.amina at gmail.com 
+> <mailto:kemmar.amina at gmail.com>> wrote:
+>
+>> Hi all,
+>>
+>> I want to use a reification version of the extensional constraint, 
+>> but I think that it is not implemented in Gecode.
+>> The chapter 24 explains how to implement a reification version of a 
+>> constraint, I understand that we need the negation of the automata 
+>> DFA. So, I want to know if there is an easy way to do this with 
+>> extensional constraint? If you have any details about this, it will 
+>> be very helpful for me.
+>>
+>> Thanks.
+>>
+>> Best regards,
+>> ---
+>> Amina
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140620/52bc1029/attachment.html>
+
+From kemmar.amina at gmail.com  Mon Jun 23 10:33:39 2014
+From: kemmar.amina at gmail.com (Amina Kemmar)
+Date: Mon, 23 Jun 2014 10:33:39 +0200
+Subject: [gecode-users] Reification of the extensional constraint
+Message-ID: <53A7E663.9000003@gmail.com>
+
+Hi all,
+
+I want to implement a half reification for the constraint /Extensional/, 
+so to propagate the constraint when b=1, I must call the method 
+*Gecode::Int::Extensional::post_lgp(home,x,dfa)*, such that *x* is of 
+type *VarArgArray<IntVar>*, the propagate function handles on views 
+(ViewArray<IntView>), how can I update x, in order to be filtered by the 
+function *Gecode::Int::Extensional::post_lgp?
+
+*/Thanks/*/./*
+---
+Amina Kemmar.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140623/0a1b6843/attachment.html>
+
+From cschulte at kth.se  Mon Jun 23 10:48:41 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Jun 2014 10:48:41 +0200
+Subject: [gecode-users] Reification of the extensional constraint
+In-Reply-To: <53A7E663.9000003@gmail.com>
+References: <53A7E663.9000003@gmail.com>
+Message-ID: <00bd01cf8ebf$f0318a70$d0949f50$@kth.se>
+
+Hi,
+
+ 
+
+Please look to the constraint post function of any other propagator, there
+you will see how to create a corresponding view array. Or check MPG.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Amina Kemmar
+Sent: Monday, June 23, 2014 10:34 AM
+To: users at gecode.org
+Subject: [gecode-users] Reification of the extensional constraint
+
+ 
+
+Hi all,
+
+I want to implement a half reification for the constraint Extensional, so to
+propagate the constraint when b=1, I must call the method
+Gecode::Int::Extensional::post_lgp(home,x,dfa), such that x is of type
+VarArgArray<IntVar>, the propagate function handles on views
+(ViewArray<IntView>), how can I update x, in order to be filtered by the
+function  Gecode::Int::Extensional::post_lgp?
+
+Thanks.
+---
+Amina Kemmar.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140623/3ba3bf82/attachment.html>
+
+From kemmar.amina at gmail.com  Tue Jun 24 13:44:33 2014
+From: kemmar.amina at gmail.com (Amina Kemmar)
+Date: Tue, 24 Jun 2014 13:44:33 +0200
+Subject: [gecode-users] Using IntVarArgs in a propagate function
+Message-ID: <53A964A1.2030103@gmail.com>
+
+Hi everybody,
+
+I create a class which inherit from Propagator, containing the member 
+"IntVarArgs x" instead of "ViewArray<IntView> x", In the propagate 
+function, I must use a posting function which accept "IntVarArgs" 
+instead of "ViewArray".
+How can I update "x" (during copying) in order to use it in the 
+propagate function?
+
+Thanks.
+
+---
+Amina
+
+
+From cschulte at kth.se  Tue Jun 24 14:29:54 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Jun 2014 14:29:54 +0200
+Subject: [gecode-users] Using IntVarArgs in a propagate function
+In-Reply-To: <53A964A1.2030103@gmail.com>
+References: <53A964A1.2030103@gmail.com>
+Message-ID: <007d01cf8fa8$01340da0$039c28e0$@se>
+
+You can't use IntVarArgs, it is as simple as that. Please see all examples
+in MPG.
+
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Amina Kemmar
+Sent: Tuesday, June 24, 2014 1:45 PM
+To: users at gecode.org
+Subject: [gecode-users] Using IntVarArgs in a propagate function
+
+Hi everybody,
+
+I create a class which inherit from Propagator, containing the member
+"IntVarArgs x" instead of "ViewArray<IntView> x", In the propagate function,
+I must use a posting function which accept "IntVarArgs" 
+instead of "ViewArray".
+How can I update "x" (during copying) in order to use it in the propagate
+function?
+
+Thanks.
+
+---
+Amina
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From richard.portell at gmail.com  Sun Jun 29 15:38:23 2014
+From: richard.portell at gmail.com (Richard Portelli)
+Date: Sun, 29 Jun 2014 15:38:23 +0200
+Subject: [gecode-users] compile Gecode as a static library
+Message-ID: <CAPigQkdB-D=d2CoxQTj=NV=uOM2UN95wx+33ntUO-8ZuE7t62Q@mail.gmail.com>
+
+Hello,
+Is there an easy way to compile Gecode as a static library using MSVC 2013
+or Qt 5?
+I am having troubles because of the precompiled headers.
+
+Cheers,
+RIchard
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140629/f8fe49fc/attachment.html>
+
+From cschulte at kth.se  Mon Jun 30 10:15:35 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 30 Jun 2014 10:15:35 +0200
+Subject: [gecode-users] compile Gecode as a static library
+In-Reply-To: <CAPigQkdB-D=d2CoxQTj=NV=uOM2UN95wx+33ntUO-8ZuE7t62Q@mail.gmail.com>
+References: <CAPigQkdB-D=d2CoxQTj=NV=uOM2UN95wx+33ntUO-8ZuE7t62Q@mail.gmail.com>
+Message-ID: <005501cf943b$783bccc0$68b36640$@se>
+
+No, unfortunately not. However, Gecode does not use pre-compiled headers so I do not really understand what the issue is.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Richard Portelli
+Sent: Sunday, June 29, 2014 3:38 PM
+To: users at gecode.org
+Subject: [gecode-users] compile Gecode as a static library
+
+ 
+
+Hello,
+
+Is there an easy way to compile Gecode as a static library using MSVC 2013 or Qt 5?
+I am having troubles because of the precompiled headers.
+
+Cheers,
+RIchard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140630/45e43c60/attachment.html>
+

@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] InVarArray methods
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20InVarArray%20methods&In-Reply-To=%3C001301c959e9%249185b200%24b4911600%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002082.html">
+   <LINK REL="Next"  HREF="002075.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] InVarArray methods</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20InVarArray%20methods&In-Reply-To=%3C001301c959e9%249185b200%24b4911600%24%40se%3E"
+       TITLE="[gecode-users] InVarArray methods">cschulte at kth.se
+       </A><BR>
+    <I>Tue Dec  9 11:33:25 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002082.html">[gecode-users] InVarArray methods
+</A></li>
+        <LI>Next message: <A HREF="002075.html">[gecode-users] What is the exception Gecode::Set::OutOfLimits?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2083">[ date ]</a>
+              <a href="thread.html#2083">[ thread ]</a>
+              <a href="subject.html#2083">[ subject ]</a>
+              <a href="author.html#2083">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+it works as follows:
+ - no variables are kept alive during cloning implicitly.
+ - a variable is kept alive during cloning if it is updated explicitly.
+ - a variable is updated explicitly if it is stored in a space and is there
+updated explicitly, or it is 
+   stored in some data structure (such as a IntVarArray) that is explicitly
+updated which in turn will 
+   explicitly update its fields, or it is used by a propagator or branching
+that while being copied also
+   while explicitly update the variables they use.
+
+With other words, when you want to use inside your space variables not only
+when you initialize the space but also for printing a solution etc, then you
+have to keep them alive by yourself. That typically will amount to storing
+them in a space directly or storing them in an IntVarArray that is stored in
+the space or some other datastructure and update them in the copy function
+of a space.
+
+ArgArrays cannot be used to keep variables alive, they only serve as a
+temporary datastructure for passing arrays of variables as arguments (for
+example, to post a constraint or a branching).
+
+Then, variables are indeed implemented as pointers to variable
+implementations but that should be of no concern. Whenever you update a
+variable the corresponding variable implementation will be copied if needed
+(sometimes some magic is used to actually avoid copying variable
+implementations, for example for Boolean variable implementations being
+already assigned 0 or 1).
+
+Hope that helps
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Patrik Haslum [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">patrik.haslum at anu.edu.au</A>] 
+Sent: Tuesday, December 09, 2008 11:21 AM
+To: Christian Schulte
+Cc: 'Julian Cardona'; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] InVarArray methods
+
+
+Hi,
+Actually, I'm a bit confused over Var's and VarArrays too. My 
+understanding (and please correct me if I'm wrong) is that a Var or 
+VarArray (and similarly ArgArrays; not sure what's the difference with 
+them) holds only pointers/references to the actual variables, which are 
+(in some slightly magic fashion) associated with the space object. Does 
+this mean that having all variables in VarArrays that are members of the 
+Space-derived object (and doing .updates on them in the copy 
+constructor) is in fact not necessary? (execpt if I want to do something 
+else with the variables, such as print them after a solution has been 
+found). The actual variables (as opposed to the pointers stored in a 
+Var/VarArray) would get copied/updated anyway? It seems to work, but I 
+haven't found a clear indication either way in the documentation.
+
+Julian, if you want to assign a value to an integer variable (that your 
+IntVar holds a reference to), I think you have to do it by posting a 
+constraint. For example,
+
+dom(this, X, 4, 4)
+
+would constrain the IntVar X so that 4 &lt;= X &lt;= 4 (here assuming the call 
+is made from within a method of the space-derived class; otherwise put a 
+pointer to the space instead of &quot;this&quot;).
+
+cheers,
+			/<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A>
+
+
+Christian Schulte wrote:
+&gt;<i> You can only print fields after they have been initialized.
+</I>&gt;<i> 
+</I>&gt;<i> If you say &quot;assign values&quot; what do you mean? Assigning variables to fields
+</I>&gt;<i> in thne array? Or, assigning values to the variables stored at a fields in
+</I>&gt;<i> the array?
+</I>&gt;<i> 
+</I>&gt;<i> Did you look at the examples that come with Gecode?
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Julian Cardona
+</I>&gt;<i> Sent: Monday, December 08, 2008 6:32 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] InVarArray methods
+</I>&gt;<i> 
+</I>&gt;<i> Hey people i feel very idiot posting this but i have no idea hot to assign
+</I>
+&gt;<i> values to a IntVarArray, i mean, i have an IntVarArray and i can
+</I>initialize
+&gt;<i> it 
+</I>&gt;<i> how it is described in the API but i dont know how to assign arbitrary
+</I>&gt;<i> vaules 
+</I>&gt;<i> to it.
+</I>&gt;<i> I cant figure out why i can print out the value of a desired position:
+</I>&gt;<i> std::cout &lt;&lt; MyIntVarArray[i] &lt;&lt; std::endl;
+</I>&gt;<i> but im unable to assign values to it in the common way:
+</I>&gt;<i> MyIntVarArray[4] = element;
+</I>&gt;<i> 
+</I>&gt;<i> Please help me!!!
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002082.html">[gecode-users] InVarArray methods
+</A></li>
+	<LI>Next message: <A HREF="002075.html">[gecode-users] What is the exception Gecode::Set::OutOfLimits?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2083">[ date ]</a>
+              <a href="thread.html#2083">[ thread ]</a>
+              <a href="subject.html#2083">[ subject ]</a>
+              <a href="author.html#2083">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

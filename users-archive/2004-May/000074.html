@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Gecode] Indexed dependencies
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Indexed%20dependencies&In-Reply-To=%3C002d01c43608%24260ef810%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000073.html">
+   <LINK REL="Next"  HREF="000075.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Gecode] Indexed dependencies</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Indexed%20dependencies&In-Reply-To=%3C002d01c43608%24260ef810%24acd4ed82%40beule%3E"
+       TITLE="[Gecode] Indexed dependencies">schulte at imit.kth.se
+       </A><BR>
+    <I>Sun May  9 22:56:49 CEST 2004</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000073.html">[Gecode] Some more details on posting...
+</A></li>
+        <LI>Next message: <A HREF="000075.html">[Gecode] DllExport not yet okay on Windows...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#74">[ date ]</a>
+              <a href="thread.html#74">[ thread ]</a>
+              <a href="subject.html#74">[ subject ]</a>
+              <a href="author.html#74">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear all,
+
+one part of Gecode which has been just a mock-up for long is how
+dependencies are maintained. So far all dependencies have been stored
+contigously in one big array (leading to very low memory overhead due to
+unsued entries in the arrays). However, the big disadvantage of this is that
+in order to find all propagators for a certain propgation condition requires
+scanning _all_ dependencies.
+
+I added a new implementation (define DEPENDENCIES_BY_PROPCOND to enable)
+which still stores all dependencies in one big array, however manintains a
+partition according to propagation condition. This is achieved by
+maintaining index information yielding the start of the different classes in
+the partition (quite tricky but very efficient). 
+
+Pros/Cons:
+ - Requires a little more memory (six words per variable)
+ - Subscribing becomes slower (but still constant time)
+ - Releasing becomes faster (as now only the class in the partition with the
+right propagation condition needs to be considered). Remember: releasing is
+executed much more often than subscribing (cloning!).
+ - Copying should stay about the same.
+ - Amazingly to me, there is a great opportunity to improve one of the core
+loops (process for Boards). This has a big impact!
+ - Adds one more size restriction: propagation conditions are to be less
+than PC_GEN_MAX (less than 5 for now). PC_GEN_MAX actually defines the size
+of the index data structure. If this is not good enough, there is no
+problem: for all but copying it easily possible to pass this information,
+and for copying one could delegate copying of dependency information to the
+VarModBoards (as done for proessing already).
+
+The reason I did it is actually for set vars, where this should buy much
+more than for int vars. Unfortunately, this does currently not compile...
+Please check out what difference in efficiency you can observe (I hacked the
+SetVarModBoard::process() function but you have to check it).
+
+For intvars, everything is faster typically in the range of 3 to 8 percent.
+One example is very interesting though: here one gets a 40% speed-up. This
+is for the &quot;trashing&quot; benchmark where the only thing that is basically
+measured is how fast the system can process events and schedule propagators.
+
+A warning: as of course the order of how propagators are invoked is changed
+by this, you can even sometimes note a slowdown as the different execution
+order could require some more steps until reaching a fixpoint.
+
+Please let me know
+Christian
+ 
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000073.html">[Gecode] Some more details on posting...
+</A></li>
+	<LI>Next message: <A HREF="000075.html">[Gecode] DllExport not yet okay on Windows...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#74">[ date ]</a>
+              <a href="thread.html#74">[ thread ]</a>
+              <a href="subject.html#74">[ subject ]</a>
+              <a href="author.html#74">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

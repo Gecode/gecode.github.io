@@ -1,0 +1,1025 @@
+From kisshen at cisco.com  Thu Jul  2 06:46:17 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Thu, 02 Jul 2015 05:46:17 +0100
+Subject: [gecode-users] counting/sequence constraints failing
+ when	IntVarArray too small
+In-Reply-To: <003501d0b369$558e46f0$00aad4d0$@kth.se>
+References: <5592DA77.10501@cisco.com> <003501d0b369$558e46f0$00aad4d0$@kth.se>
+Message-ID: <5594C219.40207@cisco.com>
+
+Hi,
+
+Thanks for the link. I have only read the abstract, as the paper itself 
+seems to be behind a paywall in that link.
+
+I am not sure if either cases should be considered as being undefined. 
+For count/atmost, I feel strongly that the number of variables being 
+less than the limit should be allowed. It so happens that for the >/>= 
+relations, the constraint will always be satisfied, and for the other 
+relations, the constraint will always fail.
+
+If an extra condition is added that the number of variables must be at 
+least the same size as the limit, as in done in GCAT, then having the 
+small number of variables can be considered as undefined, but I am not 
+sure there are any logical reason to do so -- there may be 
+implementation reason to do so, of course. As I said, previously, I had 
+expected the constraint to succeed in this case, and the atmost 
+constraint in ECLiPSe's other solvers succeed in such cases as well, 
+including fd, the original fd solver of ECLiPSe.
+
+For the sequence constraint, it is less clear cut to me if the number of 
+variables is less than the sequence size. I can see why this should be 
+considered as undefined. But Joachim's suggestion of dealing with cases 
+smaller than the sequence size does seem useful, and he does have a use 
+case for it.
+
+I agree that if the two cases are regarded as undefined, then they 
+should raise an exception rather than failing. For count, it seems to me 
+that the behaviour should then be undefined for all relations to be 
+consistent, even though failing is the correct behaviour if the number 
+of variables are allowed to be smaller than the limit.
+
+Cheers,
+
+Kish
+On 30/06/2015 20:16, Christian Schulte wrote:
+> Hi,
+>
+> There is a paper discussing this:
+> 	http://link.springer.com/chapter/10.1007%2F978-3-642-04244-7_30
+>
+> I rather have an exception in most cases. But documenting this in MPG is
+> really too much effort, that is why it is only in the reference
+> documentation.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Kish Shen
+> Sent: Tuesday, June 30, 2015 08:06 PM
+> To: users at gecode.org
+> Subject: [gecode-users] counting/sequence constraints failing when
+> IntVarArray too small
+>
+> Hi,
+>
+> My earlier post about min and argmin throwing an exception prompted me to
+> remember a discussion I had with Joachim Schimpf some time ago about the
+> semantics of the sequence constraint:
+>
+> sequence(home, x, s, q, l, u)
+>
+> if I remember correctly, he thought the constraint should not fail if the
+> number of variables in x is smaller than q, but larger than l, and the
+> number of values in x is between l and u. He actually was using the
+> constraint on some problem instances that had this property.
+>
+> I did not initially remember that the discussion was about sequence, so I
+> first looked at the count constraint, and found a similar behaviour with the
+> IRT_LQ and IRT_LE in
+>
+> count(home, x, y, IRT_LQ, z)
+>
+> the constraint fails if the size of x is smaller than than z, even though
+> the relationship is actually true - the number of times the variables in x
+> is y is less than z.
+>
+> I had expected the constraint to succeed in this case, and the atmost
+> constraint in ic does succeed in such cases (ic restrict z to be an integer
+> for atmost). I can see that the count fails here because z is constrained to
+> 0..|x|, for all relationships.
+>
+> Does it make sense for these constraints to succeed in such cases when the
+> relationship (number of times the value(s) occur) is satisfied, even though
+> the number of variables is smaller than the limit/sequence length? I am
+> uncertain for the sequence case, but for count, succeeding makes more sense
+> to me.
+>
+> If not succeeding, should an exception be raised instead of failing?
+> This will alert the user to the fact that there are too few variables for
+> the constraint, rather than the number of values not satisfying the
+> requirements.
+>
+> Should the behaviour be documented in the MPL? I don't think it is mentioned
+> there at the moment.
+>
+> Cheers,
+>
+> Kish
+>
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From zzhu at cse.cuhk.edu.hk  Mon Jul 13 05:39:57 2015
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Mon, 13 Jul 2015 11:39:57 +0800
+Subject: [gecode-users] Why do we need to update variables for propagators
+Message-ID: <CAE2SAwQn=tdpMv+SPJvYRJNc7fbX7evPwHjKpCh3cF84UnMW2g@mail.gmail.com>
+
+Dear all,
+
+I have some confusion on the updating of variables in the copy function of
+propagators. As we have updated variables in the Space when do copying, why
+do we still need to update them in propagators again? I think we only need
+to get the relation between the views that subscribed by the constraints
+and the variables.
+
+The reason why I propose this question is that I have implemented the
+propagator of a global constraint. This global constraint would occur many
+times during search and involves many variables. Thus the updating of
+variables in the copy function of its propagator would incur a large
+overhead. I did another version by putting all these set of same global
+constraints into one constraint GLOBAL_ONE and propose another propagator.
+This propagator works like an propagator engine but is not that efficient
+than the one given by Gecode (of course). Now we only need to update the
+entire variables once for GLOBAL_ONE. Utilizing this GLOBAL_ONE constraint
+wins over one-propagator-for-each constraints since the overhead of
+updating variables dominates the overhead of doing filtering.
+
+If we cannot avoid to update variables in the propagators, I would like to
+ask is it also necessary in other CSP solvers like eclipse and ILOG? If so,
+it would be a good research topic to find the balance between the overhead
+of coping and the power of filtering algorithm.
+
+Thanks for your help.
+
+Zoe
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150713/d8a4d507/attachment.html>
+
+From cschulte at kth.se  Tue Jul 14 19:46:53 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jul 2015 19:46:53 +0200
+Subject: [gecode-users] Why do we need to update variables for
+	propagators
+In-Reply-To: <CAE2SAwQn=tdpMv+SPJvYRJNc7fbX7evPwHjKpCh3cF84UnMW2g@mail.gmail.com>
+References: <CAE2SAwQn=tdpMv+SPJvYRJNc7fbX7evPwHjKpCh3cF84UnMW2g@mail.gmail.com>
+Message-ID: <004601d0be5d$15a7f870$40f7e950$@kth.se>
+
+Hi Zoe,
+
+ 
+
+I am not really sure that your analysis is correct: updating variables is very cheap (like initializing with a value and no more). A variable is really only a pointer to a variable implementation which is copied at most once.
+
+ 
+
+It might be the number of propagators that is the problem and the datstructures that they use.
+
+ 
+
+This is the crux of a copying-based solver. One has to be quite careful in how much state one keeps in a propagator. What many of Gecode?s more advanced propagators do is that they recompute the state when they are run the first time (and not when they are being cloned).
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Zhu Zichen's cse
+Sent: Monday, July 13, 2015 5:40 AM
+To: users at gecode.org
+Subject: [gecode-users] Why do we need to update variables for propagators
+
+ 
+
+Dear all,
+
+ 
+
+I have some confusion on the updating of variables in the copy function of propagators. As we have updated variables in the Space when do copying, why do we still need to update them in propagators again? I think we only need to get the relation between the views that subscribed by the constraints and the variables. 
+
+ 
+
+The reason why I propose this question is that I have implemented the propagator of a global constraint. This global constraint would occur many times during search and involves many variables. Thus the updating of variables in the copy function of its propagator would incur a large overhead. I did another version by putting all these set of same global constraints into one constraint GLOBAL_ONE and propose another propagator. This propagator works like an propagator engine but is not that efficient than the one given by Gecode (of course). Now we only need to update the entire variables once for GLOBAL_ONE. Utilizing this GLOBAL_ONE constraint wins over one-propagator-for-each constraints since the overhead of updating variables dominates the overhead of doing filtering. 
+
+ 
+
+If we cannot avoid to update variables in the propagators, I would like to ask is it also necessary in other CSP solvers like eclipse and ILOG? If so, it would be a good research topic to find the balance between the overhead of coping and the power of filtering algorithm. 
+
+ 
+
+Thanks for your help. 
+
+ 
+
+Zoe
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150714/a1f3598c/attachment.html>
+
+From stefan.krastanov at yale.edu  Tue Jul 14 20:23:55 2015
+From: stefan.krastanov at yale.edu (Stefan Krastanov)
+Date: Tue, 14 Jul 2015 14:23:55 -0400
+Subject: [gecode-users] python binding - Gecode does not find a solution on
+ first run, finds a solution on consecutive runs.
+Message-ID: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+
+Hello,
+
+I am using:
+
+gecode-python 0.27
+gecode 3.7.3
+(newer versions from the debian repository do not work with gecode-python)
+
+I have a python function `my_function` that builds a `gecode.space()`
+object with around 200 000 linear IRT_NQ constraints and 3 IRT_EQ
+constraints on 9 int variables with domain 1-to-10. One final
+constraint is `minimize` over the sum of the variables.
+
+My python function returns `list(space.search())` at the end.
+
+The first call to this function usually takes ~1minute and does not
+return any solutions. Consecutive calls take less than a second and
+return solutions.
+
+Why is this happening? Is the search non-deterministic?
+
+Can the search give no solutions when there are existing solutions?
+
+Why is the first call slow and returns no solutions while consecutive
+calls are fast and return solutions? Especially so given that I
+recreate the space each time? Is there some fancy caching happening?
+
+In any case, thanks for the great software. This is the first time I
+am using a constraint solver and it is quite amazing what it can do.
+
+Best,
+Stefan
+
+
+From cschulte at kth.se  Tue Jul 14 20:38:57 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jul 2015 20:38:57 +0200
+Subject: [gecode-users] python binding - Gecode does not find a solution
+	on first run, finds a solution on consecutive runs.
+In-Reply-To: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+References: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+Message-ID: <008301d0be64$58c3ac10$0a4b0430$@kth.se>
+
+Please do not ask questions about Gecode bindings. This is about Gecode and
+we do not maintain these indings (explained on the webpages).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Stefan Krastanov
+> Sent: Tuesday, July 14, 2015 8:24 PM
+> To: users at gecode.org
+> Subject: [gecode-users] python binding - Gecode does not find a solution
+on first
+> run, finds a solution on consecutive runs.
+> 
+> Hello,
+> 
+> I am using:
+> 
+> gecode-python 0.27
+> gecode 3.7.3
+> (newer versions from the debian repository do not work with gecode-python)
+> 
+> I have a python function `my_function` that builds a `gecode.space()`
+object with
+> around 200 000 linear IRT_NQ constraints and 3 IRT_EQ constraints on 9 int
+> variables with domain 1-to-10. One final constraint is `minimize` over the
+sum of
+> the variables.
+> 
+> My python function returns `list(space.search())` at the end.
+> 
+> The first call to this function usually takes ~1minute and does not return
+any
+> solutions. Consecutive calls take less than a second and return solutions.
+> 
+> Why is this happening? Is the search non-deterministic?
+> 
+> Can the search give no solutions when there are existing solutions?
+> 
+> Why is the first call slow and returns no solutions while consecutive
+calls are fast
+> and return solutions? Especially so given that I recreate the space each
+time? Is
+> there some fancy caching happening?
+> 
+> In any case, thanks for the great software. This is the first time I am
+using a
+> constraint solver and it is quite amazing what it can do.
+> 
+> Best,
+> Stefan
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From stefan.krastanov at yale.edu  Tue Jul 14 20:46:06 2015
+From: stefan.krastanov at yale.edu (Stefan Krastanov)
+Date: Tue, 14 Jul 2015 14:46:06 -0400
+Subject: [gecode-users] python binding - Gecode does not find a solution
+ on first run, finds a solution on consecutive runs.
+In-Reply-To: <008301d0be64$58c3ac10$0a4b0430$@kth.se>
+References: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+	<008301d0be64$58c3ac10$0a4b0430$@kth.se>
+Message-ID: <CAD8szLwNnX5=H7K=34nZoSDT7OGKroZrWEsrAurMiR8mOnyeJg@mail.gmail.com>
+
+Hopefully you can still help me with the questions about determinism:
+
+Is the search for solution always exhaustive?
+
+Can the search give no solutions when there are existing solutions?
+
+On 14 July 2015 at 14:38, Christian Schulte <cschulte at kth.se> wrote:
+> Please do not ask questions about Gecode bindings. This is about Gecode and
+> we do not maintain these indings (explained on the webpages).
+>
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Stefan Krastanov
+>> Sent: Tuesday, July 14, 2015 8:24 PM
+>> To: users at gecode.org
+>> Subject: [gecode-users] python binding - Gecode does not find a solution
+> on first
+>> run, finds a solution on consecutive runs.
+>>
+>> Hello,
+>>
+>> I am using:
+>>
+>> gecode-python 0.27
+>> gecode 3.7.3
+>> (newer versions from the debian repository do not work with gecode-python)
+>>
+>> I have a python function `my_function` that builds a `gecode.space()`
+> object with
+>> around 200 000 linear IRT_NQ constraints and 3 IRT_EQ constraints on 9 int
+>> variables with domain 1-to-10. One final constraint is `minimize` over the
+> sum of
+>> the variables.
+>>
+>> My python function returns `list(space.search())` at the end.
+>>
+>> The first call to this function usually takes ~1minute and does not return
+> any
+>> solutions. Consecutive calls take less than a second and return solutions.
+>>
+>> Why is this happening? Is the search non-deterministic?
+>>
+>> Can the search give no solutions when there are existing solutions?
+>>
+>> Why is the first call slow and returns no solutions while consecutive
+> calls are fast
+>> and return solutions? Especially so given that I recreate the space each
+> time? Is
+>> there some fancy caching happening?
+>>
+>> In any case, thanks for the great software. This is the first time I am
+> using a
+>> constraint solver and it is quite amazing what it can do.
+>>
+>> Best,
+>> Stefan
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://urldefense.proofpoint.com/v2/url?u=https-3A__www.gecode.org_mailman_listinfo_gecode-2Dusers&d=AwICAg&c=-dg2m7zWuuDZ0MUcV7Sdqw&r=ag5oVRuiZInvprFp2PYfMKAexpGCTVWGL34DzpqCiik&m=ooI8YWFt5F7JewPeoyMUGhdVfuU8PUgp2eVdX6XslPU&s=RjHJtgLJqMydfeqEGmrbAitzyxKhxgQkswqqaOTNaxE&e=
+>
+
+
+From cschulte at kth.se  Tue Jul 14 20:54:21 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jul 2015 20:54:21 +0200
+Subject: [gecode-users] python binding - Gecode does not find a solution
+	on first run, finds a solution on consecutive runs.
+In-Reply-To: <CAD8szLwNnX5=H7K=34nZoSDT7OGKroZrWEsrAurMiR8mOnyeJg@mail.gmail.com>
+References: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+	<008301d0be64$58c3ac10$0a4b0430$@kth.se>
+	<CAD8szLwNnX5=H7K=34nZoSDT7OGKroZrWEsrAurMiR8mOnyeJg@mail.gmail.com>
+Message-ID: <01f301d0be66$7f881230$7e983690$@kth.se>
+
+I can't as I do not know how the binding is done. C
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: krastanov.stefan at gmail.com [mailto:krastanov.stefan at gmail.com] On
+> Behalf Of Stefan Krastanov
+> Sent: Tuesday, July 14, 2015 8:46 PM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] python binding - Gecode does not find a solution on
+> first run, finds a solution on consecutive runs.
+> 
+> Hopefully you can still help me with the questions about determinism:
+> 
+> Is the search for solution always exhaustive?
+> 
+> Can the search give no solutions when there are existing solutions?
+> 
+> On 14 July 2015 at 14:38, Christian Schulte <cschulte at kth.se> wrote:
+> > Please do not ask questions about Gecode bindings. This is about
+> > Gecode and we do not maintain these indings (explained on the webpages).
+> >
+> > Christian
+> >
+> > --
+> > Christian Schulte, www.ict.kth.se/~cschulte/
+> >
+> >
+> >> -----Original Message-----
+> >> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> >> Behalf Of Stefan Krastanov
+> >> Sent: Tuesday, July 14, 2015 8:24 PM
+> >> To: users at gecode.org
+> >> Subject: [gecode-users] python binding - Gecode does not find a
+> >> solution
+> > on first
+> >> run, finds a solution on consecutive runs.
+> >>
+> >> Hello,
+> >>
+> >> I am using:
+> >>
+> >> gecode-python 0.27
+> >> gecode 3.7.3
+> >> (newer versions from the debian repository do not work with
+> >> gecode-python)
+> >>
+> >> I have a python function `my_function` that builds a `gecode.space()`
+> > object with
+> >> around 200 000 linear IRT_NQ constraints and 3 IRT_EQ constraints on
+> >> 9 int variables with domain 1-to-10. One final constraint is
+> >> `minimize` over the
+> > sum of
+> >> the variables.
+> >>
+> >> My python function returns `list(space.search())` at the end.
+> >>
+> >> The first call to this function usually takes ~1minute and does not
+> >> return
+> > any
+> >> solutions. Consecutive calls take less than a second and return solutions.
+> >>
+> >> Why is this happening? Is the search non-deterministic?
+> >>
+> >> Can the search give no solutions when there are existing solutions?
+> >>
+> >> Why is the first call slow and returns no solutions while consecutive
+> > calls are fast
+> >> and return solutions? Especially so given that I recreate the space
+> >> each
+> > time? Is
+> >> there some fancy caching happening?
+> >>
+> >> In any case, thanks for the great software. This is the first time I
+> >> am
+> > using a
+> >> constraint solver and it is quite amazing what it can do.
+> >>
+> >> Best,
+> >> Stefan
+> >>
+> >> _______________________________________________
+> >> Gecode users mailing list
+> >> users at gecode.org
+> >> https://urldefense.proofpoint.com/v2/url?u=https-3A__www.gecode.org_m
+> >> ailman_listinfo_gecode-2Dusers&d=AwICAg&c=-
+> dg2m7zWuuDZ0MUcV7Sdqw&r=ag
+> >>
+> 5oVRuiZInvprFp2PYfMKAexpGCTVWGL34DzpqCiik&m=ooI8YWFt5F7JewPeoyMU
+> GhdVf
+> >>
+> uU8PUgp2eVdX6XslPU&s=RjHJtgLJqMydfeqEGmrbAitzyxKhxgQkswqqaOTNaxE&
+> e=
+> >
+
+
+
+From stefan.krastanov at yale.edu  Tue Jul 14 21:05:52 2015
+From: stefan.krastanov at yale.edu (Stefan Krastanov)
+Date: Tue, 14 Jul 2015 15:05:52 -0400
+Subject: [gecode-users] python binding - Gecode does not find a solution
+ on first run, finds a solution on consecutive runs.
+In-Reply-To: <01f301d0be66$7f881230$7e983690$@kth.se>
+References: <CAD8szLxnZeZxd6TGSd1tJ7aBvT5tArmWmND1g8MNM+a8pV-AvA@mail.gmail.com>
+	<008301d0be64$58c3ac10$0a4b0430$@kth.se>
+	<CAD8szLwNnX5=H7K=34nZoSDT7OGKroZrWEsrAurMiR8mOnyeJg@mail.gmail.com>
+	<01f301d0be66$7f881230$7e983690$@kth.se>
+Message-ID: <CAD8szLxH0j0dpiB1KygREkyMrUVSvWncyMTNuYJYYZE0Vg8ffg@mail.gmail.com>
+
+The question was about gecode, not about the binding. I checked the
+manual, but there was no clear listing of searching algorithms with
+detailed and structured description.
+
+On 14 July 2015 at 14:54, Christian Schulte <cschulte at kth.se> wrote:
+> I can't as I do not know how the binding is done. C
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+>> -----Original Message-----
+>> From: krastanov.stefan at gmail.com [mailto:krastanov.stefan at gmail.com] On
+>> Behalf Of Stefan Krastanov
+>> Sent: Tuesday, July 14, 2015 8:46 PM
+>> To: cschulte at kth.se
+>> Cc: users at gecode.org
+>> Subject: Re: [gecode-users] python binding - Gecode does not find a solution on
+>> first run, finds a solution on consecutive runs.
+>>
+>> Hopefully you can still help me with the questions about determinism:
+>>
+>> Is the search for solution always exhaustive?
+>>
+>> Can the search give no solutions when there are existing solutions?
+>>
+>> On 14 July 2015 at 14:38, Christian Schulte <cschulte at kth.se> wrote:
+>> > Please do not ask questions about Gecode bindings. This is about
+>> > Gecode and we do not maintain these indings (explained on the webpages).
+>> >
+>> > Christian
+>> >
+>> > --
+>> > Christian Schulte, www.ict.kth.se/~cschulte/
+>> >
+>> >
+>> >> -----Original Message-----
+>> >> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> >> Behalf Of Stefan Krastanov
+>> >> Sent: Tuesday, July 14, 2015 8:24 PM
+>> >> To: users at gecode.org
+>> >> Subject: [gecode-users] python binding - Gecode does not find a
+>> >> solution
+>> > on first
+>> >> run, finds a solution on consecutive runs.
+>> >>
+>> >> Hello,
+>> >>
+>> >> I am using:
+>> >>
+>> >> gecode-python 0.27
+>> >> gecode 3.7.3
+>> >> (newer versions from the debian repository do not work with
+>> >> gecode-python)
+>> >>
+>> >> I have a python function `my_function` that builds a `gecode.space()`
+>> > object with
+>> >> around 200 000 linear IRT_NQ constraints and 3 IRT_EQ constraints on
+>> >> 9 int variables with domain 1-to-10. One final constraint is
+>> >> `minimize` over the
+>> > sum of
+>> >> the variables.
+>> >>
+>> >> My python function returns `list(space.search())` at the end.
+>> >>
+>> >> The first call to this function usually takes ~1minute and does not
+>> >> return
+>> > any
+>> >> solutions. Consecutive calls take less than a second and return solutions.
+>> >>
+>> >> Why is this happening? Is the search non-deterministic?
+>> >>
+>> >> Can the search give no solutions when there are existing solutions?
+>> >>
+>> >> Why is the first call slow and returns no solutions while consecutive
+>> > calls are fast
+>> >> and return solutions? Especially so given that I recreate the space
+>> >> each
+>> > time? Is
+>> >> there some fancy caching happening?
+>> >>
+>> >> In any case, thanks for the great software. This is the first time I
+>> >> am
+>> > using a
+>> >> constraint solver and it is quite amazing what it can do.
+>> >>
+>> >> Best,
+>> >> Stefan
+>> >>
+>> >> _______________________________________________
+>> >> Gecode users mailing list
+>> >> users at gecode.org
+>> >> https://urldefense.proofpoint.com/v2/url?u=https-3A__www.gecode.org_m
+>> >> ailman_listinfo_gecode-2Dusers&d=AwICAg&c=-
+>> dg2m7zWuuDZ0MUcV7Sdqw&r=ag
+>> >>
+>> 5oVRuiZInvprFp2PYfMKAexpGCTVWGL34DzpqCiik&m=ooI8YWFt5F7JewPeoyMU
+>> GhdVf
+>> >>
+>> uU8PUgp2eVdX6XslPU&s=RjHJtgLJqMydfeqEGmrbAitzyxKhxgQkswqqaOTNaxE&
+>> e=
+>> >
+>
+
+
+From zzhu at cse.cuhk.edu.hk  Wed Jul 15 05:56:10 2015
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Wed, 15 Jul 2015 11:56:10 +0800
+Subject: [gecode-users] Why do we need to update variables for
+	propagators
+In-Reply-To: <004601d0be5d$15a7f870$40f7e950$@kth.se>
+References: <CAE2SAwQn=tdpMv+SPJvYRJNc7fbX7evPwHjKpCh3cF84UnMW2g@mail.gmail.com>
+	<004601d0be5d$15a7f870$40f7e950$@kth.se>
+Message-ID: <CAE2SAwQvsyPWp2gdbz6rzStinpx_hdoXtSbpChOV4aF5wUBYfg@mail.gmail.com>
+
+Dear Christian,
+
+Thanks very much for your replying. I did some experiment on the
+BIBD(7,3,7) benchmark. I checked the profile after utilizing the two
+versions: one-for-each, GLOBAL_ONE. The calls of the update function cost
+60.81 and 8.50 seconds by one-for-each and GLOBAL_ONE respectively. While
+the propagate function totally costs 5.73 and 7.64 seconds respectively.
+Even though GLOBAL_ONE is slower when doing filtering, it wins for the less
+calls of update function.
+
+A variable is really only a pointer to a variable implementation which is
+copied at most once.
+You mean no matter how many update calls of a variable during a copying, it
+would be copied at most once? If so, why would we need to update these
+variables in a copy function of propagators as we have done it in the Space
+copy function?
+
+Yours,
+Zoe
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150715/0e2865a1/attachment.html>
+
+From cschulte at kth.se  Wed Jul 15 19:27:40 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 15 Jul 2015 19:27:40 +0200
+Subject: [gecode-users] Why do we need to update variables for
+	propagators
+In-Reply-To: <CAE2SAwQvsyPWp2gdbz6rzStinpx_hdoXtSbpChOV4aF5wUBYfg@mail.gmail.com>
+References: <CAE2SAwQn=tdpMv+SPJvYRJNc7fbX7evPwHjKpCh3cF84UnMW2g@mail.gmail.com>	<004601d0be5d$15a7f870$40f7e950$@kth.se>
+	<CAE2SAwQvsyPWp2gdbz6rzStinpx_hdoXtSbpChOV4aF5wUBYfg@mail.gmail.com>
+Message-ID: <00a301d0bf23$8e06b830$aa142890$@kth.se>
+
+Hi,
+
+ 
+
+The update function copies once, otherwise it redirects the pointer to the created copy.
+
+ 
+
+This is classical idea from copying garbage collection, you could for example check Cheyney?s algorithm (Gecode uses a more specialized variant of this).
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se 
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: zichenzu at gmail.com [mailto:zichenzu at gmail.com] On Behalf Of Zhu Zichen's cse
+Sent: Wednesday, July 15, 2015 05:56 AM
+To: Christian Schulte
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Why do we need to update variables for propagators
+
+ 
+
+Dear Christian, 
+
+ 
+
+Thanks very much for your replying. I did some experiment on the BIBD(7,3,7) benchmark. I checked the profile after utilizing the two versions: one-for-each, GLOBAL_ONE. The calls of the update function cost 60.81 and 8.50 seconds by one-for-each and GLOBAL_ONE respectively. While the propagate function totally costs 5.73 and 7.64 seconds respectively. Even though GLOBAL_ONE is slower when doing filtering, it wins for the less calls of update function. 
+
+ 
+
+A variable is really only a pointer to a variable implementation which is copied at most once.
+
+You mean no matter how many update calls of a variable during a copying, it would be copied at most once? If so, why would we need to update these variables in a copy function of propagators as we have done it in the Space copy function?
+
+ 
+
+Yours,
+
+Zoe
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150715/9fd66cc0/attachment.html>
+
+From kisshen at cisco.com  Wed Jul 15 20:55:45 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 15 Jul 2015 19:55:45 +0100
+Subject: [gecode-users] Boolean expressions: difference between ^ and !=
+Message-ID: <55A6ACB1.4050301@cisco.com>
+
+Hi,
+
+I am reviewing the documentation/updates I have made to ECLiPSe's Gecode 
+interface, and I noticed that for Boolean expressions, which are mapped 
+to MiniModel's BoolExpr, I have not implemented the non-equivalence 
+operator (!=).
+
+I have implemented exclusive or (^). I am not sure how this is different 
+from non-equivalence -- both seem to be true if the
+two sides are different, and false otherwise. Am I missing something?
+
+Cheers,
+
+Kish
+
+
+From cc.carlo.cap at gmail.com  Sun Jul 19 21:11:28 2015
+From: cc.carlo.cap at gmail.com (Carlo Capelli)
+Date: Sun, 19 Jul 2015 21:11:28 +0200
+Subject: [gecode-users] small corrections in quacode
+Message-ID: <CABty9wwdN_KJjmED1KMB6ZdxFjg8uSOODTUm6qmMX9n8ZQ8CVA@mail.gmail.com>
+
+Hi all
+
+I've done some banal corrections, to make it again compilable.
+Is there any interest to have them available ?
+
+Carlo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150719/ca04208d/attachment.html>
+
+From Vincent.Barichard at univ-angers.fr  Mon Jul 20 14:15:44 2015
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Mon, 20 Jul 2015 14:15:44 +0200
+Subject: [gecode-users] small corrections in quacode
+In-Reply-To: <CABty9wwdN_KJjmED1KMB6ZdxFjg8uSOODTUm6qmMX9n8ZQ8CVA@mail.gmail.com>
+References: <CABty9wwdN_KJjmED1KMB6ZdxFjg8uSOODTUm6qmMX9n8ZQ8CVA@mail.gmail.com>
+Message-ID: <CAF6ZHemPb_4dtdg7fmbu5UwNFRvBpbYkiGsNctP1bsCL=Xnrpg@mail.gmail.com>
+
+Hi Carlo,
+
+If you have some modifications that you wish to be integrated in Quacode,
+please send
+them to me, I will be pleased to put them into Quacode.
+The last Gecode version was out before I had time to fix compilation. But
+the trunk is up to
+date and the last downloadable sources (see quacode.barichard.com) are up
+to date too.
+Have you check the trunk of Gecode to be sure that your modification are
+yet relevant?
+
+Best,
+Vincent
+Le 19 juil. 2015 21:12, "Carlo Capelli" <cc.carlo.cap at gmail.com> a ?crit :
+
+> Hi all
+>
+> I've done some banal corrections, to make it again compilable.
+> Is there any interest to have them available ?
+>
+> Carlo
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150720/3f7d0a9b/attachment.html>
+
+From cc.carlo.cap at gmail.com  Mon Jul 20 15:42:16 2015
+From: cc.carlo.cap at gmail.com (Carlo Capelli)
+Date: Mon, 20 Jul 2015 15:42:16 +0200
+Subject: [gecode-users] small corrections in quacode
+In-Reply-To: <CAF6ZHemPb_4dtdg7fmbu5UwNFRvBpbYkiGsNctP1bsCL=Xnrpg@mail.gmail.com>
+References: <CABty9wwdN_KJjmED1KMB6ZdxFjg8uSOODTUm6qmMX9n8ZQ8CVA@mail.gmail.com>
+	<CAF6ZHemPb_4dtdg7fmbu5UwNFRvBpbYkiGsNctP1bsCL=Xnrpg@mail.gmail.com>
+Message-ID: <CABty9wyGfsWH6hGgjoChdHFQgQr13qy+u+1bocbEBNodSUR7FA@mail.gmail.com>
+
+Hi Vincent
+
+I was trying the gecode release 4.4.0.
+
+Now I've downloaded from your site. Seems that examples are not there (in
+quacode.1.0.2.tar.gz, I mean)
+And there isn't CMakeLists.txt, either... so the test it's a bit involved,
+I've pasted folders from the archive into gecode distro...
+Seems the problem is still there: at line 244 of qcsp.h, EngineBase has
+changed, we need
+...
+class QDFS : public Search::EngineBase<T> {
+...
+
+Other modifications was only in example files: just pass the options to
+Script constructor...
+
+Carlo
+
+
+2015-07-20 14:15 GMT+02:00 Vincent Barichard <
+Vincent.Barichard at univ-angers.fr>:
+
+> Hi Carlo,
+>
+> If you have some modifications that you wish to be integrated in Quacode,
+> please send
+> them to me, I will be pleased to put them into Quacode.
+> The last Gecode version was out before I had time to fix compilation. But
+> the trunk is up to
+> date and the last downloadable sources (see quacode.barichard.com) are up
+> to date too.
+> Have you check the trunk of Gecode to be sure that your modification are
+> yet relevant?
+>
+> Best,
+> Vincent
+> Le 19 juil. 2015 21:12, "Carlo Capelli" <cc.carlo.cap at gmail.com> a ?crit :
+>
+>> Hi all
+>>
+>> I've done some banal corrections, to make it again compilable.
+>> Is there any interest to have them available ?
+>>
+>> Carlo
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150720/a024eed9/attachment.html>
+
+From Vincent.Barichard at univ-angers.fr  Mon Jul 20 21:50:01 2015
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Mon, 20 Jul 2015 21:50:01 +0200
+Subject: [gecode-users] small corrections in quacode
+In-Reply-To: <CABty9wyGfsWH6hGgjoChdHFQgQr13qy+u+1bocbEBNodSUR7FA@mail.gmail.com>
+References: <CABty9wwdN_KJjmED1KMB6ZdxFjg8uSOODTUm6qmMX9n8ZQ8CVA@mail.gmail.com>
+	<CAF6ZHemPb_4dtdg7fmbu5UwNFRvBpbYkiGsNctP1bsCL=Xnrpg@mail.gmail.com>
+	<CABty9wyGfsWH6hGgjoChdHFQgQr13qy+u+1bocbEBNodSUR7FA@mail.gmail.com>
+Message-ID: <CAF6ZHem+ZC0ZbVT7jUgtGQ0X=7ne=cjr7NVNvYgc+0qpu8kD2g@mail.gmail.com>
+
+Hi Carlo,
+
+Sorry, I should have clarified that the releases on the web site are
+related to gecode 4.3.1 (I will update the releases this summer). I talked
+about the trunk versions (of Gecode and Quacode). I think that the
+corrections you proposed are already done in the trunk. Keep me posted if
+it is not the case.
+
+Best
+Vincent
+Le 20 juil. 2015 15:42, "Carlo Capelli" <cc.carlo.cap at gmail.com> a ?crit :
+
+> Hi Vincent
+>
+> I was trying the gecode release 4.4.0.
+>
+> Now I've downloaded from your site. Seems that examples are not there (in
+> quacode.1.0.2.tar.gz, I mean)
+> And there isn't CMakeLists.txt, either... so the test it's a bit involved,
+> I've pasted folders from the archive into gecode distro...
+> Seems the problem is still there: at line 244 of qcsp.h, EngineBase has
+> changed, we need
+> ...
+> class QDFS : public Search::EngineBase<T> {
+> ...
+>
+> Other modifications was only in example files: just pass the options to
+> Script constructor...
+>
+> Carlo
+>
+>
+> 2015-07-20 14:15 GMT+02:00 Vincent Barichard <
+> Vincent.Barichard at univ-angers.fr>:
+>
+>> Hi Carlo,
+>>
+>> If you have some modifications that you wish to be integrated in Quacode,
+>> please send
+>> them to me, I will be pleased to put them into Quacode.
+>> The last Gecode version was out before I had time to fix compilation. But
+>> the trunk is up to
+>> date and the last downloadable sources (see quacode.barichard.com) are
+>> up to date too.
+>> Have you check the trunk of Gecode to be sure that your modification are
+>> yet relevant?
+>>
+>> Best,
+>> Vincent
+>> Le 19 juil. 2015 21:12, "Carlo Capelli" <cc.carlo.cap at gmail.com> a
+>> ?crit :
+>>
+>>> Hi all
+>>>
+>>> I've done some banal corrections, to make it again compilable.
+>>> Is there any interest to have them available ?
+>>>
+>>> Carlo
+>>>
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150720/9fba90c5/attachment.html>
+
+From cschulte at kth.se  Fri Jul 24 16:53:18 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 24 Jul 2015 14:53:18 +0000
+Subject: [gecode-users] Boolean expressions: difference between ^ and !=
+In-Reply-To: <55A6ACB1.4050301@cisco.com>
+References: <55A6ACB1.4050301@cisco.com>
+Message-ID: <1437749596494.31332@kth.se>
+
+Yep, they are the same thing. Cheers Christian
+________________________________________
+From: users-bounces at gecode.org <users-bounces at gecode.org> on behalf of Kish Shen <kisshen at cisco.com>
+Sent: Wednesday, July 15, 2015 8:55 PM
+To: users at gecode.org
+Subject: [gecode-users] Boolean expressions: difference between ^ and !=
+
+Hi,
+
+I am reviewing the documentation/updates I have made to ECLiPSe's Gecode
+interface, and I noticed that for Boolean expressions, which are mapped
+to MiniModel's BoolExpr, I have not implemented the non-equivalence
+operator (!=).
+
+I have implemented exclusive or (^). I am not sure how this is different
+from non-equivalence -- both seem to be true if the
+two sides are different, and false otherwise. Am I missing something?
+
+Cheers,
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+

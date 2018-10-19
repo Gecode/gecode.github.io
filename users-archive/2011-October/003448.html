@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] assert in propagator cast
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20assert%20in%20propagator%20cast&In-Reply-To=%3C015e01cc932d%2471905ec0%2454b11c40%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003437.html">
+   <LINK REL="Next"  HREF="003441.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] assert in propagator cast</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20assert%20in%20propagator%20cast&In-Reply-To=%3C015e01cc932d%2471905ec0%2454b11c40%24%40kth.se%3E"
+       TITLE="[gecode-users] assert in propagator cast">cschulte at kth.se
+       </A><BR>
+    <I>Tue Oct 25 17:47:46 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003437.html">[gecode-users] assert in propagator cast
+</A></li>
+        <LI>Next message: <A HREF="003441.html">[gecode-users] compile-time testing of gecode version
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3448">[ date ]</a>
+              <a href="thread.html#3448">[ thread ]</a>
+              <a href="subject.html#3448">[ subject ]</a>
+              <a href="author.html#3448">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003437.html">[gecode-users] assert in propagator cast
+</A></li>
+	<LI>Next message: <A HREF="003441.html">[gecode-users] compile-time testing of gecode version
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3448">[ date ]</a>
+              <a href="thread.html#3448">[ thread ]</a>
+              <a href="subject.html#3448">[ subject ]</a>
+              <a href="author.html#3448">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

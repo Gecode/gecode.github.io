@@ -1,0 +1,380 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Fwd:  move from a choco model to Gecode model
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Fwd%3A%20%20move%20from%20a%20choco%20model%20to%20Gecode%20model&In-Reply-To=%3CCAKWqT4CU-yQYZitUEdShHVQ70jRBP%3DYAzqGdL4CzP4gTeQYLvA%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004128.html">
+   <LINK REL="Next"  HREF="004131.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Fwd:  move from a choco model to Gecode model</H1>
+    <B>manel askri</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Fwd%3A%20%20move%20from%20a%20choco%20model%20to%20Gecode%20model&In-Reply-To=%3CCAKWqT4CU-yQYZitUEdShHVQ70jRBP%3DYAzqGdL4CzP4gTeQYLvA%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Fwd:  move from a choco model to Gecode model">askri.manel1 at gmail.com
+       </A><BR>
+    <I>Thu Sep  5 04:11:22 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004128.html">[gecode-users] Expr() in GECODE
+</A></li>
+        <LI>Next message: <A HREF="004131.html">[gecode-users] Implwmwnring nogood
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4130">[ date ]</a>
+              <a href="thread.html#4130">[ thread ]</a>
+              <a href="subject.html#4130">[ subject ]</a>
+              <a href="author.html#4130">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>hi everyone!
+
+what i want to do is represented by this model (see the following figure
+:<i>MMKP Model)
+</I>
+i will also explain what is the problem: I'm trying to solve the
+multidimensional
+and multiple knapsack problems, so i have a problem with the placement of
+the right tester(or testers) in the right node ,we assume that execution
+environment consists of m nodes and we have n test components that may be
+assigned to them. We attempt to find an optimal solution of test component
+placement not violating resource and connectivity constraints and also
+maximizing
+their placement profit.
+
+Ihave solve this problem using the CHoco solver but i got some errors with
+ Gecode
+
+I will send also the wholecode in java with comments :
+
+public class MMKP {
+ //i'm trying to find two defferent types of solution the Optimal one
+wchich has the Objective function and a realizable one which
+     //give me all the solutions
+ public int[][] find_Optimal_Solution(int n, int m, int[]R,
+int[]C,int[]B,int[] Dr,int[] Dc,int[] Db,int[][] g)
+ {
+int [][] results= new int[n][m];
+ //creation du model
+CPModel model = new CPModel();
+ // creation des variables
+ IntegerVariable[][] X = new IntegerVariable[n][m];
+ for (int i = 0; i &lt; n; i++) {
+for (int j = 0; j &lt; m; j++) {
+ X[i][j] = Choco.makeIntVar(&quot;X&quot; + i+j, 0, 1);}}
+//objective variable
+    IntegerVariable Z = Choco.makeIntVar(&quot;gain&quot;, 1,
+1000000,Options.V_OBJECTIVE);
+//creations des contraintes
+ // ... over rows
+Constraint[] rows = new Constraint[n];
+ for (int i = 0; i &lt; n; i++) {
+rows[i] = Choco.eq(Choco.sum(X[i]), 1);
+ }
+model.addConstraints(rows);
+ //... over columns
+// first, get the columns, with a temporary array
+ IntegerVariable[][] XDual = new IntegerVariable[m][n];
+for (int i = 0; i &lt; m; i++) {
+ for (int j = 0; j &lt; n; j++) {
+XDual[i][j] = X[j][i];
+ }
+}
+ Constraint[] cols_ram = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_ram[j] = Choco.leq(Choco.scalar(Dr,XDual[j]),R[j]);
+}
+ Constraint[] cols_cpu = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_cpu[j] = Choco.leq(Choco.scalar(Dc,XDual[j]),C[j]);
+}
+ Constraint[] cols_bat = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_bat[j] = Choco.leq(Choco.scalar(Db,XDual[j]),B[j]);
+}
+ model.addConstraints(cols_ram);
+model.addConstraints(cols_cpu);
+ model.addConstraints(cols_bat);
+ //Objective function : here i can't find with Gecode
+ IntegerExpressionVariable []exp1=new IntegerExpressionVariable [n];
+for (int i = 0; i &lt; n; i++)
+ exp1[i]=Choco.scalar(g[i], X[i]);
+ model.addConstraint(Choco.eq(Choco.sum(exp1),Z));
+ //solve the problem
+    Solver s = new CPSolver();
+    s.read(model);
+    s.maximize(s.getVar(Z), false);
+    System.out.println(&quot;Number of solutions found:&quot;+s.getSolutionCount());
+    System.out.println(&quot;Solution:&quot;+s.solutionToString());
+ //Print the values
+for (int i = 0; i &lt; n; i++) {
+ for (int j = 0; j &lt; m; j++) {
+System.out.print(s.getVar(X[i][j]).getVal() + &quot; &quot;);
+ results[i][j]=s.getVar(X[i][j]).getVal();
+}
+ System.out.println();
+}
+
+ return results;
+}
+ public int[][] find_realizable_solution(int n, int m, int[]R,
+int[]C,int[]B,int[] Dr,int[] Dc,int[] Db)
+{
+ int[][] results= new int[n][m];
+//creation du model
+ CPModel model = new CPModel();
+// creation des variables
+ IntegerVariable[][] X = new IntegerVariable[n][m];
+for (int i = 0; i &lt; n; i++) {
+ for (int j = 0; j &lt; m; j++) {
+X[i][j] = Choco.makeIntVar(&quot;X&quot; + i+j, 0, 1);
+ }
+}
+//objective variable
+    IntegerVariable Z = Choco.makeIntVar(&quot;gain&quot;, 1,
+1000000,Options.V_OBJECTIVE);
+//creations des contraintes
+ // ... over rows
+Constraint[] rows = new Constraint[n];
+ for (int i = 0; i &lt; n; i++) {
+rows[i] = Choco.eq(Choco.sum(X[i]), 1);
+ }
+model.addConstraints(rows);
+ //... over columns
+// first, get the columns, with a temporary array
+ IntegerVariable[][] XDual = new IntegerVariable[m][n];
+for (int i = 0; i &lt; m; i++) {
+ for (int j = 0; j &lt; n; j++) {
+XDual[i][j] = X[j][i];
+ }
+}
+ Constraint[] cols_ram = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_ram[j] = Choco.leq(Choco.scalar(Dr,XDual[j]),R[j]);
+}
+ Constraint[] cols_cpu = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_cpu[j] = Choco.leq(Choco.scalar(Dc,XDual[j]),C[j]);
+}
+ Constraint[] cols_bat = new Constraint[m];
+for (int j = 0; j &lt; m; j++) {
+ cols_bat[j] = Choco.leq(Choco.scalar(Db,XDual[j]),B[j]);
+}
+ model.addConstraints(cols_ram);
+model.addConstraints(cols_cpu);
+ model.addConstraints(cols_bat);
+
+//solve the problem
+    Solver s = new CPSolver();
+    s.read(model);
+    s.solve();
+    System.out.println(&quot;Number of solutions found:&quot;+s.getSolutionCount());
+    System.out.println(&quot;Solution:&quot;+s.solutionToString());
+//Print the values
+ for (int i = 0; i &lt; n; i++) {
+for (int j = 0; j &lt; m; j++) {
+ System.out.print(s.getVar(X[i][j]).getVal() + &quot; &quot;);
+results[i][j]=s.getVar(X[i][j]).getVal();
+ }
+System.out.println();
+}
+
+return results;
+}
+ }
+Sorry for the last time i didn't wrote it properly
+
+Now , My code in Gecode :
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+using namespace std;
+
+class MMKP : public Script{
+
+protected:
+static const int n=4 ;//number of testers, number of the rows
+ static const int m=5;// number of nodes, number of the comluns
+static const int max=100;// the max that can be taking by a node or by a
+test
+ IntArgs R;
+IntArgs C;
+IntArgs B;
+ IntArgs Dr;
+IntArgs Dc;
+IntArgs Db;
+ IntArgs g;
+
+ BoolVarArray a;
+IntVar l;
+public :
+enum {
+    find_Optimal_Solution, find_realizable_solution
+  };
+MMKP (const Options&amp; opt) : a(*this,n*m, 0,1){
+
+Matrix &lt;BoolVarArray&gt; X (a,m,n);
+R=IntArgs(m,9,15,17,20,40);
+ C=IntArgs(m,15,20,25,30,46);
+B=IntArgs(m,30,37,59,60,70);
+ Dr=IntArgs(n,3,5,7,10);
+Dc=IntArgs(n,5,10,15,30);
+ Db=IntArgs(n,10,13,17,19);
+
+//creation variables
+
+
+
+// objectiv variable
+ IntVar gain (*this, 1,1000000);
+
+
+ //creation of constraints
+// ... over rows
+ for ( int j=0; j&lt;n;j++)
+{
+
+linear(*this , X.row(j),IRT_EQ,1);
+ }
+
+//... over columns
+ // first, get the columns, we will use an intermidiare matrix XDual
+
+          for (int i = 0; i &lt; m; i++) {
+
+ linear(*this, Dr,X.col(i),IRT_NQ, R[i]);
+                                     }
+
+        for (int i = 0; i &lt; m; i++) {
+           linear (*this, Dc, X.col(i), IRT_NQ,C[i]);
+
+                                 }
+          for (int i = 0; i &lt; m; i++) {
+         linear (*this, Db, X.col(i), IRT_NQ,B[i]);
+
+                           }
+ switch (opt.model()) {
+        case find_Optimal_Solution:
+
+ g=IntArgs( n*m,0,1000);//this is a matrix provided by another class but i
+choose to start with simple example
+ //Objective function: i don't know how to write it
+     for (int i = 0; i &lt; n; i++)
+{ //IntArgs row=g.slice(i*n, 1, m);
+ //BoolVarArray row1=X.row(i);
+
+ //linear(*this, g,X.row(i), IRT_EQ, 1);
+
+}
+
+ break;
+ case find_realizable_solution:
+ cout &lt;&lt; &quot;manel&quot;&lt;&lt; endl;
+        break;
+}
+    // post branching
+//branch(*this, a, INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ for( int i=0;i&lt;m;i++)
+{
+branch(*this, X.col(i), INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ }
+
+for( int i=0;i&lt;n;i++)
+ {
+branch(*this, X.row(i), INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+ }
+}
+// search support
+     MMKP(bool share, MMKP&amp; s) : Script(share, s){
+ a.update(*this, share, s.a);
+
+    }
+
+    virtual Space* copy(bool share) {
+      return new MMKP(share,*this);
+    }
+
+    // print solution
+    void print(std::ostream&amp; os) const  {
+Matrix &lt;BoolVarArray&gt; X (a,m,n);
+           for(int i = 0; i &lt; n; i++) {
+        for(int j = 0; j &lt; m; j++)
+           os &lt;&lt; std::setw(4) &lt;&lt; a[i * n + j];
+        os &lt;&lt; std::endl;
+   }
+    os &lt;&lt; std::endl;
+
+}
+};
+
+ // main function
+int main(int argc, char* argv[]) {
+  Options opt(&quot;MMKP&quot;);
+  //opt.model(MMKP::find_Optimal_Solution, &quot;optimal&quot;,&quot;utiliser
+find_Optimal_Solution&quot; );
+  opt.model(MMKP::find_realizable_solution, &quot;r&#233;alisable&quot;,&quot;utiliser
+find_realizable_solution&quot; );
+
+  opt.parse(argc,argv);
+  Script::run&lt;MMKP,DFS,Options&gt;(opt);
+  system(&quot;pause&quot;);
+  return 0;
+}
+
+so this is all my work with Gecode
+if YOU have any other quation i'm ready to answer it
+
+I have an other quation : is it possible to passe variables from another
+class to Gecode class , like we always do in C++, because all the variables
+that i use here (IntArgs R;IntArgs C;IntArgs B;IntArgs Dr;IntArgs Dc;IntArgs
+Db;IntArgs g;) there are honnestly provided by some other work in c++
+
+Thank YOU very much for your help
+
+MANEL
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.html</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: MMKP Model.png
+Type: image/png
+Size: 29099 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.png">http://www.gecode.org/pipermail/users/attachments/20130905/05824e80/attachment-0001.png</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004128.html">[gecode-users] Expr() in GECODE
+</A></li>
+	<LI>Next message: <A HREF="004131.html">[gecode-users] Implwmwnring nogood
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4130">[ date ]</a>
+              <a href="thread.html#4130">[ thread ]</a>
+              <a href="subject.html#4130">[ subject ]</a>
+              <a href="author.html#4130">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

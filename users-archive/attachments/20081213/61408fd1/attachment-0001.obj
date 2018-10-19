@@ -1,0 +1,102 @@
+--- sort.icc	2008-12-12 22:06:54.000000000 -0500
++++ sort.icc.new	2008-12-12 22:13:09.000000000 -0500
+@@ -53,27 +53,31 @@
+   template <class Type>
+   class QuickSortStack {
+   private:
+-    /// Maximal stacksize quicksort ever needs
+-    static const int maxsize = 32;
++    /// A nice big stacksize that quicksort is unlikely to exceed.
++    /// Remember that quicksort is worst case O(n^2) and thus may
++    /// use up to O(n) stack space in the worst case.
++    static const int maxsize = 64;
+     /// Top of stack
+     Type** tos;
+-    /// Stack entries (terminated by NULL entry)
+-    Type*  stack[2*maxsize+1];
++    /// Stack entries (terminated on both sides by NULL entry)
++    Type*  stack[2*maxsize+2];
+   public:
+     /// Initialize stack as empty
+     QuickSortStack(void);
+     /// Test whether stack is empty
+     bool empty(void) const;
+     /// Push two positions \a l and \a r
+-    void push(Type* l, Type* r);
++    /// returns false if stack has been exceeded and items were not pushed.
++    bool push(Type* l, Type* r);
+     /// Pop two positions \a l and \a r
+     void pop(Type*& l, Type*& r);
+   };
+ 
+   template <class Type>
+   forceinline
+-  QuickSortStack<Type>::QuickSortStack(void) : tos(&stack[0]) {
+-    *(tos++) = NULL;
++  QuickSortStack<Type>::QuickSortStack(void) : tos(&stack[1]) {
++    stack[0]           = NULL;
++    stack[maxsize*2+1] = NULL;
+   }
+ 
+   template <class Type>
+@@ -83,9 +87,11 @@
+   }
+ 
+   template <class Type>
+-  forceinline void
++  forceinline bool
+   QuickSortStack<Type>::push(Type* l, Type* r) {
++    if (*tos == NULL) { return false; }
+     *(tos++) = l; *(tos++) = r;
++    return true;
+   }
+ 
+   template <class Type>
+@@ -110,7 +116,7 @@
+     }
+   }
+ 
+-  /// Standard partioning
++  /// Standard partitioning
+   template <class Type, class LessThan>
+   forceinline Type*
+   partition(Type* l, Type* r, LessThan &lt) {
+@@ -120,8 +126,8 @@
+     while (true) {
+       while (lt(*(++i),v)) {}
+       while (lt(v,*(--j))) if (j == l) break;
+-        if (i >= j) break;
+-        std::swap(*i,*j);
++      if (i >= j) break;
++      std::swap(*i,*j);
+     }
+     std::swap(*i,*r);
+     return i;
+@@ -129,7 +135,7 @@
+ 
+   /// Standard quick sort
+   template <class Type, class LessThan>
+-  inline void
++  void
+   quicksort(Type* l, Type* r, LessThan &lt) {
+     QuickSortStack<Type> s;
+     while (true) {
+@@ -140,14 +146,16 @@
+       Type* i = partition(l+1,r-1,lt);
+       if (i-l > r-i) {
+         if (r-i > QuickSortCutoff) {
+-          s.push(l,i-1); l=i+1; continue;
++          if (! s.push(l,i-1)) { quicksort(l, i-1, lt); }
++          l=i+1; continue;
+         }
+         if (i-l > QuickSortCutoff) {
+           r=i-1; continue;
+         }
+       } else {
+         if (i-l > QuickSortCutoff) {
+-          s.push(i+1,r); r=i-1; continue;
++          if (! s.push(i+1,r)) { quicksort(i+1, r, lt); }
++          r=i-1; continue;
+         }
+         if (r-i > QuickSortCutoff) {
+           l=i+1; continue;

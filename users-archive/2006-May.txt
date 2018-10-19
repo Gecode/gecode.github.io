@@ -1,0 +1,3121 @@
+From schulte at imit.kth.se  Tue May  2 16:00:28 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 2 May 2006 16:00:28 +0200
+Subject: [gecode-users] Some help required by new gecode users
+In-Reply-To: <ed56ce720604251439i1d46a97as2d723d47b33ad96b@mail.gmail.com>
+Message-ID: <003701c66df0$c46a5780$acd4ed82@beule>
+
+Dear Fredrik,
+
+sorry for the delay but I was too busy with other stuff!
+
+I have to admit that I still not fully understand what you try to do, but
+maybe I can give some hints already:
+
+Percentage requires division: but you can expresse division by using
+multiplication!
+
+As it comes to finding the most balanced choices, there are two possible
+ways one can do that (at least in principle):
+ 1. Do best solution search that maximizes the balance.
+ 2. Come up with abranching scheme that delivers reasonable balance.
+
+What is it what you want? How big will be the matrices?
+
+Anyhow, to do 2. one most likely has to implement a new branching that does
+the following:
+ - select a column
+ - select a field in the column and try values for that
+Therefore one must implement a new branching. A starting point could be to
+look at int/branch.hh and related files to find out how simple
+variable/value selection-based branching is done. Much of this relies on
+kernel/branching.icc which defines variable/value style branchings
+parametrized over classes that find variables and values.
+
+Sorry that I cannot be more helpful than that. But please try to ask again,
+if this is not sufficient.
+
+All the best
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Fredrik Berk
+Sent: Tuesday, April 25, 2006 11:40 PM
+To: users at gecode.org
+Subject: [gecode-users] Some help required by new gecode users
+
+
+<Description>
+We are currently trying to solve a problem using gecode, but cant quite get
+it to work the way we want it to.
+
+<Problem description>
+For every column in the matrix, all choices must be present once. Not all
+rows need to contain a choice, but for every column all choices must be
+found in one of the rows. For every row, there is a corresponding constant
+in constants. The sum of all choices in a row divided by the constant is put
+in percentage. For the entire matrix, we want to find the distribution of
+choices in the matrix so that percentage is as even as possible for all
+rows.
+
+<What we can't get to work>
+We need some help with how to setup this problem. Currently we are branching
+on x and while that does give us a valid solution, its not really the one we
+are looking for. Ideally we would like to find the most balanced solution
+(as determined by the deviation of percentage for every row in comparison to
+percentage for the matrix as a whole), not just a solution as we are
+currently.
+
+If every row in the matrix consists of:
+Xi1 * A1 + Xi2 * A2 + ... + Xin * An + Ri = row_max[i]
+
+We want the smallest possible deviation of  Ri / row_max[i] for all i in the
+row_max array.
+
+There are currently two problems facing us. For one, we are unsure of what
+relations to enter for percentage, and secondly we are unsure on how to make
+gecode pick x for the matrix based on values in percentage.
+
+The code so far looks like this:
+
+Test(const Options& opt)
+    : x(this, row_count*col_count, 0, row_sum) 
+    {
+        MiniModel::Matrix<IntVarArray> m(x, col_count, row_count);
+        for (int w = 0; w < col_count; ++w) {
+            linear(this, m.col(w), 
+                IRT_EQ, col_sum[w], opt.icl);
+            }
+
+        IntArgs args(col_count);
+        for (int e = 0; e < col_count; ++e)
+            args[e] = col_constant[e];
+
+        for (int h = 0; h < row_count; ++h) {
+            linear(this, args, m.row(h), 
+                IRT_LE, row_max[h], opt.icl);
+            linear(this, m.row(h), 
+                IRT_EQ, row_sum, opt.icl);
+        }
+        branch(this, x, BVAR_SIZE_MIN, BVAL_MED);
+    }
+
+
+
+
+From matthieu.gallien at laas.fr  Thu May  4 13:47:22 2006
+From: matthieu.gallien at laas.fr (Matthieu Gallien)
+Date: Thu, 4 May 2006 13:47:22 +0200
+Subject: [gecode-users] Request for information
+Message-ID: <200605041347.29200.matthieu.gallien@laas.fr>
+
+Hi, I am currently a phD student in temporal planning and plan execution. 
+Sorry for my english.
+My planner embodies CSP techniques in order to check consistencies of 
+constraint and to compute the minimal network, i.e. all solutions.
+I need to write new propagation algorithm and the current CSP was not made in 
+a way that permits to use them (AC|DC2 from B?rtak and Surynek).
+
+An important feature is continuous domains. I check the list archive (not yet 
+completely) and do not find any reference about it. So my question is anybody 
+did a continuous domains with Gecode ?
+If it is not the case, any information or comment will be welcome.
+
+Thanks in advance.
+-- 
+Matthieu Gallien
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 1761 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060504/305d4e62/attachment.bin>
+
+From schulte at imit.kth.se  Thu May  4 15:02:30 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 4 May 2006 15:02:30 +0200
+Subject: [gecode-users] Request for information
+In-Reply-To: <200605041347.29200.matthieu.gallien@laas.fr>
+Message-ID: <003901c66f7b$009c6d70$acd4ed82@beule>
+
+No, there are no continuous domains in Gecode so far. But the good news is
+that it should be easy enough to do.
+
+Well, or at least: Gecode provides all interfaces and abstractions to add
+new variable domains (as witnessed by CP(Graph)).
+
+And maybe there are also other people interested in that?
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Matthieu Gallien
+Sent: Thursday, May 04, 2006 1:47 PM
+To: users at gecode.org
+Subject: [gecode-users] Request for information
+
+
+Hi, I am currently a phD student in temporal planning and plan execution. 
+Sorry for my english.
+My planner embodies CSP techniques in order to check consistencies of 
+constraint and to compute the minimal network, i.e. all solutions. I need to
+write new propagation algorithm and the current CSP was not made in 
+a way that permits to use them (AC|DC2 from B?rtak and Surynek).
+
+An important feature is continuous domains. I check the list archive (not
+yet 
+completely) and do not find any reference about it. So my question is
+anybody 
+did a continuous domains with Gecode ?
+If it is not the case, any information or comment will be welcome.
+
+Thanks in advance.
+-- 
+Matthieu Gallien
+
+
+
+
+From ggutierrez at cic.puj.edu.co  Thu May  4 15:18:08 2006
+From: ggutierrez at cic.puj.edu.co (Gustavo Gutierrez)
+Date: Thu, 4 May 2006 08:18:08 -0500
+Subject: [gecode-users] Request for information
+In-Reply-To: <003901c66f7b$009c6d70$acd4ed82@beule>
+References: <200605041347.29200.matthieu.gallien@laas.fr>
+	<003901c66f7b$009c6d70$acd4ed82@beule>
+Message-ID: <e7b0e5a40605040618q39f4b1dap7146bf036a0978f7@mail.gmail.com>
+
+> And maybe there are also other people interested in that?
+
+I am very interested in doing that. I have an implementation of
+continuous domains but with a very early gecode version (one where
+views were not still implemented). It is not so difficult to add that
+kind of variables. The only difficult thing is to have a portable
+implementation because sometimes is necessary to change the machine
+rounding mode but i think that libraries such as boost intervals
+encapsulate this issue.
+
+
+Currently i don't have much time to re-implement it but if you need
+some help on doing this don't hesitate to ask and we can discuss some
+ideas.
+
+Regards,
+--
+Gustavo Gutierrez
+
+
+
+From filip.konvicka at logis.cz  Thu May  4 15:46:06 2006
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Thu, 04 May 2006 15:46:06 +0200
+Subject: [gecode-users] Request for information
+In-Reply-To: <003901c66f7b$009c6d70$acd4ed82@beule>
+References: <003901c66f7b$009c6d70$acd4ed82@beule>
+Message-ID: <445A059E.7030106@logis.cz>
+
+>
+> No, there are no continuous domains in Gecode so far. But the good news is
+> that it should be easy enough to do.
+>
+> Well, or at least: Gecode provides all interfaces and abstractions to add
+> new variable domains (as witnessed by CP(Graph)).
+>
+> And maybe there are also other people interested in that?
+>   
+
+I'm definitely interested! :-) Alas, I have no time at all for this....
+
+Matthieu, if you need something now, try Mozart (www.mozart-oz.org) with 
+the XRI module (http://home.gna.org/xrilpoz/). Note however that there 
+are no edge-finding propagators for the continuous-domain variables in 
+XRI. There are also a few minor bugs in XRI, but it's all listed in the 
+mailing list and there are workarounds.
+
+By the way, I've heard somewhere that the AVISPA group, the authors of 
+XRI, work on integration of Mozart and GECODE. So maybe there will be a 
+version of XRI for GECODE someday? (Or someone does this "from scratch" 
+- XRI is in fact a rather thin wrapper around the smath library.)
+
+One more question: how do you plan to employ AC|DC2?
+
+Cheers,
+Filip
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Matthieu Gallien
+> Sent: Thursday, May 04, 2006 1:47 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Request for information
+>
+>
+> Hi, I am currently a phD student in temporal planning and plan execution. 
+> Sorry for my english.
+> My planner embodies CSP techniques in order to check consistencies of 
+> constraint and to compute the minimal network, i.e. all solutions. I need to
+> write new propagation algorithm and the current CSP was not made in 
+> a way that permits to use them (AC|DC2 from B?rtak and Surynek).
+>
+> An important feature is continuous domains. I check the list archive (not
+> yet 
+> completely) and do not find any reference about it. So my question is
+> anybody 
+> did a continuous domains with Gecode ?
+> If it is not the case, any information or comment will be welcome.
+>
+> Thanks in advance.
+>   
+
+
+-- 
+Filip Konvi?ka
+
+LOGIS, s.r.o.
+tel. +420 556 841 100
+mob. +420 736 758 714
+
+
+
+
+From jeremie.vautard at laposte.net  Thu May  4 16:33:17 2006
+From: jeremie.vautard at laposte.net (jeremie.vautard)
+Date: Thu,  4 May 2006 16:33:17 +0200
+Subject: [gecode-users] Posting integer propagators
+Message-ID: <IYQWFH$62E0AC04451F42084BB523851DD6DC25@laposte.net>
+
+Hi ! 
+
+I would like to create an interface in order to post the same
+constraint in several different spaces. I would have, for each
+static posting function (post, distinct, etc...) a kind of
+"super post" function, taking a list of spaces/variables and
+posting, for each space passed in argument, the actual
+constraint. 
+The problem is that I didn't manage to find an exhaustive list
+of all the static functions to post propagators. (I already
+know some of them, like distinct or post for linear relations)
+Is there such a list somewhere ? 
+
+Another thing : concerning the post function ised in the
+money.cc example, the link of the source code page sends me to
+the definition of the 
+void 	Gecode::Int::Linear::post (Space *home, Term t[], int n,
+IntRelType r, int c, IntConLevel=ICL_DEF)
+function, but, the argument doesn't correspond. Is it actually
+this function which is called (in this case, I don't
+understand the argument passing...) ? In the other case, where
+is the actual post function used in this exemple defined ? 
+
+
+Cheers, 
+
+J?r?mie Vautard
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+
+
+From schulte at imit.kth.se  Thu May  4 16:46:38 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 4 May 2006 16:46:38 +0200
+Subject: [gecode-users] Posting integer propagators
+In-Reply-To: <IYQWFH$62E0AC04451F42084BB523851DD6DC25@laposte.net>
+Message-ID: <003b01c66f89$8c707220$acd4ed82@beule>
+
+Hi,
+
+you should find declarations of all post function in int.hh (and set.hh for
+set constraints). This list is complete as no other post functions are
+exported under Windows, so this information is always acurate! 
+
+Your second question: oh my good, doxygen did it again ;-) Yes that is
+definitely wrong! Obviously, Doxygen is confused by namespaces (I have to
+admit it is not easy...). All this "post" can be found in minimodel.hh (or
+explained in the minimodel docs).
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of jeremie.vautard
+Sent: Thursday, May 04, 2006 4:33 PM
+To: users
+Subject: [gecode-users] Posting integer propagators
+
+
+Hi ! 
+
+I would like to create an interface in order to post the same constraint in
+several different spaces. I would have, for each static posting function
+(post, distinct, etc...) a kind of "super post" function, taking a list of
+spaces/variables and posting, for each space passed in argument, the actual
+constraint. 
+The problem is that I didn't manage to find an exhaustive list of all the
+static functions to post propagators. (I already know some of them, like
+distinct or post for linear relations) Is there such a list somewhere ? 
+
+Another thing : concerning the post function ised in the money.cc example,
+the link of the source code page sends me to the definition of the 
+void 	Gecode::Int::Linear::post (Space *home, Term t[], int n,
+IntRelType r, int c, IntConLevel=ICL_DEF)
+function, but, the argument doesn't correspond. Is it actually this function
+which is called (in this case, I don't understand the argument passing...) ?
+In the other case, where is the actual post function used in this exemple
+defined ? 
+
+
+Cheers, 
+
+J?r?mie Vautard
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ggutierrez at cic.puj.edu.co  Thu May  4 16:49:49 2006
+From: ggutierrez at cic.puj.edu.co (Gustavo Gutierrez)
+Date: Thu, 4 May 2006 09:49:49 -0500
+Subject: [gecode-users] Request for information
+In-Reply-To: <445A059E.7030106@logis.cz>
+References: <003901c66f7b$009c6d70$acd4ed82@beule> <445A059E.7030106@logis.cz>
+Message-ID: <e7b0e5a40605040749g2897d9ecyb19749d785e41f71@mail.gmail.com>
+
+>
+> I'm definitely interested! :-) Alas, I have no time at all for this....
+>
+> Matthieu, if you need something now, try Mozart (www.mozart-oz.org) with
+> the XRI module (http://home.gna.org/xrilpoz/). Note however that there
+> are no edge-finding propagators for the continuous-domain variables in
+> XRI. There are also a few minor bugs in XRI, but it's all listed in the
+> mailing list and there are workarounds.
+
+After having continuous variables integrated we can use "elisa"
+(http://sourceforge.net/projects/elisa/) as a good starting point for
+building better propagators. I am not sure if the elisa license allows
+it but i think some things can be done. The design of elisa is clear
+and very modular so It won't be difficult to take some ideas from
+there.
+
+>
+> By the way, I've heard somewhere that the AVISPA group, the authors of
+> XRI, work on integration of Mozart and GECODE. So maybe there will be a
+> version of XRI for GECODE someday? (Or someone does this "from scratch"
+> - XRI is in fact a rather thin wrapper around the smath library.)
+
+Sure, it will. The problem now is the time. Currently I am totally
+concerned with the mozart-gecode integration (which is not quite
+easy!) and don't have much time.
+
+
+Cheers,
+--
+Gustavo Gutierrez
+
+
+
+From schulte at imit.kth.se  Tue May  9 10:16:21 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 9 May 2006 10:16:21 +0200
+Subject: [gecode-users] FW: Final Call for Participation: Advanced School
+	and Workshop on Global Constraints
+Message-ID: <000301c67340$db308890$acd4ed82@beule>
+
+FYI, Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Toby Walsh [mailto:Toby.Walsh at nicta.com.au] 
+Sent: Tuesday, May 09, 2006 9:06 AM
+
+Subject: Final Call for Participation: Advanced School and Workshop on
+Global Constraints
+
+
+
+*** PLEASE CIRCULATE *** PLEASE CIRCULATE *** PLEASE CIRCULATE ****
+
+                    Final Call for Participation
+
+         Second International Summer School of the
+          Association for Constraint Programming
+
+       Advanced School and International Workshop on
+                     GLOBAL CONSTRAINTS
+
+                      Doryssa Bay Hotel
+                        Samos, Greece
+                      June 18-23, 2006
+
+   http://www.cse.unsw.edu.au/~tw/school.html
+
+The Second International Summer School on Constraint Programming is an
+advanced school and associated workshop on global constraints. The school
+and workshop are aimed at PhD students, researchers, and practitioners of
+all levels who wish to learn about this key area in depth. A workshop will
+run alongside the school where the very latest research results in global
+constraints will be presented. Lecturers include:
+
+Philippe Baptisite, Global Constraints and Scheduling
+Nicolas Beldiceanu, Global Constraints and Graphs
+Christian Bessiere, Consistency and Complexity of Global Constraints Mats
+Carlsson, Case Studies in Global Constraints Willem-Jan van Hoeve, Soft
+Global Constraints Irit Katriel, Current Challenges Jean-Charles Regin, All
+Difference and Cardinality Constraints.
+
+The school and workshop will take place in the Doryssa Bay hotel on the
+Aegean island of Samos in Greece. The hotel is next to the fishing village
+of Pythagorion, the birth place of the Greek philosopher 
+Pythagoras.
+To participate in the advanced school and workshop, please email Toby Walsh
+(tw at cse.unsw.edu.au) as soon as possible. As places are limited, you are
+encouraged to reserve a place as soon as possible. Registration is free.
+More details are available at 
+http://www.cse.unsw.edu.au/~tw/school.html
+
+--------------------------------------------------------------------------
+This email and any attachments may be confidential. They may contain legally
+privileged information or copyright material. You should not read, copy, use
+or disclose them without authorisation. If you are not an intended
+recipient, please contact us at once by return email and then delete both
+messages. We do not accept liability in connection with computer virus, data
+corruption, delay, interruption, unauthorised access or unauthorised
+amendment. This notice should not be removed.
+
+
+
+
+From schulte at imit.kth.se  Wed May 10 14:38:52 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 10 May 2006 14:38:52 +0200
+Subject: [gecode-users] CP 2006: Call for Tutorial Proposals
+Message-ID: <000701c6742e$b217f530$acd4ed82@beule>
+
+[sorry for multiple copies]
+
+                   CP 2006 -- CALL FOR TUTORIAL PROPOSALS
+
+                     Twelfth International Conference on
+                Principles and Practice of Constraint Programming
+
+                 http://www.sciences.univ-nantes.fr/cp06/
+
+
+The CP 2006 Program Committee invites proposals for the Tutorial Program. CP
+2006 will be held in Nantes, France from September 25th-29th.
+
+CP 2006 tutorials are ideally targeted at the whole constraint community and
+should give a state-of-the-art description of a field of research related to
+constraint programming or of a large area of application. As an example, the
+topics of tutorials in the previous CP conferences were: numerical CSPs,
+global constraints, soft constraints, mathematical programming, cooperation
+between methods, areas of application (eg. bioinformatics), etc.
+
+Tutorials will take place during the technical program.
+
+Important Dates for Tutorials
+     * May 19, 2006: Proposal submission deadline
+     * June 16, 2006: Acceptance notification
+     * Mid August, 2006: Deadline for tutorial notes (TBD)
+     * September 25-29, 2006: CP technical program and tutorials
+
+A summary of the submission procedures for tutorials is available from the
+CP-06 web-site: http://www.sciences.univ-nantes.fr/cp06/
+
+Barry O'Sullivan
+Cork Constraint Computation Centre
+CP 2006 Workshop and Tutorial Chair
+ 
+
+
+
+
+From qyu at gmx.de  Wed May 10 18:27:00 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Wed, 10 May 2006 18:27:00 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+Message-ID: <44621454.6060803@gmx.de>
+
+Hi
+
+is there a predefined possibility to initialise an IntVar with the data 
+of a std::set variable? Or just a nice/fast workaround?
+
+I found an initialisation via IntSet, that can be constructed by an int 
+array. But that doesnt help, because there is no well conversion from 
+std::set to int[].
+
+Or is there a std::OutputIterator derived iterator class for IntVar, so 
+I can use std::copy? I only found IntVarValues but the usage is not the 
+standard iterator behavior.
+
+Thanks for help!
+
+Martin
+
+
+
+From schulte at imit.kth.se  Wed May 10 22:21:30 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 10 May 2006 22:21:30 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+In-Reply-To: <44621454.6060803@gmx.de>
+Message-ID: <000001c6746f$52e3f1e0$acd4ed82@beule>
+
+Hi Martin,
+
+unfortunately there is no such thing... Actually, Gecode does not use much
+from the C++ standard library so as to give uniform behavior across the
+platform it runs on (and with the same performance). So you are on your own!
+But if you do anyhting you feel worth being included in Gecode, please let
+us know.
+
+Christian
+
+PS: Just create an array (preferably of ranges, that is: intervals), the
+contructors of IntSet anyhow are expensive as they convert the set into some
+normal form.
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Wednesday, May 10, 2006 6:27 PM
+To: users at gecode.org
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+
+
+Hi
+
+is there a predefined possibility to initialise an IntVar with the data 
+of a std::set variable? Or just a nice/fast workaround?
+
+I found an initialisation via IntSet, that can be constructed by an int 
+array. But that doesnt help, because there is no well conversion from 
+std::set to int[].
+
+Or is there a std::OutputIterator derived iterator class for IntVar, so 
+I can use std::copy? I only found IntVarValues but the usage is not the 
+standard iterator behavior.
+
+Thanks for help!
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Wed May 10 23:40:41 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Wed, 10 May 2006 23:40:41 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>
+Message-ID: <025301c6747a$633e3090$6f00a8c0@QMOBILE>
+
+Moin Christian,
+
+mhh.. ok I ll have a look if I can write a worthy conversion! ;)
+Will have to have a deeper look into IntVar implementations..
+
+Are there any predefined initialisation possibilities in addition to the
+"min-max" range init?
+
+Meanwhile, I am looking for set operations for IntSet variables like union
+or intersection.
+I am used to them by Mozart or Ilog. Are they available in Gecode?
+
+Thanks for your help
+
+Martin
+
+
+----- Original Message ----- 
+From: "Christian Schulte" <schulte at imit.kth.se>
+To: "'Martin Mann'" <qyu at gmx.de>; <users at gecode.org>
+Sent: Wednesday, May 10, 2006 10:21 PM
+Subject: RE: [gecode-users] std::set to Gecode::IntVar conversion
+
+
+Hi Martin,
+
+unfortunately there is no such thing... Actually, Gecode does not use much
+from the C++ standard library so as to give uniform behavior across the
+platform it runs on (and with the same performance). So you are on your own!
+But if you do anyhting you feel worth being included in Gecode, please let
+us know.
+
+Christian
+
+PS: Just create an array (preferably of ranges, that is: intervals), the
+contructors of IntSet anyhow are expensive as they convert the set into some
+normal form.
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Wednesday, May 10, 2006 6:27 PM
+To: users at gecode.org
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+
+
+Hi
+
+is there a predefined possibility to initialise an IntVar with the data
+of a std::set variable? Or just a nice/fast workaround?
+
+I found an initialisation via IntSet, that can be constructed by an int
+array. But that doesnt help, because there is no well conversion from
+std::set to int[].
+
+Or is there a std::OutputIterator derived iterator class for IntVar, so
+I can use std::copy? I only found IntVarValues but the usage is not the
+standard iterator behavior.
+
+Thanks for help!
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From zayenz at gmail.com  Thu May 11 07:03:12 2006
+From: zayenz at gmail.com (Mikael 'Zayenz' Lagerkvist)
+Date: Thu, 11 May 2006 07:03:12 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+In-Reply-To: <025301c6747a$633e3090$6f00a8c0@QMOBILE>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>
+	<025301c6747a$633e3090$6f00a8c0@QMOBILE>
+Message-ID: <63b5c8b00605102203w22c0bacbq835f01670a30e0b2@mail.gmail.com>
+
+On 5/10/06, Martin Mann <qyu at gmx.de> wrote:
+> Or is there a std::OutputIterator derived iterator class for IntVar, so
+> I can use std::copy? I only found IntVarValues but the usage is not the
+> standard iterator behavior.
+
+The interface of Gecode iterators has different requirements (typical
+usage, efficiency) than the iterator-style used by STL.
+
+If you need to use stl-iterators with Gecode and vice-versa, writing
+wrappers to convert iterator-behaviour is not that complicated though.
+
+
+On 5/10/06, Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+> Meanwhile, I am looking for set operations for IntSet variables like union
+> or intersection.
+> I am used to them by Mozart or Ilog. Are they available in Gecode?
+
+Operations such as these are available for iterators in Gecode. The
+documentation for these operations are available at [1]. For some more
+information about iterators and views (used when implementing
+propagators), see the paper at [2].
+
+Cheers
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/group__FuncIter.html
+[2] http://www.gecode.org/paper.html?id=SchulteTack:CICLOPS:2005
+
+-- 
+Mikael 'Zayenz' Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From dooms at info.ucl.ac.be  Thu May 11 09:20:12 2006
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Thu, 11 May 2006 09:20:12 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion
+In-Reply-To: <025301c6747a$633e3090$6f00a8c0@QMOBILE>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>
+	<025301c6747a$633e3090$6f00a8c0@QMOBILE>
+Message-ID: <4462E5AC.8060603@info.ucl.ac.be>
+
+Martin Mann wrote:
+> Moin Christian,
+>
+> mhh.. ok I ll have a look if I can write a worthy conversion! ;)
+> Will have to have a deeper look into IntVar implementations..
+>
+You can find two in the contribs/graph/view/iter.icc
+They are called StlToGecodeRangeIterator and StlToGecodeValIterator
+See example below.
+
+> Are there any predefined initialisation possibilities in addition to the
+> "min-max" range init?
+>
+> Meanwhile, I am looking for set operations for IntSet variables like 
+> union
+> or intersection.
+> I am used to them by Mozart or Ilog. Are they available in Gecode?
+>
+They are available through iterator operations: union intersection, 
+difference (see example below)
+
+Best,
+--
+Gr?goire Dooms
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: cpgraph-set.cc
+Type: text/x-c++src
+Size: 952 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060511/e940a917/attachment.cc>
+
+From mmann at informatik.uni-freiburg.de  Thu May 11 15:31:32 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 11 May 2006 15:31:32 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion - my quick
+	and dirty solution
+In-Reply-To: <4462E5AC.8060603@info.ucl.ac.be>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>
+	<025301c6747a$633e3090$6f00a8c0@QMOBILE>
+	<4462E5AC.8060603@info.ucl.ac.be>
+Message-ID: <44633CB4.8000801@informatik.uni-freiburg.de>
+
+Gr?goire Dooms schrieb:
+> Martin Mann wrote:
+>> Moin Christian,
+>>
+>> mhh.. ok I ll have a look if I can write a worthy conversion! ;)
+>> Will have to have a deeper look into IntVar implementations..
+>>
+> You can find two in the contribs/graph/view/iter.icc
+> They are called StlToGecodeRangeIterator and StlToGecodeValIterator
+> See example below.
+
+Thanks to Gr?goire Doom and his source code example I got the idea to 
+write a Range iterator, that can be used in the constructor of a 
+Gecode::IntSet object.
+
+It is not a final solution, because I would like to have a direct 
+conversion from std::set<int> to Gecode::IntVar, but with a 
+Gecode::IntSet step between it is usable.
+
+I didnt used the graph package, that already have got the feature 
+std::iterator -> Gecode::Iterator, because I ve got trouble to compile 
+the package on my cygwin system with the included boost version. I gave 
+it up at the moment.
+
+my class looks like that:
+
+---------------------------------------------------------
+/**
+  * provides a constant Gecode RangeIterator of a std::set<int> that
+  * calculates the ranges on demand.
+  */
+class GC_StlSetRangeIterator
+{
+  private:
+    //! the set this iterator operates on
+   const std::set<int>* data;
+    //! the current position in data
+   std::set<int>::const_iterator actElem;
+    //! == true if the iterator has reached the end
+   bool noFurtherRange;
+     //! the current range
+   int nextMin, nextMax;
+     //! searchs for the next range and sets the inner members
+   void getNextRange() {
+     if (data==NULL || actElem == data->end()) {
+       noFurtherRange = true;
+       return;
+     }
+	 // init and identify next range
+     nextMin = *actElem;
+     nextMax = nextMin;
+	 // build next range
+     while ( (++actElem != data->end()) && (*actElem == (nextMax+1)))
+       nextMax++;
+   }
+
+  public:
+   GC_StlSetRangeIterator();
+   GC_StlSetRangeIterator(const std::set<int>* data_);
+   virtual ~GC_StlSetRangeIterator() {}
+
+   void init(const std::set<int>* const data_) {
+     data = data_;
+     noFurtherRange = false;
+     getNextRange();
+   }
+	
+   bool operator()(void) const { return !noFurtherRange; }
+   void operator++(void) { getNextRange(); }
+
+   int min(void) const { return nextMin; }
+   int max(void) const { return nextMax; }
+   unsigned int width(void) { return nextMax-nextMin+1; }
+};
+
+----------------------------------------------------------------
+
+and can be used like that:
+
+----------------------------------------------------------------
+
+#include <int.hh>
+#include <set>
+#include <iostream>
+#include <GC_StlSetRangeIterator.hh>
+
+int main(int argc, char** argv) {
+   std::set<int> s;
+   for(int i=0; i<5; i++) {
+     s.insert(i);
+     s.insert(i+7);
+     s.insert(i*5);
+   }
+
+   GC_StlSetRangeIterator it(&s);
+
+   Gecode::IntSet is(it);
+
+   std::cout<<"new IntSet = " <<is <<std::endl;
+
+   return 0;
+}
+----------------------------------------------------------------
+
+there may be much better implementations or possibilies.. ;)
+
+Thanks to all of you!
+
+Martin
+
+
+
+From dooms at info.ucl.ac.be  Thu May 11 15:43:55 2006
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Thu, 11 May 2006 15:43:55 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion - my quick
+	and dirty solution
+In-Reply-To: <44633CB4.8000801@informatik.uni-freiburg.de>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>	<025301c6747a$633e3090$6f00a8c0@QMOBILE>	<4462E5AC.8060603@info.ucl.ac.be>
+	<44633CB4.8000801@informatik.uni-freiburg.de>
+Message-ID: <44633F9B.3080409@info.ucl.ac.be>
+
+Martin Mann wrote:
+> I didnt used the graph package, that already have got the feature 
+> std::iterator -> Gecode::Iterator, because I ve got trouble to compile 
+> the package on my cygwin system with the included boost version. I 
+> gave it up at the moment.
+
+Could you tell me which version of Cygwin/boost you used ?
+
+Thanks,
+--
+Gr?goire
+
+
+
+
+From dooms at info.ucl.ac.be  Thu May 11 15:56:25 2006
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Thu, 11 May 2006 15:56:25 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion - my quick
+	and dirty solution
+In-Reply-To: <44633CB4.8000801@informatik.uni-freiburg.de>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>	<025301c6747a$633e3090$6f00a8c0@QMOBILE>	<4462E5AC.8060603@info.ucl.ac.be>
+	<44633CB4.8000801@informatik.uni-freiburg.de>
+Message-ID: <44634289.6020403@info.ucl.ac.be>
+
+Martin Mann wrote:
+> It is not a final solution, because I would like to have a direct 
+> conversion from std::set<int> to Gecode::IntVar, but with a 
+> Gecode::IntSet step between it is usable.
+
+For a more direct version, do this:
+
+IntVar i(home, Limits::Int::int_min(), Limits::Int::int_max()); // 
+creates a -inf,+inf single range
+GC_StlSetRangeIterator it(&s);
+IntView iv(i); // modifiable wrapper  around Int var implementation
+GECODE_ME_FAIL(home, iv.inter(it)); //modify upper bound of var by 
+intersecting its ranges with the set iterator
+cout << i << endl;
+
+This way, you don't need to create the intermediate IntSet (and the 
+intermediate vector as I did because I forgot the std::set was already 
+sorted).
+
+Best,
+--
+Gr?goire
+
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu May 11 16:11:06 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 11 May 2006 16:11:06 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion - my quick
+	and dirty solution
+In-Reply-To: <44633F9B.3080409@info.ucl.ac.be>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>	<025301c6747a$633e3090$6f00a8c0@QMOBILE>	<4462E5AC.8060603@info.ucl.ac.be>
+	<44633CB4.8000801@informatik.uni-freiburg.de>
+	<44633F9B.3080409@info.ucl.ac.be>
+Message-ID: <446345FA.5030900@informatik.uni-freiburg.de>
+
+Gr?goire Dooms schrieb:
+> Martin Mann wrote:
+>> I didnt used the graph package, that already have got the feature 
+>> std::iterator -> Gecode::Iterator, because I ve got trouble to compile 
+>> the package on my cygwin system with the included boost version. I 
+>> gave it up at the moment.
+> 
+> Could you tell me which version of Cygwin/boost you used ?
+
+
+I am using cygwin web setup version 2.510.2.2 on windows xp prof.
+
+this includes a boost library version 1.33.1-2
+
+if I try to build the graph package, all went fine until the example 
+build up. This crashes and also my code that was using the linked shared 
+graph library..
+
+I get this error:
+
+--------------------------------------------------------------------
+$ make
+
+Making in directory contribs/graph
+make[1]: Entering directory 
+`/cygdrive/e/Netzablage/gecode-1.1.0/contribs/graph'
+g++ -I. -I. -DNDEBUG -Wall -ggdb -O3 -fno-strict-aliasing 
+-finline-limit=3000 -ffast-math -mthreads  -I/usr/include/boos
+t-1_33_1 -I../.. -L../..   -I/usr/include/boost-1_33_1 -I../.. -L../..\
+-c -o examples/cpgraph-basic.o  examples/cpgraph-basic.cc
+In file included from 
+/usr/include/boost-1_33_1/boost/graph/dijkstra_shortest_paths.hpp:19,
+                  from ./view/outadjsets.icc:33,
+                  from ./view.icc:367,
+                  from ./graph.hh:45,
+                  from ./graphutils.icc:21,
+                  from examples/cpgraph-basic.cc:22:
+/usr/include/boost-1_33_1/boost/pending/relaxed_heap.hpp:89: error: 
+expected `)' before '/' token
+make[1]: *** [examples/cpgraph-basic.o] Error 1
+make[1]: Leaving directory 
+`/cygdrive/e/Netzablage/gecode-1.1.0/contribs/graph'
+make: *** [compilesubdirs] Error 2
+
+$
+
+--------------------------------------------------------------------
+
+configure produced the following output
+
+--------------------------------------------------------------------
+
+$ ./configure --enable-graph --with-boost-include=/usr/include/boost-1_33_1
+
+checking for g++... g++
+checking for C++ compiler default output file name... a.exe
+checking whether the C++ compiler works... yes
+checking whether we are cross compiling... no
+checking for suffix of executables... .exe
+checking for suffix of object files... o
+checking whether we are using the GNU C++ compiler... yes
+checking whether g++ accepts -g... yes
+checking for ranlib... ranlib
+checking for pkg-config... no
+checking whether to generate pkg-config files... no
+checking for the host operating system... Windows
+checking how to run the C++ preprocessor... g++ -E
+checking for gcc... gcc
+checking whether we are using the GNU C compiler... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to accept ANSI C... none needed
+checking the C++ compiler vendor... gnu
+checking whether to build static libraries... no
+checking whether to build shared libraries... yes
+checking whether to build with debug symbols and assertions... no
+checking whether to build with profiling information... no
+checking how to run the C preprocessor... gcc -E
+checking for egrep... grep -E
+checking for ANSI C header files... yes
+checking for sys/types.h... yes
+checking for sys/stat.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for memory.h... yes
+checking for strings.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for unistd.h... yes
+checking for int... yes
+checking size of int... 4
+checking if int has at least 32 bit... yes
+checking if doubles have a big enough mantissa... yes
+checking whether g++ accepts -fPIC... no
+checking whether g++ accepts -Wall... yes
+checking whether g++ accepts -ggdb... yes
+checking whether g++ accepts -O3... yes
+checking whether g++ accepts -fno-strict-aliasing... yes
+checking whether g++ accepts -finline-limit=3000... yes
+checking whether g++ accepts -ffast-math... yes
+checking whether g++ accepts -mthreads... yes
+checking for dot... no
+checking whether to enable graphs in the documentation... no
+checking whether to enable the documentation search engine... no
+checking whether to generate a doxygen tagfile... no
+checking whether to build compressed html documentation... yes
+checking whether to build the graph contrib library... yes
+checking whether to build the set variables library... yes
+checking whether to build the int variables library... yes
+checking whether to build examples... yes
+checking whether to build minimodel... yes
+checking whether to build search... yes
+configure: creating ./config.status
+config.status: creating Makefile
+config.status: creating doxygen.conf
+config.status: creating doxygen.hh
+config.status: creating misc/gecode.pc
+config.status: creating misc/gecode-search.pc
+config.status: creating misc/gecode-minimodel.pc
+config.status: creating config.icc
+config.status: config.icc is unchanged
+config.status: executing vti.icc commands
+configure: configuring in contribs/graph
+configure: running /bin/sh './configure' --prefix=/usr/local 
+'--enable-graph' '--with-boost-include=/usr/include/boost-
+1_33_1' --cache-file=/dev/null --srcdir=.
+config.status: creating Makefile.in
+configure: creating ./config.status
+config.status: creating Makefile
+config.status: executing Makefile.in commands
+
+$
+
+--------------------------------------------------------------------
+
+the graph Makefile looks like that:
+
+--------------------------------------------------------------------
+
+# Author Gr?goire Dooms
+# Copied from Gecode Makefile.in
+# The gecode configure script makes the Makefile.in from this Makefile.in.in
+# Then the cp(Graph) configure script makes the Makefile from the 
+Makefile.in
+
+# get variables from top Makefile
+#
+gecode_top_srcdir = $(top_srcdir)
+cpgraph_top_srcdir = $(curdir)
+
+
+KERNELDLL := $(KERNELDLL:%=../../%)
+SETDLL := $(SETDLL:%=../../%)
+INTDLL := $(INTDLL:%=../../%)
+SUPPORTOBJ := $(SUPPORTOBJ:%=../../%)
+
+ifeq "$(LIBPREFIX)" "$(LINKPREFIX)"
+LINKSET:=../../$(LINKSET)
+LINKKERNEL:=../../$(LINKKERNEL)
+LINKINT:=../../$(LINKINT)
+LINKMM:=../../$(LINKMM)
+LINKSEARCH:=../../$(LINKSEARCH)
+LINKALL := $(LINKMM) $(LINKSET) $(LINKINT) $(LINKSEARCH) $(LINKKERNEL)
+else
+EXTRALINKFLAGS := -L../..
+endif
+
+#
+# GRAPH COMPONENTS
+#
+
+GRAPHSRC0 = view/arcnode.cc
+GRAPHHDR0 = view/outadjsets.icc view/constant.icc view/arcnode.hh 
+view/nodearcsets.icc graphutils.icc  var.icc view.icc graphutils.h 
+view/boundsgraphs.icc view/prop.icc path/path.icc path/pathgraphs.icc 
+path.hh path.icc
+#GRAPHHDR0 = @GRAPHHDR@
+
+
+GRAPHSRC		= $(GRAPHSRC0)
+GRAPHHDR		= graph.hh $(GRAPHHDR0)
+GRAPHOBJ		= $(GRAPHSRC:%.cc=%$(OBJSUFFIX))
+GRAPHFLAGS      = -I/usr/include/boost-1_33_1 -I../.. $(EXTRALINKFLAGS)
+GRAPHDLL		= $(LIBPREFIX)graph$(DLLSUFFIX)
+GRAPHSTATICLIB	= $(LIBPREFIX)graph$(STATICLIBSUFFIX)
+GRAPHLIB		= $(LIBPREFIX)graph$(LIBSUFFIX)
+LINKGRAPH      	= $(LINKPREFIX)graph$(LINKSUFFIX)
+#GRAPHBUILDDIRS	= view
+
+ifeq "$(LIBPREFIX)" "$(LINKPREFIX)"
+LINKGRAPH := $(LINKGRAPH)
+else
+EXTRALINKFLAGS := -L../..
+endif
+
+LINKALL := $(LINKALL) $(LINKGRAPH)
+
+#
+# GRAPH EXAMPLES
+#
+
+GRAPHEXAMPLESRC0 = cpgraph-basic cpgraph-path cpgraph-complement 
+cpgraph-path2 cpgraph-instUB cpgraph-pathcost
+GRAPHEXAMPLESRC  = $(GRAPHEXAMPLESRC0:%=examples/%.cc)
+GRAPHEXAMPLEOBJ  = $(GRAPHEXAMPLESRC:%.cc=%$(OBJSUFFIX))
+GRAPHEXAMPLESBJ  = $(GRAPHEXAMPLESRC:%.cc=%$(SBJSUFFIX))
+GRAPHEXAMPLEEXE  = $(GRAPHEXAMPLESRC:%.cc=%$(EXESUFFIX))
+GRAPHEXAMPLEBUILDDIRS = examples/
+
+GRAPHEXAMPLEHDR0 = $(gecode_top_srcdir)/support.hh 
+$(gecode_top_srcdir)/support.icc $(gecode_top_srcdir)/timer.hh
+GRAPHEXAMPLEHDR  = $(GRAPHEXAMPLEHDR0:%=../../examples/%) $(GRAPHHDR)
+
+ALLLIB :=  $(ALLLIB) $(GRAPHLIB)
+
+
+LIBTARGETS = $(GRAPHDLL) $(GRAPHLIB)
+
+all : $(LIBTARGETS) $(GRAPHEXAMPLEEXE)
+
+#
+# Object targets
+#
+
+
+examples/%$(OBJSUFFIX): examples/%.cc
+	$(CXX) $(CXXFLAGS) $(EXAMPLES_EXTRA_CXXFLAGS) $(GRAPHFLAGS)\
+	-c -o $@  $<
+examples/%$(SBJSUFFIX): examples/%.cc
+	$(CXX) $(CXXFLAGS) $(EXAMPLES_EXTRA_CXXFLAGS) $(GRAPHFLAGS)\
+	-S -o $@  $<
+
+%$(OBJSUFFIX): %.cc
+	$(CXX) $(CXXFLAGS) -DGECODE_BUILD_GRAPH $(GRAPHFLAGS)\
+	-c -o $@  $<
+%$(SBJSUFFIX): %.cc
+	$(CXX) $(CXXFLAGS) -DGECODE_BUILD_GRAPH  $(GRAPHFLAGS)\
+	-S -o $@  $<
+
+#
+# DLL Targets
+#
+
+ifeq "$(DLLSUFFIX)" "$(LIBSUFFIX)"
+#linux
+$(GRAPHDLL): $(GRAPHOBJ) $(KERNELDLL) $(INTDLL) $(SETDLL)
+	$(CXX) $(DLLFLAGS) $(GRAPHOBJ)  $(GRAPHFLAGS)\
+		-L. $(LINKKERNEL) $(LINKINT) \
+		-o $(GRAPHDLL)
+else
+#win
+$(GRAPHDLL) $(GRAPHLIB): $(GRAPHOBJ) $(KERNELDLL) $(INTDLL) $(SETDLL)
+	$(CXX) $(DLLFLAGS) $(GRAPHOBJ)  $(GRAPHFLAGS)\
+		-L. $(LINKKERNEL) $(LINKINT) $(LINKSET) \
+		-o $(GRAPHDLL)
+endif
+
+#
+# EXE targets
+#
+#
+
+
+.PRECIOUS: examples/%$(OBJSUFFIX)
+examples/%$(EXESUFFIX): examples/%$(OBJSUFFIX) $(SUPPORTOBJ) $(ALLIB)
+	$(CXX) -o $@ $< $(SUPPORTOBJ) $(DLLPATH) $(CXXFLAGS) $(GRAPHFLAGS)\
+	$(LDFLAGS) $(LINKALL)
+CXXFLAGS := $(CXXFLAGS) $(GRAPHFLAGS)
+
+
+.PHONY: doc
+doc: $(GRAPHHDR) $(GRAPHSRC)
+	mkdir -p doc/html
+	doxygen doxygen.conf
+
+#
+# Autoconf
+#
+
+configure: configure.ac
+	autoconf
+config.status: configure
+	../../config.status --recheck
+	./config.status --recheck
+Makefile: Makefile.in config.status
+	./config.status
+Makefile.in : Makefile.in.in ../../config.status
+	../../config.status --file $@:$<
+
+
+.PHONY: clean veryclean distclean
+localclean:
+	find  examples -perm +u+x -not -type d -exec rm '{}' ';'
+	rm libgecodegraph.so
+
+clean:
+	$(RMF) $(GRAPHOBJ) $(GRAPHSBJ)
+
+veryclean: clean
+	$(RMF) $(LIBTARGETS)
+	$(RMF) $(LIBTARGETS:%$(DLLSUFFIX)=%.exp) $(LIBTARGETS:%$(DLLSUFFIX)=%.lib)
+	$(RMF) $(LIBTARGETS:%$(DLLSUFFIX)=%.ilk) $(LIBTARGETS:%$(DLLSUFFIX)=%.pdb)
+	$(RMF) $(GRAPHEXAMPLEEXE:%$(EXESUFFIX)=%.pdb)
+	$(RMF) $(GRAPHEXAMPLEEXE:%$(EXESUFFIX)=%$(OBJSUFFIX))
+	$(RMF) $(GRAPHEXAMPLEEXE:%$(EXESUFFIX)=%$(SBJSUFFIX))
+	$(RMF) doc CPGraphReference.chm
+	$(RMF) $(GRAPHEXAMPLEEXE)
+
+distclean: veryclean
+	$(RMF) config.log config.status Makefile.in
+
+--------------------------------------------------------------------
+
+hope this will help. maybe it's a configuration problem on my system..
+but all is working fine so far.
+
+I tried to build the boost library version 1.33.0 but the bjam tool made 
+some strange things, threw a lot of errors and so I used the workaround..
+
+Martin
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu May 11 16:31:54 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 11 May 2006 16:31:54 +0200
+Subject: [gecode-users] std::set to Gecode::IntVar conversion - my quick
+	and dirty solution
+In-Reply-To: <44634289.6020403@info.ucl.ac.be>
+References: <000001c6746f$52e3f1e0$acd4ed82@beule>	<025301c6747a$633e3090$6f00a8c0@QMOBILE>	<4462E5AC.8060603@info.ucl.ac.be>
+	<44633CB4.8000801@informatik.uni-freiburg.de>
+	<44634289.6020403@info.ucl.ac.be>
+Message-ID: <44634ADA.4080802@informatik.uni-freiburg.de>
+
+Gr?goire Dooms schrieb:
+> Martin Mann wrote:
+>> It is not a final solution, because I would like to have a direct 
+>> conversion from std::set<int> to Gecode::IntVar, but with a 
+>> Gecode::IntSet step between it is usable.
+> 
+> For a more direct version, do this:
+> 
+> IntVar i(home, Limits::Int::int_min(), Limits::Int::int_max()); // 
+> creates a -inf,+inf single range
+> GC_StlSetRangeIterator it(&s);
+> IntView iv(i); // modifiable wrapper  around Int var implementation
+> GECODE_ME_FAIL(home, iv.inter(it)); //modify upper bound of var by 
+> intersecting its ranges with the set iterator
+> cout << i << endl;
+> 
+> This way, you don't need to create the intermediate IntSet (and the 
+> intermediate vector as I did because I forgot the std::set was already 
+> sorted).
+
+That's it! Thanks a lot Gr?goire!
+
+Martin
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu May 11 18:07:04 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 11 May 2006 18:07:04 +0200
+Subject: [gecode-users] Constraint graph available?
+Message-ID: <44636128.3040505@informatik.uni-freiburg.de>
+
+
+I would like to use the structure of the constraint graph in my search 
+strategy.
+The constraint graph will be binary and the whole CSP will be formulated 
+with binary constraints.
+
+Is it possible to get a list of all NOT entailed constraints of a 
+Gecode::Space? Or an other way to access this data without managing and 
+updating an additional contraint graph in the space via adjacency list etc?
+
+
+
+In addition I would like to know if it's possible to insert a contraint 
+X and hinder X to propagate. The propagation should be done by 
+constraint Y and X only used to test if X is entailed or not. For example:
+3 vars A,B,C
+1 distinct (ABC) with ICL_DOM for full propagation
+2 neq constraints (AB) (BC)
+
+(AB) and (BC) are included in (ABC), so they dont have to propagate.
+i want to use (AB) and (BC) to test if this variables are not equal or not.
+Or can I ask the global constraint (ABC) directly?
+
+Seems to be my week of questions.. ;)
+Hope you dont get bored!
+
+Thanks for answers
+
+Martin
+
+
+
+
+From dooms at info.ucl.ac.be  Thu May 11 20:15:18 2006
+From: dooms at info.ucl.ac.be (=?ISO-8859-15?Q?Gr=E9goire_Dooms?=)
+Date: Thu, 11 May 2006 20:15:18 +0200
+Subject: [gecode-users] Constraint graph available?
+In-Reply-To: <44636128.3040505@informatik.uni-freiburg.de>
+References: <44636128.3040505@informatik.uni-freiburg.de>
+Message-ID: <44637F36.7050407@info.ucl.ac.be>
+
+Martin Mann wrote:
+>
+> I would like to use the structure of the constraint graph in my search 
+> strategy.
+> The constraint graph will be binary and the whole CSP will be 
+> formulated with binary constraints.
+This is something we (at UCLouvain) are investigating as an extention to 
+CP(Graph).
+I am afraid this is not going to be available before a couple of months.
+>
+> Is it possible to get a list of all NOT entailed constraints of a 
+> Gecode::Space? Or an other way to access this data without managing 
+> and updating an additional contraint graph in the space via adjacency 
+> list etc?
+There is no such method. The graph is there hidden in variable 
+implementations and propagators but it would require some non trivial 
+work to give it an API.
+> In addition I would like to know if it's possible to insert a 
+> contraint X and hinder X to propagate. The propagation should be done 
+> by constraint Y and X only used to test if X is entailed or not. For 
+> example:
+> 3 vars A,B,C
+> 1 distinct (ABC) with ICL_DOM for full propagation
+> 2 neq constraints (AB) (BC)
+>
+> (AB) and (BC) are included in (ABC), so they dont have to propagate.
+> i want to use (AB) and (BC) to test if this variables are not equal or 
+> not.
+You could use reified disequality constraints:
+ Gecode::rel (Space *home, IntVar x0, IntRelType r, IntVar x1, BoolVar 
+b, IntConLevel icl=ICL_DEF)
+The Boolean variable b becomes 1 as soon as the constraint x0 r x1 is 
+entailed (use r=IRT_NQ for disequality).
+
+
+My 2 cents,
+--
+Gr?goire
+
+
+
+
+From zayenz at gmail.com  Fri May 12 08:10:13 2006
+From: zayenz at gmail.com (Mikael 'Zayenz' Lagerkvist)
+Date: Fri, 12 May 2006 08:10:13 +0200
+Subject: [gecode-users] Constraint graph available?
+In-Reply-To: <44636128.3040505@informatik.uni-freiburg.de>
+References: <44636128.3040505@informatik.uni-freiburg.de>
+Message-ID: <63b5c8b00605112310p3c708cay3b4861589ba94250@mail.gmail.com>
+
+Hi,
+
+In addition to Gr?goire's comments, I would like to add the following.
+If you would extract a constraint graph from a Space, your example
+would not be binary, since you use a distinct-constraint. This mean
+that you would also have to transform the graph semantically to
+account for the fact that distinct represents a clique of not-equals,
+if you want a binary graph.
+
+However, there is one piece of information about the constraint-graph
+that is exposed. Using the degree()-member of an IntVar variable will
+return the number of constraints that subscribe to this variable. This
+is used for the variable selection strategies BVAR_DEGREE_MIN and
+BVAR_DEGREEE_MAX for branching on IntVar's.
+
+Cheers
+Mikael
+
+On 5/11/06, Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+>
+> I would like to use the structure of the constraint graph in my search
+> strategy.
+> The constraint graph will be binary and the whole CSP will be formulated
+> with binary constraints.
+>
+> Is it possible to get a list of all NOT entailed constraints of a
+> Gecode::Space? Or an other way to access this data without managing and
+> updating an additional contraint graph in the space via adjacency list etc?
+>
+>
+>
+> In addition I would like to know if it's possible to insert a contraint
+> X and hinder X to propagate. The propagation should be done by
+> constraint Y and X only used to test if X is entailed or not. For example:
+> 3 vars A,B,C
+> 1 distinct (ABC) with ICL_DOM for full propagation
+> 2 neq constraints (AB) (BC)
+>
+> (AB) and (BC) are included in (ABC), so they dont have to propagate.
+> i want to use (AB) and (BC) to test if this variables are not equal or not.
+> Or can I ask the global constraint (ABC) directly?
+>
+> Seems to be my week of questions.. ;)
+> Hope you dont get bored!
+>
+> Thanks for answers
+>
+> Martin
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Mikael 'Zayenz' Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From mmann at informatik.uni-freiburg.de  Fri May 12 09:52:02 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Fri, 12 May 2006 09:52:02 +0200
+Subject: [gecode-users] Constraint graph available?
+In-Reply-To: <63b5c8b00605112310p3c708cay3b4861589ba94250@mail.gmail.com>
+References: <44636128.3040505@informatik.uni-freiburg.de>
+	<63b5c8b00605112310p3c708cay3b4861589ba94250@mail.gmail.com>
+Message-ID: <44643EA2.8050402@informatik.uni-freiburg.de>
+
+
+
+Mikael 'Zayenz' Lagerkvist wrote:
+> Hi,
+> 
+> In addition to Gr?goire's comments, I would like to add the following.
+> If you would extract a constraint graph from a Space, your example
+> would not be binary, since you use a distinct-constraint. This mean
+> that you would also have to transform the graph semantically to
+> account for the fact that distinct represents a clique of not-equals,
+> if you want a binary graph.
+
+Thanks you are right. Thats why I would like to introduce 
+non-propagating binary constraints, to transfor it internally into a 
+binary constraint graph. This can be used to check the binary pathes in 
+the graph without loosing the stronger propagation via the global 
+constraint e.g. distinct.
+Think that the reified constraints, Gr?goire mentioned, will be usefull.
+
+But never the less, this distinct/binary stuff is just something 
+additional I m interested. The main focus is currently on real binary 
+constraint graphs.
+
+
+> However, there is one piece of information about the constraint-graph
+> that is exposed. Using the degree()-member of an IntVar variable will
+> return the number of constraints that subscribe to this variable. This
+> is used for the variable selection strategies BVAR_DEGREE_MIN and
+> BVAR_DEGREEE_MAX for branching on IntVar's.
+
+Great, that sounds very usefull. I ve not found this selection 
+strategies until now!
+Thanks a lot!
+
+Martin
+
+
+
+From qyu at gmx.de  Mon May 15 14:50:32 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Mon, 15 May 2006 14:50:32 +0200
+Subject: [gecode-users] propagator PropCond
+Message-ID: <44687918.5000604@gmx.de>
+
+Dear all,
+
+I wrote a propagator class derived from BinaryPropagator.
+
+The template is wrapped like that
+
+typedef Gecode::BinaryPropagator<Gecode::Int::IntView, 
+Gecode::Int::PC_INT_VAL> BinProp;
+
+Therefor the BinProp derived propagator is only called if one the two 
+variables get assigned to a value.
+
+My goal is a propagator that is called everytime the domain changes. So 
+I set the PropCond template var from
+
+PC_INT_VAL to PC_INT_DOM.
+
+But now my propagator is not called anymore if the variable gets 
+assigned.. Do I ve got to combine them or whats wrong? I m a bit confused!
+
+Thanks for help
+
+Martin
+
+
+
+
+
+From qyu at gmx.de  Mon May 15 14:54:34 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Mon, 15 May 2006 14:54:34 +0200
+Subject: [gecode-users] error in documentation for PC_INT_DOM
+Message-ID: <44687A0A.9090503@gmx.de>
+
+found an error in documentation
+
+
+===========================================================
+const PropCond Gecode::Int::PC_INT_DOM = PC_INT_BND + 1
+   	
+
+Propagate when domain changes.
+
+If a propagator p depends on a view x with propagation condition 
+PC_INT_VAL, then p is propagated when a domain update operation on x 
+returns the modification event ME_INT_VAL, ME_INT_BND, or ME_INT_DOM.
+
+Definition at line 81 of file var.icc.
+
+===========================================================
+
+there should stand a PC_INT_DOM instead a PC_INT_VAL in the second 
+sentence..
+
+;)
+
+Martin
+
+
+
+From schulte at imit.kth.se  Mon May 15 15:25:31 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 15 May 2006 15:25:31 +0200
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <44687918.5000604@gmx.de>
+Message-ID: <001601c67823$0a212290$acd4ed82@beule>
+
+Yes it still does! What makes you believe otherwise? Did you really try?
+
+Really sure: _DOM means reexecution whenever a view changes in wahtever
+form. However it does not mean that for each domain change the propagator is
+executed once!
+
+Hmm?
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, May 15, 2006 2:51 PM
+To: gecode user list
+Subject: [gecode-users] propagator PropCond
+
+
+Dear all,
+
+I wrote a propagator class derived from BinaryPropagator.
+
+The template is wrapped like that
+
+typedef Gecode::BinaryPropagator<Gecode::Int::IntView, 
+Gecode::Int::PC_INT_VAL> BinProp;
+
+Therefor the BinProp derived propagator is only called if one the two 
+variables get assigned to a value.
+
+My goal is a propagator that is called everytime the domain changes. So 
+I set the PropCond template var from
+
+PC_INT_VAL to PC_INT_DOM.
+
+But now my propagator is not called anymore if the variable gets 
+assigned.. Do I ve got to combine them or whats wrong? I m a bit confused!
+
+Thanks for help
+
+Martin
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Mon May 15 15:57:46 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 15 May 2006 15:57:46 +0200
+Subject: [gecode-users] error in documentation for PC_INT_DOM
+In-Reply-To: <44687A0A.9090503@gmx.de>
+Message-ID: <002101c67827$8b607550$acd4ed82@beule>
+
+Martin, thanks. I just fixed it in the trunk.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, May 15, 2006 2:55 PM
+To: gecode user list
+Subject: [gecode-users] error in documentation for PC_INT_DOM
+
+
+found an error in documentation
+
+
+===========================================================
+const PropCond Gecode::Int::PC_INT_DOM = PC_INT_BND + 1
+   	
+
+Propagate when domain changes.
+
+If a propagator p depends on a view x with propagation condition 
+PC_INT_VAL, then p is propagated when a domain update operation on x 
+returns the modification event ME_INT_VAL, ME_INT_BND, or ME_INT_DOM.
+
+Definition at line 81 of file var.icc.
+
+===========================================================
+
+there should stand a PC_INT_DOM instead a PC_INT_VAL in the second 
+sentence..
+
+;)
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From qyu at gmx.de  Mon May 15 16:55:56 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Mon, 15 May 2006 16:55:56 +0200
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <001601c67823$0a212290$acd4ed82@beule>
+References: <001601c67823$0a212290$acd4ed82@beule>
+Message-ID: <4468967C.7090705@gmx.de>
+
+
+Christian Schulte schrieb:
+> Yes it still does! What makes you believe otherwise? Did you really try?
+
+:) of course I did...
+
+> Really sure: _DOM means reexecution whenever a view changes in wahtever
+> form. However it does not mean that for each domain change the propagator is
+> executed once!
+
+ok, I know that, but in my case it is not called anyway! mybe it's 
+because of my cost or propagate function?
+
+===========================
+   Gecode::PropCost
+   GC_Neighbored::cost(void) const {
+     if (x0.assigned() || x1.assigned()) {
+		return Gecode::PC_LINEAR_HI;
+     }
+     return Gecode::PC_QUADRATIC_HI;
+   }
+
+   Gecode::ExecStatus
+   GC_Neighbored::propagate(Gecode::Space* home) {
+     if (x0.assigned()) {
+       GECODE_ME_CHECK(removeNonNeighbors(home,x1,x0.val()));
+     }else if (x1.assigned()) {
+       GECODE_ME_CHECK(removeNonNeighbors(home,x0,x1.val()));
+     } else {
+       GECODE_ME_CHECK(removeNonNeighbors(home));
+     }
+     return Gecode::ES_SUBSUMED;
+   }
+===========================
+
+but I dont see anything different from the Gecode classes..
+
+I m a bit confused as you can see.
+
+Martin
+
+> 
+> Hmm?
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Monday, May 15, 2006 2:51 PM
+> To: gecode user list
+> Subject: [gecode-users] propagator PropCond
+> 
+> 
+> Dear all,
+> 
+> I wrote a propagator class derived from BinaryPropagator.
+> 
+> The template is wrapped like that
+> 
+> typedef Gecode::BinaryPropagator<Gecode::Int::IntView, 
+> Gecode::Int::PC_INT_VAL> BinProp;
+> 
+> Therefor the BinProp derived propagator is only called if one the two 
+> variables get assigned to a value.
+> 
+> My goal is a propagator that is called everytime the domain changes. So 
+> I set the PropCond template var from
+> 
+> PC_INT_VAL to PC_INT_DOM.
+> 
+> But now my propagator is not called anymore if the variable gets 
+> assigned.. Do I ve got to combine them or whats wrong? I m a bit confused!
+> 
+> Thanks for help
+> 
+> Martin
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+From tack at ps.uni-sb.de  Mon May 15 17:19:52 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 15 May 2006 17:19:52 +0200 (CEST)
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <4468967C.7090705@gmx.de>
+References: <001601c67823$0a212290$acd4ed82@beule> <4468967C.7090705@gmx.de>
+Message-ID: <55832.134.96.186.48.1147706392.squirrel@www.ps.uni-sb.de>
+
+>> Really sure: _DOM means reexecution whenever a view changes in wahtever
+>> form. However it does not mean that for each domain change the
+>> propagator is
+>> executed once!
+>
+> ok, I know that, but in my case it is not called anyway! mybe it's
+> because of my cost or propagate function?
+
+>    Gecode::ExecStatus
+>    GC_Neighbored::propagate(Gecode::Space* home) {
+>      if (x0.assigned()) {
+>        GECODE_ME_CHECK(removeNonNeighbors(home,x1,x0.val()));
+>      }else if (x1.assigned()) {
+>        GECODE_ME_CHECK(removeNonNeighbors(home,x0,x1.val()));
+>      } else {
+>        GECODE_ME_CHECK(removeNonNeighbors(home));
+>      }
+>      return Gecode::ES_SUBSUMED;
+>    }
+
+This propagator will be called at most once. ES_SUBSUMED means that this
+propagator won't contribute any more. The propagator will be called once
+when it's posted (as every propagator is called then, except for those
+that are subscribed to VAL), and then it disappears.
+What you probably want to return is ES_FIX or ES_NONFIX, depending on
+whether your propagator computes a fixpoint or not.
+
+Cheers,
+   Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+
+From qyu at gmx.de  Mon May 15 17:52:09 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Mon, 15 May 2006 17:52:09 +0200
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <55832.134.96.186.48.1147706392.squirrel@www.ps.uni-sb.de>
+References: <001601c67823$0a212290$acd4ed82@beule> <4468967C.7090705@gmx.de>
+	<55832.134.96.186.48.1147706392.squirrel@www.ps.uni-sb.de>
+Message-ID: <4468A3A9.3030006@gmx.de>
+
+>>> Really sure: _DOM means reexecution whenever a view changes in wahtever
+>>> form. However it does not mean that for each domain change the
+>>> propagator is
+>>> executed once!
+>> ok, I know that, but in my case it is not called anyway! mybe it's
+>> because of my cost or propagate function?
+> 
+>>    Gecode::ExecStatus
+>>    GC_Neighbored::propagate(Gecode::Space* home) {
+>>      if (x0.assigned()) {
+>>        GECODE_ME_CHECK(removeNonNeighbors(home,x1,x0.val()));
+>>      }else if (x1.assigned()) {
+>>        GECODE_ME_CHECK(removeNonNeighbors(home,x0,x1.val()));
+>>      } else {
+>>        GECODE_ME_CHECK(removeNonNeighbors(home));
+>>      }
+>>      return Gecode::ES_SUBSUMED;
+>>    }
+> 
+> This propagator will be called at most once. ES_SUBSUMED means that this
+> propagator won't contribute any more. The propagator will be called once
+> when it's posted (as every propagator is called then, except for those
+> that are subscribed to VAL), and then it disappears.
+> What you probably want to return is ES_FIX or ES_NONFIX, depending on
+> whether your propagator computes a fixpoint or not.
+
+You are right... I m blind! The only position I ve not checked befor 
+posting my problem..
+
+Thanks for the final hint!
+
+But I m a bit confused. My internal propagation functions 
+"removeNonNeighbors" returns the ModEvents
+
+- ME_GEN_FAILED (caught by the macro Gecode_ME_CHECK)
+- ME_GEN_ASSIGNED (if both variables are assigned and fullfill my 
+constraint)
+- ME_GEN_NONE (if nothing changed via propagation
+- ME_GEN_DOM (if on of the domain is changed)
+
+in the case of ME_GEN_ASSIGNED the propagator is done and dont have to 
+be recalled in this branch... ES_SUBSUMED should be the right return 
+choice isnt it? or is ES_FIX my choice and a solution corresponds with a 
+fixpoint at that point?
+
+in the two remaining cases something else should be thrown but I m not 
+sure what! ES_OK? ES_NOFIX???
+
+Thank you
+
+Martin
+
+
+
+
+From tack at ps.uni-sb.de  Mon May 15 22:29:52 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 15 May 2006 22:29:52 +0200 (CEST)
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <4468A3A9.3030006@gmx.de>
+References: <001601c67823$0a212290$acd4ed82@beule> <4468967C.7090705@gmx.de>
+	<55832.134.96.186.48.1147706392.squirrel@www.ps.uni-sb.de>
+	<4468A3A9.3030006@gmx.de>
+Message-ID: <33707.84.165.135.13.1147724992.squirrel@www.ps.uni-sb.de>
+
+> But I m a bit confused. My internal propagation functions
+> "removeNonNeighbors" returns the ModEvents
+>
+> - ME_GEN_FAILED (caught by the macro Gecode_ME_CHECK)
+> - ME_GEN_ASSIGNED (if both variables are assigned and fullfill my
+> constraint)
+> - ME_GEN_NONE (if nothing changed via propagation
+> - ME_GEN_DOM (if on of the domain is changed)
+>
+> in the case of ME_GEN_ASSIGNED the propagator is done and dont have to
+> be recalled in this branch... ES_SUBSUMED should be the right return
+> choice isnt it? or is ES_FIX my choice and a solution corresponds with a
+> fixpoint at that point?
+
+You have to return ES_SUBSUMED at the latest when all your variables are
+assigned - otherwise the propagator will not be destroyed, resulting in a
+space leak. You can return it earlier, when you detect that your
+propagator doesn't have to be called again. For instance, in a propagator
+for x<y, you can return ES_SUBSUMED once the maximum of x is smaller than
+the minimum of y, even if neither is yet assigned.
+
+> in the two remaining cases something else should be thrown but I m not
+> sure what! ES_OK? ES_NOFIX???
+
+>From propagate, you should only return ES_FAILED, ES_SUBSUMED, ES_FIX, or
+ES_NOFIX (and special versions of the latter two for staged propagation,
+which you can ignore for now). Whether to return FIX or NOFIX depends on
+whether you know that your propagator has reached a fixpoint. If unsure,
+return NOFIX. This may result in your propagator being called too often
+(which may be less efficient but correct). Returning FIX although you're
+not at a fixpoint can result in the propagator being called not often
+enough, and you might miss a failure: dangerous!
+
+Cheers,
+   Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Mon May 15 22:47:34 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Mon, 15 May 2006 22:47:34 +0200
+Subject: [gecode-users] propagator PropCond
+References: <001601c67823$0a212290$acd4ed82@beule>
+	<4468967C.7090705@gmx.de><55832.134.96.186.48.1147706392.squirrel@www.ps.uni-sb.de><4468A3A9.3030006@gmx.de>
+	<33707.84.165.135.13.1147724992.squirrel@www.ps.uni-sb.de>
+Message-ID: <037901c67860$cc15c490$6f00a8c0@QMOBILE>
+
+> You have to return ES_SUBSUMED at the latest when all your variables are
+> assigned - otherwise the propagator will not be destroyed, resulting in a
+> space leak. You can return it earlier, when you detect that your
+> propagator doesn't have to be called again. For instance, in a propagator
+> for x<y, you can return ES_SUBSUMED once the maximum of x is smaller than
+> the minimum of y, even if neither is yet assigned.
+
+ah ok. memory leaks are nothing i want to have..
+
+>From propagate, you should only return ES_FAILED, ES_SUBSUMED, ES_FIX, or
+> ES_NOFIX (and special versions of the latter two for staged propagation,
+> which you can ignore for now). Whether to return FIX or NOFIX depends on
+> whether you know that your propagator has reached a fixpoint. If unsure,
+> return NOFIX. This may result in your propagator being called too often
+> (which may be less efficient but correct). Returning FIX although you're
+> not at a fixpoint can result in the propagator being called not often
+> enough, and you might miss a failure: dangerous!
+
+Think thats something that should occure in the documentation of the 
+Gecode::PropCond
+reference. Without your help I would have gone mad with debugging...
+
+Thanks a lot
+
+Martin
+
+
+
+
+From schulte at imit.kth.se  Tue May 16 10:32:27 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 16 May 2006 10:32:27 +0200
+Subject: [gecode-users] propagator PropCond
+In-Reply-To: <037901c67860$cc15c490$6f00a8c0@QMOBILE>
+Message-ID: <000501c678c3$43c86440$acd4ed82@beule>
+
+Not really, this is more tutorial knowledge: it is in noway Gecode specific,
+so a ref doc is not the right place. But be sure, the tutorial will ramble
+on and on on this.
+
+Christian
+
+PS: I can only encourage you again to have a look at some simple examples.
+In particular check the stuff in int/rel.
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, May 15, 2006 10:48 PM
+To: users at gecode.org
+Subject: Re: Re: Re: [gecode-users] propagator PropCond
+
+
+> You have to return ES_SUBSUMED at the latest when all your variables 
+> are assigned - otherwise the propagator will not be destroyed, 
+> resulting in a space leak. You can return it earlier, when you detect 
+> that your propagator doesn't have to be called again. For instance, in 
+> a propagator for x<y, you can return ES_SUBSUMED once the maximum of x 
+> is smaller than the minimum of y, even if neither is yet assigned.
+
+ah ok. memory leaks are nothing i want to have..
+
+>From propagate, you should only return ES_FAILED, ES_SUBSUMED, ES_FIX, 
+>or  ES_NOFIX (and special versions of the latter two for staged 
+>propagation,  which you can ignore for now). Whether to return FIX or 
+>NOFIX depends on  whether you know that your propagator has reached a 
+>fixpoint. If unsure,  return NOFIX. This may result in your propagator 
+>being called too often  (which may be less efficient but correct). 
+>Returning FIX although you're  not at a fixpoint can result in the 
+>propagator being called not often  enough, and you might miss a 
+>failure: dangerous!
+
+Think thats something that should occure in the documentation of the 
+Gecode::PropCond
+reference. Without your help I would have gone mad with debugging...
+
+Thanks a lot
+
+Martin
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Fri May 19 14:52:32 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Fri, 19 May 2006 14:52:32 +0200
+Subject: [gecode-users] Gecode versus Ilog Solver
+Message-ID: <446DBF90.9000807@informatik.uni-freiburg.de>
+
+I want to give some short sentences about my experiences concerning Ilog 
+Solver 6.1 and Gecode 1.1 constraint library in C++.
+
+I formulated my CSP, a special search strategy and some contraint 
+propagators both with Ilog and Gecode.
+
+In my opinion the strict parting between modelling level and 
+implementation level in Ilog makes its usage complicated. For branching 
+or propagation you ve got to switch to implementation level and can use 
+some macros to generate the modelling level. but thats no clear solution 
+  for me. Your cant get a good interface (e.g. readable headers) for 
+your modelling classes.
+The solution of Gecode is better to handle and open for a deeper look 
+into details.
+As you can see in my often questioning: support is great for Gecode. The 
+Ilog support people need at least a week for answering from my own 
+experience. That's breaking hard in your programming progress. Thanks 
+for your support! ;) (looking forward to your tutorial.. that will deal 
+with the remaining starting problems!)
+
+Summarising I can say that my developing and modelling time in Gecode is 
+at least half than in Ilog. Maybe in part by a better knowledge of some 
+techniques in such libraries now (tried Ilog first).
+
+But in the end Gecode is so far easier to handle for me.. ;)
+
+Think some enjoyable words are also nice for such a user list!
+
+Cheers,
+Martin
+
+
+
+From efkalog at gmail.com  Mon May 22 14:05:32 2006
+From: efkalog at gmail.com (Efstratios Kalogirou)
+Date: Mon, 22 May 2006 14:05:32 +0200
+Subject: [gecode-users] finding out whether there is a constraint between
+	two variables/ equality between two variables
+Message-ID: <6d69d7de0605220505k70743420y4dbd6cd67e66bd1d@mail.gmail.com>
+
+Hi all,
+
+Is it possible for each IntVar to see whether there is a constraint between
+the IntVar and another IntVar?
+
+I am looking for something like:
+bool myfuntion(IntVar a, IntVar b)
+that should return true only if there is at least a single constraint that
+involves both a and b.
+
+or
+void myfunction(IntVar a, IntVarArgs b)
+
+assigns b to be all IntVars that are present in the same constraints as a.
+
+Also regarding the comparison between two IntVar variables a, b, I was
+wondering if it is possible to check [NOT post] equality [whether the domain
+of the two variables contain the same values] in a way that doesn't include
+iterating over their values?
+
+Best,
+Stratos Kalogirou
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060522/d85563a7/attachment.htm>
+
+From tack at ps.uni-sb.de  Mon May 22 14:23:52 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 22 May 2006 14:23:52 +0200
+Subject: [gecode-users] Gecode versus Ilog Solver
+In-Reply-To: <446DBF90.9000807@informatik.uni-freiburg.de>
+References: <446DBF90.9000807@informatik.uni-freiburg.de>
+Message-ID: <200605221423.53003.tack@ps.uni-sb.de>
+
+Hi!
+
+> I want to give some short sentences about my experiences concerning Ilog
+> Solver 6.1 and Gecode 1.1 constraint library in C++.
+
+Ok, feedback is always very welcome!
+
+> I formulated my CSP, a special search strategy and some contraint
+> propagators both with Ilog and Gecode.
+>
+> In my opinion the strict parting between modelling level and
+> implementation level in Ilog makes its usage complicated. For branching
+> or propagation you ve got to switch to implementation level and can use
+> some macros to generate the modelling level. but thats no clear solution
+>   for me. Your cant get a good interface (e.g. readable headers) for
+> your modelling classes.
+> The solution of Gecode is better to handle and open for a deeper look
+> into details.
+
+That could be stated as one of our design principles ;-)
+
+> As you can see in my often questioning: support is great for Gecode. The
+> Ilog support people need at least a week for answering from my own
+> experience. That's breaking hard in your programming progress. Thanks
+> for your support! ;) (looking forward to your tutorial.. that will deal
+> with the remaining starting problems!)
+
+You're very welcome. Of course, one difference is that we can't give any 
+guarantees that we're going to respond at all, while Ilog pays people for 
+giving support. Of course, we'll try to do our best.
+
+Concerning the tutorial, in fact, people asking questions gives us a good idea 
+of what parts need special care. So, any feedback on what you consider 
+especially difficult (or fairly easy) is welcome.
+
+> Summarising I can say that my developing and modelling time in Gecode is
+> at least half than in Ilog. Maybe in part by a better knowledge of some
+> techniques in such libraries now (tried Ilog first).
+>
+> But in the end Gecode is so far easier to handle for me.. ;)
+>
+> Think some enjoyable words are also nice for such a user list!
+
+Indeed they are! Thanks a lot. And keep bothering us ;-)
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From tack at ps.uni-sb.de  Mon May 22 14:31:53 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 22 May 2006 14:31:53 +0200
+Subject: [gecode-users] finding out whether there is a constraint between
+	two variables/ equality between two variables
+In-Reply-To: <6d69d7de0605220505k70743420y4dbd6cd67e66bd1d@mail.gmail.com>
+References: <6d69d7de0605220505k70743420y4dbd6cd67e66bd1d@mail.gmail.com>
+Message-ID: <200605221431.53218.tack@ps.uni-sb.de>
+
+Hi.
+
+> Is it possible for each IntVar to see whether there is a constraint between
+> the IntVar and another IntVar?
+
+No, currently not. And it would be quite hard to use because of entailment. 
+Think of checking whether there's a constraint x<y. There might be a 
+propagator ensuring x<y, there might also be a strictly stronger one ensuring 
+x+1=y, or there might be none, as x<y is already entailed by the store.
+
+> I am looking for something like:
+> bool myfuntion(IntVar a, IntVar b)
+> that should return true only if there is at least a single constraint that
+> involves both a and b.
+>
+> or
+> void myfunction(IntVar a, IntVarArgs b)
+>
+> assigns b to be all IntVars that are present in the same constraints as a.
+
+Could you be a little more specific as to what you are planning to do with 
+that information?
+
+> Also regarding the comparison between two IntVar variables a, b, I was
+> wondering if it is possible to check [NOT post] equality [whether the
+> domain of the two variables contain the same values] in a way that doesn't
+> include iterating over their values?
+
+Equality is, unlike in many other CP systems, not implemented via aliasing. 
+This means that if you post "x=y", you actually post a propagator enforcing 
+that. As already said above, you currently cannot check whether there is such 
+a propagator.
+If you only want to know whether two variables might be equal, i.e. whether 
+the intersection of their domains is not empty, what's wrong with iterating 
+over the domains?
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From dooms at info.ucl.ac.be  Mon May 22 17:03:36 2006
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Mon, 22 May 2006 17:03:36 +0200
+Subject: [gecode-users] Variable::pme(Propagator*)
+Message-ID: <4471D2C8.9040200@info.ucl.ac.be>
+
+Hello,
+The documentation comment for pme is : Return modification event for 
+variable from propagator p.
+
+Is it the maximum ModEvent for this Variable since the space last was 
+stable ?
+Or is it the maximum ModEvent for this variable since the propagator was 
+called last ?
+Or something else ?
+
+Best,
+--
+Gr?goire
+
+
+
+
+From zayenz at gmail.com  Mon May 22 17:43:32 2006
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 22 May 2006 17:43:32 +0200
+Subject: [gecode-users] Variable::pme(Propagator*)
+In-Reply-To: <63b5c8b00605220842k28d57113pc66e51d653c95cb3@mail.gmail.com>
+References: <4471D2C8.9040200@info.ucl.ac.be>
+	<63b5c8b00605220842k28d57113pc66e51d653c95cb3@mail.gmail.com>
+Message-ID: <63b5c8b00605220843p40c01ec5je46381145cd56081@mail.gmail.com>
+
+Hi,
+
+Every Propagator contains a field called pme
+(PropagatorModificationEvents). This field records the modification
+events since the propagator was last run.
+
+The member
+  static ModeEvent pme(const Propagator*)
+in variables in Gecode is a function that extracts the
+modification-event for that variable-type. Note that the function is
+static, so there is no "this variable". Views also have this function,
+allowing them to do view-specific translations for the ModEvents.
+
+The pme-field can also be used in conjunction with staged propagation.
+See [1] for a description of the general idea. For an example, the
+implementation of distinct uses this technique.
+
+Hope this helps
+Mikael
+
+[1] Speeding up constraint propagation,
+http://web.it.kth.se/~schulte/paper.html?id=SchulteStuckey:CP:2004
+
+On 5/22/06, Gr?goire Dooms <dooms at info.ucl.ac.be> wrote:
+> Hello,
+> The documentation comment for pme is : Return modification event for
+> variable from propagator p.
+>
+> Is it the maximum ModEvent for this Variable since the space last was
+> stable ?
+> Or is it the maximum ModEvent for this variable since the propagator was
+> called last ?
+> Or something else ?
+>
+> Best,
+> --
+> Gr?goire
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+--
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From ggutierrez at cic.puj.edu.co  Mon May 22 23:54:26 2006
+From: ggutierrez at cic.puj.edu.co (Gustavo Gutierrez)
+Date: Mon, 22 May 2006 16:54:26 -0500
+Subject: [gecode-users] Number of propagators
+Message-ID: <e7b0e5a40605221454g5b3543b4wdd8f7ed6f3c34d0a@mail.gmail.com>
+
+Hi all,
+
+Is there any way to know the number of propagators inside a space?
+
+Thanks in advance,
+-- 
+Gustavo Gutierrez
+
+
+
+From schulte at imit.kth.se  Tue May 23 09:45:02 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 23 May 2006 09:45:02 +0200
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <e7b0e5a40605221454g5b3543b4wdd8f7ed6f3c34d0a@mail.gmail.com>
+Message-ID: <002d01c67e3c$cd082b40$acd4ed82@beule>
+
+No, actually not. However it would be easy enough to add (but only with
+linear complexity in the number of propagators). Should I?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Gustavo Gutierrez
+Sent: Monday, May 22, 2006 11:54 PM
+To: users at gecode.org
+Subject: [gecode-users] Number of propagators
+
+
+Hi all,
+
+Is there any way to know the number of propagators inside a space?
+
+Thanks in advance,
+-- 
+Gustavo Gutierrez
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Tue May 23 11:08:18 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 23 May 2006 11:08:18 +0200
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <e7b0e5a40605221454g5b3543b4wdd8f7ed6f3c34d0a@mail.gmail.com>
+Message-ID: <003a01c67e48$6eb664b0$acd4ed82@beule>
+
+I just added two functions propagators() and branchings() to the trunk
+version that return the desired information but only if the space is stable.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Gustavo Gutierrez
+Sent: Monday, May 22, 2006 11:54 PM
+To: users at gecode.org
+Subject: [gecode-users] Number of propagators
+
+
+Hi all,
+
+Is there any way to know the number of propagators inside a space?
+
+Thanks in advance,
+-- 
+Gustavo Gutierrez
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ggutierrez at cic.puj.edu.co  Tue May 23 23:08:14 2006
+From: ggutierrez at cic.puj.edu.co (Gustavo Gutierrez)
+Date: Tue, 23 May 2006 16:08:14 -0500
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <003a01c67e48$6eb664b0$acd4ed82@beule>
+References: <e7b0e5a40605221454g5b3543b4wdd8f7ed6f3c34d0a@mail.gmail.com>
+	<003a01c67e48$6eb664b0$acd4ed82@beule>
+Message-ID: <e7b0e5a40605231408y528176fcp7f63a49e4c7882a7@mail.gmail.com>
+
+Hi Christian,
+
+First of all thanks for the answer and the addition.
+
+On 5/23/06, Christian Schulte <schulte at imit.kth.se> wrote:
+> I just added two functions propagators() and branchings() to the trunk
+> version that return the desired information but only if the space is stable.
+
+I have a question about space stability and gecode. AFAIK, from mozart
+and your PhD thesis, a space is stable when there are no
+threads/propagators running. In the gecode case there are no threads
+but only propagators (right?), so a space becomes stable after
+performing propagation in it (i.e by calling the status method)? or
+are there others situations when this can happen?
+
+
+Thanks in advance,
+
+-- 
+Gustavo Gutierrez
+
+
+
+From schulte at imit.kth.se  Wed May 24 10:57:46 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 24 May 2006 10:57:46 +0200
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <e7b0e5a40605231408y528176fcp7f63a49e4c7882a7@mail.gmail.com>
+Message-ID: <000601c67f10$201c2ec0$acd4ed82@beule>
+
+Actually, you are right: only propagators are considered. There is am major
+difference though compared to Oz in when stability is achieved: Only clone
+and status make a space stable, commit in particular does not compute a
+fixpoint (this is in order to support batch recomputation). So while
+propagation in Oz is eager, it is lazy in Gecode.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gustavo.ggutierrez at gmail.com [mailto:gustavo.ggutierrez at gmail.com] On
+Behalf Of Gustavo Gutierrez
+Sent: Tuesday, May 23, 2006 11:08 PM
+To: schulte at imit.kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Number of propagators
+
+
+Hi Christian,
+
+First of all thanks for the answer and the addition.
+
+On 5/23/06, Christian Schulte <schulte at imit.kth.se> wrote:
+> I just added two functions propagators() and branchings() to the trunk 
+> version that return the desired information but only if the space is 
+> stable.
+
+I have a question about space stability and gecode. AFAIK, from mozart and
+your PhD thesis, a space is stable when there are no threads/propagators
+running. In the gecode case there are no threads but only propagators
+(right?), so a space becomes stable after performing propagation in it (i.e
+by calling the status method)? or are there others situations when this can
+happen?
+
+
+Thanks in advance,
+
+-- 
+Gustavo Gutierrez
+
+
+
+
+From zayenz at gmail.com  Wed May 24 11:03:45 2006
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 24 May 2006 11:03:45 +0200
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <000601c67f10$201c2ec0$acd4ed82@beule>
+References: <e7b0e5a40605231408y528176fcp7f63a49e4c7882a7@mail.gmail.com>
+	<000601c67f10$201c2ec0$acd4ed82@beule>
+Message-ID: <63b5c8b00605240203h8d130b1q9303da4f054680fc@mail.gmail.com>
+
+Just for completeness, committing a space to an alternative without
+giving a branching-description will compute a fixpoint first before
+doing the branching.
+
+Cheers
+Mikael
+
+On 5/24/06, Christian Schulte <schulte at imit.kth.se> wrote:
+> Actually, you are right: only propagators are considered. There is am major
+> difference though compared to Oz in when stability is achieved: Only clone
+> and status make a space stable, commit in particular does not compute a
+> fixpoint (this is in order to support batch recomputation). So while
+> propagation in Oz is eager, it is lazy in Gecode.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+>
+> -----Original Message-----
+> From: gustavo.ggutierrez at gmail.com [mailto:gustavo.ggutierrez at gmail.com] On
+> Behalf Of Gustavo Gutierrez
+> Sent: Tuesday, May 23, 2006 11:08 PM
+> To: schulte at imit.kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Number of propagators
+>
+>
+> Hi Christian,
+>
+> First of all thanks for the answer and the addition.
+>
+> On 5/23/06, Christian Schulte <schulte at imit.kth.se> wrote:
+> > I just added two functions propagators() and branchings() to the trunk
+> > version that return the desired information but only if the space is
+> > stable.
+>
+> I have a question about space stability and gecode. AFAIK, from mozart and
+> your PhD thesis, a space is stable when there are no threads/propagators
+> running. In the gecode case there are no threads but only propagators
+> (right?), so a space becomes stable after performing propagation in it (i.e
+> by calling the status method)? or are there others situations when this can
+> happen?
+>
+>
+> Thanks in advance,
+>
+> --
+> Gustavo Gutierrez
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From jeremie.vautard at laposte.net  Wed May 24 11:19:47 2006
+From: jeremie.vautard at laposte.net (jeremie.vautard)
+Date: Wed, 24 May 2006 11:19:47 +0200
+Subject: [gecode-users] Number of propagators
+Message-ID: <IZRJ8Z$D834BF01A7B3CA33F249FC68C3E49912@laposte.net>
+
+Hi ! 
+
+Great ! I was about to ask for the same functionnality :)
+However, Christian, what do you call the Trunk version ? Is it
+a yet availiable version or will it only be at the next release ? 
+
+J?r?mie Vautard
+
+
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+
+
+From schulte at imit.kth.se  Wed May 24 11:32:19 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 24 May 2006 11:32:19 +0200
+Subject: [gecode-users] Number of propagators
+In-Reply-To: <IZRJ8Z$D834BF01A7B3CA33F249FC68C3E49912@laposte.net>
+Message-ID: <000801c67f14$f413ce50$acd4ed82@beule>
+
+The trunk is the current development version, it is available via svn (see
+the webpage for details).
+
+However, currently I cannot advise to use the trunk as it is broken
+currently (I just realized that) and makes quite some incompatible changes
+for those having implemented their own propagators (destructors will be
+replaced by ordinary member functions so that arguments can be passed to
+them!).
+
+Christian
+
+PS: By the way I just realized that these numbers are only available on
+non-failed spaces otherwise one (should, I forgot that) will get an
+exception!
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of jeremie.vautard
+Sent: Wednesday, May 24, 2006 11:20 AM
+To: users
+Subject: RE: [gecode-users] Number of propagators
+
+
+Hi ! 
+
+Great ! I was about to ask for the same functionnality :) However,
+Christian, what do you call the Trunk version ? Is it a yet availiable
+version or will it only be at the next release ? 
+
+J?r?mie Vautard
+
+
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From jeremie.vautard at laposte.net  Sat May 27 00:20:43 2006
+From: jeremie.vautard at laposte.net (=?ISO-8859-1?Q?J=E9r=E9mie_Vautard?=)
+Date: Sat, 27 May 2006 00:20:43 +0200
+Subject: [gecode-users] POsting boolean clauses
+Message-ID: <44777F3B.8000506@laposte.net>
+
+Hi !
+
+Is it possible to simply post a propagator for disjunction of n boolean 
+variables ? I only found the method :
+
+void Gecode::bool_or 
+<http://www.gecode.org/gecode-doc-latest/group__TaskIntIntBool.html#g8eb933148737bb8afb482e3f566c66b1> 
+(Space *home, const BoolVarArgs &b, BoolVar c, IntConLevel 
+<http://www.gecode.org/gecode-doc-latest/group__TaskIntInt.html#ga3e79a3496160feae2fd790c9379a319>=ICL_DEF)
+
+in the documentation, but if I could do the same without having to 
+create an extra variable already reduced to 1 to use as the c argument, 
+it would be great !
+
+
+Cheers,
+J?r?mie Vautard
+
+
+
+From jeremie.vautard at laposte.net  Sun May 28 21:29:09 2006
+From: jeremie.vautard at laposte.net (jeremie.vautard)
+Date: Sun, 28 May 2006 21:29:09 +0200
+Subject: [gecode-users] Posting boolean clauses -little precision-
+Message-ID: <IZZQ4L$CFF4707BDB3BE881F07F3A2F479EF6BB@laposte.net>
+
+Hi again ! 
+
+Having had a look at my previous message, I realise that it is
+not perfectly clear. The constraint I want to post is a
+disjunction of litterals, i.e. a boolean variable or its
+negation. (so, maybe the propagator I mentionned is not the
+right one ?) 
+
+I noticed that minimodel has a boolean expressions support,
+but I didn't find any example using it. Is such an example
+available anywhere ? 
+
+
+Jeremie Vautard
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+
+
+From schulte at imit.kth.se  Mon May 29 09:50:55 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 29 May 2006 09:50:55 +0200
+Subject: [gecode-users] Posting boolean clauses -little precision-
+In-Reply-To: <IZZQ4L$CFF4707BDB3BE881F07F3A2F479EF6BB@laposte.net>
+Message-ID: <000b01c682f4$9d86b500$acd4ed82@beule>
+
+Dear Jeremie,
+
+what you can do is the following:
+	- for each negative literal, create a new var and post a propagator
+bool_not
+	- for the disjunction: just create a Boolean variable that is
+assigned 1 and use that as
+	  result for bool_or.
+
+An example how to use the minimodel stuff is (assuming that b0, b1, b2 are
+Boolean variables):
+	post(<some space>, b0 | !b1 | b2)
+returns a BoolVar reflecting the formula. If you want to state the formula
+is true, just write
+	post(<some space>, tt(b0 | !b1 | b2))
+
+Hope that helps
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of jeremie.vautard
+Sent: Sunday, May 28, 2006 9:29 PM
+To: users
+Subject: [gecode-users] Posting boolean clauses -little precision-
+
+
+Hi again ! 
+
+Having had a look at my previous message, I realise that it is not perfectly
+clear. The constraint I want to post is a disjunction of litterals, i.e. a
+boolean variable or its negation. (so, maybe the propagator I mentionned is
+not the right one ?) 
+
+I noticed that minimodel has a boolean expressions support,
+but I didn't find any example using it. Is such an example available
+anywhere ? 
+
+
+Jeremie Vautard
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Mon May 29 09:44:22 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 29 May 2006 09:44:22 +0200
+Subject: [gecode-users] FW: FLoC 2006
+Message-ID: <000a01c682f3$b33708b0$acd4ed82@beule>
+
+
+
+          Call for Participation --- FLoC'06
+
+                   The 2006 Federated Logic Conference
+                          Seattle, Washington, USA
+                       August 10 -- August 22, 2006
+
+                   http://www.easychair.org/FLoC-06/
+
+We are pleased to announce the fourth Federated Logic Conference
+(FLoC'06) to be held in Seattle, Washington, in August 2006, at the Seattle
+Sheraton (http://www.easychair.org/FLoC-06/floc-hotel.html).
+
+FLoC'06 promises to be the premier scientific meeting in computational logic
+in 2006.  The following conferences will participate in FLoC'06:
+
+CAV     Conference on Computer Aided Verification (Aug 17-20)
+ICLP    Int'l Conference on Logic Programming (Aug 17-20)
+IJCAR   Int'l Joint Conference on Automated Reasoning (Aug 17-20)
+LICS    IEEE Symposium on Logic in Computer Science (Aug 12-15)
+RTA     Conference on Rewriting Techniques and Applications (Aug 12-14)
+SAT     Int'l Conference on Theory and Applications of
+         Satisfiability Testing (Aug 12-15)
+
+The six major conferences will be accompanied by 41 workshops, held on Aug.
+10-11, 15-16, and 21-22.
+
+The FLoC'06 program includes a keynote session to commemorate the Goedel
+Centenary, with John Dawson and Dana Scott as speakers, a keynote talk by
+David Harel, plenary talks by Randy Bryant and David Dill, and invited talks
+by F. Bacchus, A. Blass, B. Buchberger, A. Darwiche, M. Das, J. Esparza, J.
+Giesl, A. Gordon, T. Hoare, O. Kupferman, M. Lam, D. Miller, K. Sakallah, J.
+Stoy, and C. Welty.
+
+FLoC has received an NSF grant to provide funds for travel grants of up to
+$750 for student attendees of FLoC'06. We expect to award about 50 grants.
+See application information on the website.
+
+Seattle, the Emerald city, sits on the shores of Puget Sound surrounded by
+mountains to the east and west.  Lovely views of blue waters and snow capped
+peaks seem to appear everywhere - around the next bend in the road or
+between the buildings downtown. Seattle is the gateway to the Pacific
+Northwest, a premier tourist attraction. In Seattle, Mt. Rainier enchants
+visitors; in Vancouver, British Columbia, the Coast Range juts out over
+downtown; and in Portland, 5,000 acres of forestland north of the city
+center harbor deer, elk, and the odd bear and cougar.
+
+Online registration for FLoC is now open at:
+
+        http://www.easychair.org/FLoC-06/
+
+Deadline for preferred hotel rate is July 21, 2006.
+Deadline for early registration is July 10, 2006.
+
+FLoC'06 Steering Committee
+
+Moshe Y. Vardi      (General Chair)
+Thomas Ball         (Conference Co-Chair)
+Jakob Rehof         (Conference Co-Chair)
+Edmund Clarke       (CAV)
+Reiner Hahnle       (IJCAR)
+Manuel Hermenegildo (ICLP)
+Phokion Kolaitis    (LICS)
+Henry Kautz         (SAT)
+Aart Middeldorp     (RTA)
+Andrei Voronkov     (IJCAR)
+
+
+
+
+From tack at ps.uni-sb.de  Mon May 29 17:32:32 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 29 May 2006 17:32:32 +0200
+Subject: [gecode-users] ps.uni-sb.de is back online
+Message-ID: <200605291732.33202.tack@ps.uni-sb.de>
+
+Hi everyone.
+
+Due to a hard disk failure, our server hasn't been fully available since last 
+weekend. We have replaced the disk now and recovered its contents from last 
+night's backup.
+Fortunately, this disk contained only the /services (or /srv) mountpoint, 
+which means that home directories were not affected. We hope that the system 
+will run more stable now and apologize for any inconvenience.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From efkalog at gmail.com  Tue May 30 15:50:49 2006
+From: efkalog at gmail.com (Efstratios Kalogirou)
+Date: Tue, 30 May 2006 15:50:49 +0200
+Subject: [gecode-users] Retrieval of status and elimination of the SS_BRANCH
+	case
+Message-ID: <6d69d7de0605300650h547e9aeg79453e293b7dc668@mail.gmail.com>
+
+Hi all,
+
+I am using the status method to get the status of my space. In case the
+status returns SS_BRANCH I would like to branch the search tree and find out
+if the status is SS_SOLVED or SS_FAILED. In other words I want to eliminate
+the case where the status returns SS_BRANCH [only solved or failed spaces
+are accepted]. I am doing something like:
+
+QSpace* qs=new QSpace;   //this is a subclass of Space where my problem is
+defined
+  qs->getStatus();                //this is where I print the status of my
+space. In my case this returns SS_BRANCH
+  DFS<QSpace> e(qs,25,200);  //this is where I am using the Depth First
+Engine to search through the tree
+  qs->getStatus();                //this is where I would expect to see
+either SS_SOLVED or SS_FAILED but not SS_BRANCH
+
+The problem is that after the second retrieval of the status I get again
+SS_BRANCH. What am I doing wrong?
+
+Best,
+Stratos Kalogirou
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060530/99124adc/attachment.htm>
+
+From tack at ps.uni-sb.de  Tue May 30 16:03:53 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 30 May 2006 16:03:53 +0200
+Subject: [gecode-users] Retrieval of status and elimination of the
+	SS_BRANCH case
+In-Reply-To: <6d69d7de0605300650h547e9aeg79453e293b7dc668@mail.gmail.com>
+References: <6d69d7de0605300650h547e9aeg79453e293b7dc668@mail.gmail.com>
+Message-ID: <200605301603.53805.tack@ps.uni-sb.de>
+
+Hi.
+
+> I am using the status method to get the status of my space. In case the
+> status returns SS_BRANCH I would like to branch the search tree and find
+> out if the status is SS_SOLVED or SS_FAILED. In other words I want to
+> eliminate the case where the status returns SS_BRANCH [only solved or
+> failed spaces are accepted]. I am doing something like:
+>
+> QSpace* qs=new QSpace;   //this is a subclass of Space where my problem is
+> defined
+>   qs->getStatus();                //this is where I print the status of my
+> space. In my case this returns SS_BRANCH
+>   DFS<QSpace> e(qs,25,200);  //this is where I am using the Depth First
+> Engine to search through the tree
+>   qs->getStatus();                //this is where I would expect to see
+> either SS_SOLVED or SS_FAILED but not SS_BRANCH
+>
+> The problem is that after the second retrieval of the status I get again
+> SS_BRANCH. What am I doing wrong?
+
+You only construct the search engine, but don't actually perform any search. 
+To do that, call e.next(). It either returns you a new QSpace that is a 
+solution, or NULL if there was no solution. Note that, as Gecode's search is 
+based on copying, the search engine really returns a copy of your original 
+space.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From wgheath at saber.net  Tue May 30 21:00:04 2006
+From: wgheath at saber.net (Tim Heath)
+Date: Tue, 30 May 2006 12:00:04 -0700
+Subject: [gecode-users] Job shop scheduling solution with timetable,
+	pre-emption, and priority
+Message-ID: <447C9634.1020505@saber.net>
+
+Hi All,
+
+I am new to gecode but have been studying mozart oz quite a bit.  I am 
+interested in finding a solution that will do job shop scheduling with a 
+timetable, pre-emption, and priority of the tasks.  Has this been done 
+in gecode?  If so can you point me to this solution?  Also, if your 
+aware of if it has been done anywhere in the free domain point me to 
+that as well.
+
+Thanks
+
+
+
+From schulte at imit.kth.se  Tue May 30 22:16:38 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 30 May 2006 22:16:38 +0200
+Subject: [gecode-users] Job shop scheduling solution with timetable,
+	pre-emption, and priority
+In-Reply-To: <447C9634.1020505@saber.net>
+Message-ID: <000101c68425$f58db8c0$0401a8c0@tiny>
+
+No, it has not been done (yet) in Gecode (even though, we just started some
+work for having scheduling support). I also do not know any other freely
+accesible solution.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Tim Heath
+Sent: Tuesday, May 30, 2006 9:00 PM
+To: users at gecode.org
+Subject: [gecode-users] Job shop scheduling solution with
+timetable,pre-emption, and priority
+
+
+Hi All,
+
+I am new to gecode but have been studying mozart oz quite a bit.  I am 
+interested in finding a solution that will do job shop scheduling with a 
+timetable, pre-emption, and priority of the tasks.  Has this been done 
+in gecode?  If so can you point me to this solution?  Also, if your 
+aware of if it has been done anywhere in the free domain point me to 
+that as well.
+
+Thanks
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Wed May 31 15:28:56 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Wed, 31 May 2006 15:28:56 +0200
+Subject: [gecode-users] constraint graphs via boolvars
+Message-ID: <447D9A18.1040103@informatik.uni-freiburg.de>
+
+Greetings,
+
+I m currently thinking about an implementation of a more or less 
+bruteforce implementation of a binary constraint graph. my idea is like 
+that:
+
+1) i ve got an array of n IntVars = D[0..n-1]
+
+2) a BoolVar derived subclass EdgeVar manages 2 indices in (0..n-1) in 
+addition to the normal BoolVar data
+
+3) for each binary constraint c I introduce an EdgeVar connected to a 
+corresponding reified constraint
+
+4) i create an adjacency list to represent the constraint graph
+
+so far no prob..
+
+now i want that:
+- if an EdgeVar becomes assigned, i remove the corresponding entries 
+from the adjancency list
+
+thats the point I m currently stucked ..
+
+whats the best way to do?
+theoretically the constraint graph and therefor the adjacency list is an 
+n-ary constraint over the EdgeVars. So my first idea is to derive the 
+adjecency list from Gecode::Propagator, to get notified of the 
+assignments... but cant find a way to subscribe this "global" constraint 
+to the EdgeVars.
+
+currently i build the complete adjacency list from the EdgeVar objects, 
+everytime i need the constraint graph. but i think thats nothing 
+effective.. :)
+
+hope you can help and have an idea
+
+Martin
+
+
+

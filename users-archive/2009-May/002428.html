@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Propagator
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator&In-Reply-To=%3C001801c9dd45%24817cc710%2484765530%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002426.html">
+   <LINK REL="Next"  HREF="002430.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Propagator</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator&In-Reply-To=%3C001801c9dd45%24817cc710%2484765530%24%40se%3E"
+       TITLE="[gecode-users] Propagator">cschulte at kth.se
+       </A><BR>
+    <I>Mon May 25 16:31:34 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002426.html">[gecode-users] Propagator
+</A></li>
+        <LI>Next message: <A HREF="002430.html">[gecode-users] Propagator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2428">[ date ]</a>
+              <a href="thread.html#2428">[ thread ]</a>
+              <a href="subject.html#2428">[ subject ]</a>
+              <a href="author.html#2428">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Jan,
+
+there are the following catches:
+
+a) propagators do not use destructors. Instead, when a propagator is
+deleted, the dispose function is called. That in particular implies that for
+any member of your propagator you have to explicitly call the member's
+destructor (that is something that is done automatically inside a destructor
+but not in the dispose function).
+
+b) most likely you are under the assumption that when a space containing
+your propagator is deleted, the dispose method of the propagator is called
+such that memory possibly allocated by your propagator is freed. That is not
+the case. In case your propagator requires the dispose method to be called
+when a space is deleted, the propagator must register itself with its space
+for deletion. For example, when home refers to the space, you have to
+register the propagator by
+	home.notice(*this, AP_DISPOSE);
+and consequently in the dispose function you have to deregister
+	home.ignore(*this, AP_DISPOSE);
+
+The only exception is if your propagator has only allocated memory from the
+space but not via malloc or something else. Then it does not be deleted when
+its space is deleted.
+
+Then, the behaviour you describe must have to do with something else as
+there is really nothing special happening for NaryPropagator. Maybe you
+could check your code again.
+
+I think you are referring to the Gecode 2.* implementation of the
+cumulatives propagator. That was actually nonsensical and has been changed
+in 3.*. If no variables are modified by a propagator and the propagator says
+ES_NOFIX, Gecode still knows that nothing has changed. So finding out
+whether something has changed, and if yes reporting ES_NOFIX and ES_FIX
+otherwise is exactly the same than reporting ES_NOFIX.
+
+I hope that helps
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Jan Kelbel
+Sent: Monday, May 25, 2009 3:16 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Propagator
+
+Hello,
+
+some months ago I implemented N-ary propagator (it is that edge-finder). 
+When I used it to solve larger problem instances, I noticed that it 
+consumes memory in rate of about 1MB/s.
+I tested it in Gecode 2.2.0 (where it was even about 3MB/s) and in 
+Gecode 3.1.0., using MS Visual C++ 2008.
+
+This propagator is inherited from class NaryPropagator. In the propagate 
+method, there is an array for sorting, which is created using the Region 
+allocation.
+
+When I changed the edge-finder to inherit directly from the class 
+Propagator, the growing memory consumption disappeared.
+
+My question is, are there some rules, what should be implemented in 
+propagator inherited from NaryPropagator in order allocate/dealocate 
+memory correctly?
+
+
+My second question (set of questions) is related to Val propagator for 
+cumulatives constrait, which is my study material for implementation of 
+scheduling constraints.
+1) in Val::propagate()  file cumulatives/val.hpp
+at line 276 there is a test if all the variables are assigned. Is there 
+a reason why in case of subsumed = true; the function ES_SUBSUMED() is 
+called  as late as at line 386?
+
+2) Why there is no ES_FIX return from the Val::propagate() method?
+In the documentation is that when the propagator computes fixpoint, it 
+should return ES_FIX.
+Is the reason that checking whether fixpoint is reached is expensive, 
+and the propagation scheduler arranges that the propagation is not 
+executed too many times?
+
+Thank you.
+
+Regards, Jan
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002426.html">[gecode-users] Propagator
+</A></li>
+	<LI>Next message: <A HREF="002430.html">[gecode-users] Propagator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2428">[ date ]</a>
+              <a href="thread.html#2428">[ thread ]</a>
+              <a href="subject.html#2428">[ subject ]</a>
+              <a href="author.html#2428">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

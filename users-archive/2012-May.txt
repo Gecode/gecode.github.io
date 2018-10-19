@@ -1,0 +1,711 @@
+From tack at gecode.org  Tue May  1 06:24:25 2012
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 1 May 2012 14:24:25 +1000
+Subject: [gecode-users] "usage" parameter as IntVar in cumulative
+	constraint
+In-Reply-To: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>
+References: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>
+Message-ID: <F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>
+
+Hi,
+
+we currently don't have plans to include that algorithm in the next release.
+
+Cheers,
+Guido
+
+On 27/04/2012, at 1:11 AM, Andrea Pretto wrote:
+
+> Hi,
+> 
+> Looking at Gecode documentation and in source code, I don't find a way to have the "usage" parameter as variable (only as constant by, IntArgs) on the "cumulative" constraint.
+> Today the only way to get the usage as variable is to use the "cumulatives" constraint, but that deploy different algorithms.
+> 
+> Is there any plan to implement that in the "cumulative" constraint ??
+> 
+> P.S:
+> reference algorithm:
+> Max Energy Algorithm for Discrete Cumulative Resources
+> by Petr Vilim
+
+
+
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+
+
+From jean-noel.monette at it.uu.se  Mon May  7 13:58:30 2012
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Mon, 07 May 2012 13:58:30 +0200
+Subject: [gecode-users] Extending the flatzinc interface
+Message-ID: <4FA7B8E6.5090602@it.uu.se>
+
+Hello,
+
+I would like to extend the Gecode/Flatzinc interface to handle 
+"natively" more constraints (that I implemented in Gecode). The way I do 
+it is to add new constraints to the Registry global object. So my code 
+looks like:
+
+#include <gecode/flatzinc.hh>
+#include <gecode/flatzinc/registry.hh>
+#include "my_cstr_prop.hh"
+
+namespace Gecode { namespace FlatZinc {
+
+void p_my_cstr(FlatZincSpace& s, const ConExpr& ce, AST::Node* ann) {
+       IntVar x = getIntVar(s, ce[0]);
+       IntVar y = getIntVar(s, ce[1]);
+       My_CSTR(s,x,y,ann2icl(ann));
+     }
+
+class MyPoster {
+    public:
+    MyPoster(void) {
+        registry().add("my_cstr", &p_my_cstr);
+    }
+};
+MyPoster __my_poster;
+}}
+
+This is done by "monkey-see-monkey-do" from the file registry.cpp. 
+However, I ran into several problems. First, I had to add the definition 
+of "getIntVar" and "ann2icl", that I just copy-pasted from registry.cpp 
+(as they are not declared in a header file, and furthermore are in an 
+anonymous namespace). So, my question is to know if this is the way I'm 
+suppose to do it, or if there is a more straightforward way to extend 
+the Gecode/Flatzinc interface with new constraints.
+
+
+Second (this might be more related to c++ rather than Gecode, apologizes 
+if this is indeed the case), I've been unable to link the resulting 
+object file against libgecodeflatzinc.so with the following command 
+(fz.o is the object file from fz.cpp in the gecode distrib):
+
+g++   ./src_c/fz.o ./src_c/my_cstr.o   -lgecodeflatzinc -lgecodedriver 
+-lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint -lgecodekernel 
+-lgecodesupport
+
+It yields the following error:
+
+./src_c/my_cstr.o: In function `global constructors keyed to 
+_Z3NEQN6Gecode4HomeENS_6IntVarES1_NS_11IntConLevelE':
+my_cstr.cpp:(.text+0x2667): undefined reference to 
+`Gecode::FlatZinc::registry()'
+my_cstr.cpp:(.text+0x2679): undefined reference to 
+`Gecode::FlatZinc::Registry::add(std::basic_string<char, 
+std::char_traits<char>, std::allocator<char> > const&, void 
+(*)(Gecode::FlatZinc::FlatZincSpace&, Gecode::FlatZinc::ConExpr const&, 
+Gecode::FlatZinc::AST::Node*))'
+
+However, I'm able to link the same object file against the object files 
+that are compiled into libgecodeflatzinc:
+
+g++  ./src_c/fz.o ./src_c/my_cstr.o  gecode-3.7.3/gecode/flatzinc/*.o 
+-lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint 
+-lgecodekernel -lgecodesupport
+
+So, I'm wondering why and how this is happening, and I have no clue... 
+(I'm using Gecode 3.7.1, compiler is gcc 4.5.2, on Ubuntu 11.04)
+
+Thank you very much for your help,
+
+Jean-No?l Monette
+
+
+
+From tack at gecode.org  Thu May 10 10:35:41 2012
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 10 May 2012 18:35:41 +1000
+Subject: [gecode-users] Extending the flatzinc interface
+In-Reply-To: <4FA7B8E6.5090602@it.uu.se>
+References: <4FA7B8E6.5090602@it.uu.se>
+Message-ID: <3952E6EC-81E7-4B38-A607-8C8BC99490E8@gecode.org>
+
+Hi,
+
+you are running into these problems because I didn't really take care that the registry can be extended by users - sorry about that.  I'll put the helper functions in a header so you can include them.  The linker problems are due to missing export declarations.  You can probably work around that problem by compiling Gecode with the --disable-gcc-visibility configure switch.  I'll also fix that.
+
+Cheers,
+Guido
+
+On 7 May 2012, at 21:58, Jean-No?l Monette wrote:
+
+> Hello,
+> 
+> I would like to extend the Gecode/Flatzinc interface to handle "natively" more constraints (that I implemented in Gecode). The way I do it is to add new constraints to the Registry global object. So my code looks like:
+> 
+> #include <gecode/flatzinc.hh>
+> #include <gecode/flatzinc/registry.hh>
+> #include "my_cstr_prop.hh"
+> 
+> namespace Gecode { namespace FlatZinc {
+> 
+> void p_my_cstr(FlatZincSpace& s, const ConExpr& ce, AST::Node* ann) {
+>      IntVar x = getIntVar(s, ce[0]);
+>      IntVar y = getIntVar(s, ce[1]);
+>      My_CSTR(s,x,y,ann2icl(ann));
+>    }
+> 
+> class MyPoster {
+>   public:
+>   MyPoster(void) {
+>       registry().add("my_cstr", &p_my_cstr);
+>   }
+> };
+> MyPoster __my_poster;
+> }}
+> 
+> This is done by "monkey-see-monkey-do" from the file registry.cpp. However, I ran into several problems. First, I had to add the definition of "getIntVar" and "ann2icl", that I just copy-pasted from registry.cpp (as they are not declared in a header file, and furthermore are in an anonymous namespace). So, my question is to know if this is the way I'm suppose to do it, or if there is a more straightforward way to extend the Gecode/Flatzinc interface with new constraints.
+> 
+> 
+> Second (this might be more related to c++ rather than Gecode, apologizes if this is indeed the case), I've been unable to link the resulting object file against libgecodeflatzinc.so with the following command (fz.o is the object file from fz.cpp in the gecode distrib):
+> 
+> g++   ./src_c/fz.o ./src_c/my_cstr.o   -lgecodeflatzinc -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint -lgecodekernel -lgecodesupport
+> 
+> It yields the following error:
+> 
+> ./src_c/my_cstr.o: In function `global constructors keyed to _Z3NEQN6Gecode4HomeENS_6IntVarES1_NS_11IntConLevelE':
+> my_cstr.cpp:(.text+0x2667): undefined reference to `Gecode::FlatZinc::registry()'
+> my_cstr.cpp:(.text+0x2679): undefined reference to `Gecode::FlatZinc::Registry::add(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, void (*)(Gecode::FlatZinc::FlatZincSpace&, Gecode::FlatZinc::ConExpr const&, Gecode::FlatZinc::AST::Node*))'
+> 
+> However, I'm able to link the same object file against the object files that are compiled into libgecodeflatzinc:
+> 
+> g++  ./src_c/fz.o ./src_c/my_cstr.o  gecode-3.7.3/gecode/flatzinc/*.o -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint -lgecodekernel -lgecodesupport
+> 
+> So, I'm wondering why and how this is happening, and I have no clue... (I'm using Gecode 3.7.1, compiler is gcc 4.5.2, on Ubuntu 11.04)
+> 
+> Thank you very much for your help,
+> 
+> Jean-No?l Monette
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120510/24e0f127/attachment.html>
+
+From serge.lemouton at ircam.fr  Fri May 11 16:21:51 2012
+From: serge.lemouton at ircam.fr (serge lemouton)
+Date: Fri, 11 May 2012 16:21:51 +0200
+Subject: [gecode-users] Building gecode for macintosh i386 ?
+Message-ID: <70A0303B-9998-40E2-8636-9FF544431799@ircam.fr>
+
+Hello all,
+
+As I would like to make a 32bit framework linked with gecode, I was wondering :
+How painful would it be to build the last version of gecode as a "universal binary" Framework ?
+
+Thanks for any advice,
+
+Serge
+
+From tack at gecode.org  Sat May 12 02:57:05 2012
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 12 May 2012 10:57:05 +1000
+Subject: [gecode-users] Building gecode for macintosh i386 ?
+In-Reply-To: <70A0303B-9998-40E2-8636-9FF544431799@ircam.fr>
+References: <70A0303B-9998-40E2-8636-9FF544431799@ircam.fr>
+Message-ID: <C1D85619-4F68-4898-8011-57DCCB2FFC85@gecode.org>
+
+Hi Serge,
+it's not painful at all, it's just that the Qt binary package is now 64 bit only, so for a universal binary package of Gecode we'd have to build Qt ourselves, too.
+
+To build a universal binary framework without Qt, simply use the following options for configure:
+--disable-qt --with-architectures=i386,x86_64 --enable-framework
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+
+
+On 12/05/2012, at 0:21, serge lemouton <serge.lemouton at ircam.fr> wrote:
+
+> Hello all,
+> 
+> As I would like to make a 32bit framework linked with gecode, I was wondering :
+> How painful would it be to build the last version of gecode as a "universal binary" Framework ?
+> 
+> Thanks for any advice,
+> 
+> Serge
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From a.pretto at miriade.it  Fri May 11 12:16:41 2012
+From: a.pretto at miriade.it (Andrea Pretto)
+Date: Fri, 11 May 2012 12:16:41 +0200
+Subject: [gecode-users] "usage" parameter as IntVar in cumulative
+	constraint
+In-Reply-To: <F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>
+References: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>
+	<F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>
+Message-ID: <CALtg6jkXHJFAU+P8AS6XHJGrXEnG2oZ+dHnfEk6okq+oW-=FTA@mail.gmail.com>
+
+Ok for the next release.
+There's any plan to implement that in the long run ???
+
+Thanks.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120511/f03ad97b/attachment.html>
+
+From cschulte at kth.se  Sun May 13 16:27:40 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 13 May 2012 16:27:40 +0200
+Subject: [gecode-users] "usage" parameter as IntVar in
+	cumulative	constraint
+In-Reply-To: <CALtg6jkXHJFAU+P8AS6XHJGrXEnG2oZ+dHnfEk6okq+oW-=FTA@mail.gmail.com>
+References: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>	<F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>
+	<CALtg6jkXHJFAU+P8AS6XHJGrXEnG2oZ+dHnfEk6okq+oW-=FTA@mail.gmail.com>
+Message-ID: <003e01cd3114$8e9a0d60$abce2820$@kth.se>
+
+How about you doing it? That's how open source works: if you need it badly
+why not do it and contribute?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Andrea Pretto
+Sent: Friday, May 11, 2012 12:17 PM
+To: Guido Tack
+Cc: users at gecode.org
+Subject: Re: [gecode-users] "usage" parameter as IntVar in cumulative
+constraint
+
+ 
+
+Ok for the next release.
+
+There's any plan to implement that in the long run ???
+
+ 
+
+Thanks.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120513/83597653/attachment.html>
+
+From a.pretto at miriade.it  Mon May 14 09:44:55 2012
+From: a.pretto at miriade.it (Andrea Pretto)
+Date: Mon, 14 May 2012 09:44:55 +0200
+Subject: [gecode-users] "usage" parameter as IntVar in cumulative
+	constraint
+In-Reply-To: <003e01cd3114$8e9a0d60$abce2820$@kth.se>
+References: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>
+	<F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>
+	<CALtg6jkXHJFAU+P8AS6XHJGrXEnG2oZ+dHnfEk6okq+oW-=FTA@mail.gmail.com>
+	<003e01cd3114$8e9a0d60$abce2820$@kth.se>
+Message-ID: <CALtg6j=z6oMXhxjt+zh8pgvLeo_WwwDgjsMyxdz=peqe8mY7Vw@mail.gmail.com>
+
+Yep, we are thinking about that.
+I just want to know if there was someone else working on it.
+
+Thanks.
+
+2012/5/13 Christian Schulte <cschulte at kth.se>
+
+> How about you doing it? That?s how open source works: if you need it badly
+> why not do it and contribute?****
+>
+> ** **
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Andrea Pretto
+> *Sent:* Friday, May 11, 2012 12:17 PM
+> *To:* Guido Tack
+> *Cc:* users at gecode.org
+> *Subject:* Re: [gecode-users] "usage" parameter as IntVar in cumulative
+> constraint****
+>
+> ** **
+>
+> Ok for the next release.****
+>
+> There's any plan to implement that in the long run ???****
+>
+> ** **
+>
+> Thanks.****
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120514/c339582a/attachment.html>
+
+From cschulte at kth.se  Mon May 14 10:22:42 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 14 May 2012 10:22:42 +0200
+Subject: [gecode-users] "usage" parameter as IntVar in
+	cumulative	constraint
+In-Reply-To: <CALtg6j=z6oMXhxjt+zh8pgvLeo_WwwDgjsMyxdz=peqe8mY7Vw@mail.gmail.com>
+References: <CALtg6jnY31+VZmL4Rhxg7=Avf=Q8y7ZsAi7X=V14sLtTKkEcGg@mail.gmail.com>	<F098360F-BCC6-4DDA-8246-971EAFE9DE29@gecode.org>	<CALtg6jkXHJFAU+P8AS6XHJGrXEnG2oZ+dHnfEk6okq+oW-=FTA@mail.gmail.com>	<003e01cd3114$8e9a0d60$abce2820$@kth.se>
+	<CALtg6j=z6oMXhxjt+zh8pgvLeo_WwwDgjsMyxdz=peqe8mY7Vw@mail.gmail.com>
+Message-ID: <000901cd31aa$bc6995d0$353cc170$@kth.se>
+
+Brilliant, if you need any help, please let me know.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Andrea Pretto
+Sent: Monday, May 14, 2012 9:45 AM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] "usage" parameter as IntVar in cumulative
+constraint
+
+ 
+
+Yep, we are thinking about that.
+
+I just want to know if there was someone else working on it.
+
+ 
+
+Thanks.
+
+2012/5/13 Christian Schulte <cschulte at kth.se>
+
+How about you doing it? That's how open source works: if you need it badly
+why not do it and contribute?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Andrea Pretto
+Sent: Friday, May 11, 2012 12:17 PM
+To: Guido Tack
+Cc: users at gecode.org
+Subject: Re: [gecode-users] "usage" parameter as IntVar in cumulative
+constraint
+
+ 
+
+Ok for the next release.
+
+There's any plan to implement that in the long run ???
+
+ 
+
+Thanks.
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120514/4aeea4fc/attachment.html>
+
+From a.pretto at miriade.it  Mon May 21 16:31:05 2012
+From: a.pretto at miriade.it (Andrea Pretto)
+Date: Mon, 21 May 2012 16:31:05 +0200
+Subject: [gecode-users] Output control for the Script class
+Message-ID: <CALtg6jnPXrARmQtK-6e=Osbwep9-ky79MA=ArAcyOo5Og5MzRw@mail.gmail.com>
+
+Hi,
+
+I'am using Gecode for a project at work (I'am using Script class) and I
+needed to separate Gecode message (timing, statistics etc..) from
+solutions. That's because solutions "goes out" in a certain format that
+another process have to decode, so I cannot mix solutions with Gecode
+message.
+
+The simplest solution I found was to change cout to clog everywhere in
+ScriptBase::run, everywhere BUT when calling ex->print() which print the
+solution. This is enough to have Gecode messages to standard log and
+solutions to standard output, and now I can redirect them separately.
+
+I would like to have this kind behavior on future releases of
+Gecode. Flatzinc has already some options that do something like that (-s
+and -o, I think), I want to implement something similar and send some
+patches if you agree (it's pretty simple from what I see).
+Tell me what you think about it.
+
+Cheers.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120521/55e4c0d0/attachment.html>
+
+From cschulte at kth.se  Tue May 22 09:32:55 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 22 May 2012 09:32:55 +0200
+Subject: [gecode-users] Output control for the Script class
+In-Reply-To: <CALtg6jnPXrARmQtK-6e=Osbwep9-ky79MA=ArAcyOo5Og5MzRw@mail.gmail.com>
+References: <CALtg6jnPXrARmQtK-6e=Osbwep9-ky79MA=ArAcyOo5Og5MzRw@mail.gmail.com>
+Message-ID: <003001cd37ed$1df4ed20$59dec760$@kth.se>
+
+Hi Andrea,
+
+ 
+
+If you send me the patches, I can have a look. I am not that sure because
+there is always the option to not use the driver but use a search engine
+directly.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.ict.kth.se/~cschulte/>
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Andrea Pretto
+Sent: Monday, May 21, 2012 4:31 PM
+To: users at gecode.org
+Subject: [gecode-users] Output control for the Script class
+
+ 
+
+Hi,
+
+ 
+
+I'am using Gecode for a project at work (I'am using Script class) and I
+needed to separate Gecode message (timing, statistics etc..) from solutions.
+That's because solutions "goes out" in a certain format that another process
+have to decode, so I cannot mix solutions with Gecode message.
+
+ 
+
+The simplest solution I found was to change cout to clog everywhere in
+ScriptBase::run, everywhere BUT when calling ex->print() which print the
+solution. This is enough to have Gecode messages to standard log and
+solutions to standard output, and now I can redirect them separately.
+
+ 
+
+I would like to have this kind behavior on future releases of Gecode.
+Flatzinc has already some options that do something like that (-s and -o, I
+think), I want to implement something similar and send some patches if you
+agree (it's pretty simple from what I see).
+
+Tell me what you think about it.
+
+ 
+
+Cheers.
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120522/8d633954/attachment.html>
+
+From jsalareixach at gmail.com  Tue May 29 09:08:01 2012
+From: jsalareixach at gmail.com (Joan Sala Reixach)
+Date: Tue, 29 May 2012 09:08:01 +0200
+Subject: [gecode-users] Large neighborhood search support
+Message-ID: <CAAgdDW0EVtb8JapGLnjmps6fJkHtCSCxZRfB42oARNuRt4oHpA@mail.gmail.com>
+
+Hello all,
+
+I am currently trying to develop a LNS application in Gecode, and I've read
+in the mailing list that as of 14/10/2011 Gecode 4.0.0 was being prepared,
+which will include further support on LNS.
+I would like to ask whether it would be possible to somehow access these
+developments regarding LNS or get a partial release, or we must definitely
+wait for the full release.
+
+Thanks a lot,
+Joan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120529/428d8317/attachment.html>
+
+From cschulte at kth.se  Tue May 29 09:55:37 2012
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 29 May 2012 09:55:37 +0200
+Subject: [gecode-users] Large neighborhood search support
+In-Reply-To: <CAAgdDW0EVtb8JapGLnjmps6fJkHtCSCxZRfB42oARNuRt4oHpA@mail.gmail.com>
+References: <CAAgdDW0EVtb8JapGLnjmps6fJkHtCSCxZRfB42oARNuRt4oHpA@mail.gmail.com>
+Message-ID: <002401cd3d70$6f7bd3b0$4e737b10$@se>
+
+You would have to wait for the full release, LNS support is not in there
+yet.
+
+ 
+
+Doing LNS by yourself is not that hard, though. Maybe you could have a look
+in Modeling and Programming with Gecode on how to implement search engines.
+You will see that this is pretty easy to pull off. If you have particular
+questions, you can always ask.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Joan Sala Reixach
+Sent: Tuesday, May 29, 2012 9:08 AM
+To: users at gecode.org
+Subject: [gecode-users] Large neighborhood search support
+
+ 
+
+Hello all,
+
+I am currently trying to develop a LNS application in Gecode, and I've read
+in the mailing list that as of 14/10/2011 Gecode 4.0.0 was being prepared,
+which will include further support on LNS. 
+I would like to ask whether it would be possible to somehow access these
+developments regarding LNS or get a partial release, or we must definitely
+wait for the full release. 
+
+Thanks a lot,
+Joan
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120529/29548d4d/attachment.html>
+
+From jsalareixach at gmail.com  Tue May 29 10:08:58 2012
+From: jsalareixach at gmail.com (Joan Sala Reixach)
+Date: Tue, 29 May 2012 10:08:58 +0200
+Subject: [gecode-users] Large neighborhood search support
+In-Reply-To: <002401cd3d70$6f7bd3b0$4e737b10$@se>
+References: <CAAgdDW0EVtb8JapGLnjmps6fJkHtCSCxZRfB42oARNuRt4oHpA@mail.gmail.com>
+	<002401cd3d70$6f7bd3b0$4e737b10$@se>
+Message-ID: <CAAgdDW1HZ0cEXhFszbVUX=X+CGojYHgBT5u0A4k=dH8==jW34w@mail.gmail.com>
+
+Hello,
+
+Many thanks for your quick answer. Looking at how to implement my own
+search engine is what I've been doing for the last week, looks like I'm
+finally getting it. Anyway I figured out it might have come handy if
+something was available now, so that's why I asked.
+
+Thanks again,
+Joan
+
+On 29 May 2012 09:55, Christian Schulte <cschulte at kth.se> wrote:
+
+> You would have to wait for the full release, LNS support is not in there
+> yet.****
+>
+> ** **
+>
+> Doing LNS by yourself is not that hard, though. Maybe you could have a
+> look in Modeling and Programming with Gecode on how to implement search
+> engines. You will see that this is pretty easy to pull off. If you have
+> particular questions, you can always ask.****
+>
+> ** **
+>
+> Best****
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/<http://www.ict.kth.se/%7Ecschulte/>
+> ****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Joan Sala Reixach
+> *Sent:* Tuesday, May 29, 2012 9:08 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Large neighborhood search support****
+>
+> ** **
+>
+> Hello all,
+>
+> I am currently trying to develop a LNS application in Gecode, and I've
+> read in the mailing list that as of 14/10/2011 Gecode 4.0.0 was being
+> prepared, which will include further support on LNS.
+> I would like to ask whether it would be possible to somehow access these
+> developments regarding LNS or get a partial release, or we must definitely
+> wait for the full release.
+>
+> Thanks a lot,
+> Joan****
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20120529/157ef000/attachment.html>
+

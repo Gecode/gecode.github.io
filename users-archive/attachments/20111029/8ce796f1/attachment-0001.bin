@@ -1,0 +1,246 @@
+Index: gecode/set.hh
+===================================================================
+--- gecode/set.hh	(revision 12448)
++++ gecode/set.hh	(working copy)
+@@ -894,6 +894,10 @@
+   GECODE_SET_EXPORT void
+   channel(Home home, const BoolVarArgs& x, SetVar y);
+ 
++  /// Post propagator for \f$j\in x_i \Leftrightarrow i\in y_j\f$
++  GECODE_SET_EXPORT void
++  channel(Home home, const SetVarArgs& x, const SetVarArgs& y);
++
+   /// Post propagator for \f$ |s|=x \f$
+   GECODE_SET_EXPORT void
+   cardinality(Home home, SetVar s, IntVar x);
+Index: gecode/set/int.cpp
+===================================================================
+--- gecode/set/int.cpp	(revision 12448)
++++ gecode/set/int.cpp	(working copy)
+@@ -179,6 +179,19 @@
+                          ::post(home,xv,y)));
+   }
+ 
++  void
++  channel(Home home, const SetVarArgs& x, const SetVarArgs& y)
++  {
++    if (home.failed()) return;
++    ViewArray<Set::CachedView<Set::SetView> > xa(home, x.size());
++    for (int i=x.size(); i--;)
++      new (&xa[i]) Int::CachedView<Set::SetView>(x[i]);
++    ViewArray<Set::CachedView<Set::SetView> > ya(home, y.size());
++    for (int i=y.size(); i--;)
++      new (&ya[i]) Set::CachedView<Set::SetView>(y[i]);
++    GECODE_ES_FAIL((Set::Int::ChannelSet<Set::SetView>::post(home,xa,ya)));
++  }
++
+   void weights(Home home, IntSharedArray elements, IntSharedArray weights,
+                SetVar x, IntVar y) {
+     if (home.failed()) return;
+Index: gecode/set/int/channel-int.hpp
+===================================================================
+--- gecode/set/int/channel-int.hpp	(revision 12448)
++++ gecode/set/int/channel-int.hpp	(working copy)
+@@ -153,6 +153,136 @@
+     return (assigned==xs.size()) ? home.ES_SUBSUMED(*this) : ES_NOFIX;
+   }
+ 
++  template <typename View>
++  forceinline
++  ChannelSet<View>::ChannelSet(Home home,
++                               ViewArray<CachedView<View> >& xs0,
++                               ViewArray<CachedView<View> >& ys0)
++    : Propagator(home), xs(xs0), ys(ys0)
++  {
++    for (int i=xs.size(); i--;)
++      xs[i].initCache(home,IntSet::empty,IntSet(0,ys.size()-1));
++    for (int i=ys.size(); i--;)
++      ys[i].initCache(home,IntSet::empty,IntSet(0,xs.size()-1));
++    xs.subscribe(home,*this, PC_SET_ANY);
++    ys.subscribe(home,*this, PC_SET_ANY);
++  }
++
++  template <typename View>
++  forceinline
++  ChannelSet<View>::ChannelSet(Space& home, bool share, ChannelSet& p)
++    : Propagator(home, share, p)
++  {
++    xs.update(home, share, p.xs);
++    ys.update(home, share, p.ys);
++  }
++
++  template <typename View>
++  forceinline ExecStatus
++  ChannelSet<View>::post(Home home,
++                         ViewArray<CachedView<View> >& xs,
++                         ViewArray<CachedView<View> >& ys)
++  {
++    int xssize = xs.size();
++    for (int i=ys.size(); i--;)
++      {
++        GECODE_ME_CHECK(ys[i].exclude(home, xssize, Limits::max));
++        GECODE_ME_CHECK(ys[i].exclude(home, Limits::min, -1));
++      }
++    int yssize = ys.size();
++    for (int i=xs.size(); i--;)
++      {
++        GECODE_ME_CHECK(xs[i].exclude(home, yssize, Limits::max));
++        GECODE_ME_CHECK(xs[i].exclude(home, Limits::min, -1));
++      }
++    (void) new (home) ChannelSet(home,xs,ys);
++    return ES_OK;
++  }
++
++template <typename View>
++  PropCost
++  ChannelSet<View>::cost(const Space&, const ModEventDelta&) const
++  {
++    return PropCost::quadratic(PropCost::HI, xs.size()+ys.size());
++  }
++
++  template <typename View>
++  forceinline size_t
++  ChannelSet<View>::dispose(Space& home)
++  {
++    xs.cancel(home, *this, PC_SET_ANY);
++    ys.cancel(home, *this, PC_SET_ANY);
++    (void) Propagator::dispose(home);
++    return sizeof(*this);
++  }
++
++  template <typename View>
++  Actor*
++  ChannelSet<View>::copy(Space& home, bool share)
++  {
++    return new (home) ChannelSet(home,share,*this);
++  }
++
++  template <typename View>
++  ExecStatus
++  ChannelSet<View>::propagate(Space& home, const ModEventDelta&)
++  {
++    int assigned = 0;
++    bool again = true;
++    while (again)
++      {
++        assigned = 0;
++        again = false;
++        for (int i=xs.size(); i--;)
++          {
++            if (xs[i].assigned())
++              ++assigned;
++            if (xs[i].glbModified())
++              {
++                GlbDiffRanges<View> xilb(xs[i]);
++                Iter::Ranges::ToValues<GlbDiffRanges<View> > dv(xilb);
++                for (;dv();++dv)
++                  GECODE_ME_CHECK(ys[dv.val()].include(home,i));
++                xs[i].cacheGlb(home);
++                again = true;
++              }
++            if (xs[i].lubModified())
++              {
++                LubDiffRanges<View> xiub(xs[i]);
++                Iter::Ranges::ToValues<LubDiffRanges<View> > dv(xiub);
++                for (;dv();++dv)
++                  GECODE_ME_CHECK(ys[dv.val()].exclude(home,i));
++                xs[i].cacheLub(home);
++                again = true;
++              }
++          }
++        for (int i=ys.size(); i--;)
++          {
++            if (ys[i].assigned())
++              ++assigned;
++            if (ys[i].glbModified())
++              {
++                GlbDiffRanges<View> yilb(ys[i]);
++                Iter::Ranges::ToValues<GlbDiffRanges<View> > dv(yilb);
++                for (;dv();++dv)
++                  GECODE_ME_CHECK(xs[dv.val()].include(home,i));
++                ys[i].cacheGlb(home);
++                again = true;
++              }
++            if (ys[i].lubModified())
++              {
++                LubDiffRanges<View> yiub(ys[i]);
++                Iter::Ranges::ToValues<LubDiffRanges<View> > dv(yiub);
++                for (;dv();++dv)
++                  GECODE_ME_CHECK(xs[dv.val()].exclude(home,i));
++                ys[i].cacheLub(home);
++                again = true;
++              }
++          }
++      }
++
++    return (assigned == xs.size()+ys.size()) ? home.ES_SUBSUMED(*this) : ES_FIX;
++  }
+ }}}
+ 
+ // STATISTICS: set-prop
+Index: gecode/set/int.hh
+===================================================================
+--- gecode/set/int.hh	(revision 12448)
++++ gecode/set/int.hh	(working copy)
+@@ -406,6 +406,48 @@
+   };
+ 
+   /**
++   * \brief %Propagator for successors/predecessors channelling
++   *
++   * Implements channelling constraints between 2 sequences of SetVars.
++   * For SetVars \f$x_0,\dots,x_n\f$ and SetVars \f$y_0,\dots,y_m\f$ it
++   * propagates the constraint \f$j\in x_i \Leftrightarrow i\in y_i\f$.
++   * \f$x_i\f$ is the set of successors of \f$i\f$, and \f$y_j\f$ is the
++   * set of predecessors of \f$j\f$.
++   *
++   * Requires \code #include <gecode/set/int.hh> \endcode
++   * \ingroup FuncSetProp
++   */
++
++  template<typename View>
++  class ChannelSet: public Propagator {
++  protected:
++    /// SetViews, \f$x_i\f$ reflects the successors of \f$i\f$
++    ViewArray<CachedView<View> > xs;
++    /// SetViews, \f$y_j\f$ reflects the predecessors of \f$j\f$
++    ViewArray<CachedView<View> > ys;
++
++    /// Constructor for cloning \a p
++    ChannelSet(Space& home, bool share, ChannelSet& p);
++    /// Constructor for posting
++    ChannelSet(Home home,
++               ViewArray<CachedView<View> >&,
++               ViewArray<CachedView<View> >&);
++  public:
++    /// Copy propagator during cloning
++    virtual Actor* copy(Space& home, bool);
++    /// Cost function (defined as PC_QUADRATIC_HI)
++    virtual PropCost cost(const Space& home, const ModEventDelta& med) const;
++    /// Delete propagator and return its size
++    virtual size_t dispose(Space& home);
++    /// Perform propagation
++    virtual ExecStatus propagate(Space& home, const ModEventDelta& med);
++    /// Post propagator for \f$j\in x_i \Leftrightarrow i\in y_j\f$
++    static ExecStatus post(Home home,
++                           ViewArray<CachedView<View> >& x,
++                           ViewArray<CachedView<View> >& y);
++  };
++
++  /**
+    * \brief %Propagator for weight of a set
+    *
+    * Requires \code #include <gecode/set/int.hh> \endcode
+Index: gecode/set/branch/post-view.cpp
+===================================================================
+--- gecode/set/branch/post-view.cpp	(revision 12448)
++++ gecode/set/branch/post-view.cpp	(working copy)
+@@ -2,7 +2,7 @@
+  *  CAUTION:
+  *    This file has been automatically generated. Do not edit,
+  *    edit the specification file
+- *      gecode/set/branch/post-view.bs
++ *      ../gecode/set/branch/post-view.bs
+  *    instead.
+  *
+  *  This file contains generated code fragments which are

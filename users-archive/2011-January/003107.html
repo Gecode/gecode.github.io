@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Issue with a MiniZinc model
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Issue%20with%20a%20MiniZinc%20model&In-Reply-To=%3C4D2F0302.20209%40mensa.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003106.html">
+   <LINK REL="Next"  HREF="003108.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Issue with a MiniZinc model</H1>
+    <B>Lucie Ku&#269;erov&#225;</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Issue%20with%20a%20MiniZinc%20model&In-Reply-To=%3C4D2F0302.20209%40mensa.cz%3E"
+       TITLE="[gecode-users] Issue with a MiniZinc model">lucie.kucerova at mensa.cz
+       </A><BR>
+    <I>Thu Jan 13 14:49:54 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003106.html">[gecode-users] Edge-finding evaluation
+</A></li>
+        <LI>Next message: <A HREF="003108.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3107">[ date ]</a>
+              <a href="thread.html#3107">[ thread ]</a>
+              <a href="subject.html#3107">[ subject ]</a>
+              <a href="author.html#3107">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello,
+
+I've created a simple MiniZinc model describing a planning domain &amp;
+problem. The issue is that although MiniZinc itself solves it instantly,
+when I use Gecode's fz.exe on the generated FlatZinc model, the program
+computes for a while and then crashes.
+
+The MiniZinc model in question is attached below. The only problematic
+constraint is the last one from the succesor state constraints, without
+it all works OK. Any ideas what is causing the issue?
+
+Thank you in advance
+Lucie Kucerova
+
+
+
+% Constants
+int: t = 2;
+int: num_preds = 5;
+int: num_actions = 6;
+int: num_resc = 1;
+
+% Variables
+array[0..t, 0..num_preds - 1] of var bool: predicates;
+array[0..t - 1, 0..num_actions - 1] of var bool: actions;
+array[0..t, 0..num_resc - 1] of var int: resources;
+
+% Constraints
+
+% Init
+constraint predicates[0, 0];
+constraint not predicates[0, 1];
+constraint not predicates[0, 2];
+constraint not predicates[0, 3];
+constraint not predicates[0, 4];
+constraint resources[0, 0] = 0;
+
+% Goal
+constraint predicates[t, 3];
+constraint predicates[t, 4];
+constraint resources[t, 0] = 100;
+
+% Preconditions
+constraint forall (i in 0..t - 1) (actions[i, 0] -&gt; predicates[i, 0]);
+constraint forall (i in 0..t - 1) (actions[i, 1] -&gt; predicates[i, 1]);
+constraint forall (i in 0..t - 1) (actions[i, 2] -&gt; predicates[i, 0]);
+constraint forall (i in 0..t - 1) (actions[i, 3] -&gt; predicates[i, 2]);
+
+% Succesor state
+constraint forall (i in 1..t) (predicates[i, 0] &lt;-&gt; predicates[i - 1, 0]
+/\ not actions[i - 1, 0] /\ not actions[i - 1, 2]);
+constraint forall (i in 1..t) (predicates[i, 1] &lt;-&gt; actions[i - 1, 0] \/
+(predicates[i - 1, 1] /\ not actions[i - 1, 1]));
+constraint forall (i in 1..t) (predicates[i, 2] &lt;-&gt; actions[i - 1, 1] \/
+actions[i - 1, 2] \/ (predicates[i - 1, 2] /\ not actions[i - 1, 3]));
+constraint forall (i in 1..t) (predicates[i, 3] &lt;-&gt; actions[i - 1, 3] \/
+predicates[i - 1, 3]);
+constraint forall (i in 1..t) (predicates[i, 4] &lt;-&gt; actions[i - 1, 4] \/
+predicates[i - 1, 4]);
+constraint forall (i in 1..t) ((resources[i, 0] = resources[i - 1, 0])
+\/ ((resources[i, 0] = resources[i - 1, 0] + 100) /\ actions[i - 1, 5]));
+
+% Incompatible predicates
+constraint forall (i in 0..t) (bool2int(predicates[i, 0]) +
+bool2int(predicates[i, 1]) + bool2int(predicates[i, 2]) +
+bool2int(predicates[i, 3]) &lt; 2);
+
+% Solution
+solve satisfy;
+
+% Output
+output
+  [ show(predicates[i,j]) ++ &quot; &quot; ++ if j == num_preds - 1 then &quot;\n&quot; else
+&quot; &quot; endif | i in 0..t, j in 0..num_preds - 1] ++
+  [&quot;\n&quot;] ++
+  [ show(resources[i,j]) ++ &quot; &quot; ++ if j == num_resc - 1 then &quot;\n&quot; else &quot;
+&quot; endif | i in 0..t, j in 0..num_resc - 1] ++
+  [&quot;\n&quot;] ++
+  [ show(actions[i,j]) ++ if j == num_actions - 1 then &quot;\n&quot; else &quot; &quot;
+endif | i in 0..t - 1, j in 0..num_actions - 1];
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003106.html">[gecode-users] Edge-finding evaluation
+</A></li>
+	<LI>Next message: <A HREF="003108.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3107">[ date ]</a>
+              <a href="thread.html#3107">[ thread ]</a>
+              <a href="subject.html#3107">[ subject ]</a>
+              <a href="author.html#3107">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

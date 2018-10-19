@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] reified linear sum of booleans
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3CF9B15072-AEEE-4B2A-BB83-B39B20E17CB7%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001752.html">
+   <LINK REL="Next"  HREF="001754.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] reified linear sum of booleans</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3CF9B15072-AEEE-4B2A-BB83-B39B20E17CB7%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] reified linear sum of booleans">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Tue Jul 29 08:59:26 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001752.html">[gecode-users] reified linear sum of booleans
+</A></li>
+        <LI>Next message: <A HREF="001754.html">[gecode-users] reified linear sum of booleans
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1753">[ date ]</a>
+              <a href="thread.html#1753">[ thread ]</a>
+              <a href="subject.html#1753">[ subject ]</a>
+              <a href="author.html#1753">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Tias,
+
+Tias Guns wrote:
+
+&gt;<i> Greetings,
+</I>&gt;<i>
+</I>&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm  
+</I>&gt;<i> currently
+</I>&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>
+The reified Boolean sums are currently not implemented by special  
+propagators but using a decomposition that is not very efficient.
+
+&gt;<i> The first batch of constraints are regular reified linear sums, they  
+</I>&gt;<i> are
+</I>&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'  
+</I>&gt;<i> which
+</I>&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;<i> reified to the variable representing that row:
+</I>&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>   // make row
+</I>&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;<i> BoolVars.
+</I>
+You may want to use Boolean disjunction here, although you'll have to  
+use another temporary Boolean variable.  Something like this:
+
+for (int r = 0; r != nr_r; r++) {
+   BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+   for (int i = 0, int c = 0; c != nr_c; c++) {
+     if (tdb[r][c])
+     	col[i++] = col_varsBool[c];
+   }
+   BoolVar tmp(this, 0, 1);
+   rel(this, BOT_OR, col, tmp);
+   rel(this, tmp, IRT_NQ, row_varsBool[r]);
+}
+
+I'm not sure whether this is going to be more efficient, but the  
+specialized Boolean propagators should be better.
+
+&gt;<i> The second batch of constraints are imply-reified linear sums,  
+</I>&gt;<i> having one
+</I>&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;<i> manage it:
+</I>&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>   // make col
+</I>&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,  
+</I>&gt;<i> reformulation
+</I>&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;<i> }
+</I>&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to  
+</I>&gt;<i> corresponding
+</I>&gt;<i> BoolVars.
+</I>
+As suggested above, you could post the first linear constraint using  
+just the row_vars for which col[r] is 1, but in this case it probably  
+isn't more efficient (since the linear will immediately throw away all  
+the variables with 0 coefficients anyway).
+
+&gt;<i> This model works very well but still, I'm wondering if there would  
+</I>&gt;<i> be a
+</I>&gt;<i> better or cleaner way to model this, and if there are any plans to  
+</I>&gt;<i> improve
+</I>&gt;<i> the reified linear sum of boolean constraints.
+</I>
+Yes, the reified linear Boolean sum is going to be reimplemented, but  
+not for the (upcoming) 2.2.0 release.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001752.html">[gecode-users] reified linear sum of booleans
+</A></li>
+	<LI>Next message: <A HREF="001754.html">[gecode-users] reified linear sum of booleans
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1753">[ date ]</a>
+              <a href="thread.html#1753">[ thread ]</a>
+              <a href="subject.html#1753">[ subject ]</a>
+              <a href="author.html#1753">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

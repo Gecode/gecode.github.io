@@ -1,0 +1,203 @@
+From schulte at imit.kth.se  Tue Nov  9 09:58:08 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 9 Nov 2004 09:58:08 +0100
+Subject: [Gecode] New constraint: lex for lexical ordering
+Message-ID: <004301c4c63a$3b7da7b0$acd4ed82@beule>
+
+Dear all,
+
+Gecode features now lex as a new global constraint expressing
+lexical order amoung two sequences (arrays) of variables.
+
+The constraint is posted by
+
+	lex(home, x, r, y)
+
+where home refers to the home space, x and y are arrays of
+integer variables of same length and r is an inequality relation
+(that is: REL_LQ, REL_LE, REL_GR, REL_GQ). It enforces that x and
+y are lexicographically ordered with respect to r.
+
+The propagator for lex is domain-consistent (but only bounds for
+subsumtion). Each invocation costs O(n) in the worst case,
+however typically it will be much better as it aggressively
+eliminates assigned variables and variables known to be not any
+longer relevant for decision (those that occur after a pair of
+variables which are strictly ordered).
+
+The constraint is useful (example will come) for symmetry breaking 
+in matrix models.
+
+Cheers
+Christian
+
+The algorithm is from:
+
+ * This propagator uses the algorithm (and also the automaton)
+ * from:
+ *   Mats Carlsson, Nicolas Beldiceanu, Revisiting the
+ *   Lexicographic Ordering Constraint. SICS Technical
+ *   Report T2002:17, SICS, Sweden, 2002.
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Tue Nov  9 10:02:35 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 9 Nov 2004 10:02:35 +0100
+Subject: [Gecode] New constraint: regular for describing value patterns
+Message-ID: <004401c4c63a$daf15b70$acd4ed82@beule>
+
+Dear all,
+
+I added regular as another new global constraint which constrains
+the sequence of values of a variable array to be a member of some
+regular language.
+
+The constraint is posted by
+
+	regular(home, x, dfa)
+
+where home is the home-space, x is an array of integer variables,
+and dfa is a deterministic finite automaton describing the
+regular language of interest (see below).
+
+The propagator is domain-consistent, takes per invocation O(nt)
+time in the worst-case, where n is the number of variables and t
+is the number of transitions of the underlying DFA. The algorithm
+is incremental with respect to the changed variables (only the
+minimal number of variables is considered per invocation). So in
+average, it should be more like O(t) (and also typically only a
+fraction of the transitions is considered).
+
+The algorithm is based on the very interesting paper:
+ *   Gilles Pesant, A Regular Language Membership Constraint
+ *   for Finite Sequences of Variables, CP 2004. 
+ *   Pages 482-495, LNCS 3258, Springer-Verlag, 2004.
+
+However, the algorithm I implemented is much simpler but less
+incremental (due to how variables are implemented, one would only
+gain from Pesant's version only if value removal were constant
+time!).
+
+DFA by transitions
+------------------
+
+A dfa can be specified by creating an instance of DFA, as an
+example consider a dfa which allows alternating sequences of 0
+and 1 with equal number of 0s and 1s:
+
+Transitions are specified by giving triples (of type
+DFA::Transition) of i_state (states are non-negative integers),
+symbol (normal integers describing values), and o_state:
+
+	i_state	| symbol | o_state
+	--------------------------
+	  0	|  0     |  1
+	  0   |  1     |  2
+        1   |  1     |  0
+        2   |  0     |  0
+
+(basically, the (partial) transition function d is defined by
+	d(i_state,symbol) = o_state
+)
+
+In C++:
+
+DFA::Transition t[] = {
+  {0,0,1}, {0,1,2}, {1,1,0}, {2,0,0}, {-1,0,0}
+};
+
+The {-1,0,0} terminates the transition specification.
+
+The single final state is 0, which can be described by
+
+int f[] = {0,-1};
+
+Again, -1 is used as endmarker.
+
+Then the dfa can be created as
+
+DFA a(0,t,f); // 0 is start state
+
+By default, the dfa is minimized and unreachable states are
+eliminated (minimization can be supressed by giving false as
+additional argument).
+
+DFA by regular expressions
+--------------------------
+
+A dfa can also be described by a regular expression where the
+symbols are values and the operators are | for choice, + for
+concatenation and prefix * for Kleene-star. Additionally, support
+for repitition is provided (see below).
+
+A regexp r for the empty string is created by
+	REG r;
+
+A regexp r for the integer i is created by
+	REG r(i);
+
+If r1 and r2 are REGs, then also (with normal C++ precedence)
+	r1+r2, r1|r2, *r1
+and
+	r1(n,m)
+		(repeat r1 at least n- and at most m-times)
+and
+	r1(n)
+		(repeat r1 at least n-times)
+
+By DFA a(r) a dfa a is created for the REG r.
+
+Both dfa creation and conversion from a regexp to a dfa is not
+hyper-efficient but also not completely dumb. Regexp to dfa is of
+course exponential in the number of symbols in the worst case (subset
+construction) and
+minimization is cubic in the number of states (that is far from
+being optimal...). Typically, even in nasty cases they work fast even on
+automata
+up to thousands of states. But that doesn't really matter as DFA
+construction is only done once and dfa's can be reused for many
+propagators.
+
+Have fun!
+Christian
+
+PS: The constraint is useful for rostering problems, where
+typically a specialized version called stretch is used. I still
+fiddle with this one...
+
+PPS: Sometimes memory management for DFA segfaults under Windows,
+even though everything works fine on Linux (even valgrind likes
+it). Have to look.
+
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Tue Nov  9 15:16:44 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 9 Nov 2004 15:16:44 +0100
+Subject: [Gecode] Overflow in multiplication fixed
+Message-ID: <006f01c4c666$be369af0$acd4ed82@beule>
+
+Dear all,
+
+I just fixed the overflow bug in multiplication: requires expensive tests to
+do it right, however as soon as the variable domains have sufficiently
+shrunken the propagator rewrites itself to a version not using these
+expensive checks.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+

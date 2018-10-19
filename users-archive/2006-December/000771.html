@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] branching...
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20branching...&In-Reply-To=%3C458A982C.6080204%40informatik.uni-freiburg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000770.html">
+   <LINK REL="Next"  HREF="000772.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] branching...</H1>
+    <B>Martin Mann</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20branching...&In-Reply-To=%3C458A982C.6080204%40informatik.uni-freiburg.de%3E"
+       TITLE="[gecode-users] branching...">mmann at informatik.uni-freiburg.de
+       </A><BR>
+    <I>Thu Dec 21 15:20:28 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000770.html">[gecode-users] branching...
+</A></li>
+        <LI>Next message: <A HREF="000772.html">[gecode-users] branching...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#771">[ date ]</a>
+              <a href="thread.html#771">[ thread ]</a>
+              <a href="subject.html#771">[ subject ]</a>
+              <a href="author.html#771">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Kilian,
+
+inserting a branching directly into a space is very easy and doesnt need 
+the wrapper function &quot;branch&quot;.
+
+you can do it like that in the constructor of your space:
+
+e.g. for the integer variables
+
+// init the variable array with your vars to branch on
+// e.g. (22 vars with vals 0..9):
+ints = Gecode::IntVarArray(this, 22, 0, 9);
+
+// create a viewarray of your variables
+Gecode::ViewArray&lt;Gecode::Int::IntView&gt;
+   iv(this,(Gecode::IntVarArgs)ints);
+
+// create the branching
+new (this) Gecode::ViewValBranching&lt;	
+               Gecode::Int::IntView,
+               int,
+               Gecode::Int::Branch::BySizeMin,
+               Gecode::Int::Branch::ValMin
+             &gt;(this, iv);
+// done :)
+
+you only have to create a new branching object with the right template 
+parameters (usually done by the branch-wrapper function). the branching 
+constructure itself registers to your space and thats all.
+
+about your first question: one possibility is to generate a serie of 
+branching objects:
+
+intBranching(i1,i2)
+bBranching(b1)
+intBranching(i3,i4,i5,i6)
+bBrachning...
+...
+
+for each you ve got to generate a viewarray of your variable-subset to 
+branch on and construct a branching. you can easily write your own 
+minimal wrapper function that generates these viewarrays.
+
+hope this helps and merry christmas,
+
+Martin
+
+
+Kilian Sprotte wrote:
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> thinking about how to make gecol at least a little more flexible,
+</I>&gt;<i> I have some general little questions. :)
+</I>&gt;<i> 
+</I>&gt;<i> As gecol does not allow for subclassing Space
+</I>&gt;<i> (the SWIG CFFI wrapper creation is not really ready
+</I>&gt;<i> yet for c++), I am using the following hard-wired problem
+</I>&gt;<i> space:
+</I>&gt;<i> 
+</I>&gt;<i> class GecolSpace : public Space {
+</I>&gt;<i> protected:
+</I>&gt;<i>   IntVarArray  ints;
+</I>&gt;<i>   BoolVarArray bools;
+</I>&gt;<i>   SetVarArray  sets;
+</I>&gt;<i> public:
+</I>&gt;<i> [...]
+</I>&gt;<i> 
+</I>&gt;<i> I have seen that it is possible to call branch twice -
+</I>&gt;<i> for example for the ints and then for the bools, in order
+</I>&gt;<i> to have both of them distributed.
+</I>&gt;<i> 
+</I>&gt;<i> My first question:
+</I>&gt;<i> If I wanted to consider ints and bools together for branching,
+</I>&gt;<i> for example giving them a naive predefined, but not regular
+</I>&gt;<i> ordering like:
+</I>&gt;<i> 
+</I>&gt;<i> i1 i2 b1 i3 i4 i5 i6 b2 b3 i7 b4 b5 b6
+</I>&gt;<i> 
+</I>&gt;<i> Can I put them into an IntVarArgs array and treat them together?
+</I>&gt;<i> 
+</I>&gt;<i> My second question:
+</I>&gt;<i> If I wanted to add my own ViewSel class....
+</I>&gt;<i> 
+</I>&gt;<i> Do I actually need to change branch in branch.cc
+</I>&gt;<i> <A HREF="http://www.gecode.org/gecode-doc-latest/int_2branch_8cc-source.html#l00029">http://www.gecode.org/gecode-doc-latest/int_2branch_8cc-source.html#l00029</A> 
+</I>&gt;<i> ?
+</I>&gt;<i> 
+</I>&gt;<i> and add my own 'case'....
+</I>&gt;<i> 
+</I>&gt;<i> Probably I can just instantiate the ViewValBranching directly?
+</I>&gt;<i> 
+</I>&gt;<i> Sorry for asking this c++ questions, I would be very grateful about a few
+</I>&gt;<i> words, what the necessary steps are....
+</I>&gt;<i> 
+</I>&gt;<i> Maybe it is more interesting for you what kind of custom
+</I>&gt;<i> distribution strategy I have in mind.
+</I>&gt;<i> 
+</I>&gt;<i> Lets say my problem has only int vars. I would like to decide the order
+</I>&gt;<i> of distribution according to the value (if it is already assigned) of 
+</I>&gt;<i> another
+</I>&gt;<i> var that each var points to.
+</I>&gt;<i> In other words, I conceptually sort my vars according to a key and
+</I>&gt;<i> then pick the first. There is a (fixed) mapping of each var to another
+</I>&gt;<i> one that serves for the key. If it is not yet assigned, we could say the
+</I>&gt;<i> key value was +inf.
+</I>&gt;<i> 
+</I>&gt;<i> This is actually very musically, as e.g. vars representing pitches can 
+</I>&gt;<i> be chosen according to their time in the score, which is represented by 
+</I>&gt;<i> the start time var of the chord they belong to. :)
+</I>&gt;<i> 
+</I>&gt;<i> I am keeping some good memories of the flexibility of {FD.distribute 
+</I>&gt;<i> +Dist +Xv} in Oz....
+</I>&gt;<i> For experimenting, I am hoping to provide at some point something 
+</I>&gt;<i> similar in Lisp,
+</I>&gt;<i> by using callbacks....
+</I>&gt;<i> 
+</I>&gt;<i> All of this is not so easy for a musician,
+</I>&gt;<i> but I need to do it :-P
+</I>&gt;<i> 
+</I>&gt;<i> Merry Xmas,
+</I>&gt;<i> 
+</I>&gt;<i>   Kilian
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000770.html">[gecode-users] branching...
+</A></li>
+	<LI>Next message: <A HREF="000772.html">[gecode-users] branching...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#771">[ date ]</a>
+              <a href="thread.html#771">[ thread ]</a>
+              <a href="subject.html#771">[ subject ]</a>
+              <a href="author.html#771">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

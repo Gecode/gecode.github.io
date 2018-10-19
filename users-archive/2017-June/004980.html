@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] bin packing variant
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20bin%20packing%20variant&In-Reply-To=%3C05f201d2dab5%24bb1a6290%24314f27b0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004979.html">
+   <LINK REL="Next"  HREF="004981.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] bin packing variant</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20bin%20packing%20variant&In-Reply-To=%3C05f201d2dab5%24bb1a6290%24314f27b0%24%40kth.se%3E"
+       TITLE="[gecode-users] bin packing variant">cschulte at kth.se
+       </A><BR>
+    <I>Thu Jun  1 11:02:00 CEST 2017</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004979.html">[gecode-users] bin packing variant
+</A></li>
+        <LI>Next message: <A HREF="004981.html">[gecode-users] bin packing variant
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4980">[ date ]</a>
+              <a href="thread.html#4980">[ thread ]</a>
+              <a href="subject.html#4980">[ subject ]</a>
+              <a href="author.html#4980">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Look, we can&#8217;t debug your programs.
+
+ 
+
+However, the mistake is so basic that I saw it in one second: you do not initialize accum properly as you do not give bounds for the variables. Please read MPG carefully.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Yilmaz Arslanoglu
+Sent: Thursday, June 1, 2017 10:19
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] bin packing variant
+
+ 
+
+Hi;
+
+I was trying to write a model for a bin packing variant.
+
+(You can find the problem description at the bottom of this mail)
+
+I'm quite new to Gecode so I couldn't get the whole logic behind it,
+but below is my model which I based on the given directions in Gecode documentation:
+
+ 
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/set.hh&gt;
+
+namespace {
+
+    using namespace Gecode;
+
+    const int rod_length[] = { 3, 2, 4, 5, 3 };
+    const int bin_weight_limit[] = { 30 };
+    const int bin_start[] = {0, 15};
+
+    inline int num_rods() {
+        return static_cast&lt;int&gt;(
+                   sizeof(rod_length) / sizeof(int)
+               );
+    }
+
+    inline int num_bins() {
+        return static_cast&lt;int&gt;(
+                   (sizeof(bin_weight_limit) / sizeof(int))
+               );
+    }
+
+    inline int box_start() {
+        return bin_start[0];
+    }
+
+    inline int box_end() {
+        return bin_start[num_bins()];
+    }
+
+    class Test : public Script {
+      public:
+
+        SetVarArray rod_position;
+        IntVarArray accum;
+
+        Test(const Options&amp; opt)
+            : Script(opt)
+            , rod_position(*this,
+                           num_rods(),
+                           IntSet::empty,
+                           IntSet(box_start(),
+                                  box_end()))
+            , accum(*this,
+                    num_bins() * num_rods()) {
+
+            for (int i = 0; i &lt; num_rods(); ++i) {
+                //
+                convex(*this, rod_position[i]);
+                //
+                cardinality(*this,
+                            rod_position[i],
+                            rod_length[i],
+                            rod_length[i]);
+            }
+
+            Matrix&lt;IntVarArray&gt; accum_matrix(accum,
+                                             num_bins(),
+                                             num_rods());
+
+            for (int i = 0; i &lt; num_bins(); ++i) {
+                //
+                auto bin_interval = IntSet(bin_start[i] + 1,
+                                           bin_start[i + 1]);
+
+                //
+                for (int j = 0; j &lt; num_rods(); ++j) {
+                    rel(*this,
+                        accum_matrix(i, j) ==
+                        cardinality(rod_position[j] &amp; bin_interval));
+                }
+
+                //
+                rel(*this,
+                    sum(accum_matrix.col(i)) &lt;= bin_weight_limit[i]);
+            }
+        }
+
+        Test(bool share, Test&amp; s)
+            : Script(share, s) {
+            rod_position.update(*this, share, s.rod_position);
+            accum.update(*this, share, s.accum);
+        }
+
+        virtual
+        Space* copy(bool share) {
+            return new Test(share, *this);
+        }
+    };
+}
+
+I get an exception in &lt;gecode&gt;/int.hpp at this location:
+
+forceinline int
+  IntVarImp::RangeList::min(void) const {
+    return _min;
+  }
+
+And here is my bin packing problem description (please check the image attached):
+
+I would like to place N rods (the red ones) into a rectangle which is divided into M contiguous bins with different sizes. The rods can move through bins. That is, they don't need to be completely covered by a single bin, but can be hold by more than one bin.
+
+My constraint is: for each bin, there is a specific weight capacity W and total  weight of rod pieces falling into that bin cannot exceed W.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170601/498ccdf6/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170601/498ccdf6/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004979.html">[gecode-users] bin packing variant
+</A></li>
+	<LI>Next message: <A HREF="004981.html">[gecode-users] bin packing variant
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4980">[ date ]</a>
+              <a href="thread.html#4980">[ thread ]</a>
+              <a href="subject.html#4980">[ subject ]</a>
+              <a href="author.html#4980">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

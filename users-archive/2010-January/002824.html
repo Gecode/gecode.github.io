@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Problem on cloning spaces
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20on%20cloning%20spaces&In-Reply-To=%3C3AD9234E-C3F8-43C0-B822-364712037838%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002823.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Problem on cloning spaces</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20on%20cloning%20spaces&In-Reply-To=%3C3AD9234E-C3F8-43C0-B822-364712037838%40gecode.org%3E"
+       TITLE="[gecode-users] Problem on cloning spaces">tack at gecode.org
+       </A><BR>
+    <I>Fri Jan 29 21:52:15 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002823.html">[gecode-users] Problem on cloning spaces
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2824">[ date ]</a>
+              <a href="thread.html#2824">[ thread ]</a>
+              <a href="subject.html#2824">[ subject ]</a>
+              <a href="author.html#2824">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+the problem is that you're using copy to create the clone, not clone.  Simply try this:
+Model* m2 = dynamic_cast&lt;Model*&gt;(m-&gt;clone(true));  
+
+Cheers,
+	Guido
+
+Ignacio Casti&#241;eiras P&#233;rez wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i> I have tried to use clones to reason with models. 
+</I>&gt;<i> I got some execution errors which I do not understand. May I show it to you with a little example?
+</I>&gt;<i> 
+</I>&gt;<i> I create a class Model with an IntVarArray &quot;vars&quot; as its own attribute. 
+</I>&gt;<i> The default constructor initializes &quot;vars&quot; with two IntVar, vars[0] = 0, and vars[1] = [0..1].
+</I>&gt;<i> The function addVar() adds a new IntVar to &quot;vars&quot;. The function postEQ() constraints two IntVars of &quot;vars&quot; to be equal.
+</I>&gt;<i> 
+</I>&gt;<i> In the main program we create a first model &quot;m&quot; with the default constructor. 
+</I>&gt;<i> We add two new vars &quot;vars[2]&quot; and &quot;vars[3]&quot;, and constraint vars[2] = vars[0] and vars[3] = vars[1]. 
+</I>&gt;<i> We request propagation and show the solution.
+</I>&gt;<i> 
+</I>&gt;<i> Then we create &quot;m2&quot; by using &quot;m&quot; and the copy constructor.
+</I>&gt;<i> We add two new vars &quot;vars[4]&quot; and &quot;vars[5]&quot; and constraints vars[4] = vars[0] and vars[5] = vars[1]. 
+</I>&gt;<i> While it succeeds posting vars[4] = vars[0] it fails trying to post vars[5] = vars[1]. 
+</I>&gt;<i> 
+</I>&gt;<i> If (always in &quot;m2&quot;) we try with vars[4] = vars[2] and vars[5] = vars[3] it fails too. 
+</I>&gt;<i> It succeeds posting vars[4] = vars[2], but it fails trying to post vars[5] = vars[3]. 
+</I>&gt;<i> If we try with vars[4]= vars[5] it also fails.
+</I>&gt;<i> 
+</I>&gt;<i> It seems that the error appears when we try to constraint a non-asigned &quot;new variable&quot; (created in the current Space &quot;m2&quot;)
+</I>&gt;<i> with a non-asigned &quot;old variable&quot; (created in the Space &quot;m&quot;, from which &quot;m2&quot; has been cloned from). 
+</I>&gt;<i> An error also appears when we try to constraint two non-asigned variables in the clonated space. In &quot;m2&quot;, both vars[4] = vars[5] and vars[2] = vars[3] fails, while in &quot;m&quot; vars[2] = vars[3] succeeds.
+</I>&gt;<i> 
+</I>&gt;<i> Do you know what is the problem? Am I doing something wrong with the copy constructor?
+</I>&gt;<i> 
+</I>&gt;<i> Gecode Version: Gecode 3.2.2
+</I>&gt;<i> Compiler tools: Microsoft Visual Studio 2008
+</I>&gt;<i> OS: Microsoft Windows XP SP3
+</I>&gt;<i> 
+</I>&gt;<i> Thank you very much in advance,
+</I>&gt;<i> Nacho
+</I>&gt;<i> 
+</I>&gt;<i> /* EXAMPLE */
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i> #include &lt;gecode/search.hh&gt;
+</I>&gt;<i> 
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i> 
+</I>&gt;<i> class Model : public Space {
+</I>&gt;<i> protected:
+</I>&gt;<i>   IntVarArray vars;
+</I>&gt;<i> public:
+</I>&gt;<i>   Model(void) : Space(), vars(*this, 2, 0, 1){
+</I>&gt;<i>       rel(*this, vars[0], IRT_EQ, 0);
+</I>&gt;<i>   };
+</I>&gt;<i>   
+</I>&gt;<i>   Model(bool share, Model&amp; s) : Space(share, s) {
+</I>&gt;<i>     vars.update(*this, share, s.vars);
+</I>&gt;<i>   }
+</I>&gt;<i> 
+</I>&gt;<i>   virtual Space* copy(bool share) {
+</I>&gt;<i>     return new Model(share,*this);
+</I>&gt;<i>   }
+</I>&gt;<i> 
+</I>&gt;<i>   void print(void) const {
+</I>&gt;<i>     std::cout &lt;&lt; vars &lt;&lt; std::endl;
+</I>&gt;<i>   }
+</I>&gt;<i> 
+</I>&gt;<i>   void newVar(){
+</I>&gt;<i>      vars.add(*this, IntVar(*this, 0, 1));
+</I>&gt;<i>   }
+</I>&gt;<i> 
+</I>&gt;<i>   void postEQ(int i, int j){
+</I>&gt;<i>     rel(*this, vars[i], IRT_EQ, vars[j]);
+</I>&gt;<i>   }
+</I>&gt;<i> 
+</I>&gt;<i> };
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> int main(int argc, char* argv[]) {
+</I>&gt;<i>   Model* m = new Model;
+</I>&gt;<i>   m-&gt;newVar();
+</I>&gt;<i>   m-&gt;newVar();
+</I>&gt;<i>   m-&gt;postEQ(2,0);
+</I>&gt;<i>   m-&gt;postEQ(3,1);
+</I>&gt;<i>   m-&gt;status();
+</I>&gt;<i>   m-&gt;print();
+</I>&gt;<i> 
+</I>&gt;<i>  //------------------//
+</I>&gt;<i> 
+</I>&gt;<i>   Model* m2 = dynamic_cast&lt;Model*&gt;(m-&gt;copy(true));  
+</I>&gt;<i>   m2-&gt;newVar();
+</I>&gt;<i>   m2-&gt;newVar();
+</I>&gt;<i>   m2-&gt;postEQ(4,0);
+</I>&gt;<i>   m2-&gt;postEQ(5,1);
+</I>&gt;<i>   m2-&gt;status();
+</I>&gt;<i>   m2-&gt;print();
+</I>&gt;<i> 
+</I>&gt;<i>   return 0;
+</I>&gt;<i> }
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> &lt;code.cpp&gt;_______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002823.html">[gecode-users] Problem on cloning spaces
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2824">[ date ]</a>
+              <a href="thread.html#2824">[ thread ]</a>
+              <a href="subject.html#2824">[ subject ]</a>
+              <a href="author.html#2824">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

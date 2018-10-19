@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Controlling memory use
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Controlling%20memory%20use&In-Reply-To=%3C63b5c8b00804082352p90d8d6w5247b942d2b90fa7%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001527.html">
+   <LINK REL="Next"  HREF="001533.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Controlling memory use</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Controlling%20memory%20use&In-Reply-To=%3C63b5c8b00804082352p90d8d6w5247b942d2b90fa7%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Controlling memory use">zayenz at gmail.com
+       </A><BR>
+    <I>Wed Apr  9 08:52:04 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001527.html">[gecode-users] Controlling memory use
+</A></li>
+        <LI>Next message: <A HREF="001533.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1531">[ date ]</a>
+              <a href="thread.html#1531">[ thread ]</a>
+              <a href="subject.html#1531">[ subject ]</a>
+              <a href="author.html#1531">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On Wed, Apr 9, 2008 at 2:14 AM, Malcolm Ryan &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">malcolmr at cse.unsw.edu.au</A>&gt; wrote:
+&gt;<i> On 09/04/2008, at 1:57 AM, Christian Schulte wrote:
+</I>&gt;<i>  &gt; Malcolm,
+</I>&gt;<i>  &gt;
+</I>&gt;<i>  &gt; That's a lot of constraints!
+</I>&gt;<i>
+</I>&gt;<i>  Is it? I have no idea what constitutes &quot;a lot&quot; in this area.
+</I>
+Lets look at the following small part of your model to evaluate the
+number of constraints.
+
+&gt;<i>  &gt;&gt; Constants:
+</I>&gt;<i>  &gt;&gt; G = (V, E)  graph   The map
+</I>&gt;<i>  &gt;&gt; V   {1, Nv}   The vertices are numbered
+</I>&gt;<i>  &gt;&gt; E   in V^2   The edges are stored as a table
+</I>&gt;<i>  &gt;&gt; Nr    # robots  The number of robots
+</I>&gt;<i>  &gt;&gt; Ns   # subgraphs  The number of subgraphs
+</I>&gt;<i>  &gt;&gt; Si    subset of V, Subgraphs are sets of consecutive vertices
+</I>&gt;<i>  &gt;&gt; Si_min &lt;= v &lt;= Si_max
+</I>&gt;<i>  &gt;&gt; ES   in {1..Ns}^2 The adjacency betweem subgraphs as a table
+</I>&gt;<i>  &gt;&gt; Nb   # subplans  The size of the abstract plan
+</I>&gt;<i>  &gt;&gt; Lmax  maximum plan length
+</I>&gt;<i>  &gt;&gt;
+</I>&gt;<i>  &gt;&gt; Concrete plans:
+</I>&gt;<i>  &gt;&gt; P[b][r][t] in V   The position of robot r at time t in subplan b
+</I>&gt;<i>
+</I>&gt;<i>  Typical values:
+</I>&gt;<i>
+</I>&gt;<i>  Nv      100-1000
+</I>&gt;<i>  Ns      50-100
+</I>&gt;<i>  Nr      20 or more (the more we can handle the better)
+</I>&gt;<i>
+</I>&gt;<i>  Nb and Lmax depend on the problem. I usually start Nb small (around 5)
+</I>&gt;<i>  and increase it if this value fails. Lmax depends on the size and
+</I>&gt;<i>  types of subgraphs. I'm currently working with Lmax = 40.
+</I>&gt;<i>
+</I>&gt;<i>  &gt;&gt; Concrete plans: for all b:
+</I>&gt;<i>  &gt;&gt;
+</I>&gt;<i>  &gt;&gt; * No two robots can occupy the same vertex at the same time:
+</I>&gt;<i>  &gt;&gt; distinct(P[b][1][t], P[b][2][t], ..., P[b][Nr][t]) for all t
+</I>
+This will give rise to Nb*Lmax (=200) distinct-constraints. Depending
+on wheter you use naive, bounds consistent, or domain consistent
+propagation, this will take varying amounts of memory.
+
+The worst case occurs if you use domain-consistent pruning on these
+(ICL_DOM). For each propagator a variable-value graph (a bipartite
+graph with the variables on one side and the values on the other) is
+maintained. These graphs have O(Nv+Nr) nodes and O(Nv*Nr) edges. This
+means that for just this set of distinct propagators might have graphs
+with O(Nb*Lmax*Nv*Nr) edges in total, or up to 4000000 edges.
+
+Given the discrepancy between the number of variables and values (~20
+vs. ~1000), I would guess that domain-consistent pruning does not help
+very much, it is usually more important when then number of variables
+and values are of similar size.
+
+Using naive propagation takes much less memory (on the order of the
+number of variables per propagator, saving a factor of Nr), while
+bounds propagation takes slightly more memory, but only by a constant
+factor.
+
+
+&gt;<i>  &gt;&gt; I've outlined the problem description below. All the boolean
+</I>&gt;<i>  &gt;&gt; expressions are constructed from BExprs. The only ones that are
+</I>&gt;<i>  &gt;&gt; expressly reified as BoolVars are those noted in the Variables
+</I>&gt;<i>  &gt;&gt; section. These are created because there is no BExpr which tests set
+</I>&gt;<i>  &gt;&gt; membership.
+</I>
+As a general rule, you might want to cache Boolean reification
+variables if they occur more than once (not sure if this is the case
+for you), since it is quite wasteful to create them and their
+propagators several times through a modeling interface.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001527.html">[gecode-users] Controlling memory use
+</A></li>
+	<LI>Next message: <A HREF="001533.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1531">[ date ]</a>
+              <a href="thread.html#1531">[ thread ]</a>
+              <a href="subject.html#1531">[ subject ]</a>
+              <a href="author.html#1531">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

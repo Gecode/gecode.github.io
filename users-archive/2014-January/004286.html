@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Reachability in a graph structure.
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reachability%20in%20a%20graph%20structure.&In-Reply-To=%3C52CFBEED.5010002%40pankrath.net%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004285.html">
+   <LINK REL="Next"  HREF="004287.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Reachability in a graph structure.</H1>
+    <B>Tobias Pankrath</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reachability%20in%20a%20graph%20structure.&In-Reply-To=%3C52CFBEED.5010002%40pankrath.net%3E"
+       TITLE="[gecode-users] Reachability in a graph structure.">lists at pankrath.net
+       </A><BR>
+    <I>Fri Jan 10 10:35:41 CET 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004285.html">[gecode-users] GecodeSupport-4-0-0-d-x86.lib
+</A></li>
+        <LI>Next message: <A HREF="004287.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4286">[ date ]</a>
+              <a href="thread.html#4286">[ thread ]</a>
+              <a href="subject.html#4286">[ subject ]</a>
+              <a href="author.html#4286">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello,
+
+I'm quite new to constraint programming and gecode in particular and ran 
+into some issue
+
+I have to directed graphs G1=(V1,V1&#215;V1), G2=(V2, V2&#215;V2) and I am 
+searching for a mapping h: V1 &#8594; V2, that mantains reachability. I.e. if 
+there is a path v1 -*&gt; v2 (v1,v2 &#8712; V1) than there must also be a path 
+h(v1) -*&gt; h(v2).
+
+To model this using gecode, I am using 4 SetVarArrays:
+
+SetVarArray g1_edges; // y &#8712; g1_edges[x]: there is an edge from v_x to 
+v_y in G1
+SetVarArray g2_edges; // like above for G2
+
+SetVarArray g1_reach; // y &#8712; g1_reach[x]: there is a path from v_x to 
+v_y in G1
+SetVarArray g2_reach; // like above for G2.
+
+Now I want gecode to calculate the reachability of those graphs. Thus I 
+tried to fix the graph by the following domain constraints. A picture of 
+the desired graph is attached to this mail.
+
+  // define edges between nodes
+  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+  dom(*this, g1_edges[3],  SRT_EQ, 5);
+  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+
+Then I want to encode the following relations:
+	* y &#8712; g1_reach[x], if y &#8712; g1_edges[x] (direct neighbours)
+	* if y &#8712; g1_reach[x] and z &#8712; g1_reach[y] then z &#8712; g1_reach[x] 
+(transitivity)
+
+Thus I do:
+for(int x = 0; x &lt; 6; ++x)
+{
+	rel(*this, g1_reach[x] &gt;= g1_edges[x]); // superset
+	element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+	// call to element taken from the manual, section 5.2.4
+	// is it correct?
+}
+
+Then I'll branch on g1_reach, like this:
+branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+
+However this gives me a &gt;1000 solutions and all look like
+g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+g1_reach {}
+
+What is the correct way to model this?
+
+With my best regards,
+Tobias
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: main.cpp
+Type: text/x-c++src
+Size: 2278 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.cpp">http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.cpp</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: t.dot.pdf
+Type: application/pdf
+Size: 11061 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.pdf">http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.pdf</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004285.html">[gecode-users] GecodeSupport-4-0-0-d-x86.lib
+</A></li>
+	<LI>Next message: <A HREF="004287.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4286">[ date ]</a>
+              <a href="thread.html#4286">[ thread ]</a>
+              <a href="subject.html#4286">[ subject ]</a>
+              <a href="author.html#4286">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

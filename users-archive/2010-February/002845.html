@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Recovering gracefully from a failed solution
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Recovering%20gracefully%20from%20a%20failed%20solution&In-Reply-To=%3C63b5c8b01002260042y79f5e5d7o45898f74285f8a49%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002844.html">
+   <LINK REL="Next"  HREF="002846.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Recovering gracefully from a failed solution</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Recovering%20gracefully%20from%20a%20failed%20solution&In-Reply-To=%3C63b5c8b01002260042y79f5e5d7o45898f74285f8a49%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Recovering gracefully from a failed solution">zayenz at gmail.com
+       </A><BR>
+    <I>Fri Feb 26 09:42:44 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002844.html">[gecode-users] Recovering gracefully from a failed solution
+</A></li>
+        <LI>Next message: <A HREF="002846.html">[gecode-users] Recovering gracefully from a failed solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2845">[ date ]</a>
+              <a href="thread.html#2845">[ thread ]</a>
+              <a href="subject.html#2845">[ subject ]</a>
+              <a href="author.html#2845">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Debugging failures in constraint programs is unfortunately a very hard
+problem. A main problem is that the reasons behind a failure to find
+solutions might be very global in nature. As a very simple example, think of
+a ring of less-than constraints (x1 &lt; x2 &lt; ... &lt; xn &lt; x1). There is
+obviously no solution, but the failure depends on all the constraints.
+Removing any one of the constraints gives a solution (given that the initial
+domains admit a solution that is).
+
+One possibility would be for you to implement something like QuickXplain
+[1], which was developed for use in an interactive configuration system. The
+main idea is to find a minimal set of constraints that gives no solutions by
+repeatedly finding constraints that when added lead to failure. If your
+problems are not too hard, then this is probably a good idea and reasonably
+e to implement.
+
+Another possibility, that is more akin to what you are asking, would be to
+use the afc. Afc stands for accumulated failure count, and is used for
+branching heuristics. It simply records the number of times each propagator
+has reported a failure. Note that the afc is a heuristic measure, in that
+there might be many propagators that would have reported failure, but only
+one does so. Unfortunately, while you can access all the propagators and get
+their afc (using the Propagators class), there is no way native to Gecode to
+connect the propagator instances with your model level constraints. That
+means that you would have to modify Gecode itself to use the afc.
+
+Cheers,
+Mikael
+
+[1] <A HREF="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472">http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472</A>
+
+
+On Wed, Feb 24, 2010 at 8:51 PM, Adrian Secord &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ajsecord at cs.nyu.edu</A>&gt; wrote:
+
+&gt;<i> Hi, all:
+</I>&gt;<i>
+</I>&gt;<i> My colleagues and I are working on a user interface research project that
+</I>&gt;<i> uses Gecode internally to solve integer set problems.  Our experiences with
+</I>&gt;<i> Gecode have been excellent; we are limited mostly by our lack of knowledge
+</I>&gt;<i> in the field of constraint programming.
+</I>&gt;<i>
+</I>&gt;<i> In our application, the constraints in our problems come from the user via
+</I>&gt;<i> a domain-appropriate user interface and we translate them into Gecode
+</I>&gt;<i> equivalents.  The difficulty is that the user might specify constraints that
+</I>&gt;<i> lead to no solutions being found at all.  Our users are not experts.
+</I>&gt;<i>
+</I>&gt;<i> What we'd like to do is give the user feedback about what they can do to
+</I>&gt;<i> best fix the situation, or possibly fix the situation for them.  In
+</I>&gt;<i> particular, the constraints that come from the user are not necessarily set
+</I>&gt;<i> in stone -- they are vague and messy, a problem with humans. ;)  For our
+</I>&gt;<i> application, it is far better to ignore a constraint and come up with some
+</I>&gt;<i> solution than to not return a solution at all.  The user can then adjust and
+</I>&gt;<i> iterate to get to a final solution.
+</I>&gt;<i>
+</I>&gt;<i> Is there some way to determine what was the &quot;worst&quot; or &quot;tightest&quot;
+</I>&gt;<i> constraint after a solution search failed?  I'm looking for some indicator
+</I>&gt;<i> that constraint A was easy to satisfy while constraint B was difficult to
+</I>&gt;<i> satisfy.  If we had that then we could suggest that the user drop B, or drop
+</I>&gt;<i> it automatically.
+</I>&gt;<i>
+</I>&gt;<i> I could probably do this crudely by iteratively dropping each constraint in
+</I>&gt;<i> turn and counting the number of solutions obtained, but this seems
+</I>&gt;<i> unsatisfying in many respects.
+</I>&gt;<i>
+</I>&gt;<i> Is something like this possible in Gecode?  It's similar in some sense to
+</I>&gt;<i> the problem of soft constraints, but we don't need a full general solution.
+</I>&gt;<i>
+</I>&gt;<i> Any pointers or advice would be appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Thanks!
+</I>&gt;<i>
+</I>&gt;<i> Adrian.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist,
+<A HREF="http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/">http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/</A>&gt;
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100226/4cc46677/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100226/4cc46677/attachment.htm</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002844.html">[gecode-users] Recovering gracefully from a failed solution
+</A></li>
+	<LI>Next message: <A HREF="002846.html">[gecode-users] Recovering gracefully from a failed solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2845">[ date ]</a>
+              <a href="thread.html#2845">[ thread ]</a>
+              <a href="subject.html#2845">[ subject ]</a>
+              <a href="author.html#2845">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

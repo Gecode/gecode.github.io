@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Implementing No-goods
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Implementing%20No-goods&In-Reply-To=%3C00f901ceb073%243f3ca630%24bdb5f290%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004140.html">
+   <LINK REL="Next"  HREF="004142.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Implementing No-goods</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Implementing%20No-goods&In-Reply-To=%3C00f901ceb073%243f3ca630%24bdb5f290%24%40se%3E"
+       TITLE="[gecode-users] Implementing No-goods">cschulte at kth.se
+       </A><BR>
+    <I>Fri Sep 13 13:20:24 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004140.html">[gecode-users] Implementing No-goods
+</A></li>
+        <LI>Next message: <A HREF="004142.html">[gecode-users] Implementing No-goods
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4141">[ date ]</a>
+              <a href="thread.html#4141">[ thread ]</a>
+              <a href="subject.html#4141">[ subject ]</a>
+              <a href="author.html#4141">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Kish,
+
+In your idea of doing several searches after each other I assume that you
+use the next() function to get a space and then continue search. As the
+no-goods are posted in the master space they will be contained in the space
+returned by next() as well (unless they already have been found out to be
+useless).
+
+As for making sure that the same solution is not found again there is some
+support but not really the right one. For integer variable arrays x and y
+(also for Boolean arrays) you can post by
+	rel(home, x, IRT_NQ, y);
+cannot be the same, that is there is at least one i for which x_i is
+different from y_i.
+
+For other variable types this does not exist but you can always use
+reification like this: assume that x is an array of integer (or set, float,
+... ) variables and y is an array of integers (or floats, or sets, or
+whatever). Then the following code snippet does  what you want:
+	BoolVarArgs b(x.size());
+	for (int i=0; i&lt;x.size(); i++)
+        b[i] = expr(home, x[i] != y[i]);
+      rel(home, BOT_OR, b, 1);
+
+Hope that helps!
+
+Best
+Christian
+
+
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>] 
+Sent: Friday, September 13, 2013 6:12 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">gecode-users at gecode.org</A>
+Subject: Re: [gecode-users] Implementing No-goods
+
+Hi Christian,
+
+Thanks for your reply!
+
+On 12/09/2013 09:22, Christian Schulte wrote:
+&gt;<i> Please re-read MPG on how restart-based search works: the no-goods are 
+</I>&gt;<i> posted in the master space (that's why the master() function does it) 
+</I>&gt;<i> and are hence re-used for each restart (as it starts from the master).
+</I>&gt;<i>
+</I>
+I was thinking about what happens when there is more than one search, i.e.
+after  a search -- search1 --  in a space (using a subset of variables of
+the space), another search (with a different subset of
+variables) -- search2 -- is done on the space. Each of these search will use
+their own search engines, and can use different search engines, with
+different options.
+
+I understand that the no-goods are posted in the master space, but I assume
+the master space in search1 is not the same as search2. My question was if
+the no-goods gathered in search1 will be posted in
+search2 (assuming both are doing a restart search with no-goods).
+As far as I can see, there is no need to post these no-goods from search1,
+because a different subset of variables are used in search2, and in addition
+I assume the no-goods from search1 will be represented as constraints in the
+master space of search2.
+
+&gt;<i> If you do nothing extra (such as randomization or BAB where the 
+</I>&gt;<i> constrain() function is called on the master etc) restarting after 
+</I>&gt;<i> having found a solution will produce the same solution again.
+</I>&gt;<i>
+</I>
+I am thinking here of what to do with next() when using a restart DFS search
+engine in the context of the ECLiPSe interface.
+
+For Gecode, I can understand that you want to leave any extra thing to be
+done to the user.
+
+For the interface, the user is programming in ECLiPSe, and anything extra
+must be done by the interface. After obtaining a solution, I want a call to
+next() to return a different answer (if this exist), and potentially to be
+able to return all the solutions, as in a non-restart DFS. The only way I
+can think of doing this is to post the previous solution as a no-good, and
+this has to be done regardless of what nogoods_limit is. Is this possible,
+and/or is there some other way of ensuring that the previous solution will
+not be returned?
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004140.html">[gecode-users] Implementing No-goods
+</A></li>
+	<LI>Next message: <A HREF="004142.html">[gecode-users] Implementing No-goods
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4141">[ date ]</a>
+              <a href="thread.html#4141">[ thread ]</a>
+              <a href="subject.html#4141">[ subject ]</a>
+              <a href="author.html#4141">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

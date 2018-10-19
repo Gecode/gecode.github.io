@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Question about: Float variables,	Literals and/or 	Constants
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%3A%20Float%20variables%2C%0A%09Literals%20and/or%20%09Constants&In-Reply-To=%3C63b5c8b00912162253g23939f1bs36ea8ccda8f6f3b7%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002775.html">
+   <LINK REL="Next"  HREF="002778.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Question about: Float variables,	Literals and/or 	Constants</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%3A%20Float%20variables%2C%0A%09Literals%20and/or%20%09Constants&In-Reply-To=%3C63b5c8b00912162253g23939f1bs36ea8ccda8f6f3b7%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Question about: Float variables,	Literals and/or 	Constants">zayenz at gmail.com
+       </A><BR>
+    <I>Thu Dec 17 07:53:02 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002775.html">[gecode-users] Question about: Float variables,	Literals and/or Constants
+</A></li>
+        <LI>Next message: <A HREF="002778.html">[gecode-users] Question about: Float variables,	Literals and/or 	Constants
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2777">[ date ]</a>
+              <a href="thread.html#2777">[ thread ]</a>
+              <a href="subject.html#2777">[ subject ]</a>
+              <a href="author.html#2777">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+The float variables are not yet truly integrated into Gecode, so I would not
+advise to use them currently.
+
+As for how to express the multiplication with a constant, I would suggest
+you use the minimodel interface:
+    post(*this, d*mutualSize == n*resultSize);
+
+Cheers,
+Mikael
+
+2009/12/17 Holger Winnemoeller &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">holger.winnemoeller at gmail.com</A>&gt;
+
+&gt;<i> I wonder if I have found the best solution to the following problem (I
+</I>&gt;<i> doubt it):
+</I>&gt;<i>
+</I>&gt;<i> inventory = {0,1,2,3,4, ... , N}
+</I>&gt;<i> subsetA = some subset of inventory
+</I>&gt;<i>
+</I>&gt;<i> Goal: Give me a resultSet with elements from inventory given the following
+</I>&gt;<i> constraints
+</I>&gt;<i>
+</I>&gt;<i> *  fraction X of items in resultSet are from subSetA
+</I>&gt;<i> *  some other constraints (lets not worry about that here)
+</I>&gt;<i>
+</I>&gt;<i> pseudocode notation of a solution might be:
+</I>&gt;<i>
+</I>&gt;<i> IntVar resultSize = cardinality(resultSet);
+</I>&gt;<i> SetVar mutualSet = intersection(resultSet, subsetA);
+</I>&gt;<i> IntVar mutualSize = cardinality(mutualSet);
+</I>&gt;<i>
+</I>&gt;<i> FloatVar f = div(mutualSize, resultSize);
+</I>&gt;<i> rel(div, EQ, X);
+</I>&gt;<i>
+</I>&gt;<i> Now, while I did find a FloatVar class, it's in the namespace
+</I>&gt;<i> Gecode::FlatZinc::AST, not Gecode, and I have a feeling its use is not
+</I>&gt;<i> analogous to IntVar.
+</I>&gt;<i>
+</I>&gt;<i> So, fair enough, I can just repose the constraint:
+</I>&gt;<i>
+</I>&gt;<i>                 |mutualSet| / |resultSet| = X, where X can be approximated
+</I>&gt;<i> by n/d
+</I>&gt;<i>
+</I>&gt;<i> &lt;==&gt; d * |mutualSet| = n * |resultSet|, all of which can be expressed in
+</I>&gt;<i> Int's
+</I>&gt;<i>
+</I>&gt;<i> So, my solution ends up being:
+</I>&gt;<i>
+</I>&gt;<i>         IntVar lhs (*this, 0, d * setB.size());        // worst-case
+</I>&gt;<i> domain
+</I>&gt;<i>     IntVar rhs (*this, 0, n * inventory.size());   // worst-case domain
+</I>&gt;<i>
+</I>&gt;<i>     // Q1: I would love to write the following lines, but I may not use
+</I>&gt;<i> integer literals in the mult call. Is there a better way?
+</I>&gt;<i>     //mult(*this, mutualSize, d, lhs);
+</I>&gt;<i>     //mult(*this, resultSize, n, rhs);
+</I>&gt;<i>
+</I>&gt;<i>     // Q2: Is this the way to specify the constant that I want to use? It
+</I>&gt;<i> seems very roundabout...
+</I>&gt;<i>     IntVar numerator(*this, n,n);
+</I>&gt;<i>     IntVar denominator(*this, d,d);
+</I>&gt;<i>
+</I>&gt;<i>     mult(*this, mutualSize, denominator, lhs);
+</I>&gt;<i>     mult(*this, resultSize, numerator,   rhs);
+</I>&gt;<i>
+</I>&gt;<i>     rel(*this, lhs, IRT_EQ, rhs);
+</I>&gt;<i>
+</I>&gt;<i> The thing is, I do get the correct solution using this approach, but I feel
+</I>&gt;<i> like I am misusing Gecode, and that there is a cleaner way to express what I
+</I>&gt;<i> want. So to summarize my questions:
+</I>&gt;<i>
+</I>&gt;<i>    - Is there a way to just use a Float constraint?
+</I>&gt;<i>    - If not (have to use Quotient approach), is there a way to express the
+</I>&gt;<i>    multiplication using integer literals?
+</I>&gt;<i>    - If not, is there a way to specify an integer constant without
+</I>&gt;<i>    defining a one-element domain for it?
+</I>&gt;<i>    - Or am I crazy, and the solution I give is adequate?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thanks for your help,
+</I>&gt;<i> Holger.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20091217/58dd0c0b/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20091217/58dd0c0b/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002775.html">[gecode-users] Question about: Float variables,	Literals and/or Constants
+</A></li>
+	<LI>Next message: <A HREF="002778.html">[gecode-users] Question about: Float variables,	Literals and/or 	Constants
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2777">[ date ]</a>
+              <a href="thread.html#2777">[ thread ]</a>
+              <a href="subject.html#2777">[ subject ]</a>
+              <a href="author.html#2777">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

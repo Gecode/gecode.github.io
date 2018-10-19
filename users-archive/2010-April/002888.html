@@ -1,0 +1,432 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Cutting holes within a view optimally
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cutting%20holes%20within%20a%20view%20optimally&In-Reply-To=%3Cx2t63b5c8b01004142117s63614f46m5e9ef557265c457c%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002886.html">
+   <LINK REL="Next"  HREF="002887.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Cutting holes within a view optimally</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cutting%20holes%20within%20a%20view%20optimally&In-Reply-To=%3Cx2t63b5c8b01004142117s63614f46m5e9ef557265c457c%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Cutting holes within a view optimally">zayenz at gmail.com
+       </A><BR>
+    <I>Thu Apr 15 06:17:19 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002886.html">[gecode-users] Cutting holes within a view optimally
+</A></li>
+        <LI>Next message: <A HREF="002887.html">[gecode-users] Filling up a matrix ...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2888">[ date ]</a>
+              <a href="thread.html#2888">[ thread ]</a>
+              <a href="subject.html#2888">[ subject ]</a>
+              <a href="author.html#2888">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+I'm think you could do something even simpler, since the two cases could be
+merged. Note that when x0 is assigned, x0.val() == x0.min() == x0.max().
+Thus the two cases could be merged into something like
+  if (x0.max() - x0.min() &lt; offset1) {
+    Iter::Ranges::Singleton r0(std::max(x0.max() - ofset1 + 1, 0),
+x0.min()+offset1-1);
+   GECODE_ME_CHECK(x1.minus_r(home, r0, false));
+  }
+and similarly for the reverse case. I assumed that x0.min()+offset1-1 is
+never negative. I haven't tested the code, so it might be incorrect.
+
+Also, note the in your code you don't use the special 0-absorbing logic for
+the bounds-reasoning, which is probably wrong.
+
+Returning ES_FIX is probably wrong now, since you might modify the bounds of
+x0 in the second part, and need to re-run since x1 could be modified again.
+I haven't thought about it in depth though.
+
+Cheers,
+Mikael
+
+
+On Wed, Apr 14, 2010 at 11:09 PM, Zaremby, David &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">david.zaremby at lmco.com</A>&gt;wrote:
+
+&gt;<i>  Mikael,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Nice insight. Thank you for taking the time to analyze the issue beyond the
+</I>&gt;<i> stated question.  Originally I didn&#8217;t think that I needed this case, but it
+</I>&gt;<i> turned out I did because it sometimes allowed domains to be available that
+</I>&gt;<i> were actually forbidden and resulted in a larger search tree when branching
+</I>&gt;<i> and even worse, when assigning, it incorrectly resulted in a dead tree.  I
+</I>&gt;<i> would have struggled without this nugget of knowledge. I think an improved
+</I>&gt;<i> version is provided below. Let me know if I misinterpreted your use case.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp; med)
+</I>&gt;<i>
+</I>&gt;<i>       {
+</I>&gt;<i>
+</I>&gt;<i>             if (Int::IntView::me(med) == Int::ME_INT_BND)
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   if (x1.max() - x0.min() &lt; offset1)
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         Iter::Ranges::Singleton r0(x0.min(), x1.min() +
+</I>&gt;<i> offset1 - 1);
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x0.minus_r(home, r0, false));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>                   if (x0.max() - x1.min() &lt; offset0)
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         Iter::Ranges::Singleton r1(x1.min(), x0.min() +
+</I>&gt;<i> offset0 - 1);
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x1.minus_r(home, r1, false));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             else if (Int::IntView::me(med) == Int::ME_INT_VAL)
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   if (x0.assigned())
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         Iter::Ranges::Singleton r0(x0.val() - offset1 + 1
+</I>&gt;<i> &gt;= 0 ? x0.val() - offset1 + 1 : 0, x0.val() + offset0 - 1);
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x1.minus_r(home, r0, false));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>                   else if (x1.assigned())
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         Iter::Ranges::Singleton r1(x1.val() - offset0 + 1
+</I>&gt;<i> &gt;= 0 ? x1.val() - offset0 + 1 : 0, x1.val() + offset1 - 1);
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x0.minus_r(home, r1, false));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>             if (x0.max() + offset0 &lt;= x1.min() || x1.max() + offset1 &lt;=
+</I>&gt;<i> x0.min())
+</I>&gt;<i>
+</I>&gt;<i>                   return home.ES_SUBSUMED(*this);
+</I>&gt;<i>
+</I>&gt;<i>             else
+</I>&gt;<i>
+</I>&gt;<i>                   return ES_FIX;
+</I>&gt;<i>
+</I>&gt;<i>       }
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *David Zaremby*
+</I>&gt;<i>
+</I>&gt;<i> Senior Software Engineer
+</I>&gt;<i>
+</I>&gt;<i> LSS / Strategic Products
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *Lockheed Martin Simulation, Training &amp; Support*
+</I>&gt;<i>
+</I>&gt;<i> 12506 Lake Underhill Road, MP-823
+</I>&gt;<i>
+</I>&gt;<i> Orlando, FL 32825
+</I>&gt;<i>
+</I>&gt;<i> *From:* Mikael Zayenz Lagerkvist [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">zayenz at gmail.com</A>]
+</I>&gt;<i> *Sent:* Wednesday, April 14, 2010 1:01 AM
+</I>&gt;<i> *To:* Zaremby, David
+</I>&gt;<i> *Cc:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* Re: [gecode-users] Cutting holes within a view optimally
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Just as a side-note, you can do propagation earlier than when a variable is
+</I>&gt;<i> fixed for this constraint. In the ground case, an offset1 of 5 and a value v
+</I>&gt;<i> of x0 gives a forbidden region
+</I>&gt;<i>
+</I>&gt;<i>     [-----v-----]
+</I>&gt;<i> for the variable x1. If the difference between min (a) and max (b) of a
+</I>&gt;<i> non-ground x0 is less than offset1, then all potential forbidden regions
+</I>&gt;<i> will overlap. Consider the case where b-a=3
+</I>&gt;<i>
+</I>&gt;<i>     [-----a---[==]---b-----]
+</I>&gt;<i>
+</I>&gt;<i> The doubly marked values are forbidden for x1 regardless of the final value
+</I>&gt;<i> of x0.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Whether modifying the propagation helps for solving your problem is another
+</I>&gt;<i> issue of course.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Mikael
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> 2010/4/13 Zaremby, David &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">david.zaremby at lmco.com</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i> Thanks. That did the trick.  I knew it was easy.  I just couldn&#8217;t seem to
+</I>&gt;<i> find it&#8230;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp;)  {
+</I>&gt;<i>
+</I>&gt;<i>             if (x0.assigned())
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   Iter::Ranges::Singleton r0(x0.val() - offset1 &gt; 0 ?
+</I>&gt;<i> x0.val() - offset1 : 0, x0.val() + offset0);
+</I>&gt;<i>
+</I>&gt;<i>                   GECODE_ME_CHECK(x1.minus_r(home, r0, false));
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             else if (x1.assigned())
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   Iter::Ranges::Singleton r1(x1.val() - offset0 &gt; 0 ?
+</I>&gt;<i> x1.val() - offset0 : 0, x1.val() + offset1);
+</I>&gt;<i>
+</I>&gt;<i>                   GECODE_ME_CHECK(x0.minus_r(home, r1, false));
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>             if (x0.max() + offset0 &lt; x1.min() || x1.max() + offset1 &lt;
+</I>&gt;<i> x0.min())
+</I>&gt;<i>
+</I>&gt;<i>                   return home.ES_SUBSUMED(*this);
+</I>&gt;<i>
+</I>&gt;<i>             else
+</I>&gt;<i>
+</I>&gt;<i>                   return ES_FIX;
+</I>&gt;<i>
+</I>&gt;<i>       }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *David Zaremby*
+</I>&gt;<i>
+</I>&gt;<i> Senior Software Engineer
+</I>&gt;<i>
+</I>&gt;<i> LSS / Strategic Products
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *Lockheed Martin Simulation, Training &amp; Support*
+</I>&gt;<i>
+</I>&gt;<i> 12506 Lake Underhill Road, MP-823
+</I>&gt;<i>
+</I>&gt;<i> Orlando, FL 32825
+</I>&gt;<i>
+</I>&gt;<i> *From:* Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+</I>&gt;<i> *Sent:* Tuesday, April 13, 2010 2:11 PM
+</I>&gt;<i> *To:* Zaremby, David; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* RE: [gecode-users] Cutting holes within a view optimally
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Check the minus_r member function and the range iterator
+</I>&gt;<i>
+</I>&gt;<i>                 Iter::Ranges::Singleton
+</I>&gt;<i>
+</I>&gt;<i> The latter allows to specify a single range.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> That should do the trick!
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, web.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Zaremby, David
+</I>&gt;<i> *Sent:* Tuesday, April 13, 2010 7:34 PM
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> gecode
+</I>&gt;<i> *Subject:* [gecode-users] Cutting holes within a view optimally
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Gecoders,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I am struggling with finding the best way to cut a hole in a view during
+</I>&gt;<i> propegation without doing a simple for loop. I originally thought I should
+</I>&gt;<i> use a Range and Iterator and execute the minus_v method, but I can&#8217;t find an
+</I>&gt;<i> easy way to construct one easily using specific values other than using a
+</I>&gt;<i> value array of ints but I would still need a loop to initialize the array.
+</I>&gt;<i> What is the best way to do this with the least computation?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> The end goal of this propagator is to put a gap between two domains however
+</I>&gt;<i> there is no guarantee that x0 &lt; x1  so you really can&#8217;t reduce much on the
+</I>&gt;<i> domain until one is assigned a start. Additionally you can&#8217;t use an offset
+</I>&gt;<i> view because you only want the offset to apply if the task is the earlier
+</I>&gt;<i> one one.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp;)  {
+</I>&gt;<i>
+</I>&gt;<i>             if (x0.assigned())
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   //create a range that x1 cant equal over (x0.val -
+</I>&gt;<i> offset1, x0.val + offset0)
+</I>&gt;<i>
+</I>&gt;<i>                   for (int i = x0.val() - offset1; i &lt; x0.val() + offset0;
+</I>&gt;<i> ++i)
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x1.nq(home, i));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             else if (x1.assigned())
+</I>&gt;<i>
+</I>&gt;<i>             {
+</I>&gt;<i>
+</I>&gt;<i>                   //create a range that x0 cant equal over (x1.val -
+</I>&gt;<i> offset0, x1.val + offset1)
+</I>&gt;<i>
+</I>&gt;<i>                   for (int i = x1.val() - offset0; i &lt; x1.val() + offset1;
+</I>&gt;<i> ++i)
+</I>&gt;<i>
+</I>&gt;<i>                   {
+</I>&gt;<i>
+</I>&gt;<i>                         GECODE_ME_CHECK(x0.nq(home, i));
+</I>&gt;<i>
+</I>&gt;<i>                   }
+</I>&gt;<i>
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>             if (x0.max() + offset0 &lt;= x1.min() || x1.max() + offset1 &lt;=
+</I>&gt;<i> x0.min())
+</I>&gt;<i>
+</I>&gt;<i>                   return home.ES_SUBSUMED(*this);
+</I>&gt;<i>
+</I>&gt;<i>             else
+</I>&gt;<i>
+</I>&gt;<i>                   return ES_FIX;
+</I>&gt;<i>
+</I>&gt;<i>       }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *David Zaremby*
+</I>&gt;<i>
+</I>&gt;<i> Senior Software Engineer
+</I>&gt;<i>
+</I>&gt;<i> LSS / Strategic Products
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *Lockheed Martin Simulation, Training &amp; Support*
+</I>&gt;<i>
+</I>&gt;<i> 12506 Lake Underhill Road, MP-823
+</I>&gt;<i>
+</I>&gt;<i> Orlando, FL 32825
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100415/26ef37b5/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20100415/26ef37b5/attachment-0001.htm</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002886.html">[gecode-users] Cutting holes within a view optimally
+</A></li>
+	<LI>Next message: <A HREF="002887.html">[gecode-users] Filling up a matrix ...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2888">[ date ]</a>
+              <a href="thread.html#2888">[ thread ]</a>
+              <a href="subject.html#2888">[ subject ]</a>
+              <a href="author.html#2888">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

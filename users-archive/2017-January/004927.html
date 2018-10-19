@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Using LocalHandles and LocalObjects with	External	Resources
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Using%20LocalHandles%20and%20LocalObjects%20with%0A%09External%09Resources&In-Reply-To=%3C00f101d269bf%2402d5ed10%240881c730%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004925.html">
+   <LINK REL="Next"  HREF="004926.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Using LocalHandles and LocalObjects with	External	Resources</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Using%20LocalHandles%20and%20LocalObjects%20with%0A%09External%09Resources&In-Reply-To=%3C00f101d269bf%2402d5ed10%240881c730%24%40kth.se%3E"
+       TITLE="[gecode-users] Using LocalHandles and LocalObjects with	External	Resources">cschulte at kth.se
+       </A><BR>
+    <I>Sun Jan  8 15:53:43 CET 2017</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004925.html">[gecode-users] Using LocalHandles and LocalObjects with External	Resources
+</A></li>
+        <LI>Next message: <A HREF="004926.html">[gecode-users] Re-execution of program
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4927">[ date ]</a>
+              <a href="thread.html#4927">[ thread ]</a>
+              <a href="subject.html#4927">[ subject ]</a>
+              <a href="author.html#4927">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+This is hard to debug remotely but here is the catch:
+ - you have a shared datastructure that you have put into a local object.
+ - you need to make sure that both propagator and brancher destruct the
+local handle but only if neither needs it any longer. If you make use of the
+local handle in both propagator as well as brancher then everything should
+be fine.
+ - for the propagator it means you have to use the AP_DISPOSE thing as you
+did. In its dispose method you have to add an explicit call to the
+destructor of the local handle, say that the local object is names lo and of
+type Foo. Then lo.~Foo() will do the trick.
+ - for the brancher you also have to call in its dispose method the
+destructor.
+
+My guess is that the error comes from the fact that the shared object has
+already been destroyed by either propagator or brancher and the other still
+tries to access it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Peter Backeman
+Sent: Saturday, January 7, 2017 02:02
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Using LocalHandles and LocalObjects with External
+Resources
+
+Hello, 
+
+I've implemented a custom propagator and brancher which are sharing a
+data-structure (a matrix of values), To share the structure in an efficient
+(and convenient) way I have looked at using LocalHandle and LocalObject. In
+MPG (Sec 31.4, page 391) this is described how to be implemented, however I
+am doing something wrong because I keep on getting some kind of memory
+error.
+
+My main problem is with the notice for disposal (since external resources
+are used). If I do not use home.notice(*this, AP_DISPOSE) (line 17 in
+attached file), my program does run without errors, but I suspect it might
+lead to memory leaks. I've tried figuring out how this should work, but I
+have yet to find a full example using LocalHandle/LocalObject (i.e. together
+with a model) and no previous issues around this.
+
+I'm attaching a minimum failing example (main.cpp), I'm compiling it on
+ubuntu using g++ version 5.4.0. and Gecode version 5.0.0 (I'm fairly sure,
+do not know how to exactly check this) using the following command:
+	g++ -g -o main src/main.cpp -lgecodedriver -lgecodegist
+-lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+and when running it I receive the following error (gdb output):
+----------------------------------------------------------------------------
+-
+Program received signal SIGSEGV, Segmentation fault.
+Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic pointer&gt;,
+home=...) at ./gecode/kernel/core.hpp:4438
+4438	./gecode/kernel/core.hpp: No such file or directory.
+(gdb) where
+#0  Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic
+pointer&gt;, home=...) at ./gecode/kernel/core.hpp:4438
+#1  Gecode::Space::update (sub=0x64e380, this=0x64e220) at
+./gecode/kernel/var-imp.hpp:484
+#2  Gecode::Space::_clone (this=0x63c6a0, share_data=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_data at entry</A>=true,
+share_info=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_info at entry</A>=true) at gecode/kernel/core.cpp:584
+#3  0x00007ffff776b813 in Gecode::Space::clone (share_info=true,
+share_data=true, this=&lt;optimized out&gt;) at ./gecode/kernel/core.hpp:3262
+#4  Gecode::Search::Sequential::BAB::next (this=0x64db38) at
+./gecode/search/sequential/bab.hh:149
+#5  Gecode::Search::WorkerToEngine&lt;Gecode::Search::Sequential::BAB&gt;::next
+(this=0x64db30) at ./gecode/search/support.hh:86
+#6  0x0000000000411ad9 in Gecode::Search::Base&lt;MyScript&gt;::next
+(this=&lt;optimized out&gt;) at /usr/local/include/gecode/search/base.hpp:51
+#7
+Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinim
+izeSpace&gt; &gt;::runMeta&lt;MyScript, Gecode::BAB, Gecode::SizeOptions,
+Gecode::Driver::EngineToMeta&gt; (o=..., s=0x63c6a0)
+    at /usr/local/include/gecode/driver/script.hpp:360
+#8  0x0000000000408e15 in
+Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinim
+izeSpace&gt; &gt;::run&lt;MyScript, Gecode::BAB, Gecode::SizeOptions&gt; (o=..., s=0x0)
+    at /usr/local/include/gecode/driver/script.hpp:274
+#9  0x0000000000405536 in main (argc=1, argv=0x7fffffffe0d8) at
+src/main.cpp:63
+----------------------------------------------------------------------------
+-
+
+Any ideas on what might be the problem is greatly appreciated. My guess is
+that perhaps the destructor of the LocalHandle (LH) class have to make sure
+dispose is called on the LocalObject (LHO), however my skills in C++  and
+Gecode are not enough to know how I can try this. If someone just have an
+implementation using LocalHandles/LocalObjects which is working, just
+letting me have a look on that would be very helpful!
+
+Best regards,
+Peter Backeman 
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4599 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170108/17216c70/attachment.bin">http://www.gecode.org/pipermail/users/attachments/20170108/17216c70/attachment.bin</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004925.html">[gecode-users] Using LocalHandles and LocalObjects with External	Resources
+</A></li>
+	<LI>Next message: <A HREF="004926.html">[gecode-users] Re-execution of program
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4927">[ date ]</a>
+              <a href="thread.html#4927">[ thread ]</a>
+              <a href="subject.html#4927">[ subject ]</a>
+              <a href="author.html#4927">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

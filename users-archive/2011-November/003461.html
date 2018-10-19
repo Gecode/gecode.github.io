@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] assert in propagator cast
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20assert%20in%20propagator%20cast&In-Reply-To=%3C00c501cc9ae7%24a5a94ac0%24f0fbe040%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003460.html">
+   <LINK REL="Next"  HREF="003463.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] assert in propagator cast</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20assert%20in%20propagator%20cast&In-Reply-To=%3C00c501cc9ae7%24a5a94ac0%24f0fbe040%24%40se%3E"
+       TITLE="[gecode-users] assert in propagator cast">cschulte at kth.se
+       </A><BR>
+    <I>Fri Nov  4 12:48:17 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003460.html">[gecode-users] assert in propagator cast
+</A></li>
+        <LI>Next message: <A HREF="003463.html">[gecode-users] assert in propagator cast
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3461">[ date ]</a>
+              <a href="thread.html#3461">[ thread ]</a>
+              <a href="subject.html#3461">[ subject ]</a>
+              <a href="author.html#3461">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi David,
+
+Ok, let's see: when the Boolean variable becomes assigned you dispose the
+advisors. But do you also cancel the subscriptions?
+
+As you correctly observed, some advisors have a dispose function that also
+does the cancel. If an advisor has a dispose function that does not cancel,
+then the cancel has to be done manually.
+
+For assigned views, subscriptions do not need to be cancelled but advisors
+still must be disposed. You might do that in the advise() function or in the
+dispose() function but have to be careful to only do it once!
+
+Please let me know whether this helps.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Friday, November 04, 2011 11:44 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: Re: [gecode-users] assert in propagator cast
+
+Hi Christian,
+
+a little bit delayed but yes you are pretty close with your guessing. I do
+step 1 and step 2 I do cancel the subscription. Also in the dispose method
+of the propagator I invoke the dispose method of the council. 
+
+Should I also cancel all the subscriptions of the variables to the advisors
+in the propagators dispose although I invoke the dispose on the council? I
+checked the dispose of the council and it also invokes the dispose of the
+advisors which in my case do cancel the subscriptions.
+
+In the example  in gecode/int/bool/or.hpp you are using the advisor type
+Advisor in which the cancellation does not take place (in my case it does in
+the specialized implementation of dispose) so I understand the need to
+explicitly do it in the dispose of the propagator in your case. But I do not
+see it in my case....
+
+To give you a little more background, I have a propagator working on tasks,
+each task has five variables of which one is a boolean. When the boolean
+becomes false I want to dispose all the advisors on all the five variables
+associated with this task. When the boolean becomes false, in the advise of
+the propagator I iterate over all the advisors in the council, cast them to
+my advisor type, ask the advisor if it belongs to the same task as the
+boolean, if so it is disposed. I had made an optimization which would stop
+iterating over the advisors once it disposed  four, this is a mistake as it
+could have found the advisor of the boolean itself and dispose it, now if I
+exclude the explicit disposal of the advisor of the boolean variable the
+problem no longer occurs. I am a little puzzled here how this is related to
+the assert being raised (a double disposal also raises an assert and I do
+not see this), I will continue my search but if you have any suggestions
+that would be great,
+
+Another question for my understanding, who is (responsible for) disposing
+the advisor when a variable becomes assigned?
+
+thanks,
+
+David Rijsman
+
+&gt;&gt;&gt;<i> 
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/25/2011 5:48 PM
+Subject: 	Re: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A> 
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> 
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A> 
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+
+
+
+
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003460.html">[gecode-users] assert in propagator cast
+</A></li>
+	<LI>Next message: <A HREF="003463.html">[gecode-users] assert in propagator cast
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3461">[ date ]</a>
+              <a href="thread.html#3461">[ thread ]</a>
+              <a href="subject.html#3461">[ subject ]</a>
+              <a href="author.html#3461">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

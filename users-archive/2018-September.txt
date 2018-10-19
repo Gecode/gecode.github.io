@@ -1,0 +1,1218 @@
+From cschulte at kth.se  Sat Sep  1 13:40:04 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Sat, 1 Sep 2018 11:40:04 +0000
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+In-Reply-To: <F3693ACFBB4CBE40894F6560386A67BFB3F64D80@EX1.logis.local>
+References: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+	<031a7c543de04c6aa35a16461baaa43f@exdb02.ug.kth.se>
+	<F3693ACFBB4CBE40894F6560386A67BFB3F64D80@EX1.logis.local>
+Message-ID: <e8a503e0c4ba45b0ac64d402a5cb1e2b@exdb02.ug.kth.se>
+
+Hi Filip,
+
+Actually, it is the other way around: now the float propagators behave as the integer propagators always did.
+
+Well, the risk was there before but the system would not tell that.
+
+Best
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Konvicka Filip
+Sent: 30 August 2018 21:10
+To: Christian Schulte <cschulte at kth.se>; 'users at gecode.org' <users at gecode.org>
+Subject: Re: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some "random" way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are "fresh" (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:cschulte at kth.se]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; 'users at gecode.org'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: 'users at gecode.org' <users at gecode.org<mailto:users at gecode.org>>
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include <gecode/float.hh>
+#include <iostream>
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180901/59c8c043/attachment-0001.html>
+
+From Filip.Konvicka at logis.cz  Mon Sep  3 08:36:54 2018
+From: Filip.Konvicka at logis.cz (Konvicka Filip)
+Date: Mon, 3 Sep 2018 06:36:54 +0000
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+In-Reply-To: <e8a503e0c4ba45b0ac64d402a5cb1e2b@exdb02.ug.kth.se>
+References: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+	<031a7c543de04c6aa35a16461baaa43f@exdb02.ug.kth.se>
+	<F3693ACFBB4CBE40894F6560386A67BFB3F64D80@EX1.logis.local>
+	<e8a503e0c4ba45b0ac64d402a5cb1e2b@exdb02.ug.kth.se>
+Message-ID: <F3693ACFBB4CBE40894F6560386A67BFB3F657C8@EX1.logis.local>
+
+Hi Christian,
+
+OK, I yield! :)  Thanks.  I didn't know that about the integer propagators and I guess I should check that I'm careful enough where I'm using them.
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:cschulte at kth.se]
+Sent: Saturday, September 1, 2018 1:40 PM
+To: Konvicka Filip; 'users at gecode.org'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Filip,
+
+Actually, it is the other way around: now the float propagators behave as the integer propagators always did.
+
+Well, the risk was there before but the system would not tell that.
+
+Best
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Konvicka Filip
+Sent: 30 August 2018 21:10
+To: Christian Schulte <cschulte at kth.se>; 'users at gecode.org' <users at gecode.org>
+Subject: Re: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some "random" way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are "fresh" (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:cschulte at kth.se]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; 'users at gecode.org'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: 'users at gecode.org' <users at gecode.org<mailto:users at gecode.org>>
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include <gecode/float.hh>
+#include <iostream>
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180903/b4f93e65/attachment-0001.html>
+
+From andreasacconi at hotmail.co.uk  Sun Sep 23 20:30:47 2018
+From: andreasacconi at hotmail.co.uk (Andrea Sacconi)
+Date: Sun, 23 Sep 2018 18:30:47 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+	set letters and black cells
+Message-ID: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+
+Hi all,
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+I tried this (just an example):
+
+IntVar letter1(*this, 'f', 'f');
+ml(10, 5) = letter1;
+IntVar letter2(*this, 'i', 'i');
+ml(9, 4) = letter2;
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+Could you please help me?
+
+Cheers,
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/da40041c/attachment.html>
+
+From cschulte at kth.se  Sun Sep 23 20:37:24 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 23 Sep 2018 18:37:24 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+Message-ID: <eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+Anyway, I would not overwrite the variables but constraint them such as in
+  rel(*this, ml(10,5) == ?f?);
+and so on.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+Hi all,
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+I tried this (just an example):
+
+IntVar letter1(*this, 'f', 'f');
+ml(10, 5) = letter1;
+IntVar letter2(*this, 'i', 'i');
+ml(9, 4) = letter2;
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+Could you please help me?
+
+Cheers,
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/9ed307e5/attachment.html>
+
+From andreasacconi at hotmail.co.uk  Sun Sep 23 20:53:15 2018
+From: andreasacconi at hotmail.co.uk (Andrea Sacconi)
+Date: Sun, 23 Sep 2018 18:53:15 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+Message-ID: <VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+
+Hi,
+
+I am using the example in the documentation, where the list of words is explicitly provided:
+
+const int n_words[] = {
+1, 26, 66, 633, 2443, 4763, 7585, 10380, 10974
+};
+
+so hopefully a dictionary big enough.
+
+I will try to use the command suggested. Do you think that imposing 20 or 30 letter constraints like that is a problem?
+
+Cheers,
+Andrea
+
+
+________________________________
+From: Christian Schulte <cschulte at kth.se>
+Sent: 23 September 2018 19:37
+To: Andrea Sacconi; users at gecode.org
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+
+
+Anyway, I would not overwrite the variables but constraint them such as in
+
+  rel(*this, ml(10,5) == ?f?);
+
+and so on.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi all,
+
+
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+
+
+I tried this (just an example):
+
+
+
+IntVar letter1(*this, 'f', 'f');
+
+ml(10, 5) = letter1;
+
+IntVar letter2(*this, 'i', 'i');
+
+ml(9, 4) = letter2;
+
+
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+
+
+Could you please help me?
+
+
+
+Cheers,
+
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/f42d3673/attachment-0001.html>
+
+From cschulte at kth.se  Sun Sep 23 20:55:50 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 23 Sep 2018 18:55:50 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+	<VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+Message-ID: <7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>
+
+I wouldn?t know. Cheers Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: Andrea Sacconi <andreasacconi at hotmail.co.uk>
+Sent: Sunday, September 23, 2018 8:53 PM
+To: Christian Schulte <cschulte at kth.se>; users at gecode.org
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+Hi,
+
+I am using the example in the documentation, where the list of words is explicitly provided:
+
+const int n_words[] = {
+1, 26, 66, 633, 2443, 4763, 7585, 10380, 10974
+};
+
+so hopefully a dictionary big enough.
+
+I will try to use the command suggested. Do you think that imposing 20 or 30 letter constraints like that is a problem?
+
+Cheers,
+Andrea
+
+
+________________________________
+From: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>
+Sent: 23 September 2018 19:37
+To: Andrea Sacconi; users at gecode.org<mailto:users at gecode.org>
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+
+
+Anyway, I would not overwrite the variables but constraint them such as in
+
+  rel(*this, ml(10,5) == ?f?);
+
+and so on.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org<mailto:users at gecode.org>
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi all,
+
+
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+
+
+I tried this (just an example):
+
+
+
+IntVar letter1(*this, 'f', 'f');
+
+ml(10, 5) = letter1;
+
+IntVar letter2(*this, 'i', 'i');
+
+ml(9, 4) = letter2;
+
+
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+
+
+Could you please help me?
+
+
+
+Cheers,
+
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/91e0c6e8/attachment.html>
+
+From andreasacconi at hotmail.co.uk  Sun Sep 23 21:02:01 2018
+From: andreasacconi at hotmail.co.uk (Andrea Sacconi)
+Date: Sun, 23 Sep 2018 19:02:01 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+	<VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>
+Message-ID: <VI1PR0501MB25744A7725783A0E33CEFDE6F5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+
+I just tried again with the command you mentioned, unfortunately with already three constrained letters everything fails. Why failures 1?! This is not trying many times though ... I am perplexed.
+
+[cid:a2c91763-1b0d-421c-9808-be6f0947e583]
+
+Seems strange to me, because I have reduced the size of the grid to be 12x7, so smaller for testing purposes. I would expect with such a huge dictionary to be able to find a solution!
+
+Cheers,
+Andrea
+
+________________________________
+From: Christian Schulte <cschulte at kth.se>
+Sent: 23 September 2018 19:55
+To: Andrea Sacconi; users at gecode.org
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+I wouldn?t know. Cheers Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: Andrea Sacconi <andreasacconi at hotmail.co.uk>
+Sent: Sunday, September 23, 2018 8:53 PM
+To: Christian Schulte <cschulte at kth.se>; users at gecode.org
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi,
+
+
+
+I am using the example in the documentation, where the list of words is explicitly provided:
+
+
+
+const int n_words[] = {
+
+1, 26, 66, 633, 2443, 4763, 7585, 10380, 10974
+
+};
+
+
+
+so hopefully a dictionary big enough.
+
+
+
+I will try to use the command suggested. Do you think that imposing 20 or 30 letter constraints like that is a problem?
+
+
+
+Cheers,
+
+Andrea
+
+
+
+
+
+________________________________
+
+From: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>
+Sent: 23 September 2018 19:37
+To: Andrea Sacconi; users at gecode.org<mailto:users at gecode.org>
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+
+
+Anyway, I would not overwrite the variables but constraint them such as in
+
+  rel(*this, ml(10,5) == ?f?);
+
+and so on.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org<mailto:users at gecode.org>
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi all,
+
+
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+
+
+I tried this (just an example):
+
+
+
+IntVar letter1(*this, 'f', 'f');
+
+ml(10, 5) = letter1;
+
+IntVar letter2(*this, 'i', 'i');
+
+ml(9, 4) = letter2;
+
+
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+
+
+Could you please help me?
+
+
+
+Cheers,
+
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/b5ee686d/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image.png
+Type: image/png
+Size: 32707 bytes
+Desc: image.png
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/b5ee686d/attachment-0001.png>
+
+From andreasacconi at hotmail.co.uk  Sun Sep 23 21:49:04 2018
+From: andreasacconi at hotmail.co.uk (Andrea Sacconi)
+Date: Sun, 23 Sep 2018 19:49:04 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <VI1PR0501MB25744A7725783A0E33CEFDE6F5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+	<VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>,
+	<VI1PR0501MB25744A7725783A0E33CEFDE6F5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+Message-ID: <VI1PR0501MB25743441F91D53B6CFCAEE9BF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+
+I think I am making the definition of the space flawed somehow, because it seems strange that setting three letters only out of 105 would cause a failure after 158 milliseconds, without retrying .....
+________________________________
+From: users-bounces at gecode.org <users-bounces at gecode.org> on behalf of Andrea Sacconi <andreasacconi at hotmail.co.uk>
+Sent: 23 September 2018 20:02
+To: Christian Schulte; users at gecode.org
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+I just tried again with the command you mentioned, unfortunately with already three constrained letters everything fails. Why failures 1?! This is not trying many times though ... I am perplexed.
+
+[cid:a2c91763-1b0d-421c-9808-be6f0947e583]
+
+Seems strange to me, because I have reduced the size of the grid to be 12x7, so smaller for testing purposes. I would expect with such a huge dictionary to be able to find a solution!
+
+Cheers,
+Andrea
+
+________________________________
+From: Christian Schulte <cschulte at kth.se>
+Sent: 23 September 2018 19:55
+To: Andrea Sacconi; users at gecode.org
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+I wouldn?t know. Cheers Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: Andrea Sacconi <andreasacconi at hotmail.co.uk>
+Sent: Sunday, September 23, 2018 8:53 PM
+To: Christian Schulte <cschulte at kth.se>; users at gecode.org
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi,
+
+
+
+I am using the example in the documentation, where the list of words is explicitly provided:
+
+
+
+const int n_words[] = {
+
+1, 26, 66, 633, 2443, 4763, 7585, 10380, 10974
+
+};
+
+
+
+so hopefully a dictionary big enough.
+
+
+
+I will try to use the command suggested. Do you think that imposing 20 or 30 letter constraints like that is a problem?
+
+
+
+Cheers,
+
+Andrea
+
+
+
+
+
+________________________________
+
+From: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>
+Sent: 23 September 2018 19:37
+To: Andrea Sacconi; users at gecode.org<mailto:users at gecode.org>
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+
+
+Anyway, I would not overwrite the variables but constraint them such as in
+
+  rel(*this, ml(10,5) == ?f?);
+
+and so on.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org<mailto:users at gecode.org>
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi all,
+
+
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+
+
+I tried this (just an example):
+
+
+
+IntVar letter1(*this, 'f', 'f');
+
+ml(10, 5) = letter1;
+
+IntVar letter2(*this, 'i', 'i');
+
+ml(9, 4) = letter2;
+
+
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+
+
+Could you please help me?
+
+
+
+Cheers,
+
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/f556d061/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image.png
+Type: image/png
+Size: 32707 bytes
+Desc: image.png
+URL: <http://www.gecode.org/pipermail/users/attachments/20180923/f556d061/attachment-0001.png>
+
+From cschulte at kth.se  Mon Sep 24 09:05:08 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 24 Sep 2018 07:05:08 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+In-Reply-To: <VI1PR0501MB25743441F91D53B6CFCAEE9BF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+	<VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>,
+	<VI1PR0501MB25744A7725783A0E33CEFDE6F5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+	<VI1PR0501MB25743441F91D53B6CFCAEE9BF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+Message-ID: <39c74a2f21824cd7a26d1da755071a26@exdb02.ug.kth.se>
+
+Well, one can see that the problems are quite constrained (some of the benchmark instances do not have solutions even without additional constraints). Hence your idea might not be feasible.
+
+The instance you show means that propagation alone can derive that there is no solution. No bug as far as I can see.
+
+There is a different idea to try: the word you want to appear is spread over non-black fields left-to-right and top-down (quite a common feat with crossword puzzles with a solution word). Then you could add a regular constraint that the letters of the word must appear in the right directions. Not that hard?
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: Andrea Sacconi <andreasacconi at hotmail.co.uk>
+Sent: Sunday, September 23, 2018 9:49 PM
+To: Christian Schulte <cschulte at kth.se>; users at gecode.org
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+I think I am making the definition of the space flawed somehow, because it seems strange that setting three letters only out of 105 would cause a failure after 158 milliseconds, without retrying .....
+________________________________
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> on behalf of Andrea Sacconi <andreasacconi at hotmail.co.uk<mailto:andreasacconi at hotmail.co.uk>>
+Sent: 23 September 2018 20:02
+To: Christian Schulte; users at gecode.org<mailto:users at gecode.org>
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+I just tried again with the command you mentioned, unfortunately with already three constrained letters everything fails. Why failures 1?! This is not trying many times though ... I am perplexed.
+
+[cid:image001.png at 01D453E5.B00D60F0]
+
+Seems strange to me, because I have reduced the size of the grid to be 12x7, so smaller for testing purposes. I would expect with such a huge dictionary to be able to find a solution!
+
+Cheers,
+Andrea
+
+________________________________
+From: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>
+Sent: 23 September 2018 19:55
+To: Andrea Sacconi; users at gecode.org<mailto:users at gecode.org>
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+I wouldn?t know. Cheers Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: Andrea Sacconi <andreasacconi at hotmail.co.uk<mailto:andreasacconi at hotmail.co.uk>>
+Sent: Sunday, September 23, 2018 8:53 PM
+To: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>; users at gecode.org<mailto:users at gecode.org>
+Subject: Re: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi,
+
+
+
+I am using the example in the documentation, where the list of words is explicitly provided:
+
+
+
+const int n_words[] = {
+
+1, 26, 66, 633, 2443, 4763, 7585, 10380, 10974
+
+};
+
+
+
+so hopefully a dictionary big enough.
+
+
+
+I will try to use the command suggested. Do you think that imposing 20 or 30 letter constraints like that is a problem?
+
+
+
+Cheers,
+
+Andrea
+
+
+
+
+
+________________________________
+
+From: Christian Schulte <cschulte at kth.se<mailto:cschulte at kth.se>>
+Sent: 23 September 2018 19:37
+To: Andrea Sacconi; users at gecode.org<mailto:users at gecode.org>
+Subject: RE: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+This might depend on the dictionary you are using. Check whether it contains words with the corresponding letters. Note that you can give your own dictionary as a file, check examples/crossword.cpp that comes with Gecode.
+
+
+
+Anyway, I would not overwrite the variables but constraint them such as in
+
+  rel(*this, ml(10,5) == ?f?);
+
+and so on.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, https://chschulte.github.io/
+
+Professor of Computer Science
+
+Software and  Computer Systems
+
+School of Electrical Engineering and Computer Science
+
+KTH Royal Institute of Technology, Sweden
+
+
+
+From: users-bounces at gecode.org<mailto:users-bounces at gecode.org> <users-bounces at gecode.org<mailto:users-bounces at gecode.org>> On Behalf Of Andrea Sacconi
+Sent: Sunday, September 23, 2018 8:31 PM
+To: users at gecode.org<mailto:users at gecode.org>
+Subject: [gecode-users] GECODE: Crosswords with two constraints, set letters and black cells
+
+
+
+Hi all,
+
+
+
+I am having a look at the examples of crosswords in Gecode. I am doing this for a gift. So the satisfaction of getting it done would be even greater!
+
+
+
+I would like to add another set of constraints, not just black cells but also specific letters on the grid (which I would like to use to arrange a secret message that the receiver will read after having solved the crossword).
+
+
+
+I tried this (just an example):
+
+
+
+IntVar letter1(*this, 'f', 'f');
+
+ml(10, 5) = letter1;
+
+IntVar letter2(*this, 'i', 'i');
+
+ml(9, 4) = letter2;
+
+
+
+Running the example of Figure 22.2 of the documentation (Chapter 22) works fine if I impose only two constraints like the above, but everything already collapses if I try to set three letters.
+
+
+
+Do you think what I am thinking of is feasible? I mean, I would like to fix 20 or 30 letters on a 22x15 grid, but it seems that I am not even close to getting a solution.
+
+
+
+I am trying to read through the documentation but by scarcity of time I am not sure if I am trying the impossible or simply I have to tweak other parameters.
+
+
+
+Could you please help me?
+
+
+
+Cheers,
+
+Andrea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180924/640bd4de/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 32707 bytes
+Desc: image001.png
+URL: <http://www.gecode.org/pipermail/users/attachments/20180924/640bd4de/attachment-0001.png>
+
+From andreasacconi at hotmail.co.uk  Mon Sep 24 12:55:14 2018
+From: andreasacconi at hotmail.co.uk (Andrea Sacconi)
+Date: Mon, 24 Sep 2018 10:55:14 +0000
+Subject: [gecode-users] GECODE: Crosswords with two constraints,
+ set letters and black cells
+References: <VI1PR0501MB2574FFA2841C28331BD4C04DF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<eda4c747879f4c3dbc19afb7ff935aae@exdb02.ug.kth.se>
+	<VI1PR0501MB2574A0CB946CB8081F87AA8AF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>,
+	<7c59742b28a044a09f10ee413a6deaa8@exdb02.ug.kth.se>,
+	<VI1PR0501MB25744A7725783A0E33CEFDE6F5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+	<VI1PR0501MB25743441F91D53B6CFCAEE9BF5100@VI1PR0501MB2574.eurprd05.prod.outlook.com>
+	<39c74a2f21824cd7a26d1da755071a26@exdb02.ug.kth.se>
+Message-ID: <AM5PR0501MB25639793FD67422B8ECA221AF5170@AM5PR0501MB2563.eurprd05.prod.outlook.com>
+
+So you are basically suggesting to put the specified letters as initial letters of either horizontal or vertical words in the grid, not in the middle? Is this what you mean by "regular constraints" and "right directions"?
+
+I guess that putting them anywhere might have affected the propagation phase. I mean, I am not a linguist but in itself the constraint at the beginning or in the middle of the word would make the feasibility harder depending only on how letters are distributed in the words of the given dictionary. Mathematically speaking is the same, no?
+
+I don't know enough about the propagation to understand how it proceeds.
+
+Cheers,
+Andrea
+
+Sent from my Huawei Mobile
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180924/e411df33/attachment.html>
+

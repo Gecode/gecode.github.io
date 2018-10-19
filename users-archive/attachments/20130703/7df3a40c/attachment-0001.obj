@@ -1,0 +1,73 @@
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+
+using namespace Gecode;
+
+class DistinctTest : public Space {
+protected:
+    IntVarArray x;
+public:
+    DistinctTest(const IntVarArgs& xPassed) : x(*this,xPassed) {
+        
+        distinct(*this, x);
+        
+        branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN());
+    }
+    
+    DistinctTest(bool share, DistinctTest& s) : Space(share,s) {
+        x.update(*this, share, s.x);
+    }
+    
+    virtual void print(std::ostream& os) const{
+        std::cout << "DistinctTest solution: " << x << std::endl;
+    }
+    
+    virtual Space* copy(bool share) {
+        return new DistinctTest(share,*this);
+    }
+};
+
+class PassVar : public Script {
+protected:
+    IntVarArray x;
+public:
+    PassVar(const Options& opt) : x(*this,4,0,2) {
+
+        IntVarArgs chooseTwo;
+        chooseTwo << x[0] ;
+        chooseTwo << x[1] ;
+        
+        // search and return the solutions of the DitinctTest model.
+        DistinctTest* dt = new DistinctTest(chooseTwo);
+        DFS<DistinctTest> e(dt);
+        delete dt;
+        while (DistinctTest* s = e.next()) {
+            s->print(std::cout);
+            delete s;
+        }
+        
+        branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN());
+    }
+    
+    PassVar(bool share, PassVar& s) : Script(share,s) {
+        x.update(*this, share, s.x);
+    }
+    
+    virtual void print(std::ostream& os) const{
+        std::cout << "PassVar solution: " << x << std::endl;
+    }
+    
+    virtual Space* copy(bool share) {
+        return new PassVar(share,*this);
+    }
+};
+
+int main(int argc, const char * argv[])
+{
+    Options opt("PassVar test!");
+    opt.solutions(0);
+    Script::run<PassVar, DFS, Options>(opt);
+    
+    return 0;
+}

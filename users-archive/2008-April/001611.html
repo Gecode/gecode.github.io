@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Adding variables incrementally
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Adding%20variables%20incrementally&In-Reply-To=%3CD798C058-B09D-4F5A-8DBB-AD81447B9157%40cse.unsw.edu.au%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001613.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Adding variables incrementally</H1>
+    <B>Malcolm Ryan</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Adding%20variables%20incrementally&In-Reply-To=%3CD798C058-B09D-4F5A-8DBB-AD81447B9157%40cse.unsw.edu.au%3E"
+       TITLE="[gecode-users] Adding variables incrementally">malcolmr at cse.unsw.edu.au
+       </A><BR>
+    <I>Mon Apr 28 02:37:58 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001613.html">[gecode-users] Adding variables incrementally
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1611">[ date ]</a>
+              <a href="thread.html#1611">[ thread ]</a>
+              <a href="subject.html#1611">[ subject ]</a>
+              <a href="author.html#1611">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>In order to save memory, I've been trying to turn my planning code  
+into a two stage in which the first stage only creates and constrains  
+a certain critical subset of variables. When all the first-stage  
+variables have been assigned, additional variables are created and a  
+second stage of search occurs. The two stages are not completely  
+independent however, and there may be failures in the second stage  
+which require backtracking into the first. This should save memeory,  
+since the second-stage variables don't have to be carried around  
+during the first-stage search.
+
+I was hoping that I could do this simply by adding new variables and  
+constraints in the copy constructor at the appropriate moment, but it  
+seems that this does not work. I wrote a simple test case to check:
+
+public class Test extends Space {
+
+    IntVar a, b;
+
+    public Test() {
+        super(&quot;test&quot;);
+
+        a = new IntVar(this, &quot;a&quot;, 1, 4);
+    }
+
+    public Test(Boolean share, Test old) {
+        super(share, old);
+
+        a = old.a.copy(this, share);
+        if (a.assigned()) {
+            if (b == null) {
+                b = new IntVar(this, &quot;b&quot;, 1, 4);
+                Gecode.rel(this, a, IntRelType.IRT_EQ, b);
+            }
+            else {
+                b = old.b.copy(this, share);
+            }
+        }
+        else {
+            b = null;
+        }
+    }
+
+    public static void main(String[] args) {
+        Test test = new Test();
+        System.out.println(&quot;Status: &quot; + test.status());
+
+        test = (Test) test.cloneSpace();
+        System.out.println(&quot;Status: &quot; + test.status());
+        System.out.println(&quot;a = &quot; + test.a);
+        System.out.println(&quot;b = &quot; + test.b);
+
+        Gecode.rel(test, test.a, IntRelType.IRT_EQ, 3);
+        System.out.println(&quot;Status: &quot; + test.status());
+        System.out.println(&quot;a = &quot; + test.a);
+        System.out.println(&quot;b = &quot; + test.b);
+
+        test = (Test) test.cloneSpace();
+        System.out.println(&quot;Status: &quot; + test.status());
+        System.out.println(&quot;a = &quot; + test.a);
+        System.out.println(&quot;b = &quot; + test.b);
+
+        Gecode.rel(test, test.b, IntRelType.IRT_EQ, 1);
+        System.out.println(&quot;Status: &quot; + test.status());
+        System.out.println(&quot;a = &quot; + test.a);
+        System.out.println(&quot;b = &quot; + test.b);
+
+    }
+}
+
+The constraint Gecode.rel(this, a, IntRelType.IRT_EQ, b); seems to  
+have no effect. I can set a = 3, b = 1 and the status will still be  
+SS_SOLVED. I'm not entirely surprised. I presume that I am breaking  
+some assumptions in the system.
+
+Is there any other way to do a two-stage search like this?
+
+Malcolm
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001613.html">[gecode-users] Adding variables incrementally
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1611">[ date ]</a>
+              <a href="thread.html#1611">[ thread ]</a>
+              <a href="subject.html#1611">[ subject ]</a>
+              <a href="author.html#1611">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

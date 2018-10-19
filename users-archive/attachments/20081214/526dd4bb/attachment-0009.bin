@@ -1,0 +1,56 @@
+=== modified file 'gecode/serialization/register.cc'
+--- gecode/serialization/register.cc	2008-12-14 15:11:10 +0000
++++ gecode/serialization/register.cc	2008-12-14 15:20:54 +0000
+@@ -2369,6 +2369,18 @@
+           return;
+         }
+ #endif
++#if defined(GECODE_HAS_SET_VARS)
++        if (isVar<Gecode::SetVar>(vm, spec[0]) &&
++            isVar<Gecode::IntVar>(vm, spec[1]) &&
++            isVar<Gecode::BoolVar>(vm, spec[2]))
++        {
++          Gecode::SetVar x0(vm.var(spec[0]->toVar()));
++          Gecode::IntVar x1(vm.var(spec[1]->toVar()));
++          Gecode::BoolVar x2(vm.var(spec[2]->toVar()));
++          Gecode::max(home, x0,x1,x2);
++          return;
++        }
++#endif
+         throw Gecode::Reflection::ReflectionException("Argument type mismatch for Gecode::Post::max");
+       }
+       break;
+
+=== modified file 'gecode/set.hh'
+--- gecode/set.hh	2008-12-14 15:11:10 +0000
++++ gecode/set.hh	2008-12-14 15:20:54 +0000
+@@ -831,6 +831,11 @@
+   GECODE_SET_EXPORT void
+   max(Space* home, SetVar s, IntVar x, bool b=true);
+   
++  /** \brief Post reified propagator for \a b iff \a x is the maximal element
++   *  of \a s (which may be empty) */
++  GECODE_SET_EXPORT void
++  max(Space* home, SetVar s, IntVar x, BoolVar b);
++  
+   /// Post propagator that propagates that \a s contains the \f$x_i\f$, which are sorted in non-descending order 
+   GECODE_SET_EXPORT void
+   match(Space* home, SetVar s, const IntVarArgs& x);
+
+=== modified file 'gecode/set/int.cc'
+--- gecode/set/int.cc	2008-12-14 15:11:10 +0000
++++ gecode/set/int.cc	2008-12-14 15:20:54 +0000
+@@ -144,6 +144,12 @@
+   }
+ 
+   void
++  max(Space* home, SetVar s, IntVar x, BoolVar b) {
++    if (home->failed()) return;
++    GECODE_ES_FAIL(home,Set::Int::ReMaxElement<Set::SetView>::post(home,s,x,b));
++  }
++
++  void
+   match(Space* home, SetVar s, const IntVarArgs& x) {
+     if (home->failed()) return;
+     ViewArray<IntView> xa(home,x);
+

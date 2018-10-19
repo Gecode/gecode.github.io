@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] commit on already-assigned variable
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20commit%20on%20already-assigned%20variable&In-Reply-To=%3C006401cf4cca%24e8a361c0%24b9ea2540%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004363.html">
+   <LINK REL="Next"  HREF="004365.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] commit on already-assigned variable</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20commit%20on%20already-assigned%20variable&In-Reply-To=%3C006401cf4cca%24e8a361c0%24b9ea2540%24%40se%3E"
+       TITLE="[gecode-users] commit on already-assigned variable">cschulte at kth.se
+       </A><BR>
+    <I>Mon Mar 31 12:20:57 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004363.html">[gecode-users] commit on already-assigned variable
+</A></li>
+        <LI>Next message: <A HREF="004365.html">[gecode-users] commit on already-assigned variable
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4364">[ date ]</a>
+              <a href="thread.html#4364">[ thread ]</a>
+              <a href="subject.html#4364">[ subject ]</a>
+              <a href="author.html#4364">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+This is most likely okay and can happen due to recomputation during search:
+it might be the case that the variable has already been assigned by
+propagation during recomputation before the commit operation is executed.
+
+If you want to test whether this behavior is due to recomputation you can in
+fact disable recomputation by passing 1 as a vlue for the commit
+recomputation distance (-c-d 1 on the command line).
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kellen at cretin.net</A>
+Sent: Sunday, March 30, 2014 7:19 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] commit on already-assigned variable
+
+Hej!
+
+I'm working on implementing bit-vector variables in gecode, following the
+example given in MPG.
+
+A part of this is providing relevant View selection for the brancher. I have
+done so with a NONE implementation which also follows the model given in
+MPG, which returns parameterized a ViewSelNone:
+
+    return new (home) ViewSelNone&lt;BitView&gt;(home, bvb);
+
+Where BitView is the type of views on the variable implementations
+(typedef'd as unsigned int), and bvb is a &quot;BitVarBranch&quot;. So far, so good.
+
+Later, I have defined a ValCommit class, including a commit function:
+
+    ModEvent commit(Space&amp; home, unsigned int a, BitView x, int i, BitType
+n);
+
+Since I am branching based on the values of certain bits of the BitView x,
+there are only two alternatives (a == 0, a != 0). The parameter n provides a
+mask with only a single set bit which determines the bit on which branching
+occurs. 
+
+My issues is that the search engine appears to be calling commit() on
+already-assigned variables which violates a check I have implemented there
+to validate the input as well as violates my expectation of how the engine
+should function with a NONE-typed variable/view selection.
+
+Specifically, I have an array of 64 4-bit bitvector variables and at some
+point during search, commit() is called on variable 56, which is already
+assigned. I have verified in GDB that the variable is, in fact, assigned. I
+can see in GDB that this variable is branched on a number of times before
+failure. The relevant backtrace when failure occurs:
+
+#0  BV::Bit::ValCommitBitSplit::commit (this=0x9972500, home=..., a=0,
+x=..., i=56, n=1) at src/bitvec/branch.cpp:144
+#1  0x08068331 in Gecode::ValSelCommit&lt;BV::Bit::ValSelRndBit,
+BV::Bit::ValCommitBitSplit&gt;::commit (this=0x99724f8, home=..., a=0,
+    x=..., i=56, n=1) at
+gecode/gecode/kernel/brancher-val-sel-commit.hpp:175
+#2  0x080774b8 in Gecode::ViewValBrancher&lt;BV::Bit::BitView, 1, unsigned int,
+2u&gt;::commit (this=0x9972610, home=..., c=..., b=0)
+    at gecode/gecode/kernel/brancher-view-val.hpp:286
+#3  0x4003911c in Gecode::Space::_commit (this=0x80b13a0, c=..., a=0) at
+gecode/kernel/core.cpp:417
+#4  0x40046dad in commit (a=&lt;optimized out&gt;, c=..., this=0x80b13a0) at
+./gecode/kernel/core.hpp:2786
+#5  commit (i=137, s=0x80b13a0, this=0x80cfb88) at
+./gecode/search/sequential/path.hh:259
+#6  recompute (stat=..., a_d=&lt;optimized out&gt;, d=@0x80cfba8: 3,
+this=0x80cfb88) at ./gecode/search/sequential/path.hh:325
+#7  next (this=0x80cfb44) at ./gecode/search/sequential/dfs.hh:148
+#8  Gecode::Search::WorkerToEngine&lt;Gecode::Search::Sequential::DFS&gt;::next
+(this=0x80cfb40) at ./gecode/search/support.hh:84
+#9  0x0804dcda in next (this=&lt;optimized out&gt;) at
+gecode/gecode/search/dfs.hpp:53
+#10 main (argc=4, argv=0xbffff2f4) at src/main.cpp:75
+
+I'm not quite sure how to proceed since the search process is rather
+difficult to step through in the debugger and since I'm using the built-in
+ViewSelNone.
+
+Any suggestions? I can provide code for any relevant methods, but it's not
+clear to me which would be actually useful for you guys to see.
+
+System info:
+OS: debian linux, kernel 2.6.32.33-kvm-i386-20111128-dirty, 
+    running in a VM (KVM or UML, I'm not quite sure) Gecode version: 4.2.1,
+built from source
+g++ (Debian 4.7.2-5) 4.7.2
+
+Cheers,
+Kellen
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004363.html">[gecode-users] commit on already-assigned variable
+</A></li>
+	<LI>Next message: <A HREF="004365.html">[gecode-users] commit on already-assigned variable
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4364">[ date ]</a>
+              <a href="thread.html#4364">[ thread ]</a>
+              <a href="subject.html#4364">[ subject ]</a>
+              <a href="author.html#4364">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,408 @@
+[From nobody Tue Nov 12 12:50:40 2013
+Mime-Version: 1.0
+X-Mailer: GroupWise 8.0
+Subject: Re: FW: [Gecode-bugs] New bug: Relational constraint gives
+	inconsistent lowerbound for floating variables
+Date: 10 Nov 2013 22:17:11 +0100
+Message-ID: &lt;5280E2EB0200004900004A93@quintiq.com&gt;
+References: &lt;5280E2EB0200004900004A93@quintiq.com&gt;
+In-Reply-To: &lt;5280E2EB0200004900004A93@quintiq.com&gt;
+From: &quot;Vincent Barichard&quot; &lt;Vincent.Barichard@univ-angers.fr&gt;
+To: cschulte@kth.se
+Content-Type: multipart/mixed; boundary=&quot;____PORTVBGXCMATPNNCZYDZ____&quot;
+
+
+--____PORTVBGXCMATPNNCZYDZ____
+Content-Type: multipart/alternative; boundary=&quot;____MAYTCUICUHPOVKTYWSAT____&quot;
+
+
+--____MAYTCUICUHPOVKTYWSAT____
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+=
+Hi Christian,
+
+
+I looked quickly (I'm not at home for now) and I think that the bug is in
+the compute
+
+of the sl and sly variables (see propagate of Lq&lt;P,N&gt; of linear/nary.hpp).
+
+Indeed, the upper bound is set to FLOAT_MAX, and as a consequence some
+compute failed.
+
+When sl is computed (lines 353 and 356) we get : FLOAT_MAX + -2 =3D =
+FLOAT_MAX,
+
+When sly is computed (line 374) we get : FLOAT_MAX - sl =3D
+6.9533558075717661e-310 (almost 0)
+
+
+The order of the computes has an effect on the result. I put here after an
+example
+
+taken from gdb :
+(gdb) p y[i].max() + 2 - y[i].max()
+$30 =3D 0
+(gdb) p y[i].max() - y[i].max() + 2
+$31 =3D 2
+
+
+In an ideal world we would get sly =3D FLOAT_MAX - FLOAT_MAX + 2 =3D 2
+
+It will work after a cut (during search) but a call to status() is not
+enough to get
+
+some reductions.
+
+
+I don't know an easy fix. The only way I see is to identify the FLOAT_MAX
+cases each time it is encountered and to make some special cases. You may
+have another idea ?
+
+
+Just a thought. I ever encountered these cases in the past, calculations =
+are
+not wrong, and most of the time, tighter bounds of the variables when
+modeling solves the problem. It may occur in many propagators each time a
+compute involves FLOAT_MAX.
+
+
+Cheers,
+
+Vincent
+
+
+
+2013/11/10 Christian Schulte &lt;cschulte@kth.se&gt;
+
+
+Hi Vincent,
+
+Any idea?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+&gt; -----Original Message-----
+&gt; From: bugs-bounces@gecode.org [mailto:bugs-bounces@gecode.org] On
+&gt; Behalf Of Gecode Bug Tracker
+&gt; Sent: Saturday, November 09, 2013 5:03 PM
+&gt; To: bugs@gecode.org; joost.van.twist@quintiq.com
+&gt; Subject: [Gecode-bugs] New bug: Relational constraint gives inconsistent
+&gt; lowerbound for floating variables
+&gt;
+&gt; New bug report for Gecode from Joost van Twist
+(joost.van.twist@quintiq.com).
+&gt;
+&gt; Summary: Relational constraint gives inconsistent lowerbound for =
+floating
+&gt; variables
+&gt;
+&gt; Gecode version: 4.2.0
+&gt; Platform: Windows
+&gt;
+&gt; Details:
+&gt; /*
+&gt; The following program posts a simple relation between two float =
+variables.
+The
+&gt; lowerbound of variable b remains zero while it should become 2. It does
+become
+&gt; 2 when changing the upperbound of b to a smaller value (1000 for =
+example).
+&gt; Also when using the \&quot;&gt;\&quot; operator the lowerbound of b will be 2 as =
+well.
+&gt; */
+&gt;
+&gt; #include \&quot;gecode/float.hh\&quot;
+&gt; #include \&quot;gecode/minimodel.hh\&quot;
+&gt;
+&gt; using namespace Gecode;
+&gt;
+&gt; class TestModel : public Gecode::Space
+&gt; {
+&gt; public:
+&gt;   FloatVar a;
+&gt;   FloatVar b;
+&gt;
+&gt;   TestModel()
+&gt;     : a(*this,0, 0),
+&gt;       b(*this,0, Gecode::Float::Limits::max) //using an upper bound
+significantly
+&gt; smaller is also a workaround
+&gt;   {
+&gt;     rel(*this, b &gt;=3D a + 2.0); //lower bound of b will stay 0, when
+changing to \&quot;&gt;\&quot;
+&gt; works fine
+&gt;     //rel(*this, b =3D=3D 0);     //will still make the space correctly
+infeasible
+&gt;   }
+&gt;
+&gt;   TestModel(bool share, TestModel&amp; testmodel)
+&gt;     : Space(share, testmodel)
+&gt;   {
+&gt;      a.update(*this, share, testmodel.a);
+&gt;      b.update(*this, share, testmodel.b);
+&gt;   }
+&gt;
+&gt;   virtual Gecode::Space* copy(bool share)
+&gt;   {
+&gt;     return new TestModel(share, *this);
+&gt;   }
+&gt;
+&gt;   virtual void print(std::ostream&amp; os) const
+&gt;   {
+&gt;     os &lt;&lt; \&quot;a: \&quot; &lt;&lt; a &lt;&lt; \&quot; b: \&quot; &lt;&lt; b &lt;&lt; std::endl;
+&gt;   }
+&gt; };
+&gt;
+&gt;
+&gt; int main(int argc, char* argv[])
+&gt; {
+&gt;   TestModel model;
+&gt;
+&gt;   if ( model.status() =3D=3D SS_FAILED )
+&gt;   {
+&gt;     std::cout &lt;&lt; \&quot;infeasible\&quot; &lt;&lt; std::endl;
+&gt;   } else
+&gt;   {
+&gt;     std::cout &lt;&lt; \&quot;feasible\&quot; &lt;&lt; std::endl;
+&gt;   }
+&gt;
+&gt;   model.print(std::cout);
+&gt;
+&gt;   return 0;
+&gt; }
+&gt;
+&gt; _______________________________________________
+&gt; bugs mailing list
+&gt; bugs@gecode.org
+&gt; http://www.gecode.org/cgi-bin/mailman/listinfo/bugs
+
+
+
+
+
+
+--=20
+Vincent Barichard         Universit=C3=A9 d'Angers (LERIA)
+Tel:  02 41 73 52 06      D=C3=A9partement Informatique
+Fax: 02 41 73 50 73      H203=20
+
+--____MAYTCUICUHPOVKTYWSAT____
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+&lt;meta http-equiv=3D&quot;Content-Type&quot; content=3D&quot;text/html; charset=3Diso-8859-=
+1&quot;&gt;&lt;div dir=3D&quot;ltr&quot;&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;Hi Christian,&lt;b=
+r&gt;&lt;br&gt;&lt;/div&gt;I looked quickly (I'm not at home for now) and I think that =
+the bug is in the compute&lt;br&gt;&lt;/div&gt;of the sl and sly variables (see =
+propagate of Lq&lt;P,N&gt; of linear/nary.hpp).&lt;br&gt;
+&lt;/div&gt;Indeed, the upper bound is set to FLOAT_MAX, and as a consequence =
+some compute failed.&lt;br&gt;&lt;/div&gt;When sl is computed (lines 353 and 356) we =
+get : FLOAT_MAX &#43; -2 =3D FLOAT_MAX,&lt;br&gt;&lt;/div&gt;When sly is computed =
+(line 374) we get : FLOAT_MAX - sl =3D 6.9533558075717661e-310 (almost =
+0)&lt;br&gt;
+&lt;br&gt;&lt;/div&gt;&lt;div&gt;The order of the computes has an effect on the result. I =
+put here after an example&lt;br&gt;&lt;/div&gt;&lt;div&gt;taken from gdb :&lt;br&gt;(gdb) p =
+y[i].max() &#43; 2 - y[i].max()&lt;br&gt;$30 =3D 0&lt;br&gt;(gdb) p y[i].max() - =
+y[i].max() &#43; 2&lt;br&gt;
+$31 =3D 2&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;In an ideal world we would get sly =3D =
+FLOAT_MAX - FLOAT_MAX &#43; 2 =3D 2&lt;br&gt;&lt;/div&gt;&lt;div&gt;It will work after a cut =
+(during search) but a call to status() is not enough to get&lt;br&gt;&lt;/div&gt;&lt;div&gt;s=
+ome reductions.&lt;br&gt;
+&lt;br&gt;&lt;/div&gt;I don't know an easy fix. The only way I see is to identify the =
+FLOAT_MAX cases each time it is encountered and to make some special =
+cases. You may have another idea ?&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Just a =
+thought. I ever encountered these cases in the past, calculations are not =
+wrong, and most of the time, tighter bounds of the variables when modeling =
+solves the problem. It may occur in many propagators each time a compute =
+involves FLOAT_MAX.&lt;br&gt;
+&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Cheers,&lt;br&gt;&lt;/div&gt;&lt;div&gt;Vincent&lt;br&gt;&lt;/div&gt;&lt;/div&gt;&lt;div=
+ class=3D&quot;gmail_extra&quot;&gt;&lt;br&gt;&lt;br&gt;&lt;div class=3D&quot;gmail_quote&quot;&gt;2013/11/10 =
+Christian Schulte &lt;span dir=3D&quot;ltr&quot;&gt;&lt;&lt;a href=3D&quot;mailto:cschulte@kth.se&quot; =
+target=3D&quot;_blank&quot;&gt;cschulte@kth.se&lt;/a&gt;&gt;&lt;/span&gt;&lt;br&gt;
+&lt;blockquote class=3D&quot;gmail_quote&quot; style=3D&quot;margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex&quot;&gt;Hi Vincent,&lt;br&gt;
+&lt;br&gt;
+Any idea?&lt;br&gt;
+&lt;br&gt;
+Cheers&lt;br&gt;
+Christian&lt;br&gt;
+&lt;br&gt;
+--&lt;br&gt;
+Christian Schulte, &lt;a href=3D&quot;http://www.ict.kth.se/~cschulte/&quot; target=3D&quot;_=
+blank&quot;&gt;www.ict.kth.se/~cschulte/&lt;/a&gt;&lt;br&gt;
+&lt;br&gt;
+&gt; -----Original Message-----&lt;br&gt;
+&gt; From: &lt;a href=3D&quot;mailto:bugs-bounces@gecode.org&quot;&gt;bugs-bounces@gecode.o=
+rg&lt;/a&gt; [mailto:&lt;a href=3D&quot;mailto:bugs-bounces@gecode.org&quot;&gt;bugs-bounces@geco=
+de.org&lt;/a&gt;] On&lt;br&gt;
+&gt; Behalf Of Gecode Bug Tracker&lt;br&gt;
+&gt; Sent: Saturday, November 09, 2013 5:03 PM&lt;br&gt;
+&gt; To: &lt;a href=3D&quot;mailto:bugs@gecode.org&quot;&gt;bugs@gecode.org&lt;/a&gt;; &lt;a =
+href=3D&quot;mailto:joost.van.twist@quintiq.com&quot;&gt;joost.van.twist@quintiq.com&lt;/a&gt;=
+&lt;br&gt;
+&gt; Subject: [Gecode-bugs] New bug: Relational constraint gives inconsiste=
+nt&lt;br&gt;
+&gt; lowerbound for floating variables&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; New bug report for Gecode from Joost van Twist&lt;br&gt;
+(&lt;a href=3D&quot;mailto:joost.van.twist@quintiq.com&quot;&gt;joost.van.twist@quintiq.com=
+&lt;/a&gt;).&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; Summary: Relational constraint gives inconsistent lowerbound for =
+floating&lt;br&gt;
+&gt; variables&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; Gecode version: 4.2.0&lt;br&gt;
+&gt; Platform: Windows&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; Details:&lt;br&gt;
+&gt; /*&lt;br&gt;
+&gt; The following program posts a simple relation between two float =
+variables.&lt;br&gt;
+The&lt;br&gt;
+&gt; lowerbound of variable b remains zero while it should become 2. It =
+does&lt;br&gt;
+become&lt;br&gt;
+&gt; 2 when changing the upperbound of b to a smaller value (1000 for =
+example).&lt;br&gt;
+&gt; Also when using the \&quot;&gt;\&quot; operator the lowerbound of b =
+will be 2 as well.&lt;br&gt;
+&gt; */&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; #include \&quot;gecode/float.hh\&quot;&lt;br&gt;
+&gt; #include \&quot;gecode/minimodel.hh\&quot;&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; using namespace Gecode;&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; class TestModel : public Gecode::Space&lt;br&gt;
+&gt; {&lt;br&gt;
+&gt; public:&lt;br&gt;
+&gt; &nbsp; FloatVar a;&lt;br&gt;
+&gt; &nbsp; FloatVar b;&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; TestModel()&lt;br&gt;
+&gt; &nbsp; &nbsp; : a(*this,0, 0),&lt;br&gt;
+&gt; &nbsp; &nbsp; &nbsp; b(*this,0, Gecode::Float::Limits::max) //using =
+an upper bound&lt;br&gt;
+significantly&lt;br&gt;
+&gt; smaller is also a workaround&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; rel(*this, b &gt;=3D a &#43; 2.0); //lower bound of b =
+will stay 0, when&lt;br&gt;
+changing to \&quot;&gt;\&quot;&lt;br&gt;
+&gt; works fine&lt;br&gt;
+&gt; &nbsp; &nbsp; //rel(*this, b =3D=3D 0); &nbsp; &nbsp; //will still =
+make the space correctly&lt;br&gt;
+infeasible&lt;br&gt;
+&gt; &nbsp; }&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; TestModel(bool share, TestModel&amp; testmodel)&lt;br&gt;
+&gt; &nbsp; &nbsp; : Space(share, testmodel)&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; &nbsp;a.update(*this, share, testmodel.a);&lt;br&gt;
+&gt; &nbsp; &nbsp; &nbsp;b.update(*this, share, testmodel.b);&lt;br&gt;
+&gt; &nbsp; }&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; virtual Gecode::Space* copy(bool share)&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; return new TestModel(share, *this);&lt;br&gt;
+&gt; &nbsp; }&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; virtual void print(std::ostream&amp; os) const&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; os &lt;&lt; \&quot;a: \&quot; &lt;&lt; a &lt;&lt; =
+\&quot; b: \&quot; &lt;&lt; b &lt;&lt; std::endl;&lt;br&gt;
+&gt; &nbsp; }&lt;br&gt;
+&gt; };&lt;br&gt;
+&gt;&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; int main(int argc, char* argv[])&lt;br&gt;
+&gt; {&lt;br&gt;
+&gt; &nbsp; TestModel model;&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; if ( model.status() =3D=3D SS_FAILED )&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; std::cout &lt;&lt; \&quot;infeasible\&quot; &lt;&lt; =
+std::endl;&lt;br&gt;
+&gt; &nbsp; } else&lt;br&gt;
+&gt; &nbsp; {&lt;br&gt;
+&gt; &nbsp; &nbsp; std::cout &lt;&lt; \&quot;feasible\&quot; &lt;&lt; =
+std::endl;&lt;br&gt;
+&gt; &nbsp; }&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; model.print(std::cout);&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; &nbsp; return 0;&lt;br&gt;
+&gt; }&lt;br&gt;
+&gt;&lt;br&gt;
+&gt; _______________________________________________&lt;br&gt;
+&gt; bugs mailing list&lt;br&gt;
+&gt; &lt;a href=3D&quot;mailto:bugs@gecode.org&quot;&gt;bugs@gecode.org&lt;/a&gt;&lt;br&gt;
+&gt; &lt;a href=3D&quot;http://www.gecode.org/cgi-bin/mailman/listinfo/bugs&quot; =
+target=3D&quot;_blank&quot;&gt;http://www.gecode.org/cgi-bin/mailman/listinfo/bugs&lt;/a&gt;&lt;b=
+r&gt;
+&lt;br&gt;
+&lt;/blockquote&gt;&lt;/div&gt;&lt;br&gt;&lt;br clear=3D&quot;all&quot;&gt;&lt;br&gt;-- &lt;br&gt;Vincent Barichard =
+&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;Universit=E9 d'Angers (LERIA)&lt;br&gt;Tel: =
+&nbsp;02 41 73 52 06 &nbsp; &nbsp; &nbsp;D=E9partement Informatique&lt;br&gt;Fax:=
+ 02 41 73 50 73 &nbsp; &nbsp; &nbsp;H203
+&lt;/div&gt;
+
+--____MAYTCUICUHPOVKTYWSAT____--
+
+--____PORTVBGXCMATPNNCZYDZ____
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename=&quot;Header&quot;
+
+UmV0dXJuLXBhdGg6IDx2aW5jZW50LmJhcmljaGFyZEBnbWFpbC5jb20+DQpSZWNlaXZlZDogZnJv
+bSBtYWlsLXdlMC14MjMwLmdvb2dsZS5jb20gKG1haWwtd2UwLXgyMzAuZ29vZ2xlLmNvbQ0KIFtJ
+UHY2OjJhMDA6MTQ1MDo0MDBjOmMwMzo6MjMwXSkJYnkgbXg1Lmt0aC5zZSAoUG9zdGZpeCkgd2l0
+aCBFU01UUFMgaWQNCiBDOUEyOTI0MDE0Nglmb3IgPGNzY2h1bHRlQGt0aC5zZT47IFN1biwgMTAg
+Tm92IDIwMTMgMjI6MTc6MTIgKzAxMDAgKENFVCkNClJlY2VpdmVkOiBmcm9tIG14NS5rdGguc2Ug
+KFsxMzAuMjM3LjMyLjEwXSkJYnkgbWFpbHNjYW4tMy5zeXMua3RoLnNlDQogKG1haWxzY2FuLTMu
+c3lzLmt0aC5zZSBbMTMwLjIzNy40OC4xNzBdKSAoYW1hdmlzZC1uZXcsIHBvcnQgMTAwMjQpCXdp
+dGggTE1UUA0KIGlkIFF1T0JNMTBmTjVsYyBmb3IgPGNzY2h1bHRlQHVnLmt0aC5zZT47CVN1biwg
+MTAgTm92IDIwMTMgMjI6MTc6MjYgKzAxMDANCiAoQ0VUKQ0KUmVjZWl2ZWQ6IGJ5IDEwLjE5NC4x
+OTEuMTkzIHdpdGggSFRUUDsgU3VuLCAxMCBOb3YgMjAxMyAxMzoxNzoxMSAtMDgwMCAoUFNUKQ0K
+UmVjZWl2ZWQ6IGJ5IG1haWwtd2UwLWYxNzYuZ29vZ2xlLmNvbSB3aXRoIFNNVFAgaWQgdzYyc28z
+ODIzMzI1d2VzLjcNCiAgICAgICAgZm9yIDxjc2NodWx0ZUBrdGguc2U+OyBTdW4sIDEwIE5vdiAy
+MDEzIDEzOjE3OjEyIC0wODAwIChQU1QpDQpSZWNlaXZlZDogZnJvbSBtYWlsc2Nhbi0zLnN5cy5r
+dGguc2UgKG1haWxzY2FuLTMuc3lzLmt0aC5zZSBbMTMwLjIzNy40OC4xNzBdKQ0KCWJ5IG14NS5r
+dGguc2UgKFBvc3RmaXgpIHdpdGggRVNNVFAgaWQgNUIwQzYyNDAxNDcJZm9yIDxjc2NodWx0ZUB1
+Zy5rdGguc2U+Ow0KIFN1biwgMTAgTm92IDIwMTMgMjI6MTc6MjkgKzAxMDAgKENFVCkNClJlY2Vp
+dmVkOiBmcm9tIG14NS5rdGguc2UgKDEzMC4yMzcuMzIuMTApIGJ5IEVYSFVCMi51Zy5rdGguc2Ug
+KDEzMC4yMzcuMzIuMTM3KQ0KIHdpdGggTWljcm9zb2Z0IFNNVFAgU2VydmVyIChUTFMpIGlkIDE0
+LjIuMzQ3LjA7IFN1biwgMTAgTm92IDIwMTMgMjI6MTc6MjkNCiArMDEwMA0KUmV0dXJuLVBhdGg6
+IDx2aW5jZW50LmJhcmljaGFyZEBnbWFpbC5jb20+DQpGcm9tOiAiVmluY2VudCBCYXJpY2hhcmQi
+IDxWaW5jZW50LkJhcmljaGFyZEB1bml2LWFuZ2Vycy5mcj4NClNlbmRlcjogPHZpbmNlbnQuYmFy
+aWNoYXJkQGdtYWlsLmNvbT4NClRvOiA8Y3NjaHVsdGVAa3RoLnNlPg0KUmVmZXJlbmNlczogPEUx
+VmZCMDktMDAwNTdtLUUyQHB2MzQ3Lm5jc3J2LmRlPgk8MDAyNDAxY2VkZTQzJDNiMjU3YTEwJGIx
+NzA2ZTMwJEBrdGguc2U+DQpJbi1SZXBseS1UbzogPDAwMjQwMWNlZGU0MyQzYjI1N2ExMCRiMTcw
+NmUzMCRAa3RoLnNlPg0KU3ViamVjdDogUmU6IEZXOiBbR2Vjb2RlLWJ1Z3NdIE5ldyBidWc6IFJl
+bGF0aW9uYWwgY29uc3RyYWludCBnaXZlcyBpbmNvbnNpc3RlbnQgbG93ZXJib3VuZCBmb3IgZmxv
+YXRpbmcgdmFyaWFibGVzDQpEYXRlOiBTdW4sIDEwIE5vdiAyMDEzIDIyOjE3OjExICswMTAwDQpN
+ZXNzYWdlLUlEOiA8Q0FGNlpIZT1TRkVuYlg2aC1jMlB3VXpPTXpaczRKUmc1MzZfU3NVTXdPQUhZ
+RmJQSHdnQG1haWwuZ21haWwuY29tPg0KTUlNRS1WZXJzaW9uOiAxLjANCkNvbnRlbnQtVHlwZTog
+bXVsdGlwYXJ0L2FsdGVybmF0aXZlOw0KCWJvdW5kYXJ5PSItLS0tPV9OZXh0UGFydF8wMDBfMDAz
+RV8wMUNFREVFNi40M0U2M0REMCINClgtTWFpbGVyOiBNaWNyb3NvZnQgT2ZmaWNlIE91dGxvb2sg
+MTIuMA0KWC1WaXJ1cy1TY2FubmVkOiBieSBhbWF2aXNkLW5ldyBhdCBrdGguc2UNClgtU3BhbS1G
+bGFnOiBOTw0KWC1TcGFtLVNjb3JlOiAtMS45OTkNClgtU3BhbS1MZXZlbDogDQpYLVNwYW0tU3Rh
+dHVzOiBObywgc2NvcmU9LTEuOTk5IHRhZ2dlZF9hYm92ZT0tMjAwIHJlcXVpcmVkPTUJdGVzdHM9
+W0JBWUVTXzAwPS0xLjksIERLSU1fU0lHTkVEPTAuMSwgREtJTV9WQUxJRD0tMC4xLAlIVE1MX01F
+U1NBR0U9MC4wMDEsIFNQRl9QQVNTPS0wLjFdIGF1dG9sZWFybj1ubw0KWC1NUy1FeGNoYW5nZS1P
+cmdhbml6YXRpb24tQXV0aFNvdXJjZTogRVhIVUIyLnVnLmt0aC5zZQ0KWC1NUy1FeGNoYW5nZS1P
+cmdhbml6YXRpb24tQXV0aEFzOiBBbm9ueW1vdXMNClgtR29vZ2xlLVNlbmRlci1BdXRoOiB5YWxt
+aW1DQURqY1NnTUE3eklDYjVKWWdoWEUNCnRocmVhZC1pbmRleDogQWM3ZVdrTFVtK1ZEcUxSUFFK
+aUNVMHNyeE1ISjRRPT0NCg==
+--____PORTVBGXCMATPNNCZYDZ____--
+]

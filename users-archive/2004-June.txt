@@ -1,0 +1,367 @@
+From tack at ps.uni-sb.de  Fri Jun 11 16:20:27 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 11 Jun 2004 16:20:27 +0200
+Subject: [Gecode] Distributed search engine
+Message-ID: <200406111620.27876.tack@ps.uni-sb.de>
+
+Hi all!
+
+I just wanted to announce the availability of a distributed search engine for 
+Alice with Gecode. It was written by Didier (mailto:botlan at ps.uni-sb.de), 
+inspired by Christian's thesis, and can use my explorer clone for Alice for 
+visualisation. You can have a look at it, it's in the Alice cvs under 
+lib/constraints/distribution.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From duchier at ps.uni-sb.de  Fri Jun 11 16:50:43 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Fri, 11 Jun 2004 16:50:43 +0200
+Subject: [Gecode] mozart bindings?
+Message-ID: <87659yw3lo.fsf@tdg.loria.fr>
+
+ahem... now that the begehung is over, is there any hope of getting
+gecode bindings for mozart?  that would be so lovely!
+
+Cheers,
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+
+
+From schulte at imit.kth.se  Sat Jun 12 22:28:11 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sat, 12 Jun 2004 22:28:11 +0200
+Subject: [Gecode] mozart bindings?
+In-Reply-To: <87659yw3lo.fsf@tdg.loria.fr>
+Message-ID: <002a01c450bb$c8291ae0$acd4ed82@beule>
+
+Well, I speak for myself here. These bindings are not at the top of my
+priority list. I really try to finalize the kernel design to the point that
+we can release in autumn. And releasing means with (lots of ;-( )
+documentation. And so far Gecode does not offer more out-of-the-box
+functionality than Mozart does. 
+
+The next interfaces I most likely will be doing are: C++ and HAL. They are
+more useful and/or more important for my current work.
+
+By the way, paper production on Gecode seems to have started. Most likely
+there will be a paper in TOPLAS using Gecode as benchmark platform and a
+paper in CP 04 (confirmation still pending) on one of the new ideas in
+Gecode...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of duchier at ps.uni-sb.de
+Sent: Friday, June 11, 2004 4:51 PM
+To: Technical Discussions about Gecode
+Subject: [Gecode] mozart bindings?
+
+
+ahem... now that the begehung is over, is there any hope of getting gecode
+bindings for mozart?  that would be so lovely!
+
+Cheers,
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Fri Jun 18 13:00:16 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 18 Jun 2004 13:00:16 +0200
+Subject: [Gecode] Memory management, where to alloc?
+Message-ID: <200406181300.16133.tack@ps.uni-sb.de>
+
+Hi.
+
+I'm trying to understand the whole memory management issue better. I'm at the 
+moment reimplementing the selection constraints, based on Christian's idea to 
+use a list rather than an array to store the variables (similar to his 
+element propagator).
+I'm considering three alternatives:
+1) Use Memory::malloc, as in IdxValMap (element constraint), consider the list 
+just a cache and recreate it each time the propagator is copied
+2) Use Space::alloc, with the list as the only data structure
+3) Use FreeList, with the list as the only data structure
+
+I think we just have to consider 2 and 3, as 1 would effectively double the 
+space needed for the variables.
+As the lists only shrink, 2 might be ok.
+3 would let us reclaim the memory a little more dynamically, I guess.
+
+Are there any drawbacks with the free list managed things? If not, I'd go for 
+that, I think.
+
+Guido
+
+
+From schulte at imit.kth.se  Fri Jun 18 13:22:26 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 18 Jun 2004 13:22:26 +0200
+Subject: [Gecode] Memory management, where to alloc?
+In-Reply-To: <200406181300.16133.tack@ps.uni-sb.de>
+Message-ID: <001801c45526$88db2d00$acd4ed82@beule>
+
+Well, let me elaborate a little bit on 1). This is just for caching and the
+reason why it works well is subtle and relies on interaction (well, a
+certain discipline) with search:
+
+A propagator can have a cache. The cache is created on demand from some
+other datastructure conatining the variables of interest (such as an
+VarArray<*>). Each time the propagator is invoked, it checks wether there is
+a cache. If not, it creates one. If there is already a cache, the cache is
+updated to properly represent the modified variables. Propagation then is
+performed on the cache.
+
+When a propagator is created or copied, the cache is empty.
+
+It is the propagators responsibility to delete the cache. This must be done
+in the propagator's destructor. By default, destructors of propagators are
+not called when a space fails. In order to enable it, you have to use
+Propagator(true) as constructor (also the derived propagators take a boolean
+argument, where true means delete on failure). This guarantees that the
+destructor is called always, even if a space fails.
+
+What makes the scheme work are the two following invariants:
+ 1) The cache is only constructed when the propagator is invoked. That is,
+in a newly cloned space all caches
+    are empty and require no space.
+ 2) Search engines must maintain that there is only one space on which
+computation is performed. So,
+    when cloning a space this space must be stored as backtrack point
+(remember, empty caches). Search must
+    continue with the original space (possibly non-empty caches).
+
+Currently search engines must follow this protocol strictly. If that turns
+out to be a problem (which I don't believe at all), then we need to equip
+propagators with a flush method, just flushing the cache.
+
+So, please consider whether 1) does the job. It works well. The variable
+doubling is not an issue for two reasons:
+ 1) A variable (you mean a view actually) takes 4 byte.
+ 2) There is just one cache per search engine and per propagator created.
+
+Otherwise, there is no need to use freelists. As you rightly say, the lists
+shrink. That's fine. Freelists are very special beasts (there are only size
+8 and 16 freelists). Don't use them if you don't have to. I use them for
+rangelists as they have the property to grow and not to shrink.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Friday, June 18, 2004 1:00 PM
+To: Technical Discussions about Gecode
+Subject: [Gecode] Memory management, where to alloc?
+
+
+Hi.
+
+I'm trying to understand the whole memory management issue better. I'm at
+the 
+moment reimplementing the selection constraints, based on Christian's idea
+to 
+use a list rather than an array to store the variables (similar to his 
+element propagator).
+I'm considering three alternatives:
+1) Use Memory::malloc, as in IdxValMap (element constraint), consider the
+list 
+just a cache and recreate it each time the propagator is copied
+2) Use Space::alloc, with the list as the only data structure
+3) Use FreeList, with the list as the only data structure
+
+I think we just have to consider 2 and 3, as 1 would effectively double the 
+space needed for the variables.
+As the lists only shrink, 2 might be ok.
+3 would let us reclaim the memory a little more dynamically, I guess.
+
+Are there any drawbacks with the free list managed things? If not, I'd go
+for 
+that, I think.
+
+Guido
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Fri Jun 18 13:36:48 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 18 Jun 2004 13:36:48 +0200
+Subject: [Gecode] Memory management, where to alloc?
+In-Reply-To: <001801c45526$88db2d00$acd4ed82@beule>
+References: <001801c45526$88db2d00$acd4ed82@beule>
+Message-ID: <200406181336.48716.tack@ps.uni-sb.de>
+
+On Friday 18 June 2004 13:22, Christian Schulte wrote:
+> Well, let me elaborate a little bit on 1). This is just for caching and the
+> reason why it works well is subtle and relies on interaction (well, a
+> certain discipline) with search:
+>
+> A propagator can have a cache. The cache is created on demand from some
+> other datastructure conatining the variables of interest (such as an
+> VarArray<*>). Each time the propagator is invoked, it checks wether there
+> is a cache. If not, it creates one. If there is already a cache, the cache
+> is updated to properly represent the modified variables. Propagation then
+> is performed on the cache.
+
+Ok, that is exactly as I would have thought.
+
+> So, please consider whether 1) does the job. It works well. The variable
+> doubling is not an issue for two reasons:
+>  1) A variable (you mean a view actually) takes 4 byte.
+>  2) There is just one cache per search engine and per propagator created.
+
+I will try. I guess with these explanations it should be easy, but I'm sure I 
+would have screwed up things badly again if I hadn't known the details ;-)
+
+It still feels a bit weird to use a VarArray only to store the variables that 
+are needed to reconstruct the cache instead of storing them in a list in the 
+first place, however...
+
+> Otherwise, there is no need to use freelists. As you rightly say, the lists
+> shrink. That's fine. Freelists are very special beasts (there are only size
+> 8 and 16 freelists). Don't use them if you don't have to. I use them for
+> rangelists as they have the property to grow and not to shrink.
+
+I see. Good to know.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Fri Jun 18 13:37:58 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 18 Jun 2004 13:37:58 +0200
+Subject: [Gecode] Memory management, where to alloc?
+In-Reply-To: <200406181336.48716.tack@ps.uni-sb.de>
+Message-ID: <001901c45528$b4ccccf0$acd4ed82@beule>
+
+Did you see what I did for the Element::Var propagator? There I also use a
+list only (no cache). For the integer case I use a cache. It really depends.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Friday, June 18, 2004 1:37 PM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Memory management, where to alloc?
+
+
+On Friday 18 June 2004 13:22, Christian Schulte wrote:
+> Well, let me elaborate a little bit on 1). This is just for caching 
+> and the reason why it works well is subtle and relies on interaction 
+> (well, a certain discipline) with search:
+>
+> A propagator can have a cache. The cache is created on demand from 
+> some other datastructure conatining the variables of interest (such as 
+> an VarArray<*>). Each time the propagator is invoked, it checks wether 
+> there is a cache. If not, it creates one. If there is already a cache, 
+> the cache is updated to properly represent the modified variables. 
+> Propagation then is performed on the cache.
+
+Ok, that is exactly as I would have thought.
+
+> So, please consider whether 1) does the job. It works well. The 
+> variable doubling is not an issue for two reasons:
+>  1) A variable (you mean a view actually) takes 4 byte.
+>  2) There is just one cache per search engine and per propagator 
+> created.
+
+I will try. I guess with these explanations it should be easy, but I'm sure
+I 
+would have screwed up things badly again if I hadn't known the details ;-)
+
+It still feels a bit weird to use a VarArray only to store the variables
+that 
+are needed to reconstruct the cache instead of storing them in a list in the
+
+first place, however...
+
+> Otherwise, there is no need to use freelists. As you rightly say, the 
+> lists shrink. That's fine. Freelists are very special beasts (there 
+> are only size 8 and 16 freelists). Don't use them if you don't have 
+> to. I use them for rangelists as they have the property to grow and 
+> not to shrink.
+
+I see. Good to know.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Thu Jun 24 10:59:03 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 24 Jun 2004 10:59:03 +0200
+Subject: [Gecode] Views break ModEvent-driven propagators
+Message-ID: <200406241059.03786.tack@ps.uni-sb.de>
+
+Hi!
+
+While implementing the selection constraints, I noticed a flaw in the current 
+design: If you have a parametric propagator, you can't use e.g. varmodevent 
+to find out why it was invoked, because the events there only correspond to 
+the core variable, not the view it's expecting. This could be solved by 
+having a conversion function in the view, but that will only work for uniform 
+propagators (only using variables of the same view type).
+Is there anything I missed? Are parametric propagators not supposed to inspect 
+the ModEvents?
+
+Guido
+
+P.S.: Christian, I don't want to disturb you during your holidays, I just 
+thought I'd post this so that I don't forget about it ;-)
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+

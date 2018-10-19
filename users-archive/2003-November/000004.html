@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Gecode] FW: PowerB
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20FW%3A%20PowerB&In-Reply-To=%3C002f01c3a3bd%245e933d00%24360fed82%40mushu%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000002.html">
+   <LINK REL="Next"  HREF="000005.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Gecode] FW: PowerB</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20FW%3A%20PowerB&In-Reply-To=%3C002f01c3a3bd%245e933d00%24360fed82%40mushu%3E"
+       TITLE="[Gecode] FW: PowerB">schulte at imit.kth.se
+       </A><BR>
+    <I>Wed Nov  5 17:53:37 CET 2003</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000002.html">[Gecode] FW: PowerB
+</A></li>
+        <LI>Next message: <A HREF="000005.html">[Gecode] FW: PowerB
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4">[ date ]</a>
+              <a href="thread.html#4">[ thread ]</a>
+              <a href="subject.html#4">[ subject ]</a>
+              <a href="author.html#4">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>&gt;<i> &gt;The right architecture should be as follows:
+</I>&gt;<i> &gt; 1. The API function does preprocessing on the arguments, creates the
+</I>&gt;<i> &gt;appropriate variable arrays to be passed to the propagators proper.
+</I>&gt;<i> &gt;    The last point happens automatically when implicitly casting a 
+</I>&gt;<i> &gt;IntArgs to VarArray&lt;IntVar&gt;.
+</I>&gt;<i> &gt;    Then, a propagator-based (maybe a static method) post-method is 
+</I>&gt;<i> &gt;invoked.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; 2. Then the propagator-based post-method decides what is the right
+</I>&gt;<i> &gt;propagtor (typically some appropriate variant) to create.
+</I>&gt;<i> &gt;  
+</I>&gt;<i> &gt;
+</I>&gt;<i> Is there an existing propagator that has such a method?
+</I>
+To some extent the linear propagators do that. But this is rather
+complicated. Otherwise, not quite as I said.
+
+&gt;<i> If not, what should be its signature?
+</I>
+Make it a static member of the class called post: return type void,
+arguments as required by the propagator.
+
+&gt;<i> public static WhateverPropagator::post(VarArray&lt;IntVar&gt; vars) 
+</I>
+Yes.
+
+&gt;<i> ? You can still check for variable equality on this level, 
+</I>&gt;<i> right? So this layer 2. propagator-based post-function (PBPF 
+</I>&gt;<i> :-) )  is 
+</I>&gt;<i> responsible for instanciating a propagator if it is indeed a 
+</I>&gt;<i> subvariant, 
+</I>&gt;<i> or call the PBPF of a simpler propagator or one with less 
+</I>&gt;<i> arguments if 
+</I>&gt;<i> apropriate.
+</I>&gt;<i> Right?
+</I>
+Yes.
+
+&gt;<i> &gt; 3. The propagator constructor does the real job of initializing a
+</I>&gt;<i> &gt;propagator.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;Unfortunately, quite often I have combined 2. and 3. This needs to be
+</I>&gt;<i> &gt;fixed eventually.
+</I>&gt;<i> &gt;  
+</I>&gt;<i> &gt;
+</I>&gt;<i> I guess I could move all decision logic from plain post functions to 
+</I>&gt;<i> PBPFs, and get a good overview of all the propagators?
+</I>
+Right, absolutely!
+
+&gt;<i> &gt;Now getting back to your real question: Typically, you will go for 3.
+</I>&gt;<i> &gt;when replacing a propgator. You never go for 1. as you don't want to 
+</I>&gt;<i> &gt;create new variable arrays (they are just resued for the 
+</I>&gt;<i> newly created 
+</I>&gt;<i> &gt;propagator). So, in a fixed system you would also have the choice 
+</I>&gt;<i> &gt;between 2. and 3.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;  
+</I>&gt;<i> &gt;
+</I>&gt;<i> I'd go with 2 so I don't have to either duplicate its 
+</I>&gt;<i> functionality, or 
+</I>&gt;<i> loose propagatoin power due to undiscovered variable equalities. And 
+</I>&gt;<i> using the most abstract type possible is so cool anyway :-)
+</I>
+Exactly.
+
+&gt;<i> &gt;&gt;3,
+</I>&gt;<i> &gt;&gt;How would you &quot;cast&quot; an IntVar into a BoolVar?
+</I>&gt;<i> &gt;&gt;My propagator wants to replace itself with a reified
+</I>&gt;<i> &gt;&gt;constraint: 0^b=c  &lt;=&gt;  c=(b==0)
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> Guido has told me since:
+</I>&gt;<i> #define intvar2boolvar(intvar)  static_cast&lt;BoolVar&gt;(intvar.core())
+</I>
+DON'T! This makes assumptions on object outside methods. That's not C++. And
+look's wrong to me.
+
+It is just about a copy conbstructor, along the lines
+
+	explicit BoolVar::BoolVar(IntVar x) { core(x.core()); }
+
+or something similar. The you can use it as
+
+	BoolVar b(x)
+
+where x is an IntVar. Maybe I should add that.
+
+
+&gt;<i> &gt;&gt;5,
+</I>&gt;<i> &gt;&gt;I know this is a stupid question, maybe I just did not sleep
+</I>&gt;<i> &gt;&gt;enough: I don't understand why doing ceil/floor on integer
+</I>&gt;<i> &gt;&gt;valued floats works.  
+</I>&gt;<i> &gt;&gt;Looks like the 100dB amplification of Braun noise to me, but 
+</I>&gt;<i> &gt;&gt;I'm just an 
+</I>&gt;<i> &gt;&gt;engineer... ;-)
+</I>&gt;<i> &gt;&gt;I mean it's pot luck whether floor(ln(4.0)/ln(2.0))  is 1 or 
+</I>&gt;<i> &gt;&gt;2, right? 
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;Yes, might be. But maybe that means you have to resort to exact
+</I>&gt;<i> &gt;algorithms
+</I>&gt;<i> &gt;(integer-based) for log (ld). Why ln to start with?
+</I>&gt;<i> &gt;  
+</I>&gt;<i> &gt;
+</I>&gt;<i> Dunno, it's probably an EE thing, we do everything theoretic 
+</I>&gt;<i> in natural 
+</I>&gt;<i> base. Either 'cause it's one letter less, expresses well 
+</I>&gt;<i> &quot;it's not the 
+</I>&gt;<i> base you want&quot;, or easy to derivate :-)
+</I>&gt;<i> For practical stuff we use base 10.
+</I>
+Computer scientist use base 2, of course. Reason: exact and fast algorithms.
+
+&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> This one is still open:
+</I>&gt;<i> 
+</I>&gt;<i> &gt; 6, Do you have any preference in unit testing
+</I>&gt;<i> &gt; frameworks? Anything against CppUnit?
+</I>
+No real opinion yet. CppUnit seems not mature enough. And I have been
+thinking more on how to derive tests automatically as this appears a much
+harder task... The rest we can do whatever we like.
+
+
+Cheers
+Christian
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000002.html">[Gecode] FW: PowerB
+</A></li>
+	<LI>Next message: <A HREF="000005.html">[Gecode] FW: PowerB
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4">[ date ]</a>
+              <a href="thread.html#4">[ thread ]</a>
+              <a href="subject.html#4">[ subject ]</a>
+              <a href="author.html#4">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,56 @@
+//
+//  scenetest.cpp
+//  CP2011
+//
+//  Created by Farshid Hassani Bijarbooneh on 13/12/14.
+//  Copyright (c) 2014 Uppsala University. All rights reserved.
+//
+
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/set.hh>
+#include <gecode/minimodel.hh>
+
+using namespace Gecode;
+using namespace Gecode::Driver;
+
+class Test : public Script {
+protected:
+    SetVar y;
+    BoolVarArray x;
+public:
+    
+    Test(const Options& opt) {
+        x = BoolVarArray(*this, 3, 0, 1);
+        y = SetVar(*this, IntSet(0, 2), IntSet(0, 2), 0,3);
+        
+        channel(*this, x, y);
+        
+        branch(*this, y , SET_VAL_MIN_EXC());
+        branch(*this, x , INT_VAR_NONE(), INT_VAL_MIN());
+    }
+    
+    virtual void print(std::ostream& os) const {
+        os << "Set Channeling" << std::endl;
+        os << y << std::endl;
+        os << x << std::endl;
+    }
+    
+    Test(bool share, Test& s) : Script(share,s) {
+        x.update(*this, share, s.x);
+        y.update(*this, share, s.y);
+    }
+    
+    virtual Space* copy(bool share) {
+        return new Test(share,*this);
+    }
+};
+
+int main(int argc, char* argv[]) {
+    Options opt("Channeling Test");
+    opt.solutions(0);
+//    opt.mode(SM_GIST);
+    opt.parse(argc,argv);
+    Script::run<Test,DFS,Options>(opt);
+    return 0;
+}

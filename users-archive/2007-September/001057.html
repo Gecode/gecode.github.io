@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] status of Space* in Branching::copy
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20status%20of%20Space%2A%20in%20Branching%3A%3Acopy&In-Reply-To=%3C002501c7f069%24d093d4d0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001056.html">
+   <LINK REL="Next"  HREF="001058.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] status of Space* in Branching::copy</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20status%20of%20Space%2A%20in%20Branching%3A%3Acopy&In-Reply-To=%3C002501c7f069%24d093d4d0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] status of Space* in Branching::copy">cschulte at kth.se
+       </A><BR>
+    <I>Thu Sep  6 11:39:26 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001056.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+        <LI>Next message: <A HREF="001058.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1057">[ date ]</a>
+              <a href="thread.html#1057">[ thread ]</a>
+              <a href="subject.html#1057">[ subject ]</a>
+              <a href="author.html#1057">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hmmm, actually the copying is already a two stage process (and a extremly
+delicate one). One of the key invariants in the process is that no new
+actors (actually, no new anything) can be created during cloning!
+
+It is already now the case that when the constructor Space::Space is
+finished, the space is not yet fully initialized, however all data
+structures in the newly created space can be inspected (with const member
+functions). When moving things around the way you suggest that would not
+work an&#253; longer. Some const member functions would be not allowed (as they
+just would segfault). I really would like to keep this invariant: everything
+can be inspected but nothing can be changed. Even though this only matters
+for constructors.
+
+So, the idea to store the data in the space does not look that good after
+all. We kind of know what to do but as we have no example we could use to
+shape the right abstractions I don't know what to do. If you yourself want
+to experiment, we could tell you how to massage the code for copying to hack
+around.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 06, 2007 10:10 AM
+To: Guido Tack
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] status of Space* in Branching::copy
+
+
+Guido Tack (5.9.2007 21:10):
+&gt;<i> Filip Konvi&#269;ka wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> one thing that keeps me occupied: when a branching or propagator is 
+</I>&gt;&gt;<i> cloned, the space instance it is passed is just partially 
+</I>&gt;&gt;<i> constructed. This makes it difficult to make references to any data 
+</I>&gt;&gt;<i> inside the space (which is simply not there yet in e.g. 
+</I>&gt;&gt;<i> Branching::copy). Is there no other way? I understand that the 
+</I>&gt;&gt;<i> branching/propagator cloning takes place in Space copy ctor, but it 
+</I>&gt;&gt;<i> would be far more convenient for me to get a fully-constructed space 
+</I>&gt;&gt;<i> in Branching::copy. (For example, I'm unable to construct some 
+</I>&gt;&gt;<i> non-trivial references to space's data in my branching, as this 
+</I>&gt;&gt;<i> initialization can't be moved out of the
+</I>&gt;&gt;<i> constructor.)
+</I>&gt;<i>
+</I>&gt;<i> That's just not possible in the current architecture.  If I understand
+</I>&gt;<i> you correctly, you need to make sure that some object is cloned before 
+</I>&gt;<i> all actors (propagators &amp; branchings) are. That way, you can be sure 
+</I>&gt;<i> that that object is initialized when your Branching::copy is called.  
+</I>&gt;<i> I have something like that in a private branch, I'll dig a bit and let 
+</I>&gt;<i> you know.
+</I>Thanks!
+
+The thing is that the cloning of actors is (my guess) done in 
+Space::Space. So say that I have derived my own space class Space2. My 
+actors are passed, during cloning, a pointer to the new clone of Space2, 
+but since the cloning of the actors is done in Space::Space, the Space2 
+object is not fully initialized yet and I can not static_cast it to 
+Space2 there.
+
+Note that in the Space2::Space2() constructor (when creating the root 
+space), I can make sure that the needed parts of Space2 are already 
+constructed before posting the actor. So it came as a surprise to me 
+that I got a runtime error in cloning, because things worked just fine 
+for the root space. The space I saw being passed to the actor looked 
+invalid, and it was not immediately obvious what was happening.
+
+One way that I think this could be handled is cloning in 2 steps: first 
+create a copy of the space, then re-create the actors. Since, from the 
+user's point of view, a space does not have explicit access to its 
+actors (yet :-)), I don't see how this could be a problem (maybe just 
+that it should be explicitly prohibited to create actors during 
+cloning). The only thing is, who and how would trigger the cloning of 
+the actors. Maybe Space::clone() could be &quot;protected&quot; and renamed to 
+&quot;getClone&quot;, and there could be a public non-virtual
+
+Space* Space::clone() const {
+  Space *pClone=getClone();
+  pClone-&gt;copyActorsFrom(this);
+  return pClone;
+}
+
+That's many maybes :-) Just wanted to explain what problems I am facing. 
+But there are workarounds, so nothing serious.
+
+Otherwise, the library works extremely well, bravo!
+
+Cheers,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001056.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+	<LI>Next message: <A HREF="001058.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1057">[ date ]</a>
+              <a href="thread.html#1057">[ thread ]</a>
+              <a href="subject.html#1057">[ subject ]</a>
+              <a href="author.html#1057">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

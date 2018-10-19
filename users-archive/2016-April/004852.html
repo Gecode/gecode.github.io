@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Scheduling A Propagator After Backtrack
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Scheduling%20A%20Propagator%20After%20Backtrack&In-Reply-To=%3C0aec01d19b11%24eecaea40%24cc60bec0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004851.html">
+   <LINK REL="Next"  HREF="004853.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Scheduling A Propagator After Backtrack</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Scheduling%20A%20Propagator%20After%20Backtrack&In-Reply-To=%3C0aec01d19b11%24eecaea40%24cc60bec0%24%40kth.se%3E"
+       TITLE="[gecode-users] Scheduling A Propagator After Backtrack">cschulte at kth.se
+       </A><BR>
+    <I>Wed Apr 20 16:35:48 CEST 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004851.html">[gecode-users] Scheduling A Propagator After Backtrack
+</A></li>
+        <LI>Next message: <A HREF="004853.html">[gecode-users] Advices for creating new variable type?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4852">[ date ]</a>
+              <a href="thread.html#4852">[ thread ]</a>
+              <a href="subject.html#4852">[ subject ]</a>
+              <a href="author.html#4852">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>No, you need to keep advisor and council: they will not take much memory, it&#8217;s really the sets that eat memory. That might mean that you have to take out the integer set information from your advisors (you do not say so but that is my guess here). Subscriptions by propagators also take memory!
+
+ 
+
+Then you need to check the flag when an advisor is run. That should work.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, SICS,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+ 
+
+From: Yunus Acikoz [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">yunusacikoz at gmail.com</A>] 
+Sent: Wednesday, April 20, 2016 09:52
+To: Christian Schulte
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Scheduling A Propagator After Backtrack
+
+ 
+
+Using a flag is a good idea, but without initializing the council and the advisors, there's nothing to run the propagator if I understood correctly. Am I right?
+
+How about subscribing the propagator to views in the beginning and then canceling the subscription once the advisors are initialized in the first call of propagate()?  To be honest, it doesn't sound very wise to me but just an idea.
+
+ 
+
+About the previous domain thing: I need to know which values are removed from my integer views to use them in a labeling algorithm. That was the only way I could think of.
+
+ 
+
+Cheers,
+
+Yunus Acikoz
+
+ 
+
+On Wed, Apr 20, 2016 at 10:33 AM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+Hi Yunus,
+
+ 
+
+The point is: you cannot schedule a propagator during copying (the system will crash).
+
+ 
+
+Copying lazily is normally an excellent idea, many Gecode propagators do it. One way to do it is to use a flag whether the propagator has been run. When you clone the propagator you set it to false and in the propagate() function you can check whether you have run the propagator.
+
+ 
+
+Would that do for you?
+
+ 
+
+Storing the whole previous domain sounds very excessive to me, though and integer sets are definitely not an efficient data structure for that purpose. Maybe you could also start thinking about maintaining less information?
+
+ 
+
+Hope that helps.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Yunus Acikoz
+Sent: Wednesday, April 20, 2016 09:11
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Scheduling A Propagator After Backtrack
+
+ 
+
+Hi,
+
+ 
+
+I would like to know if it's possible to schedule a custom propagator such that it is immediately propagated after backtracking. I mean something like executing the code below in the copy function of the propagator:
+
+ 
+
+        auto copy_propagator = new(home)AdvisedPropagator(home, share, *this);
+
+        Gecode::Int::IntView::schedule(home, *copy_propagator, Gecode::Int::ME_INT_DOM);
+
+ 
+
+ 
+
+So the newly generated copy of the propagator (without its council being copied) is scheduled to be run when the search engine turns back to that node. Does it make sense at all?
+
+ 
+
+I use advisors and they consume too much memory. Each advisor holds the previous state of the domain of its subscribed view as an IntSet, an unsigned short index and an enum to keep info about which variable array it belongs to.
+
+I want to initialize advisors lazily, so that they are only created when the propagator is actually used. I thought maybe I could do it in &quot;propagate&quot; function with an initial propagation.
+
+ 
+
+Thanks in advance,
+
+Cheers,
+
+Yunus Acikoz
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20160420/8da981bb/attachment.html">http://www.gecode.org/pipermail/users/attachments/20160420/8da981bb/attachment.html</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20160420/8da981bb/attachment.bin">http://www.gecode.org/pipermail/users/attachments/20160420/8da981bb/attachment.bin</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004851.html">[gecode-users] Scheduling A Propagator After Backtrack
+</A></li>
+	<LI>Next message: <A HREF="004853.html">[gecode-users] Advices for creating new variable type?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4852">[ date ]</a>
+              <a href="thread.html#4852">[ thread ]</a>
+              <a href="subject.html#4852">[ subject ]</a>
+              <a href="author.html#4852">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

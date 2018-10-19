@@ -1,0 +1,234 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] A simple propagator
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20A%20simple%20propagator&In-Reply-To=%3C000c01ca2f90%24147e2d50%243d7a87f0%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002611.html">
+   <LINK REL="Next"  HREF="002614.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] A simple propagator</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20A%20simple%20propagator&In-Reply-To=%3C000c01ca2f90%24147e2d50%243d7a87f0%24%40se%3E"
+       TITLE="[gecode-users] A simple propagator">cschulte at kth.se
+       </A><BR>
+    <I>Mon Sep  7 09:51:47 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002611.html">[gecode-users] A simple propagator
+</A></li>
+        <LI>Next message: <A HREF="002614.html">[gecode-users] compilation problem on windows + mingw32
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2613">[ date ]</a>
+              <a href="thread.html#2613">[ thread ]</a>
+              <a href="subject.html#2613">[ subject ]</a>
+              <a href="author.html#2613">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>No, you can't delete. The idea is: the i-th view (that is, x[i]) is assigned
+the last view in the array (x[n-1]) and the size of the array is shrunk by
+one (--n). Unfortunately, the propagator Tias sent is non-sensical in that
+it does not implement a constraint: its semantics is random!
+
+ 
+
+The reason why you can't delete it here is that it is also used for
+detecting subsumption: any propagator must at very latest report subsumption
+if it is not failed and all of its views are assigned!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of amina kemmar
+Sent: Sunday, September 06, 2009 2:14 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] A simple propagator
+
+ 
+
+Hi everyone,
+
+thank you Tias for the propagator's example that you make available in the
+mailing list,  it is very interesting, but i don't understand 
+why you add the following statement, in the propagate method : 
+
+x[i]=x[--n];
+
+can we delete it?
+
+if anyone have an idea could he give me an answer, thank you.
+
+greetings,
+Amina.
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+////////
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/int.hh&gt;
+
+namespace myprop {
+  using namespace ::Gecode;
+  using namespace ::Gecode::Int;
+
+  /**
+   * \brief Base-class for simple cleaner
+   */
+  template &lt;class V&gt;
+  class CleanerBool : public Propagator {
+  protected:
+    /// Boolean views
+    ViewArray&lt;V&gt; x;
+
+    /// Constructor for creation
+    CleanerBool(Space&amp; home, ViewArray&lt;V&gt;&amp; x);
+    /// Constructor for cloning \a p
+    CleanerBool(Space&amp; home, bool share, CleanerBool&amp; p);
+  public:
+    /// Cost function (defined as low linear)
+    virtual PropCost cost(const Space&amp; home, const ModEventDelta&amp; med)
+const;
+    /// Delete propagator and return its size
+//   virtual size_t dispose(Space&amp; home);
+    /// Create copy during cloning
+    virtual Actor* copy(Space&amp; home, bool share);
+    /// Perform propagation
+    virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp; med);
+    /// Post propagator
+    static ExecStatus post(Space&amp; home, ViewArray&lt;V&gt;&amp; x);
+  };
+
+  /*
+   * propagator implementation
+   */
+  template &lt;class V&gt;
+  CleanerBool&lt;V&gt;::CleanerBool(Space&amp; home, ViewArray&lt;V&gt;&amp; x0)
+    :  Propagator(home), x(x0) {
+    x.subscribe(home,*this,PC_INT_VAL);
+  }
+
+  template &lt;class V&gt;
+  forceinline size_t
+  CleanerBool&lt;V&gt;::dispose(Space&amp; home) {
+    assert(!home-&gt;failed());
+    x.cancel(home,*this,PC_INT_VAL);
+    (void) Propagator::dispose(home);
+    return sizeof(*this);
+  }
+
+  template &lt;class V&gt;
+  forceinline
+  CleanerBool&lt;V&gt;::CleanerBool(Space&amp; home, bool share, CleanerBool&amp; p)
+    : Propagator(home,share,p) {
+    x.update(home,share,p.x);
+  }
+
+  template &lt;class V&gt;
+  PropCost
+  CleanerBool&lt;V&gt;::cost(const Space&amp;, const ModEventDelta&amp;) const {
+    // make sure this propagator is run as last before the fixpoint
+    return PropCost::crazy(PropCost::HI, 100000);
+    // in a real propagator, this would be something more sensible,
+    // for example: PropCost::linear(PropCost::LO, x.size());
+  }
+
+  template &lt;class V&gt;
+  ExecStatus
+  CleanerBool&lt;V&gt;::post(Space&amp; home, ViewArray&lt;V&gt;&amp; x) {
+    (void) new (home) CleanerBool&lt;V&gt;(home,x);
+    return ES_OK;
+  }
+
+  template &lt;class V&gt;
+  Actor*
+  CleanerBool&lt;V&gt;::copy(Space&amp; home, bool share) {
+    return new (home) CleanerBool&lt;V&gt;(home,share,*this);
+  }
+
+  template &lt;class V&gt;
+  ExecStatus
+  CleanerBool&lt;V&gt;::propagate(Space&amp; home, const ModEventDelta&amp;) {
+    int n = x.size();
+    for (int i = n; i--; ) {
+      if (x[i].zero()) {
+        x[i]=x[--n];
+      } else if (x[i].one()) {
+        x[i]=x[--n];
+      } else {
+        GECODE_ME_CHECK( x[i].one(home) );
+        x[i]=x[--n];
+      } // all cases covered, so every var assigned and removed
+    }
+    x.size(n);
+
+    if (n == 0) {
+      return ES_SUBSUMED(*this,home);
+    }
+    return ES_FIX;
+  }
+
+
+  /** \brief Post propagator for cleanup of unassigned variables
+   * Is run as last propagator (crazy_hi), sets unassigned variables to 1
+   */
+  void cleaner(Space&amp; home, const BoolVarArgs&amp; x) {
+    if (home.failed()) return;
+
+    ViewArray&lt;BoolView&gt; Vx(home, x);
+
+    GECODE_ES_FAIL(home,(CleanerBool&lt;BoolView&gt;::post(home, Vx)));
+  }
+
+}
+////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+
+
+
+  _____  
+
+Achetez un nouveau PC et b&#233;n&#233;ficiez de Windows 7 d&#232;s sa sortie ! En savoir
+plus &lt;<A HREF="http://www.portable-windows.com/">http://www.portable-windows.com/</A>&gt; 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20090907/6506d965/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20090907/6506d965/attachment.htm</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002611.html">[gecode-users] A simple propagator
+</A></li>
+	<LI>Next message: <A HREF="002614.html">[gecode-users] compilation problem on windows + mingw32
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2613">[ date ]</a>
+              <a href="thread.html#2613">[ thread ]</a>
+              <a href="subject.html#2613">[ subject ]</a>
+              <a href="author.html#2613">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

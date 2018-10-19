@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Schedule Branching Recommendations
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Schedule%20Branching%20Recommendations&In-Reply-To=%3C000b01c77d12%24160506e0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000867.html">
+   <LINK REL="Next"  HREF="000859.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Schedule Branching Recommendations</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Schedule%20Branching%20Recommendations&In-Reply-To=%3C000b01c77d12%24160506e0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] Schedule Branching Recommendations">cschulte at kth.se
+       </A><BR>
+    <I>Thu Apr 12 16:51:41 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000867.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+        <LI>Next message: <A HREF="000859.html">[gecode-users] Correct ExecStatus to return from propagate?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#870">[ date ]</a>
+              <a href="thread.html#870">[ thread ]</a>
+              <a href="subject.html#870">[ subject ]</a>
+              <a href="author.html#870">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear Justin,
+
+again: looks the right way to do. As it comes to copying between branching
+and description, it might be not a bad idea to design your accounting
+structures to be small enough. Also, an idea might be that you only keep
+that part of the information that you need to do the actually commit,
+because that's the only thing that matters.
+
+Then, you can not use rel(...) for ordering. The reason is that the ordering
+might fail and rel(...) use a mechanism for reporting that is designed for
+being used in modelling and not in implementing branchings or propagators.
+However it is very simple. Look into gecode/int/rel.cc. There you look for
+the definition or rel. Then just rip out the part you need. It will look
+something like:
+
+	return Int::Rel::Lq&lt;IntView&gt;::post(home, s-&gt;..., s-&gt; ...); 
+
+This post function returns an ExecStatus that must be returned by the commit
+function of the branching.
+
+Then, the Boolean share argument has only significance for datastructures
+that are shared among several spaces. So that is nothing you need to worry
+about (it is needed for parallel or multi-threaded search).
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: Graham, Justin G [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">justin.g.graham at lmco.com</A>] 
+Sent: Tuesday, April 10, 2007 8:31 PM
+To: Christian Schulte; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Schedule Branching Recommendations
+
+
+Thanks, that information was very helpful.
+
+As for your question, I am not implementing the edge finding in the most
+efficient manner since this is my first shot at the algorithm and I just
+wanted to get something working quickly.  This is the basic idea of what I
+plan to do now:
+
+Status:  
+Order the resources according to slack then order the tasks on the selected
+resource.  This includes trimming the list to eliminate the tasks that can
+go first, which is similar to the algorithm in Mozart.
+
+Description:
+Copy the accounting data structure to the description instance.
+
+Note that multiple calls to status and description will give the same result
+until a commit is called since I am just sorting the data.
+
+Commit:
+As an example, on the first alternative I will propagate with something like
+this in a loop for all of the unordered tasks: rel(home,
+s-&gt;end[firstTaskIndex], IRT_LQ, s-&gt;start[unorderedTaskIndex]);
+
+After that I will mark the task as sorted in my data structure.
+
+&gt;<i>From my experience, it seems as though I will need to copy my accounting
+</I>data structure to the description instance.  Then I will need to copy the
+data structure from the description to the branching instance within commit.
+Originally, I was trying to avoid the extra copying but that seems like the
+right way to pass the information to the next branching instance.  Is that
+correct?
+
+Also, I have another question:
+Within the branching constructor there is a variable that denotes if the
+data should be shared.  Do I need to pay attention to this variable since I
+am carrying around extra data for the edge finding?  Or can I just copy the
+entire data structure when the copy constructor is called?
+
+Thanks,
+Justin
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>] 
+Sent: Tuesday, April 10, 2007 8:26 AM
+To: Graham, Justin G; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Schedule Branching Recommendations
+
+Hi Justin,
+
+a rather elaborate question that took me some time... Your findings about
+status and description are accurate: you cannot change the space and you
+should not change the branching in a way such that it becomes observable.
+Remember, const does not mean that you do not change but that a second call
+will deliver the same result (think of the mutable modifier, for example as
+is used for ViewValBranchings).
+
+The findings about commit are not correct: you are absolutely free to modify
+your branching! Nothing suggests otherwise. And you are right to keep it
+inside the branching, anything else would be very bad and difficult (you
+would have to have spaces that are special in order to use them with your
+branching, so not that hot).
+
+Please do not hesitate to ask more questions of that sort! Do you consider
+to only do branching or also propagation? Because there is a very
+interesting issue for edge-finding/first-last: both propagation and
+branching should share the same data structures to maintain their
+information for efficiency. Support for sharing state among several
+propagators/branching is on our todo list for a long time but we decided to
+only do it when we implement exactly what you are now appareantly trying to
+do...
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Graham, Justin G
+Sent: Wednesday, April 04, 2007 11:37 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Schedule Branching Recommendations
+
+
+I am attempting to implement an edge-finding algorithm that is similar to
+that of firstsDist used in Mozart.  In order to do this, two major events
+should occur for every branch:
+ 
+- Propagation:  Generate propagators that specify that a given task will be
+first.
+- Accounting:   Keep track of what tasks have been ordered in some kind
+of
+data structure.
+ 
+I am assuming that a left branch specifies that a given task should be first
+while a right branch specifies that the same task is not first.  In the case
+that a task is not first, the appropriate data structure will need to be
+updated so that the task should not be chosen until another task goes first.
+It appears that streams are used to accomplish this type of accounting in
+Mozart.
+ 
+&gt;<i>From what I understand of the Gecode branching framework this is what I can
+</I>work with:
+ 
+-status
+Find if there are any tasks that need to be ordered.  At this point the
+Space instance cannot be modified, but the Branching instance can be
+modified in order to keep track of the tasks.
+ 
+-description
+Return some sort of identifier specifying which task should be ordered
+first. The Space instance is still not modifiable here.
+ 
+-commit
+Perform the necessary propagation depending on the branching alternative
+(left or right).  The Space is modifiable, but it appears that the Branching
+instance should not be modified.  Is this a correct assumption? Depending on
+the branching alternative, I need to specify that the chosen task is first
+or specify that the chosen task cannot be first using a data structure for
+accounting purposes.
+ 
+ 
+Given that information, is it OK to keep the additional data structures,
+such as vectors, within the Space instance so that the ordered tasks can be
+tracked?  I considered keeping this information in the Branching instance;
+however this is not possible since I need to update the accounting data
+within commit.  This needs to be done within commit since that is the only
+place I know whether I am taking a left or right branch and I cannot edit
+the branching instance according to my assumption listed above.  So, my
+questions boil down to the following:
+ 
+Is it bad to edit Branching member variables in commit?
+Is it OK to edit native data structures contained in the Space instance
+within commit? Do you have any other recommendations for how I can keep
+track of the ordered/unordered tasks?
+ 
+Thanks,
+Justin
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000867.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+	<LI>Next message: <A HREF="000859.html">[gecode-users] Correct ExecStatus to return from propagate?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#870">[ date ]</a>
+              <a href="thread.html#870">[ thread ]</a>
+              <a href="subject.html#870">[ subject ]</a>
+              <a href="author.html#870">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

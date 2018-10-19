@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Propagator called too soon...
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator%20called%20too%20soon...&In-Reply-To=%3C001b01c648f9%246c5f9da0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000418.html">
+   <LINK REL="Next"  HREF="000420.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Propagator called too soon...</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator%20called%20too%20soon...&In-Reply-To=%3C001b01c648f9%246c5f9da0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] Propagator called too soon...">schulte at imit.kth.se
+       </A><BR>
+    <I>Thu Mar 16 13:59:12 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000418.html">[gecode-users] Propagator called too soon...
+</A></li>
+        <LI>Next message: <A HREF="000420.html">[gecode-users] Propagator called too soon...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#419">[ date ]</a>
+              <a href="thread.html#419">[ thread ]</a>
+              <a href="subject.html#419">[ subject ]</a>
+              <a href="author.html#419">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+please let me take things in turn.
+
+As it comes to the fact that each propagator is executed when created
+(actually this is not strictly true, see below) we need to extend the
+functionality for subscription. I don't know yet how to do it best (by an
+optional parameter to subscribe or by a different method) but I am going to
+look at it right after this email.
+
+Currently, a propagator is processed for propagation (and hence will
+eventually be propagated) when subscribing to a view according to the
+following rules: if the propagators subscribes with respect to a PC_INT_VAL
+or PC_SET_VAL propagation condition, the propagator is executed only if the
+variable is assigned to a single value. Otherwise, a propagator is always
+executed under the assumption that the propagator does not even know yet
+that the bounds of the variables have changed (so quite strong).
+
+As it comes to IntVar and subscription: don't! Propagators only talk about
+IntViews! If you hav an IntVar x and you want to create a corresponding
+IntView y, just do this: y = x (or longish: IntView y(x)). Please check how
+we do it for our propagators: typically there is a post function (such as
+linear, distinct, etc) which talks about IntVar and arrays. This then calls
+a static post member function of the propagator class after it has created
+views for the vars. This static post member function then uses new to create
+a propagator. Look to the code for examples.
+
+As it comes to new: all news are placament news and require a space
+argument, so something like &quot;new (home) ...&quot;. Again look for examples.
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of J&#233;r&#233;mie Vautard
+Sent: Tuesday, March 14, 2006 10:11 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Propagator called too soon...
+
+
+Hello !
+
+(These questions come in the same context than the &quot;Extending integer 
+and set variables to quantified variables 
+&lt;<A HREF="http://www.gecode.org/gecode-users/2006-March/001000.html">http://www.gecode.org/gecode-users/2006-March/001000.html</A>&gt;&quot; thread I 
+started a while ago...)
+
+I have made a propagator which fails the space immediately when invoked, 
+in order to stop the propagation as soon as an universally quantified 
+variable domain is reduced. The only problen I have is that this 
+propagator is also called one first time at the very begining of the 
+propagation loop. Is there a way to avoid this first call, and call the 
+propagator only when the variable domain have been actually reduced ? I 
+suppose that it can be done using propagation conditions, but I must 
+admit I don't really understand how to create user-defined PropConds.
+
+Another, maybe trivial, question : what is the best way to subscribe a 
+propagator to a particular IntVar ? The way I use presentely is I think 
+a little dirty : I have created a &quot;QIntVar&quot; class which extands the 
+IntVar class by only adding it a   IntvarImp* GetVar()   method 
+returning the protected &quot;var&quot;member of the IntVar class. Then, I use the 
+subscribe() method of this IntVarImp in order to subscrime my &quot;fail-now&quot; 
+propagator. Is there a cleaner way to achieve this ?
+
+Yet another question : when I try to make a new &quot;Fail-now&quot; propagator 
+using the 'new' operator, (  ForAllProp* pr = new ForAllProp(home,fd) by 
+example. I have defined the  ForAllProp(Space* home, bool fd=false) 
+constructor. ), I get an error at the compilation process. I have for 
+the moment avoided the problem by declaring only one global &quot;ForAllProp 
+fa(myspace);&quot; and using subscribe(myspace,&amp;fa,condition), but I don't 
+really like this. For the same reason, the copy() is for the moment 
+defined by :
+Actor* copy(Space* home, bool share) {return this;}
+and I wonder if it will not be a source of problems later...
+
+Here is my ForAllProp class, defining the &quot;Fail now&quot; propagator :
+
+class ForAllProp : public Propagator {
+public : 
+  ForAllProp(Space * home, bool fd = false) : Propagator(home,fd) {};
+  ForAllProp(Space * home, bool share, ForAllProp &amp; p) : Propagator(home,
+share, p) {};
+  PropCost cost(void) const {return PC_UNARY_LO;};
+  ExecStatus propagate(Space * home) {cout&lt;&lt;&quot;ForAll r&#233;duit&quot;;return
+ES_FAILED;};
+  Actor* copy(Space* home, bool share) {return this;}
+};
+
+
+Best regards,
+
+Jeremie
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000418.html">[gecode-users] Propagator called too soon...
+</A></li>
+	<LI>Next message: <A HREF="000420.html">[gecode-users] Propagator called too soon...
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#419">[ date ]</a>
+              <a href="thread.html#419">[ thread ]</a>
+              <a href="subject.html#419">[ subject ]</a>
+              <a href="author.html#419">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

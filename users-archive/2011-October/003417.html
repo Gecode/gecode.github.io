@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Sum of IntVarArrays with changing array positions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3CB0F482C8-C227-408A-A58D-1B08F27DCD02%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003416.html">
+   <LINK REL="Next"  HREF="003418.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Sum of IntVarArrays with changing array positions</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3CB0F482C8-C227-408A-A58D-1B08F27DCD02%40gecode.org%3E"
+       TITLE="[gecode-users] Sum of IntVarArrays with changing array positions">tack at gecode.org
+       </A><BR>
+    <I>Wed Oct 12 11:26:05 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003416.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+        <LI>Next message: <A HREF="003418.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3417">[ date ]</a>
+              <a href="thread.html#3417">[ thread ]</a>
+              <a href="subject.html#3417">[ subject ]</a>
+              <a href="author.html#3417">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Mathias,
+
+you can express the constraint using element constraints.  Say the two sequences are x and y, you create two new sequences xx and yy (with appropriate length) and then post the following constraints:
+
+for (int i=0; i&lt;x.size(); i++) post(home, x[i] == element(xx,m+i))
+for (int i=0; i&lt;y.size(); i++) post(home, y[i] == element(yy,n+i))
+
+for (int i=0; i&lt;xx.size(); i++) post(home, xy[i] = x[i]+y[i]);
+
+If you need to constrain the &quot;empty&quot; positions to 0 (e.g. because your optimization function doesn't do that automatically), you can do that in addition:
+
+for (int i=0; i&lt;xx.size(); i++) post(home, (i &lt; m || i &gt; m+x.size()) &gt;&gt; xx[i]==0));
+for (int i=0; i&lt;yy.size(); i++) post(home, (i &lt; n || i &gt; n+y.size()) &gt;&gt; yy[i]==0));
+
+I didn't test the code, but I hope you get the idea.
+
+Christian's email just arrived - I think my solution is different in that the time series can be variables, which means you can't use regular.  I understand that correctly from your description?
+
+Cheers,
+Guido
+
+On 12 Oct 2011, at 10:57, Mathias Dalheimer wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> I'm having trouble expressing the following constraints: I have two
+</I>&gt;<i> IntVarArrays which contain short timeseries (i.e. consumption values for
+</I>&gt;<i> one hour, while the remaining hours of one day are empty/not
+</I>&gt;<i> constrained). The *position* of the constraints of the consumption can
+</I>&gt;<i> move within the day, this is governed by two IntVars (m, n) (which are
+</I>&gt;<i> my optimization goal, so the cost function is calculated depending on
+</I>&gt;<i> the position variables). The underlying question is where to place the
+</I>&gt;<i> consumption in order to optimize some cost function.
+</I>&gt;<i> 
+</I>&gt;<i> Now I have some other constraints that depend on the position m and n of
+</I>&gt;<i> the consumption. I need to sum the timeseries. So, as an example, I have
+</I>&gt;<i> something like this (. denotes no constraint):
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .   // n=8
+</I>&gt;<i> 
+</I>&gt;<i> Now my question: How do I encode a constraint that depends on the sum of
+</I>&gt;<i> these two IntVarArrays while m and n (the position) can change?
+</I>&gt;<i> 
+</I>&gt;<i> So, in the previous example, this would be:
+</I>&gt;<i> 
+</I>&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .   // n=8
+</I>&gt;<i> . . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+</I>&gt;<i> 
+</I>&gt;<i> In another example with different m and n:
+</I>&gt;<i> 
+</I>&gt;<i> 1 2 1 2 3 . . . . . . . . . . . .  // m=0
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .  // n=8
+</I>&gt;<i> 1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+</I>&gt;<i> 
+</I>&gt;<i> Different m's and n's are being evaluated and an optimal set of m and n
+</I>&gt;<i> is the result of the optimization.
+</I>&gt;<i> 
+</I>&gt;<i> Thanks for any pointers,
+</I>&gt;<i> -Mathias
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-- 
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003416.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+	<LI>Next message: <A HREF="003418.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3417">[ date ]</a>
+              <a href="thread.html#3417">[ thread ]</a>
+              <a href="subject.html#3417">[ subject ]</a>
+              <a href="author.html#3417">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

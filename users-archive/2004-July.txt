@@ -1,0 +1,1382 @@
+From tack at ps.uni-sb.de  Wed Jul  7 16:05:36 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 7 Jul 2004 16:05:36 +0200
+Subject: [Gecode] Namespaces
+Message-ID: <200407071605.36613.tack@ps.uni-sb.de>
+
+Hi.
+
+Attached to this mail you find a diagram showing a possible reorganization of 
+the namespaces in Gecode. This won't solve our problems with the API, though: 
+A Gecode user should see a special variable view (which doesn't allow posting 
+basic constraints or messing up the variable in any other way), propagator 
+post functions, and the usual Space interface. Gabor and I came to the 
+conclusion that, with our current design, we cannot really enforce this, the 
+user will always be able to mess things up if he really wants to. So the 
+namespaces will give a hint on which interfaces one should use and which one 
+shouldn't touch.
+
+Comments?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Namespace hierarchy.png
+Type: image/png
+Size: 70154 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20040707/ba6ddfd6/attachment.png>
+
+From tack at ps.uni-sb.de  Thu Jul  8 17:50:47 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 8 Jul 2004 17:50:47 +0200
+Subject: [Gecode] Domain
+Message-ID: <200407081750.47884.tack@ps.uni-sb.de>
+
+Hi!
+
+I've just registered the domains gecode.org and gecode.net for the next two 
+years ;-)
+
+I will set up the web server next week. So let's start documenting stuff and 
+put some web pages online!
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Mon Jul 12 14:58:42 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 12 Jul 2004 14:58:42 +0200
+Subject: [Gecode] Views break ModEvent-driven propagators
+In-Reply-To: <200406241059.03786.tack@ps.uni-sb.de>
+Message-ID: <000701c4680f$f5355dd0$acd4ed82@beule>
+
+Guido is absolutely right about that. The fix is that a view must be able to
+translate a VarModEvent to a potential ModEvent. For an example see the int
+stuff (as I am late Guido has also done it for the set stuff).
+
+The comment with uniform propagators is misleading. Please keep in mind that
+varmodevent information is always very weak as it makes a statement about
+all variables of the same type -- regardless of its view.
+
+By the way, a paper describing some ideas found in Gecode appears at CP 2004
+and is available here:
+
+http://www.imit.kth.se/~schulte/paper.html?id=SchulteStuckey:CP:2004
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Thursday, June 24, 2004 10:59 AM
+To: Technical Discussions about Gecode
+Subject: [Gecode] Views break ModEvent-driven propagators
+
+
+Hi!
+
+While implementing the selection constraints, I noticed a flaw in the
+current 
+design: If you have a parametric propagator, you can't use e.g. varmodevent 
+to find out why it was invoked, because the events there only correspond to 
+the core variable, not the view it's expecting. This could be solved by 
+having a conversion function in the view, but that will only work for
+uniform 
+propagators (only using variables of the same view type).
+Is there anything I missed? Are parametric propagators not supposed to
+inspect 
+the ModEvents?
+
+Guido
+
+P.S.: Christian, I don't want to disturb you during your holidays, I just 
+thought I'd post this so that I don't forget about it ;-)
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From schulte at imit.kth.se  Mon Jul 12 15:11:07 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 12 Jul 2004 15:11:07 +0200
+Subject: [Gecode] Namespaces
+In-Reply-To: <200407071605.36613.tack@ps.uni-sb.de>
+Message-ID: <000901c46811$b1625200$acd4ed82@beule>
+
+A good starting point. I have some comments though:
+
+- Is a namespace for the Kernel needed? I don't think so.
+- Iterators: I think the implementation for the rangelists proper should not
+be part of the generic iterators as it depends on the kernel (memory
+management!). So here should only go the iterator combinatoirs which are
+truly generic,
+- Views versus variables: here there are three different kinds
+	+ Variable Implementations (subcalss of Variable, currently called
+core)
+		We should call them Variable (for variable implementations)
+			Gecode::Int::Variable
+	+ Views
+		We should call them views, for example
+			Gecode::Int::View::Base
+			Gecode::Int::View::Constant
+			Gecode::Int::View::Offset
+			...
+	+ Modelling variables (currently and wrongly the same as views)
+			Maybe put them on the toplevel (under Gecode?)
+			Gecode::IntVar
+			Gecode::BoolVar
+			Gecode::SetVar
+- Similarly, also the arrays need reconsideration. We need to distinguish
+arrays used as
+	+ Arguments			Gecode::IntVarArgs
+					Gecode::BoolVarArgs
+					Gecode::IntArgs
+	+ Used in propagtors	Gecode::Int::ViewArray<View>
+	+ Used in models		Gecode::IntVarArray
+					Gecode::BoolVarArray
+					...
+
+
+Anything else?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, July 07, 2004 4:06 PM
+To: Technical Discussions about Gecode
+Subject: [Gecode] Namespaces
+
+
+Hi.
+
+Attached to this mail you find a diagram showing a possible reorganization
+of 
+the namespaces in Gecode. This won't solve our problems with the API,
+though: 
+A Gecode user should see a special variable view (which doesn't allow
+posting 
+basic constraints or messing up the variable in any other way), propagator 
+post functions, and the usual Space interface. Gabor and I came to the 
+conclusion that, with our current design, we cannot really enforce this, the
+
+user will always be able to mess things up if he really wants to. So the 
+namespaces will give a hint on which interfaces one should use and which one
+
+shouldn't touch.
+
+Comments?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 13 16:49:08 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 13 Jul 2004 16:49:08 +0200
+Subject: [Gecode] Distributors, batch recomputation
+Message-ID: <200407131649.08945.tack@ps.uni-sb.de>
+
+Hi!
+
+We've been thinking a bit about how distributors and batch recomputation, and 
+it seems to be not clear at all. So this is the invariant for batch 
+recomputation that Christian and I agreed on:
+
+* committing with branch descriptions has to be done in the same order in 
+which the descriptions were obtained from the space
+* if there's more than one distributor, before committing with a description 
+for distributor no. i+1, enough descriptions have to be committed to make 
+distributor no. i disappear (completeness)
+
+In the current implementation, after all descriptions for a certain 
+distributor have been comitted, a fixed point is computed to allow 
+propagators to dynamically create new distributors. This seems to be 
+incorrect: The creation of new distributors propably depends on the dynamic 
+state of the space, so it may make a big difference which commits are done 
+before and after the propagation! Arbitrarily propagating after one 
+distributor is finished is just as good or bad as only propagating when there 
+are no more active distributors. It seems that dynamically created 
+distributors just screw up batch recomputation, which is a shame. The way I'd 
+suggest to get around this problem is to mark certain branch descriptions 
+such that we know that before committing to them, we have to compute a fixed 
+point. The mark would have to be set when a new distributor is created by a 
+propagator, although I don't see at the moment where to check that.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Jul 14 11:18:00 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 14 Jul 2004 11:18:00 +0200
+Subject: [Gecode] Distributors, batch recomputation
+In-Reply-To: <200407131649.08945.tack@ps.uni-sb.de>
+Message-ID: <004f01c46983$7540cdb0$acd4ed82@beule>
+
+I follow your conclusions but I do not follow your concerns. In which way
+does branching creation depend on the state of the space? Could you please
+elaborate.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Tuesday, July 13, 2004 4:49 PM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] Distributors, batch recomputation
+
+
+Hi!
+
+We've been thinking a bit about how distributors and batch recomputation,
+and 
+it seems to be not clear at all. So this is the invariant for batch 
+recomputation that Christian and I agreed on:
+
+* committing with branch descriptions has to be done in the same order in 
+which the descriptions were obtained from the space
+* if there's more than one distributor, before committing with a description
+
+for distributor no. i+1, enough descriptions have to be committed to make 
+distributor no. i disappear (completeness)
+
+In the current implementation, after all descriptions for a certain 
+distributor have been comitted, a fixed point is computed to allow 
+propagators to dynamically create new distributors. This seems to be 
+incorrect: The creation of new distributors propably depends on the dynamic 
+state of the space, so it may make a big difference which commits are done 
+before and after the propagation! Arbitrarily propagating after one 
+distributor is finished is just as good or bad as only propagating when
+there 
+are no more active distributors. It seems that dynamically created 
+distributors just screw up batch recomputation, which is a shame. The way
+I'd 
+suggest to get around this problem is to mark certain branch descriptions 
+such that we know that before committing to them, we have to compute a fixed
+
+point. The mark would have to be set when a new distributor is created by a 
+propagator, although I don't see at the moment where to check that.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Wed Jul 14 11:45:07 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 14 Jul 2004 11:45:07 +0200
+Subject: [Gecode] Distributors, batch recomputation
+In-Reply-To: <004f01c46983$7540cdb0$acd4ed82@beule>
+References: <004f01c46983$7540cdb0$acd4ed82@beule>
+Message-ID: <200407141145.07630.tack@ps.uni-sb.de>
+
+Am Mittwoch, 14. Juli 2004 11:18 schrieb Christian Schulte:
+> I follow your conclusions but I do not follow your concerns. In which way
+> does branching creation depend on the state of the space? Could you please
+> elaborate.
+
+Maybe I haven't really understood the way distributors are created 
+dynamically, but this is what I have in mind:
+
+The Int::Combinators::Select propagator waits for an int variable to be 
+assigned and then e.g. creates a new distributor. Assume the following setup:
+
+intvar a,b
+select(create new distributor 1, b)
+select(create new distributor 2, a)
+distribute naive [a,b]
+
+Now without recomputation, you would probably create the new distributors in 
+the order 2,1, because a gets determined by distribution before b. In batch 
+recomputation, however, you do both distribution steps, determining a and b, 
+before propagation. Now I guess that the selection propagator waiting for b 
+will be invoked first (or at least I don't see why it shouldn't be ;-), so 
+the order in which the new distributors are created is 1,2. This will mess up 
+the later steps in batch recomputation, because we will try to commit to 
+descriptions in the original order.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Jul 14 11:49:37 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 14 Jul 2004 11:49:37 +0200
+Subject: [Gecode] Distributors, batch recomputation
+In-Reply-To: <200407141145.07630.tack@ps.uni-sb.de>
+Message-ID: <005301c46987$e04c3a50$acd4ed82@beule>
+
+Your scenario is of course a desaster for recomputation. However, it is also
+a desaster for non-recomputation: the addition of further constraints can
+break it anyway (anyt constraint on either a or b will do). So it's boned
+anyway.
+
+But what is clear is that I have to come up with an invariant that describes
+hwat are you allowed to do when you want to use recomputation. A simple
+restriction (the same as used in Oz) is to restrict us to the case that
+there is only one branching to be created at any time. That will do.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, July 14, 2004 11:45 AM
+To: Technical discussions about Gecode
+Subject: Re: [Gecode] Distributors, batch recomputation
+
+
+Am Mittwoch, 14. Juli 2004 11:18 schrieb Christian Schulte:
+> I follow your conclusions but I do not follow your concerns. In which 
+> way does branching creation depend on the state of the space? Could 
+> you please elaborate.
+
+Maybe I haven't really understood the way distributors are created 
+dynamically, but this is what I have in mind:
+
+The Int::Combinators::Select propagator waits for an int variable to be 
+assigned and then e.g. creates a new distributor. Assume the following
+setup:
+
+intvar a,b
+select(create new distributor 1, b)
+select(create new distributor 2, a)
+distribute naive [a,b]
+
+Now without recomputation, you would probably create the new distributors in
+
+the order 2,1, because a gets determined by distribution before b. In batch 
+recomputation, however, you do both distribution steps, determining a and b,
+
+before propagation. Now I guess that the selection propagator waiting for b 
+will be invoked first (or at least I don't see why it shouldn't be ;-), so 
+the order in which the new distributors are created is 1,2. This will mess
+up 
+the later steps in batch recomputation, because we will try to commit to 
+descriptions in the original order.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Wed Jul 14 11:58:30 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 14 Jul 2004 11:58:30 +0200
+Subject: [Gecode] Distributors, batch recomputation
+In-Reply-To: <005301c46987$e04c3a50$acd4ed82@beule>
+References: <005301c46987$e04c3a50$acd4ed82@beule>
+Message-ID: <200407141158.30651.tack@ps.uni-sb.de>
+
+Am Mittwoch, 14. Juli 2004 11:49 schrieb Christian Schulte:
+> Your scenario is of course a desaster for recomputation. However, it is
+> also a desaster for non-recomputation: the addition of further constraints
+> can break it anyway (anyt constraint on either a or b will do). So it's
+> boned anyway.
+>
+> But what is clear is that I have to come up with an invariant that
+> describes hwat are you allowed to do when you want to use recomputation. A
+> simple restriction (the same as used in Oz) is to restrict us to the case
+> that there is only one branching to be created at any time. That will do.
+
+Ok, so I just overestimated the power of Combinators::Selection ;-) Wouldn't 
+it in this case be enough to propagate only when there are no more active 
+distributors? Maybe it's not so important at the moment, we should just 
+remember that we have to think about all this again.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Thu Jul 15 18:05:14 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 15 Jul 2004 18:05:14 +0200
+Subject: [Gecode] Operations on iterators
+Message-ID: <007901c46a85$843f44b0$acd4ed82@beule>
+
+In iter/ranges-operations.hh are some operations on iterators such as
+computing the size, testing for equality, subset, disjointness and so on.
+
+I saw that these operations are actually needed for the set stuff, however
+there you have hilarious and inefficient variants of testing for subset and
+disjointness by using intersection or difference.
+
+Please fix that (and check whether the operations are actually ok) and
+please remove all the stuff from iter-basic.hh that is not longer needed
+there.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Thu Jul 15 22:46:08 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 15 Jul 2004 22:46:08 +0200
+Subject: [Gecode] Some more set quirks...
+Message-ID: <007a01c46aac$c17e1000$acd4ed82@beule>
+
+As I moved almost all iterators to their right place, I happened to notice
+some other things:
+ 
+ - What used to be SeqUN is now called NaryAppend (as that's what it is
+doing). In the process of moving the authorship info got lost. The author
+might want to add himself to the header.
+ - What used to be COnstRange is now called Singleton (as that's hwat it
+is). The old implementation was buggy in case the singleton was actually
+empty!
+ - I noticed that sometimes set difference is expressed in terms of
+complement and intersection. Aargh. Use the Iter::Ranges::Diff instead!
+ - The only thing to be moved is complement. I can do that provided some
+kind soul has a look at its width method as it appears to be errourneous. 
+
+That's all
+Christian 
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Fri Jul 16 14:51:43 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 16 Jul 2004 14:51:43 +0200
+Subject: [Gecode] Another abstraction sets...
+Message-ID: <000001c46b33$a59a1820$acd4ed82@beule>
+
+...how about having card() (or size() as it is called for integers). A look
+to branch.cc makes it obvious.
+
+You really have to constantly ask yourself: have I written a similar piece
+of code before? maybe even three times? Then it ought to become an
+abstraction. 
+
+Computer science is the science of abstraction!
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Fri Jul 16 15:30:50 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 16 Jul 2004 15:30:50 +0200
+Subject: [Gecode] Simplified commit 
+Message-ID: <000101c46b39$1c79f8c0$acd4ed82@beule>
+
+The simplification takes into account that the preferred way to do search in
+Gecode is based on batch recomputation.
+
+A branching now only requires a commit(int,BranchDesc*) virtual member
+function. This member function must be prepared to be called with NULL as
+BranchDesc in which case commiting has to be driven by information taken
+from the branching.
+
+All code has been adapted (I also made branching for sets more incremental).
+
+Christian 
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From szokoli at ps.uni-sb.de  Fri Jul 16 16:09:12 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Fri, 16 Jul 2004 16:09:12 +0200
+Subject: [Gecode] Another abstraction sets...
+In-Reply-To: <000001c46b33$a59a1820$acd4ed82@beule>
+References: <000001c46b33$a59a1820$acd4ed82@beule>
+Message-ID: <40F7E188.9040703@ps.uni-sb.de>
+
+Christian Schulte wrote:
+
+>...how about having card() (or size() as it is called for integers). A look
+>to branch.cc makes it obvious.
+>  
+>
+Hello!
+
+We used to have methods for accessing the "unknown" set as an iterator, 
+upper minus lower bound, but we only needed it in the distributors, so 
+it became a victim of interface unbloating.
+
+Getting its size was of course uboptimal, as it equals ubSize()-lbSize().
+I fixed only this now.
+
+Gabor Szokoli
+
+
+From schulte at imit.kth.se  Fri Jul 16 17:05:53 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 16 Jul 2004 17:05:53 +0200
+Subject: [Gecode] Another abstraction sets...
+In-Reply-To: <40F7E188.9040703@ps.uni-sb.de>
+Message-ID: <000301c46b46$63b5d440$acd4ed82@beule>
+
+I have to admit that I do not subscribe to this reasoning: if there is
+anything that will be extended first by user of Gecode it will be a new
+branching. So providing some functionality for programming distributors
+easily might be a good idea.
+
+But in the end it is of course a matter of taste.
+
+What is not a matter of taste is unrollinh the code for computing unknown
+over and over again with branching. Put it into an abstraction.
+
+The style for implementing branchings needs revision, I just took the
+stuffer over from Mozart. To ease adding new stuff I think that using
+templates is a good idea. I will do it for ints anytime soon.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Gabor Szokoli [mailto:szokoli at ps.uni-sb.de] 
+Sent: Friday, July 16, 2004 4:09 PM
+To: schulte at imit.kth.se; Technical discussions about Gecode
+Subject: Re: [Gecode] Another abstraction sets...
+
+
+Christian Schulte wrote:
+
+>...how about having card() (or size() as it is called for integers). A 
+>look to branch.cc makes it obvious.
+>  
+>
+Hello!
+
+We used to have methods for accessing the "unknown" set as an iterator, 
+upper minus lower bound, but we only needed it in the distributors, so 
+it became a victim of interface unbloating.
+
+Getting its size was of course uboptimal, as it equals ubSize()-lbSize(). I
+fixed only this now.
+
+Gabor Szokoli
+
+
+
+From szokoli at ps.uni-sb.de  Fri Jul 16 20:30:03 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Fri, 16 Jul 2004 20:30:03 +0200
+Subject: [Gecode] Another abstraction sets...
+In-Reply-To: <000301c46b46$63b5d440$acd4ed82@beule>
+References: <000301c46b46$63b5d440$acd4ed82@beule>
+Message-ID: <40F81EAB.6090101@ps.uni-sb.de>
+
+Christian Schulte wrote:
+
+>I have to admit that I do not subscribe to this reasoning: if there is
+>anything that will be extended first by user of Gecode it will be a new
+>branching. So providing some functionality for programming distributors
+>easily might be a good idea.
+>
+>  
+>
+Done.
+(Took a while to give up on figuring out superclass- and member element 
+construtor execution order and just work around the issue)
+
+If we want to make distributor programming easy, we also need a reversed 
+unknown iterator (needs a reversed difference), and a forward and a 
+backward "nth element of an interator" operation exposed.
+(we have something like the last two already but tied to rangelists 
+directly)
+
+
+Gabor
+
+
+From tack at ps.uni-sb.de  Mon Jul 26 15:58:44 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 26 Jul 2004 15:58:44 +0200
+Subject: [Gecode] Moving the CVS
+Message-ID: <200407261558.44918.tack@ps.uni-sb.de>
+
+Hi everyone.
+
+I would suggest moving our CVS from /services/ps/CVS to /services/gecode/CVS. 
+This will give us better permission control and a nicer directory structure. 
+And, in addition, we can use cvs.gecode.org:/services/gecode/CVS as the 
+root ;-)
+
+For the web server, Christian suggested to put all the web pages into CVS, so 
+that we just have to do a CVS update to "upload" any changes. I think this is 
+a good idea, and I would propose to add another toplevel module gecode-web. 
+Would it make sense to have a shell script that is, say, "suid tack", which 
+updates the CVS in apache's html root? That way, all directories and files 
+would automatically get coherent permissions.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Tue Jul 27 12:30:40 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 12:30:40 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <200407261558.44918.tack@ps.uni-sb.de>
+Message-ID: <001a01c473c4$c38b3140$acd4ed82@beule>
+
+Good idea, maybe I can add some more comments:
+ - The root is good
+ - For the web I propose the module www as directory
+ - For the system I propose gecode
+ - Then we should move stuff such as benchmarks and doc out of the gecode
+directory
+ - The upload to the webserver should be done by a script only (going to
+grizzly, doing the cvs up, and also the proper permissions). The idea is
+that nobody ever goes there but the script.
+ - All webpages should be done using php from the start
+ - The webpages hsould clearly reflect general information and version
+specific information (one of the mistakes we did with Mozart)
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Monday, July 26, 2004 3:59 PM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] Moving the CVS
+
+
+Hi everyone.
+
+I would suggest moving our CVS from /services/ps/CVS to
+/services/gecode/CVS. 
+This will give us better permission control and a nicer directory structure.
+
+And, in addition, we can use cvs.gecode.org:/services/gecode/CVS as the 
+root ;-)
+
+For the web server, Christian suggested to put all the web pages into CVS,
+so 
+that we just have to do a CVS update to "upload" any changes. I think this
+is 
+a good idea, and I would propose to add another toplevel module gecode-web. 
+Would it make sense to have a shell script that is, say, "suid tack", which 
+updates the CVS in apache's html root? That way, all directories and files 
+would automatically get coherent permissions.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From schulte at imit.kth.se  Tue Jul 27 12:32:29 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 12:32:29 +0200
+Subject: [Gecode] Another abstraction sets...
+In-Reply-To: <40F81EAB.6090101@ps.uni-sb.de>
+Message-ID: <001b01c473c5$0479cfe0$acd4ed82@beule>
+
+One thing that occurred to me about this particular iterator is that one
+could have a generic backwards iterator (using the same idea as a cache) and
+specialize for rangelists to a more efficient implementation.
+
+I intend to do the same for Minus (which actually needs to reverse as well).
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Gabor Szokoli
+Sent: Friday, July 16, 2004 8:30 PM
+To: 'Technical discussions about Gecode'
+Subject: Re: [Gecode] Another abstraction sets...
+
+
+Christian Schulte wrote:
+
+>I have to admit that I do not subscribe to this reasoning: if there is 
+>anything that will be extended first by user of Gecode it will be a new 
+>branching. So providing some functionality for programming distributors 
+>easily might be a good idea.
+>
+>  
+>
+Done.
+(Took a while to give up on figuring out superclass- and member element 
+construtor execution order and just work around the issue)
+
+If we want to make distributor programming easy, we also need a reversed 
+unknown iterator (needs a reversed difference), and a forward and a 
+backward "nth element of an interator" operation exposed.
+(we have something like the last two already but tied to rangelists 
+directly)
+
+
+Gabor
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 27 13:51:11 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 27 Jul 2004 13:51:11 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <001a01c473c4$c38b3140$acd4ed82@beule>
+References: <001a01c473c4$c38b3140$acd4ed82@beule>
+Message-ID: <200407271351.11377.tack@ps.uni-sb.de>
+
+Christian Schulte wrote:
+> Good idea, maybe I can add some more comments:
+>  - The root is good
+>  - For the web I propose the module www as directory
+>  - For the system I propose gecode
+>  - Then we should move stuff such as benchmarks and doc out of the gecode
+> directory
+>  - The upload to the webserver should be done by a script only (going to
+> grizzly, doing the cvs up, and also the proper permissions). The idea is
+> that nobody ever goes there but the script.
+
+Actually, it shouldn't go to grizzly but www.gecode.org ;-)
+
+>  - All webpages should be done using php from the start
+>  - The webpages hsould clearly reflect general information and version
+> specific information (one of the mistakes we did with Mozart)
+
+Yes, I completely agree. I have set up the new CVS. Please check in everything 
+you have in your local copies and tell me when you're ready so that I can do 
+the move - unless it's so much that we should wait another week ;-)
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Tue Jul 27 14:14:29 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 14:14:29 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <200407271351.11377.tack@ps.uni-sb.de>
+Message-ID: <001c01c473d3$4436eb00$acd4ed82@beule>
+
+I am all in the clear, just fire and tell us when you are done. Could you
+please call me again? Somehow I can't call you back... Maybe our telephony
+services are down.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Tuesday, July 27, 2004 1:51 PM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Moving the CVS
+
+
+Christian Schulte wrote:
+> Good idea, maybe I can add some more comments:
+>  - The root is good
+>  - For the web I propose the module www as directory
+>  - For the system I propose gecode
+>  - Then we should move stuff such as benchmarks and doc out of the 
+> gecode directory
+>  - The upload to the webserver should be done by a script only (going 
+> to grizzly, doing the cvs up, and also the proper permissions). The 
+> idea is that nobody ever goes there but the script.
+
+Actually, it shouldn't go to grizzly but www.gecode.org ;-)
+
+>  - All webpages should be done using php from the start
+>  - The webpages hsould clearly reflect general information and version 
+> specific information (one of the mistakes we did with Mozart)
+
+Yes, I completely agree. I have set up the new CVS. Please check in
+everything 
+you have in your local copies and tell me when you're ready so that I can do
+
+the move - unless it's so much that we should wait another week ;-)
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 27 15:15:43 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 27 Jul 2004 15:15:43 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <001c01c473d3$4436eb00$acd4ed82@beule>
+References: <001c01c473d3$4436eb00$acd4ed82@beule>
+Message-ID: <200407271515.43537.tack@ps.uni-sb.de>
+
+Am Dienstag, 27. Juli 2004 14:14 schrieb Christian Schulte:
+> I am all in the clear, just fire and tell us when you are done.
+
+Done.
+The new CVS root is
+cvs.gecode.org:/services/gecode/CVS
+
+The sources are in the gecode module, an index.html is in the web module ;-)
+
+I hope all went well - Of course I haven't removed the old CVS yet. Please try 
+out the new one and tell me if everything is ok.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Tue Jul 27 15:16:47 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 27 Jul 2004 15:16:47 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <200407271515.43537.tack@ps.uni-sb.de>
+References: <001c01c473d3$4436eb00$acd4ed82@beule>
+	<200407271515.43537.tack@ps.uni-sb.de>
+Message-ID: <200407271516.47317.tack@ps.uni-sb.de>
+
+> The sources are in the gecode module, an index.html is in the web module
+> ;-)
+
+Sorry, it's of course the www module, as Christian suggested.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Tue Jul 27 15:17:43 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 15:17:43 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <200407271516.47317.tack@ps.uni-sb.de>
+Message-ID: <003601c473dc$199b1610$acd4ed82@beule>
+
+Works fine for me!
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Tuesday, July 27, 2004 3:17 PM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Moving the CVS
+
+
+> The sources are in the gecode module, an index.html is in the web 
+> module
+> ;-)
+
+Sorry, it's of course the www module, as Christian suggested.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From schulte at imit.kth.se  Tue Jul 27 15:30:43 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 15:30:43 +0200
+Subject: [Gecode] RE: Gecode request.
+In-Reply-To: <000001c46c0f$ed65af70$5d8ce282@domain.itu.dk>
+Message-ID: <003901c473dd$ea9b00d0$acd4ed82@beule>
+
+Hi Sathi,
+ 
+in principle, it is absolutely possible for you to get the library, the only
+thing we have to do before we can hand it out is attaching a license to it
+(this will be a free license anyway).
+ 
+However, we are currently in the process of making everything ready for a
+first formal release (planned to be at the beginning of october). That means
+that the design of the library is almost finished (a part from quirk
+removal). The interface for users such as you will undergo some heavy
+revision though. Another thing that is almost not there (a part from
+examples) is reasonable documentation.
+ 
+As said, of course you can get the library but for you it would be better if
+you could wait a little bit (unless you are willing to endure some hardship
+;-)).
+ 
+Please allow me to also address your second question about constructive
+disjunction: Gecode does not support constructive disjunction. In a second
+development step, the goal will be to provide very powerful constraint
+combination mechanisms (inspired by my PhD work). There, constructive
+disjunction will be one part of it. 
+ 
+You did you come across Gecode anyway? Would you be willing to be abused by
+us as Guinea pig?
+ 
+Cheers and thanks for your interest!
+Christian
+ 
+PS: Keep on checking www.gecode.org...
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Sathi [mailto:sathi at itu.dk] 
+Sent: Saturday, July 17, 2004 5:09 PM
+To: schulte at imit.kth.se
+Subject: Gecode request.
+
+
+
+Dear Christian Schulte,
+
+ 
+
+My research group here at IT-University of Copenhagen is working on
+Configuration Systems.
+
+We would like to design a configurator based on Gecode and compare its
+performance with a BDD based Configurator Library being developed in my
+group.
+
+ 
+
+Is it possible for me to get Gecode Library now?
+
+We would like to have it as soon as possible
+
+ 
+
+Thanks,
+
+Sathi
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20040727/1a0315b8/attachment.htm>
+
+From schulte at imit.kth.se  Tue Jul 27 15:37:25 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 27 Jul 2004 15:37:25 +0200
+Subject: [Gecode] Moved out benchmarks and doc to separate CVS modules
+Message-ID: <003e01c473de$da1f8810$acd4ed82@beule>
+
+The subject says it all.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From duchier at ps.uni-sb.de  Tue Jul 27 15:57:35 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Tue, 27 Jul 2004 15:57:35 +0200
+Subject: [Gecode] Moving the CVS
+In-Reply-To: <003601c473dc$199b1610$acd4ed82@beule> (Christian Schulte's
+	message of "Tue, 27 Jul 2004 15:17:43 +0200")
+References: <003601c473dc$199b1610$acd4ed82@beule>
+Message-ID: <87fz7deenk.fsf@tdg.loria.fr>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> Works fine for me!
+
+for me too
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+http://www.loria.fr/~duchier/           AIM: duchierdenys
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 27 17:32:03 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 27 Jul 2004 17:32:03 +0200
+Subject: [Gecode] Removed old CVS
+Message-ID: <200407271732.03532.tack@ps.uni-sb.de>
+
+I have now removed the old CVS tree. The log messages still go to the ps.cvs 
+news group, I don't know if we should add a gecode.cvs news group or archive 
+the messages in any other way.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From duchier at ps.uni-sb.de  Tue Jul 27 21:15:25 2004
+From: duchier at ps.uni-sb.de (Denys Duchier)
+Date: Tue, 27 Jul 2004 21:15:25 +0200
+Subject: [Gecode] Removed old CVS
+In-Reply-To: <200407271732.03532.tack@ps.uni-sb.de> (Guido Tack's message of
+	"Tue, 27 Jul 2004 17:32:03 +0200")
+References: <200407271732.03532.tack@ps.uni-sb.de>
+Message-ID: <86n01lxnw2.fsf@speedy.ps.uni-sb.de>
+
+Guido Tack <tack at ps.uni-sb.de> writes:
+
+> I have now removed the old CVS tree. The log messages still go to the ps.cvs 
+> news group, I don't know if we should add a gecode.cvs news group or archive 
+> the messages in any other way.
+
+I am in favor of a gecode.cvs group.  The gecode abstract
+infrastructure should be factored out separately from the ps lab's
+(eventhough it is currently concretely realized and hosted on ps lab
+facilities).
+
+Cheers,
+
+-- 
+Dr. Denys Duchier - ?quipe Calligramme - LORIA, Nancy, FRANCE
+AIM: duchierdenys
+
+
+
+From schulte at imit.kth.se  Wed Jul 28 10:46:42 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 28 Jul 2004 10:46:42 +0200
+Subject: [Gecode] Removed old CVS
+In-Reply-To: <86n01lxnw2.fsf@speedy.ps.uni-sb.de>
+Message-ID: <004201c4747f$6816cd90$acd4ed82@beule>
+
+I very much agree with Denys. Let's collect them in a group different from
+the ps group.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Denys Duchier
+Sent: Tuesday, July 27, 2004 9:15 PM
+To: Technical discussions about Gecode
+Subject: Re: [Gecode] Removed old CVS
+
+
+Guido Tack <tack at ps.uni-sb.de> writes:
+
+> I have now removed the old CVS tree. The log messages still go to the 
+> ps.cvs
+> news group, I don't know if we should add a gecode.cvs news group or
+archive 
+> the messages in any other way.
+
+I am in favor of a gecode.cvs group.  The gecode abstract infrastructure
+should be factored out separately from the ps lab's (eventhough it is
+currently concretely realized and hosted on ps lab facilities).
+
+Cheers,
+
+-- 
+Dr. Denys Duchier - ?quipe Calligramme - LORIA, Nancy, FRANCE
+AIM: duchierdenys
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Wed Jul 28 11:36:33 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 28 Jul 2004 11:36:33 +0200
+Subject: [Gecode] Removed old CVS
+In-Reply-To: <004201c4747f$6816cd90$acd4ed82@beule>
+References: <004201c4747f$6816cd90$acd4ed82@beule>
+Message-ID: <200407281136.33271.tack@ps.uni-sb.de>
+
+> I very much agree with Denys. Let's collect them in a group different from
+> the ps group.
+>
+> Christian
+
+We could use a mailing list instead. It requires less maintenance as long as 
+gecode.cvs stays the only news group, and we'd have a web archive.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Wed Jul 28 11:41:25 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 28 Jul 2004 11:41:25 +0200
+Subject: [Gecode] First draft of a logo
+Message-ID: <200407281141.25647.tack@ps.uni-sb.de>
+
+Hi!
+
+Please have a look at
+http://www.gecode.org/gecode-logo-mkgt/
+
+It's a draft of a logo for gecode that Marco and I did - a green node.
+
+What do you think?
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Jul 28 12:12:24 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 28 Jul 2004 12:12:24 +0200
+Subject: [Gecode] Removed old CVS
+In-Reply-To: <200407281136.33271.tack@ps.uni-sb.de>
+Message-ID: <004301c4748b$608a77a0$acd4ed82@beule>
+
+Mailing list is also fine by me.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, July 28, 2004 11:37 AM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Removed old CVS
+
+
+> I very much agree with Denys. Let's collect them in a group different 
+> from the ps group.
+>
+> Christian
+
+We could use a mailing list instead. It requires less maintenance as long as
+
+gecode.cvs stays the only news group, and we'd have a web archive.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From schulte at imit.kth.se  Wed Jul 28 12:13:42 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 28 Jul 2004 12:13:42 +0200
+Subject: [Gecode] First draft of a logo
+In-Reply-To: <200407281141.25647.tack@ps.uni-sb.de>
+Message-ID: <004401c4748b$8f4d71f0$acd4ed82@beule>
+
+Looks nice, although its tilted shape might make placing on websites
+difficult...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, July 28, 2004 11:41 AM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] First draft of a logo
+
+
+Hi!
+
+Please have a look at
+http://www.gecode.org/gecode-logo-mkgt/
+
+It's a draft of a logo for gecode that Marco and I did - a green node.
+
+What do you think?
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From duchier at ps.uni-sb.de  Wed Jul 28 14:50:23 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Wed, 28 Jul 2004 14:50:23 +0200
+Subject: [Gecode] First draft of a logo
+In-Reply-To: <200407281141.25647.tack@ps.uni-sb.de> (Guido Tack's message of
+	"Wed, 28 Jul 2004 11:41:25 +0200")
+References: <200407281141.25647.tack@ps.uni-sb.de>
+Message-ID: <87r7qw8fe8.fsf@tdg.loria.fr>
+
+Guido Tack <tack at ps.uni-sb.de> writes:
+
+> It's a draft of a logo for gecode that Marco and I did - a green node.
+>
+> What do you think?
+
+I think it is difficult to do an attractive web page design in green.
+SuSE valiantly attempts it, but I do not find their pages uplifting
+or engaging, rather a bit sad.  But maybe it's just me.
+
+Cheers,
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+http://www.loria.fr/~duchier/           AIM: duchierdenys
+
+
+
+
+From kuhlmann at ps.uni-sb.de  Fri Jul 30 16:35:48 2004
+From: kuhlmann at ps.uni-sb.de (Marco Kuhlmann)
+Date: Fri, 30 Jul 2004 16:35:48 +0200
+Subject: [Gecode] Another suggestion for a logo
+Message-ID: <BF9198A8-E235-11D8-BF2C-000A95E52F26@ps.uni-sb.de>
+
+     Hey guys,
+
+I put together a second suggestion for a logo.  Have a look at
+
+http://www.gecode.org/gecode-logo-mkgt/
+
+and let me think how you like it.  (The anti-aliasing didn't go too 
+well actually, but I hope it's good enough to get the message across.)
+
+     - Marco
+
+
+

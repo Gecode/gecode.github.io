@@ -1,0 +1,321 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Computing Variable Domains
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Computing%20Variable%20Domains&In-Reply-To=%3C006c01cd79f5%2480915910%2481b40b30%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003672.html">
+   <LINK REL="Next"  HREF="003674.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Computing Variable Domains</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Computing%20Variable%20Domains&In-Reply-To=%3C006c01cd79f5%2480915910%2481b40b30%24%40se%3E"
+       TITLE="[gecode-users] Computing Variable Domains">cschulte at kth.se
+       </A><BR>
+    <I>Tue Aug 14 10:19:18 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003672.html">[gecode-users] Computing Variable Domains
+</A></li>
+        <LI>Next message: <A HREF="003674.html">[gecode-users] Removing propagators from a Space
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3673">[ date ]</a>
+              <a href="thread.html#3673">[ thread ]</a>
+              <a href="subject.html#3673">[ subject ]</a>
+              <a href="author.html#3673">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>I think Guido's proposal is a very good one: just reasonable bounds. Here,
+reasonable means that the only thing you have to get right is to come up
+with bounds for linear constraints. The other constraints do not suffer that
+easily from arithmetic overflow.
+
+ 
+
+Keep it simple!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 14, 2012 9:34 AM
+To: Guido Tack
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Computing Variable Domains
+
+ 
+
+OK, i see.
+This was indeed the thing i wanted to do.
+I had some bad experiences with posting propagators on unrestricted
+variables.
+Given that my supports has a declarative language for the description of the
+constraints, no domain is given as input.
+That why i wanted to compute one.
+But i will now leave it with a simple bound computation using
+boost::numeric::interval.
+
+Thanks a lot,
+Max
+
+On 08/14/2012 06:52 AM, Guido Tack wrote: 
+
+Sorry but I'm not sure I understand what you're trying to do.  Are you
+trying to precompute bounds on the domains of a and b given that there is a
+constraint a+b=c in your model?  We don't have specialised iterators for
+that kind of computation, and just running propagation (i.e. calling status
+once) will give you the same result.  You should only restrict the variables
+to reasonable initial domains (i.e., use some easy to compute upper and
+lower bounds). But you don't have to do the propagators' job.
+
+ 
+
+Cheers, 
+
+Guido
+
+ 
+
+On 13/08/2012, at 8:57 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+
+
+
+
+Thank you very much for the fast answer.
+I tried to play around with them but still face a lot of problems.
+
+In the documentation
+<A HREF="http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html">http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html</A> it
+is written that
+&quot;Iterators with virtual member functions have to be used when they are
+combined dynamically ...&quot;
+The only base class i found is MinMax.
+
+So how can i use the iterator dynamically.
+In the given example i have to know the type of the iterator used before.
+(To build the intersection of two Singletons for example)
+But if i want to build the intersection of two &quot;domains&quot; which could have
+been constructed in various ways (for example recursively),
+i need to have a general Base Type, right ?
+Is the Iter::Ranges thing still the right thing to use or is there something
+else.
+
+Also i found only iterators for union/intersection etc...
+Given that you want to add two variables a and b with known domain (stored
+in a RangeList?), how do you compute the domain of the result.
+Is there any functionality for this or do i have to iterate through both
+lists of ranges and add them together to form a new list.
+
+
+I hope i made things clear, if not please ask.
+
+
+Best,
+Max
+
+
+On 08/10/2012 06:44 AM, Guido Tack wrote: 
+
+Hi, 
+
+ 
+
+here's some code that will do what you want:
+
+ 
+
+      Iter::Ranges::Singleton si00(6,Int::Limits::max);
+
+      Iter::Ranges::Singleton si10(Int::Limits::min,9);
+
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; 
+
+        inter0(si00,si10);
+
+ 
+
+      Iter::Ranges::Singleton si01(101,Int::Limits::max);
+
+      Iter::Ranges::Singleton si11(Int::Limits::min,104);
+
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; 
+
+        inter1(si01,si11);
+
+ 
+
+      Iter::Ranges::Union&lt;
+
+ 
+Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+
+        Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+&gt;<i> 
+</I>
+        u(inter0,inter1);
+
+ 
+
+      IntVar a(*this,IntSet(u));
+
+ 
+
+You can also use the n-ary variants of the iterators if you need to compute
+a union or intersection of more than two sets.
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+
+
+
+
+Sorry for reposting an old question. I'm just cleaning up my code and
+noticed that i still not managed to use gecode's functionality to precompute
+domains of IntVar.
+So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+I want to precompute the domain of &quot;a&quot;.
+I'm simply not able to find out how the Ranges iterators are used.
+How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+How do i create the intersection of both.
+And finally how to set the domain of IntVar x to this range then.
+
+
+I tried to grep the gecode code and the examples but was not able to find
+any.
+
+Sorry again for reposting this, i'm ashamed.
+
+Best,
+Max
+
+
+
+
+
+
+The best is to look for examples in the code ;-) Just grep for it.
+
+MinMax is nothing but a base-class for other classes and cannot be used 
+directly. Look for the iterators that take arrays as input, they will do
+what 
+you want.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+&lt;<A HREF="http://web.it.kth.se/%7Ecschulte/">http://web.it.kth.se/%7Ecschulte/</A>&gt; 
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On Behalf
+Of 
+Max Ostrowski
+Sent: Thursday, July 21, 2011 10:49 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Computing Variable Domains (Integer)
+
+Hello everybody,
+
+as variables in gecode need to have a domain, i want to compute the domain
+of 
+the variables automatically, given the constraints.
+I could also let the constraints restrict the domains of my variables, but
+as i 
+understood, this is similar to propagation and could take some time.
+There i want to restrict the domain manually for all unary constraints.
+So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+the domain should be {6..9,101..104}.
+Therefore i wanted to use some Gecode classes to compute the 
+intersection/union/complement etc.. of the sets.
+Am i right that i can use the Int::Iter::Ranges classes for this?
+And second, how do they work?
+So in this case, i would create a 
+
+IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+
+And them somehow the intersection of this.
+But i was neither able to initialize a set with a Range, nor to combine
+Ranges 
+recursively.
+
+So, how do i do this using the helping classes of gecode.
+
+Best,
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+ 
+
+ 
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120814/e57e3806/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120814/e57e3806/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003672.html">[gecode-users] Computing Variable Domains
+</A></li>
+	<LI>Next message: <A HREF="003674.html">[gecode-users] Removing propagators from a Space
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3673">[ date ]</a>
+              <a href="thread.html#3673">[ thread ]</a>
+              <a href="subject.html#3673">[ subject ]</a>
+              <a href="author.html#3673">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

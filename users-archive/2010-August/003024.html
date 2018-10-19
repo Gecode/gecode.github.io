@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Branching allowing values back in the domain
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Branching%20allowing%20values%20back%20in%20the%20domain&In-Reply-To=%3CB0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30%40HVXMSP1.us.lmco.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003023.html">
+   <LINK REL="Next"  HREF="003025.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Branching allowing values back in the domain</H1>
+    <B>Zaremby, David</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Branching%20allowing%20values%20back%20in%20the%20domain&In-Reply-To=%3CB0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30%40HVXMSP1.us.lmco.com%3E"
+       TITLE="[gecode-users] Branching allowing values back in the domain">david.zaremby at lmco.com
+       </A><BR>
+    <I>Wed Aug 25 15:28:08 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003023.html">[gecode-users] reified domain constraints failing for empty	domains
+</A></li>
+        <LI>Next message: <A HREF="003025.html">[gecode-users] Branching allowing values back in the domain
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3024">[ date ]</a>
+              <a href="thread.html#3024">[ thread ]</a>
+              <a href="subject.html#3024">[ subject ]</a>
+              <a href="author.html#3024">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Gecoders,
+
+
+I have a problem where I am doing scheduling of tasks. We need to be able to create conditional gaps between types of tasks. To do this &quot;better&quot; we have a custom propagator that will create gaps between events. When I implement this using relational operations everything seems to work fine however when I use my propagator I am getting some odd behavior with respect to the start time branching.  Here are the details.
+
+When I run using the built in relational operations for my constraint like the one below everything works fine. The first tree that I navigate down leads me to a valid solution without any start time branching because of failures. I verified this in gist as well. I would expect this because propagation should occur and not allow an invalid start time to be in the domain when picking start time. I do have my computation distances very large so it should be doing full recomputation. I am using this brancher for start times: branch(*this, starts, INT_VAR_MIN_MIN, INT_VAL_MIN);
+
+Constraint:          rel(scheduler, ((sameResource &gt;&gt; ((start1 + offset1 &lt;= start2) || (start2 + offset2 &lt;= start1)))));
+
+opt.c_d(1000000);// computation distance
+opt.a_d(1000000); // adaptive computation distance
+
+
+Run using the built in relations:
+
+task 1: res[ru: 34 ru: 2 s[105262]]
+task 2: res[ru: 29 ru: 5 s[105292]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+Now when I run my custom propagator I get into this situation where I have domains in my start times (s[...])that should have values removed because of propagation but at the next choice those values that were previously removed seem to be back in the domain. This is down the left side of the tree and thus isn't an alternate. Here is the output from the two nodes.
+
+This is the node before the failed node in question. Notice that task 1 does not have 105256 in its domain.
+
+Run using custom propagators:
+
+task 1: res[ru: 34 ru: 2 s[{105262,105268,105292]]
+task 2: res[ru: 29 ru: 5 s[{105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+This is the failed node to the left side of the node above. Notice that somehow it found 105256 to choose for task 1 and this wasn't in the domain. How did it get there?  Since this invalid value was chosen the constraint fails.
+
+task 1: res[ru: 34 ru: 2 s[105256]]
+task 2: res[ru: 29 ru: 5 s[{105256,105262,105268,105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+I checked the custom propagator for obvious errors such as using invalid ranges for inter and such. I don't see anything obvious. Anyone have any clue? I have posted the propagator portion of my code just in case anyone can see something I don't. I realize that this may not have the most optimal algorithm for reducing the domain as early as possible but I don't think it should cause this behavior.
+
+class MinGapProp :
+      public BinaryPropagator&lt;Int::IntView, Int::PC_INT_BND&gt; {
+
+public:
+      int offset0;
+      int offset1;
+      Task task1;
+      Task task2;
+      string id;
+
+      MinGapProp(Home home, Int::IntView x0, Int::IntView x1)
+            : BinaryPropagator&lt;Int::IntView,Int::PC_INT_BND&gt;(home, x0, x1) {}
+
+      static ExecStatus post(Home home, string id,
+            Int::IntView x0, Int::IntView x1, int offset0, int offset1, Task &amp;task1, Task &amp;task2)
+      {
+            MinGapProp *minGapProp = new (home) MinGapProp(home,x0,x1);
+            minGapProp-&gt;task1 = task1;
+            minGapProp-&gt;task2 = task2;
+            minGapProp-&gt;offset0 = offset0;
+            minGapProp-&gt;offset1 = offset1;
+            minGapProp-&gt;id = id;
+            if (x1.max() - x0.min() &lt; offset1)
+            {
+                  Iter::Ranges::Singleton r0(x0.min(), x1.min() + offset1 - 1);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r0, false));
+            }
+            if (x0.max() - x1.min() &lt; offset0)
+            {
+                  Iter::Ranges::Singleton r1(x1.min(), x0.min() + offset0 - 1);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r1, false));
+            }
+            return ES_OK;
+      }
+
+      MinGapProp(Space&amp; home, bool share, MinGapProp&amp; p)
+            : BinaryPropagator&lt;Int::IntView,Int::PC_INT_BND&gt;(home,share,p), offset0(p.offset0),
+                  offset1(p.offset1), id(p.id), task1(p.task1), task2(p.task2) {}
+
+      virtual Propagator* copy(Space&amp; home, bool share)
+      {
+            return new (home) MinGapProp(home,share,*this);
+      }
+
+      virtual PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+            return PropCost::unary(PropCost::LO);
+      }
+
+      virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp; med)
+      {
+
+            if (x0.assigned())
+            {
+                  int min = x0.val() - offset1 + 1 &gt;= 0 ? x0.val() - offset1 + 1 : 0;
+                  int max = x0.val() + offset0 - 1;
+                  Iter::Ranges::Singleton r0(min, max);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r0, false));
+            }
+            else if (x1.assigned())
+            {
+                  int min = x1.val() - offset0 + 1 &gt;= 0 ? x1.val() - offset0 + 1 : 0;
+                  int max = x1.val() + offset1 - 1;
+                  Iter::Ranges::Singleton r1(min, max);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r1, false));
+            }
+
+            if (x0.max() + offset0 &lt;= x1.min() || x1.max() + offset1 &lt;= x0.min())
+                  return home.ES_SUBSUMED(*this);
+            else
+                  return ES_FIX;
+      }
+};
+
+David Zaremby
+Senior Software Engineer
+LSS / Strategic Products
+
+Lockheed Martin Global Training and Logistics
+12506 Lake Underhill Road, MP-823
+Orlando, FL 32825
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100825/adab4664/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20100825/adab4664/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003023.html">[gecode-users] reified domain constraints failing for empty	domains
+</A></li>
+	<LI>Next message: <A HREF="003025.html">[gecode-users] Branching allowing values back in the domain
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3024">[ date ]</a>
+              <a href="thread.html#3024">[ thread ]</a>
+              <a href="subject.html#3024">[ subject ]</a>
+              <a href="author.html#3024">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

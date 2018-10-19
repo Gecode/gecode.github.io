@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20How%20to%20set%20an%20arbitrary%20RandomGenerator%0A%20for%09randomized%20branching%3F%21%3F&In-Reply-To=%3C4A119473.3030603%40informatik.uni-freiburg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002398.html">
+   <LINK REL="Next"  HREF="002405.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?</H1>
+    <B>Martin Mann</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20How%20to%20set%20an%20arbitrary%20RandomGenerator%0A%20for%09randomized%20branching%3F%21%3F&In-Reply-To=%3C4A119473.3030603%40informatik.uni-freiburg.de%3E"
+       TITLE="[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?">mmann at informatik.uni-freiburg.de
+       </A><BR>
+    <I>Mon May 18 19:01:39 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002398.html">[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?
+</A></li>
+        <LI>Next message: <A HREF="002405.html">[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2400">[ date ]</a>
+              <a href="thread.html#2400">[ thread ]</a>
+              <a href="subject.html#2400">[ subject ]</a>
+              <a href="author.html#2400">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>
+Alright, what is my scenario:
+
+I have a stochastic simulation e.g. a Markov chain. Within this 
+simulation, for each step x_i a CSP is formulated and I would like to 
+get a random solution r. This solution r is accepted based on some 
+probability. Thus, I can stay at x_i (x_(i+1)=x_i) or proceed to r 
+(x_(i+1)=r).
+
+So I have two &quot;areas&quot; where random numbers are produced: (1) the Markov 
+chain and (2) the randomized branching within Gecode.
+
+Now I would like to have ONE pseudo random number generator (RNG) used 
+for both to ensure that I have reproducable results...
+
+One possible hack is the following:
+- assume RNG_M for the markov chain and RNG_G for gecode internals.
+- for each step I set the seed of RNG_G via a random number drawn from RNG_M
+- I use RNG_M for the Markov chain step check
+
+Would be an option, but it would ease the problem a lot if one could 
+directly use the same RNG for both or not?
+
+Another point about arbitrary RNGs is about statistics. I am working in 
+a field were e.g. physics care a lot about the random number 
+distributions and statistics a pseudo random number generator gives. 
+Therefore, these people like to set up their favorite RNG they trust 
+most to give low-biased stochastic simulations.
+In the above solution, the RNG_M can be defined freely, the RNG_G not.
+
+That's why I was asking. :) It's not about speed or space, more about 
+application.
+
+But so long the above solution will do or has to be sufficient.
+
+Thanks,
+
+Martin
+
+
+
+
+Javier Andr&#233;s Mena Zapata schrieb:
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> Just curiosity... Do you prefer RNG speed, RNG space, general speed or
+</I>&gt;<i> general space?
+</I>&gt;<i> 
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 
+</I>&gt;<i> On Mon, May 18, 2009 at 2:55 AM, Mikael Zayenz Lagerkvist
+</I>&gt;<i> &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zayenz at gmail.com</A>&gt;wrote:
+</I>&gt;<i> 
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Currently it is not possible to exchange the random number generator.
+</I>&gt;&gt;<i> Furthermore, the implementation uses properties of the random number
+</I>&gt;&gt;<i> generator that would most probably compromise efficiency if they were
+</I>&gt;&gt;<i> abstracted away (for example, the state is limited to a single
+</I>&gt;&gt;<i> unsigned int as seed). If you want to use your own random number
+</I>&gt;&gt;<i> generator, I would suggest writing your own subclasses of ViewSelBase
+</I>&gt;&gt;<i> and ValSelbase similar to ViewSelRnd and ValRnd.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> For curiosity, what is the reason that you want to change the random
+</I>&gt;&gt;<i> number generator used?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Mikael
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On Sat, May 16, 2009 at 12:37 AM, Martin Mann
+</I>&gt;&gt;<i> &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">mmann at informatik.uni-freiburg.de</A>&gt; wrote:
+</I>&gt;&gt;&gt;<i> Hi everybody,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I digged a bit into the Gecode source about the randomized branching
+</I>&gt;&gt;&gt;<i> supported since version 3.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> In line 124 in gecode/support/random.hpp I found the definition of
+</I>&gt;&gt;&gt;<i> RandomGenerator internally used in the view selection:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/doc-latest/reference/group__FuncSupport.html#g02fe942f90a57a25639f09960dab4459">http://www.gecode.org/doc-latest/reference/group__FuncSupport.html#g02fe942f90a57a25639f09960dab4459</A>
+</I>&gt;&gt;&gt;<i> As given there, it is just a typedef onto the
+</I>&gt;&gt;&gt;<i> LinearCongruentialGenerator provided by Gecode but I would like to set
+</I>&gt;&gt;&gt;<i> up my own random number generator...
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Is there a possibility to support user defined generators? e.g. in
+</I>&gt;&gt;&gt;<i> coming versions?
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> If not available right now, maybe you like the following suggestion:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> A possibility would be a super class 'RNG' that has to be implemented by
+</I>&gt;&gt;&gt;<i> every generator plus a kind of factory class 'RNF' with static members
+</I>&gt;&gt;<i> only.
+</I>&gt;&gt;&gt;<i> The RNF would be a wrapper around the current RNG instance to use
+</I>&gt;&gt;&gt;<i> (stored in a static internal member). Thus, all Gecode internals that
+</I>&gt;&gt;&gt;<i> need a random number use a static interface of RNF instead of some RNG
+</I>&gt;&gt;&gt;<i> instance members. So the library gets independent of the concrete RNG
+</I>&gt;&gt;&gt;<i> used and you get the possibility to register a user defined RNG within
+</I>&gt;&gt;&gt;<i> the RNF. Per default the RNF can use the linear congruential generator
+</I>&gt;&gt;&gt;<i> provided. The static interface and data member would avoid annoying
+</I>&gt;&gt;&gt;<i> copies of RNGs all around and won't complicate your Gecode
+</I>&gt;&gt;<i> internals/source.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Just a suggestion... if it is already possible just ignore and please
+</I>&gt;&gt;&gt;<i> let me know how to do with the current Gecode version. :)
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Have a nice weekend,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Martin
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/">http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/</A>&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> ------------------------------------------------------------------------
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+<A HREF="http://www.bioinf.uni-freiburg.de/~mmann/">http://www.bioinf.uni-freiburg.de/~mmann/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002398.html">[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?
+</A></li>
+	<LI>Next message: <A HREF="002405.html">[gecode-users] How to set an arbitrary RandomGenerator for	randomized branching?!?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2400">[ date ]</a>
+              <a href="thread.html#2400">[ thread ]</a>
+              <a href="subject.html#2400">[ subject ]</a>
+              <a href="author.html#2400">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

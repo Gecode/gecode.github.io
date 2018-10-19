@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] ES_SUBSUMED_FIX error
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20ES_SUBSUMED_FIX%20error&In-Reply-To=%3C63b5c8b00812030559u4e19bf01r950a1af1c4136aa4%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002063.html">
+   <LINK REL="Next"  HREF="002065.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] ES_SUBSUMED_FIX error</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20ES_SUBSUMED_FIX%20error&In-Reply-To=%3C63b5c8b00812030559u4e19bf01r950a1af1c4136aa4%40mail.gmail.com%3E"
+       TITLE="[gecode-users] ES_SUBSUMED_FIX error">zayenz at gmail.com
+       </A><BR>
+    <I>Wed Dec  3 14:59:44 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002063.html">[gecode-users] ES_SUBSUMED_FIX error
+</A></li>
+        <LI>Next message: <A HREF="002065.html">[gecode-users] Bug in Gecode Framework for Mac OS
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2064">[ date ]</a>
+              <a href="thread.html#2064">[ thread ]</a>
+              <a href="subject.html#2064">[ subject ]</a>
+              <a href="author.html#2064">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+In this particular instance, canceling the subscriptions should not be
+necessary. In the general case it should be done if subsumption
+happens before the all variables the advisor subscribes to are
+assigned.
+
+As for the problem, next() should really not be garbage, so there is
+something erroneous here. Reading your program more carefully, I see
+that you have the council as a member of the space. This is incorrect,
+the council should be a member of the propagator. Furthermore, the
+council should not be default-constructed, but should be constructed
+with the Council&lt;A&gt;::Council(Space*) constructor. I haven't tested
+this (gecode 2.2.0 still compiling on my Windows-machine), but that
+should be the error.
+
+Cheers,
+Mikael
+
+On Wed, Dec 3, 2008 at 2:23 PM, David Rijsman &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt; wrote:
+&gt;<i> Hi Mikael,
+</I>&gt;<i>
+</I>&gt;<i> Windows XP Professional x64 edition, X64-based PC,
+</I>&gt;<i> Microsoft (R) 32-bit C/C++ Optimizing Compiler Version 14.00.50727.762 for 80x86
+</I>&gt;<i> gecode 2.1.1 and also gecode 2.2.2
+</I>&gt;<i>
+</I>&gt;<i> - The code is a reproduction of the bug so I didn't bother about the clean-up because the error happens in the dispose of the second advisor long before any cleanup
+</I>&gt;<i> - Checking the same variable is also done on purpose but is not required to reproduce the scenario
+</I>&gt;<i>
+</I>&gt;<i> You are pointing to the ViewAdvisor and this makes me wonder if I am doing the right thing. My goal is actually to cancel the subscription of the advisor for that variable and to remove the advisor. I am assuming that ES_SUBSUME_FIX is doing that and also returns ES_FIX.
+</I>&gt;<i>
+</I>&gt;<i> I am wondering if I should add the cancel invocation (which does not change the behavior), you can also change the second condition to MX.one() (does not change behavior either):
+</I>&gt;<i>
+</I>&gt;<i> if(padvisor-&gt;MIndex)
+</I>&gt;<i>      {
+</I>&gt;<i>        if( MY.one() )
+</I>&gt;<i>        {
+</I>&gt;<i>          MY.cancel(home,padvisor);
+</I>&gt;<i>          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+</I>&gt;<i>        }
+</I>&gt;<i>      }
+</I>&gt;<i>      else
+</I>&gt;<i>      {
+</I>&gt;<i>        if( MY.one() )
+</I>&gt;<i>        {
+</I>&gt;<i>          MX.cancel(home,padvisor);
+</I>&gt;<i>          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+</I>&gt;<i>        }
+</I>&gt;<i>      }
+</I>&gt;<i>
+</I>&gt;<i> What I see is that the second dispose on the second MyAdvisor is checking if MyAdvisor::next() is disposed, next is garbage....crash
+</I>&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;<i> From:   &quot;Mikael Zayenz Lagerkvist&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zayenz at gmail.com</A>&gt;
+</I>&gt;<i> To:     &quot;David Rijsman&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;
+</I>&gt;<i> CC:     &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;<i> Date:   12/3/2008 1:59 PM
+</I>&gt;<i> Subject:        Re: [gecode-users] ES_SUBSUMED_FIX error
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> The program does not crash on my machine (Athlon 64, gcc 4.2.4, gecode
+</I>&gt;<i> 2.2.0). What kind of machine and compiler do you use?
+</I>&gt;<i>
+</I>&gt;<i> Apart form that, I see one bug and a potential bug in your code.
+</I>&gt;<i> First: the subscriptions are never canceled! This should be done
+</I>&gt;<i> somewhere in the clean-up code. Either it could be done in the advisor
+</I>&gt;<i> itself (as is done in the ViewAdvisor class [1]), or it could be done
+</I>&gt;<i> in the class by iterating over the advisors in the council [2].
+</I>&gt;<i>
+</I>&gt;<i> A potential bug is that the advise function is ill-formed, in that
+</I>&gt;<i> both branches check the value of the MY-variable. Since you assign the
+</I>&gt;<i> MY-variable first, the problem never occurs, but if you change the
+</I>&gt;<i> order of the rel calls in the main function the advise function
+</I>&gt;<i> returns with garbage as return vale.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Mikael
+</I>&gt;<i>
+</I>&gt;<i> [1] <A HREF="http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewAdvisor.html">http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewAdvisor.html</A>
+</I>&gt;<i> [2] <A HREF="http://www.gecode.org/gecode-doc-latest/classGecode_1_1Advisors.html">http://www.gecode.org/gecode-doc-latest/classGecode_1_1Advisors.html</A>
+</I>&gt;<i>
+</I>&gt;<i> On Wed, Dec 3, 2008 at 1:07 PM, David Rijsman &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt; wrote:
+</I>&gt;&gt;<i> Attached you find a little sample in which I have written a peace of code in which I am trying to subsume my advisors and it is crashing on de second subsume invocation... Am I doing something wrong or missing something?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thanks,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> David
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002063.html">[gecode-users] ES_SUBSUMED_FIX error
+</A></li>
+	<LI>Next message: <A HREF="002065.html">[gecode-users] Bug in Gecode Framework for Mac OS
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2064">[ date ]</a>
+              <a href="thread.html#2064">[ thread ]</a>
+              <a href="subject.html#2064">[ subject ]</a>
+              <a href="author.html#2064">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

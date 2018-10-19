@@ -1,0 +1,213 @@
+From Filip.Konvicka at logis.cz  Fri Aug 24 09:48:29 2018
+From: Filip.Konvicka at logis.cz (Konvicka Filip)
+Date: Fri, 24 Aug 2018 07:48:29 +0000
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+Message-ID: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include <gecode/float.hh>
+#include <iostream>
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180824/1fb570c1/attachment.html>
+
+From cschulte at kth.se  Tue Aug 28 16:55:32 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 28 Aug 2018 14:55:32 +0000
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+In-Reply-To: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+References: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+Message-ID: <031a7c543de04c6aa35a16461baaa43f@exdb02.ug.kth.se>
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: 'users at gecode.org' <users at gecode.org>
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include <gecode/float.hh>
+#include <iostream>
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180828/252a2379/attachment-0001.html>
+
+From Filip.Konvicka at logis.cz  Thu Aug 30 21:09:46 2018
+From: Filip.Konvicka at logis.cz (Konvicka Filip)
+Date: Thu, 30 Aug 2018 19:09:46 +0000
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+In-Reply-To: <031a7c543de04c6aa35a16461baaa43f@exdb02.ug.kth.se>
+References: <F3693ACFBB4CBE40894F6560386A67BFB3F625BE@EX1.logis.local>
+	<031a7c543de04c6aa35a16461baaa43f@exdb02.ug.kth.se>
+Message-ID: <F3693ACFBB4CBE40894F6560386A67BFB3F64D80@EX1.logis.local>
+
+Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some "random" way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are "fresh" (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:cschulte at kth.se]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; 'users at gecode.org'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: 'users at gecode.org' <users at gecode.org>
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include <gecode/float.hh>
+#include <iostream>
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception& e) {
+    std::cerr << e.what() << "\n";
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180830/33e74989/attachment-0001.html>
+

@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] kernel issues
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20kernel%20issues&In-Reply-To=%3C001d01c8a395%2424c209d0%246e461d70%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001564.html">
+   <LINK REL="Next"  HREF="001601.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] kernel issues</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20kernel%20issues&In-Reply-To=%3C001d01c8a395%2424c209d0%246e461d70%24%40se%3E"
+       TITLE="[gecode-users] kernel issues">cschulte at kth.se
+       </A><BR>
+    <I>Mon Apr 21 11:50:33 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001564.html">[gecode-users] kernel issues
+</A></li>
+        <LI>Next message: <A HREF="001601.html">[gecode-users] kernel issues
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1600">[ date ]</a>
+              <a href="thread.html#1600">[ thread ]</a>
+              <a href="subject.html#1600">[ subject ]</a>
+              <a href="author.html#1600">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Filip,
+
+sorry for the long delay, but I was away from my keyboard. Yes, you are
+right! I just added your fix to the trunk. For the integer variables it did
+not show, as med_fst == 0 for them.
+
+The script that generates the variable stubs is misc/genvariables.perl (line
+608).
+
+Thanks for the fix!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Monday, April 14, 2008 2:28 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">lmoric at logis.cz</A>
+Subject: [gecode-users] kernel issues
+
+Hi,
+
+so Lubos started working on the FloatVar implementation and he's 
+discovered something that looks like a bug in Gecode. Initially, we just 
+copied &quot;integer.vis&quot; to &quot;float.vis&quot; and renamed the identifiers so we 
+got &quot;_FLOAT_&quot; instead of &quot;_INT_&quot; everywhere. (Later on, we'll probably 
+at least remove the &quot;DOM&quot; modification event and propagation condition.)
+
+So in short:
+
+[General]
+Name:		Float
+Ifdef:		GECODE_HAS_FLOAT_VARS
+Namespace:	Gecode::Float
+
+and the rest goes exactly the same as with IntVar.
+
+Then we tried posting a propagator on a FloatVar, but unexpectedly 
+nothing happened. Lubos tracked this down to the following code fragment 
+  in kernel/var-type.icc:
+
+case ME_FLOAT_BND:
+      {
+        static const Gecode::ModEvent me_c = (
+          ((ME_FLOAT_NONE ^ ME_FLOAT_BND ) &lt;&lt;  0) |
+          ((ME_FLOAT_VAL  ^ ME_FLOAT_VAL ) &lt;&lt;  4) |
+          ((ME_FLOAT_BND  ^ ME_FLOAT_BND ) &lt;&lt;  8) |
+          ((ME_FLOAT_DOM  ^ ME_FLOAT_BND ) &lt;&lt; 12)
+        );
+        Gecode::ModEvent me_o = (med &amp; med_mask) &gt;&gt; med_fst;
+        Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; med_mask;
+        if (me_n == 0)
+          return false;
+        med ^= me_n &lt;&lt; med_fst;
+        break;
+      }
+
+This is similar to what is generated for IntVars (ME_INT_BND), but it 
+seems that the condition (me_n == 0) always evaluates to true for 
+FloatVars, and so nothing ever happens.
+
+Lubos fixed this by changing the appropriate line to
+
+  Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; (med_mask &gt;&gt; med_fst);
+
+This seems logical to me. Do you know what script to fix in order to get 
+it generated this way?
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001564.html">[gecode-users] kernel issues
+</A></li>
+	<LI>Next message: <A HREF="001601.html">[gecode-users] kernel issues
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1600">[ date ]</a>
+              <a href="thread.html#1600">[ thread ]</a>
+              <a href="subject.html#1600">[ subject ]</a>
+              <a href="author.html#1600">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

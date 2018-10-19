@@ -1,0 +1,1411 @@
+From sebastian.kosch at mail.utoronto.ca  Fri Apr 10 16:03:41 2015
+From: sebastian.kosch at mail.utoronto.ca (Sebastian Kosch)
+Date: Fri, 10 Apr 2015 10:03:41 -0400
+Subject: [gecode-users] Interacting with FlatZincSpaces,
+	or: Gecode/JS bindings
+In-Reply-To: <5527309F.1030609@mail.utoronto.ca>
+References: <5527309F.1030609@mail.utoronto.ca>
+Message-ID: <5527D83D.2070508@mail.utoronto.ca>
+
+Hi,
+
+I am playing with the idea of building a simple browser interface to
+Gecode. I have tweaked the source so that it compiles to a asm.js blob
+via emscripten -- notwithstanding the dozens of obvious reasons why
+doing this is a dumb idea, I can now solve Flatzinc models in the
+browser, and that's pretty cool.
+
+I would like to do more than just input a Flatzinc string, of course,
+and build something closer to Gist maybe. So I would like to either
+
+a) write wrapper functions in C++ to interact with the Flatzinc model
+after it's been read in. This code would go into the JS blob and allow
+me to interact with the space from the browser (e.g. add/remove
+variables and constraints, change options, restart searches etc.) -- or:
+
+b) have an easier way of passing Javascript objects directly to Gecode
+to manipulate the space.
+
+(a potential option c) might be to integrate the Minizinc parser into
+the JS blob, and to create a "proper" space in Gecode directly from
+Minizinc instead of compiling to Flatzinc first, and then use a) ... but 
+I'd rather not.)
+
+In terms of a), what are my options beyond finding out which of the
+variables are part of the optimization? Can I access Flatzinc
+annotations on variables somehow? Is there a way to predict which
+objects in the space correspond to which of the parts in the "original"
+Minizinc model?
+
+In terms of b), it appears that this was planned at some point (see
+https://github.com/mattetti/Gecoder/blob/0352cf3b879d2f6764a4da6efe3fb2b1ff1b819c/vendor/gecode/win32/include/gecode/serialization.hh), 
+
+but then dropped. Could I investigate this further, or did you come up
+against hard reasons why that's not an option at all?
+
+I hope all of this doesn't sound too crazy or convoluted. I'm looking
+forward to your thoughts!
+
+Sebastian
+
+
+
+
+From tack at gecode.org  Sat Apr 11 02:47:58 2015
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 11 Apr 2015 10:47:58 +1000
+Subject: [gecode-users] Interacting with FlatZincSpaces,
+	or: Gecode/JS bindings
+In-Reply-To: <5527D83D.2070508@mail.utoronto.ca>
+References: <5527309F.1030609@mail.utoronto.ca>
+	<5527D83D.2070508@mail.utoronto.ca>
+Message-ID: <110A06C5-F0E5-4B4A-87D4-6E9FA90A8C3D@gecode.org>
+
+Hi Sebastian,
+
+that doesn't sound too crazy to give it a try at least ;-)  I'll actually have a student working on option c) in July/August, so it would be great to be able to start from your work for the Gecode part.
+
+I also have some ideas on making Gecode much more compact (by removing much of the template instantiation), I think that should help make the generated Javascript more manageable.
+
+Regarding your questions:
+
+a) There are a few options here.  You can change the parser to also export its symbol table, which you can use to look up variables in the FlatzincSpace by their name.  Adding variables and constraints should be easy, because the FlatzincSpace is just another Space object, but of course exposing the entire posting interface may be a lot of work.  Changing the search should be possible, you can either change the annotation in the FlatZinc programmatically and then call createBranchers as needed, or you add a C++ interface to the branchers directly (but you'd have to use the symbol table again to look up variable names).
+Annotations on variables and constraints are handled by the parser and then discarded, so unless you want to modify the parser to keep them (e.g. in the symbol table) that won't work.
+
+b) The serialisation interface was part of Gecode 2 but we removed it in Gecode 3 (I think), mainly because it was an incredibly invasive part of the code (IIRC it made up about 30% of the overall Gecode code base!).
+
+Cheers,
+Guido
+
+> On 11 Apr 2015, at 12:03 am, Sebastian Kosch <sebastian.kosch at mail.utoronto.ca> wrote:
+> 
+> Hi,
+> 
+> I am playing with the idea of building a simple browser interface to
+> Gecode. I have tweaked the source so that it compiles to a asm.js blob
+> via emscripten -- notwithstanding the dozens of obvious reasons why
+> doing this is a dumb idea, I can now solve Flatzinc models in the
+> browser, and that's pretty cool.
+> 
+> I would like to do more than just input a Flatzinc string, of course,
+> and build something closer to Gist maybe. So I would like to either
+> 
+> a) write wrapper functions in C++ to interact with the Flatzinc model
+> after it's been read in. This code would go into the JS blob and allow
+> me to interact with the space from the browser (e.g. add/remove
+> variables and constraints, change options, restart searches etc.) -- or:
+> 
+> b) have an easier way of passing Javascript objects directly to Gecode
+> to manipulate the space.
+> 
+> (a potential option c) might be to integrate the Minizinc parser into
+> the JS blob, and to create a "proper" space in Gecode directly from
+> Minizinc instead of compiling to Flatzinc first, and then use a) ... but I'd rather not.)
+> 
+> In terms of a), what are my options beyond finding out which of the
+> variables are part of the optimization? Can I access Flatzinc
+> annotations on variables somehow? Is there a way to predict which
+> objects in the space correspond to which of the parts in the "original"
+> Minizinc model?
+> 
+> In terms of b), it appears that this was planned at some point (see
+> https://github.com/mattetti/Gecoder/blob/0352cf3b879d2f6764a4da6efe3fb2b1ff1b819c/vendor/gecode/win32/include/gecode/serialization.hh), 
+> but then dropped. Could I investigate this further, or did you come up
+> against hard reasons why that's not an option at all?
+> 
+> I hope all of this doesn't sound too crazy or convoluted. I'm looking
+> forward to your thoughts!
+> 
+> Sebastian
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From sebastian.kosch at mail.utoronto.ca  Sat Apr 11 03:56:12 2015
+From: sebastian.kosch at mail.utoronto.ca (Sebastian Kosch)
+Date: Fri, 10 Apr 2015 21:56:12 -0400
+Subject: [gecode-users] Interacting with FlatZincSpaces,
+ or: Gecode/JS bindings
+In-Reply-To: <110A06C5-F0E5-4B4A-87D4-6E9FA90A8C3D@gecode.org>
+References: <5527309F.1030609@mail.utoronto.ca>
+	<5527D83D.2070508@mail.utoronto.ca>
+	<110A06C5-F0E5-4B4A-87D4-6E9FA90A8C3D@gecode.org>
+Message-ID: <55287F3C.9070107@mail.utoronto.ca>
+
+Thanks Guido, that's helpful!
+
+Before I get started on c) then -- to start, I would probably just drop 
+in mzn2fzn.cpp + friends, turn its output into a FlatZincSpace and run 
+it -- I have two more questions:
+
+> a) There are a few options here.  You can change the parser to also export its symbol table, which you can use to look up variables in the FlatzincSpace by their name.
+
+That sounds really convenient, but I'm afraid I'll need a bit more 
+hand-holding. As far as I can see, my named variable arrays in Minizinc 
+turn into dozens of X_INTRODUCED_### variables in Flatzinc. How do I 
+keep track of them?
+
+> I also have some ideas on making Gecode much more compact (by removing much of the template instantiation), I think that should help make the generated Javascript more manageable.
+
+That's an interesting and promising idea. Is this on your short-term 
+agenda? If not, and if I decide to look into it myself, where would be 
+the best place to start (in terms of refactoring effort/bloat reduction 
+ratio)?
+
+> b) The serialisation interface was part of Gecode 2 but we removed it in Gecode 3 (I think), mainly because it was an incredibly invasive part of the code (IIRC it made up about 30% of the overall Gecode code base!).
+
+Ah, I see.
+Thanks again!
+
+Seb
+
+>
+>> On 11 Apr 2015, at 12:03 am, Sebastian Kosch <sebastian.kosch at mail.utoronto.ca> wrote:
+>>
+>> Hi,
+>>
+>> I am playing with the idea of building a simple browser interface to
+>> Gecode. I have tweaked the source so that it compiles to a asm.js blob
+>> via emscripten -- notwithstanding the dozens of obvious reasons why
+>> doing this is a dumb idea, I can now solve Flatzinc models in the
+>> browser, and that's pretty cool.
+>>
+>> I would like to do more than just input a Flatzinc string, of course,
+>> and build something closer to Gist maybe. So I would like to either
+>>
+>> a) write wrapper functions in C++ to interact with the Flatzinc model
+>> after it's been read in. This code would go into the JS blob and allow
+>> me to interact with the space from the browser (e.g. add/remove
+>> variables and constraints, change options, restart searches etc.) -- or:
+>>
+>> b) have an easier way of passing Javascript objects directly to Gecode
+>> to manipulate the space.
+>>
+>> (a potential option c) might be to integrate the Minizinc parser into
+>> the JS blob, and to create a "proper" space in Gecode directly from
+>> Minizinc instead of compiling to Flatzinc first, and then use a) ... but I'd rather not.)
+>>
+>> In terms of a), what are my options beyond finding out which of the
+>> variables are part of the optimization? Can I access Flatzinc
+>> annotations on variables somehow? Is there a way to predict which
+>> objects in the space correspond to which of the parts in the "original"
+>> Minizinc model?
+>>
+>> In terms of b), it appears that this was planned at some point (see
+>> https://github.com/mattetti/Gecoder/blob/0352cf3b879d2f6764a4da6efe3fb2b1ff1b819c/vendor/gecode/win32/include/gecode/serialization.hh),
+>> but then dropped. Could I investigate this further, or did you come up
+>> against hard reasons why that's not an option at all?
+>>
+>> I hope all of this doesn't sound too crazy or convoluted. I'm looking
+>> forward to your thoughts!
+>>
+>> Sebastian
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From tack at gecode.org  Sat Apr 11 08:59:37 2015
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 11 Apr 2015 16:59:37 +1000
+Subject: [gecode-users] Interacting with FlatZincSpaces,
+	or: Gecode/JS bindings
+In-Reply-To: <55287F3C.9070107@mail.utoronto.ca>
+References: <5527309F.1030609@mail.utoronto.ca>
+	<5527D83D.2070508@mail.utoronto.ca>
+	<110A06C5-F0E5-4B4A-87D4-6E9FA90A8C3D@gecode.org>
+	<55287F3C.9070107@mail.utoronto.ca>
+Message-ID: <ED43FB61-DDEB-4711-91EA-D2D14BC0A861@gecode.org>
+
+
+> On 11 Apr 2015, at 11:56 am, Sebastian Kosch <sebastian.kosch at mail.utoronto.ca> wrote:
+> 
+> Thanks Guido, that's helpful!
+> 
+> Before I get started on c) then -- to start, I would probably just drop in mzn2fzn.cpp + friends, turn its output into a FlatZincSpace and run it
+
+We already have a version of the Gecode/FlatZinc interpreter that is fully integrated into libminizinc (i.e. without the detour of producing a FlatZinc text file).  We hope to be able to release at least a preview of this soon (this is with my MiniZinc hat on, it's not really related to Gecode).
+
+> -- I have two more questions:
+> 
+>> a) There are a few options here.  You can change the parser to also export its symbol table, which you can use to look up variables in the FlatzincSpace by their name.
+> 
+> That sounds really convenient, but I'm afraid I'll need a bit more hand-holding. As far as I can see, my named variable arrays in Minizinc turn into dozens of X_INTRODUCED_### variables in Flatzinc. How do I keep track of them?
+
+Yes, that's a problem, this mapping is currently not available.  All you can do at the Gecode level is to use the names in the FlatZinc (and that's the symbol table you could use).  If you want to discuss more about the MiniZinc side of things, I'd suggest we move the discussion to the MiniZinc forums (or private email) instead.
+
+> 
+>> I also have some ideas on making Gecode much more compact (by removing much of the template instantiation), I think that should help make the generated Javascript more manageable.
+> 
+> That's an interesting and promising idea. Is this on your short-term agenda? If not, and if I decide to look into it myself, where would be the best place to start (in terms of refactoring effort/bloat reduction ratio)?
+
+First of all I'd try out the usual compiler options, i.e. turning off inlining, and setting the optimiser to focus on code size.
+
+After that it's really a refactoring job. Most propagators in Gecode use "views" to implement different versions of a constraint, and each version requires a different template instantiation.  That blows up the code size.  Instead, it would be possible to implement the different versions using views with virtual functions, and then instantiate the propagators only with the base view class and derive the different versions by inheritance.  I haven't fully thought this through yet, it's possible that it would involve quite a lot of code duplication and copy/paste, no idea if it's possible to do it more systematically.
+
+Cheers,
+Guido
+
+> 
+>> b) The serialisation interface was part of Gecode 2 but we removed it in Gecode 3 (I think), mainly because it was an incredibly invasive part of the code (IIRC it made up about 30% of the overall Gecode code base!).
+> 
+> Ah, I see.
+> Thanks again!
+> 
+> Seb
+> 
+>> 
+>>> On 11 Apr 2015, at 12:03 am, Sebastian Kosch <sebastian.kosch at mail.utoronto.ca> wrote:
+>>> 
+>>> Hi,
+>>> 
+>>> I am playing with the idea of building a simple browser interface to
+>>> Gecode. I have tweaked the source so that it compiles to a asm.js blob
+>>> via emscripten -- notwithstanding the dozens of obvious reasons why
+>>> doing this is a dumb idea, I can now solve Flatzinc models in the
+>>> browser, and that's pretty cool.
+>>> 
+>>> I would like to do more than just input a Flatzinc string, of course,
+>>> and build something closer to Gist maybe. So I would like to either
+>>> 
+>>> a) write wrapper functions in C++ to interact with the Flatzinc model
+>>> after it's been read in. This code would go into the JS blob and allow
+>>> me to interact with the space from the browser (e.g. add/remove
+>>> variables and constraints, change options, restart searches etc.) -- or:
+>>> 
+>>> b) have an easier way of passing Javascript objects directly to Gecode
+>>> to manipulate the space.
+>>> 
+>>> (a potential option c) might be to integrate the Minizinc parser into
+>>> the JS blob, and to create a "proper" space in Gecode directly from
+>>> Minizinc instead of compiling to Flatzinc first, and then use a) ... but I'd rather not.)
+>>> 
+>>> In terms of a), what are my options beyond finding out which of the
+>>> variables are part of the optimization? Can I access Flatzinc
+>>> annotations on variables somehow? Is there a way to predict which
+>>> objects in the space correspond to which of the parts in the "original"
+>>> Minizinc model?
+>>> 
+>>> In terms of b), it appears that this was planned at some point (see
+>>> https://github.com/mattetti/Gecoder/blob/0352cf3b879d2f6764a4da6efe3fb2b1ff1b819c/vendor/gecode/win32/include/gecode/serialization.hh),
+>>> but then dropped. Could I investigate this further, or did you come up
+>>> against hard reasons why that's not an option at all?
+>>> 
+>>> I hope all of this doesn't sound too crazy or convoluted. I'm looking
+>>> forward to your thoughts!
+>>> 
+>>> Sebastian
+>>> 
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From marco.v.correia at gmail.com  Sat Apr 11 11:53:47 2015
+From: marco.v.correia at gmail.com (Marco Correia)
+Date: Sat, 11 Apr 2015 10:53:47 +0100
+Subject: [gecode-users] Interacting with FlatZincSpaces,
+	or: Gecode/JS bindings
+In-Reply-To: <ED43FB61-DDEB-4711-91EA-D2D14BC0A861@gecode.org>
+References: <5527309F.1030609@mail.utoronto.ca>
+	<5527D83D.2070508@mail.utoronto.ca>
+	<110A06C5-F0E5-4B4A-87D4-6E9FA90A8C3D@gecode.org>
+	<55287F3C.9070107@mail.utoronto.ca>
+	<ED43FB61-DDEB-4711-91EA-D2D14BC0A861@gecode.org>
+Message-ID: <CACxih=GnKK0zxss1Fi9NJwrnKqj78iToYGiQdYhxz9u2K92trA@mail.gmail.com>
+
+Hi,
+Just a comment on the last part of Guido's reply. I've actually attempted a
+refactoring as I think he suggested by implementing views with virtual
+functions instead of templates. What I found was that it has a significant
+negative impact on runtime. If the goal is to reduce compiled code, maybe
+you could look instead to explicitly template instantiation, and factor out
+some common instantiations?
+I must say I did that on another view-based solver, not on gecode, but I
+guess the same would be true here.
+
+Hope it helps,
+Marco
+On Apr 11, 2015 8:00 AM, "Guido Tack" <tack at gecode.org> wrote:
+
+>
+> > On 11 Apr 2015, at 11:56 am, Sebastian Kosch <
+> sebastian.kosch at mail.utoronto.ca> wrote:
+> >
+> > Thanks Guido, that's helpful!
+> >
+> > Before I get started on c) then -- to start, I would probably just drop
+> in mzn2fzn.cpp + friends, turn its output into a FlatZincSpace and run it
+>
+> We already have a version of the Gecode/FlatZinc interpreter that is fully
+> integrated into libminizinc (i.e. without the detour of producing a
+> FlatZinc text file).  We hope to be able to release at least a preview of
+> this soon (this is with my MiniZinc hat on, it's not really related to
+> Gecode).
+>
+> > -- I have two more questions:
+> >
+> >> a) There are a few options here.  You can change the parser to also
+> export its symbol table, which you can use to look up variables in the
+> FlatzincSpace by their name.
+> >
+> > That sounds really convenient, but I'm afraid I'll need a bit more
+> hand-holding. As far as I can see, my named variable arrays in Minizinc
+> turn into dozens of X_INTRODUCED_### variables in Flatzinc. How do I keep
+> track of them?
+>
+> Yes, that's a problem, this mapping is currently not available.  All you
+> can do at the Gecode level is to use the names in the FlatZinc (and that's
+> the symbol table you could use).  If you want to discuss more about the
+> MiniZinc side of things, I'd suggest we move the discussion to the MiniZinc
+> forums (or private email) instead.
+>
+> >
+> >> I also have some ideas on making Gecode much more compact (by removing
+> much of the template instantiation), I think that should help make the
+> generated Javascript more manageable.
+> >
+> > That's an interesting and promising idea. Is this on your short-term
+> agenda? If not, and if I decide to look into it myself, where would be the
+> best place to start (in terms of refactoring effort/bloat reduction ratio)?
+>
+> First of all I'd try out the usual compiler options, i.e. turning off
+> inlining, and setting the optimiser to focus on code size.
+>
+> After that it's really a refactoring job. Most propagators in Gecode use
+> "views" to implement different versions of a constraint, and each version
+> requires a different template instantiation.  That blows up the code size.
+> Instead, it would be possible to implement the different versions using
+> views with virtual functions, and then instantiate the propagators only
+> with the base view class and derive the different versions by inheritance.
+> I haven't fully thought this through yet, it's possible that it would
+> involve quite a lot of code duplication and copy/paste, no idea if it's
+> possible to do it more systematically.
+>
+> Cheers,
+> Guido
+>
+> >
+> >> b) The serialisation interface was part of Gecode 2 but we removed it
+> in Gecode 3 (I think), mainly because it was an incredibly invasive part of
+> the code (IIRC it made up about 30% of the overall Gecode code base!).
+> >
+> > Ah, I see.
+> > Thanks again!
+> >
+> > Seb
+> >
+> >>
+> >>> On 11 Apr 2015, at 12:03 am, Sebastian Kosch <
+> sebastian.kosch at mail.utoronto.ca> wrote:
+> >>>
+> >>> Hi,
+> >>>
+> >>> I am playing with the idea of building a simple browser interface to
+> >>> Gecode. I have tweaked the source so that it compiles to a asm.js blob
+> >>> via emscripten -- notwithstanding the dozens of obvious reasons why
+> >>> doing this is a dumb idea, I can now solve Flatzinc models in the
+> >>> browser, and that's pretty cool.
+> >>>
+> >>> I would like to do more than just input a Flatzinc string, of course,
+> >>> and build something closer to Gist maybe. So I would like to either
+> >>>
+> >>> a) write wrapper functions in C++ to interact with the Flatzinc model
+> >>> after it's been read in. This code would go into the JS blob and allow
+> >>> me to interact with the space from the browser (e.g. add/remove
+> >>> variables and constraints, change options, restart searches etc.) --
+> or:
+> >>>
+> >>> b) have an easier way of passing Javascript objects directly to Gecode
+> >>> to manipulate the space.
+> >>>
+> >>> (a potential option c) might be to integrate the Minizinc parser into
+> >>> the JS blob, and to create a "proper" space in Gecode directly from
+> >>> Minizinc instead of compiling to Flatzinc first, and then use a) ...
+> but I'd rather not.)
+> >>>
+> >>> In terms of a), what are my options beyond finding out which of the
+> >>> variables are part of the optimization? Can I access Flatzinc
+> >>> annotations on variables somehow? Is there a way to predict which
+> >>> objects in the space correspond to which of the parts in the "original"
+> >>> Minizinc model?
+> >>>
+> >>> In terms of b), it appears that this was planned at some point (see
+> >>>
+> https://github.com/mattetti/Gecoder/blob/0352cf3b879d2f6764a4da6efe3fb2b1ff1b819c/vendor/gecode/win32/include/gecode/serialization.hh
+> ),
+> >>> but then dropped. Could I investigate this further, or did you come up
+> >>> against hard reasons why that's not an option at all?
+> >>>
+> >>> I hope all of this doesn't sound too crazy or convoluted. I'm looking
+> >>> forward to your thoughts!
+> >>>
+> >>> Sebastian
+> >>>
+> >>>
+> >>>
+> >>> _______________________________________________
+> >>> Gecode users mailing list
+> >>> users at gecode.org
+> >>> https://www.gecode.org/mailman/listinfo/gecode-users
+> >>
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150411/399ce305/attachment-0001.html>
+
+From matthias.goldhoorn at uni-bremen.de  Mon Apr 13 16:04:07 2015
+From: matthias.goldhoorn at uni-bremen.de (Matthias Goldhoorn)
+Date: Mon, 13 Apr 2015 16:04:07 +0200
+Subject: [gecode-users] Dynamic Branching Support?
+Message-ID: <552BCCD7.809@uni-bremen.de>
+
+Hi to everyone on the ML,
+i'm new to gecode and have already a kind of bug problem .
+
+My Search will not Terminate within days. I have several SetVarArrays, 
+BoolArrays and so on on my Space.
+The Solutions they are found are valid for me, but the search is simply 
+to slow (and sometimes to memory exhaustive).
+I used already gist for introspection, my problem is that i first branch 
+on a BoolVarArrays which reduces the search space quite well until a 
+spefici point. At this point i would like to keep Post prune the 
+BoolVarArray and Continue branching on a SetVarArray. This wold faster 
+reduce my search space than continue the branching on the Bool one.
+
+My question therefore is: is there a way to select dynamically the 
+branching set?. I found on the documentation that it is possible to 
+select a variable INSIDE a structure for branching. But that i need is a 
+dynamic selection of the Set/Array where the branching should be done. 
+Is this possible in gecode. Or (@dev's) is the extension possible?
+
+Best,
+Matthias
+
+(P.S. Since i do open-source development i could provide my application 
+if this helps the understanding.)
+
+-- 
+  Dipl.-Inf. Matthias Goldhoorn
+  Space and Underwater Robotic
+
+  Universit?t Bremen
+  FB 3 - Mathematik und Informatik
+  AG Robotik
+  Robert-Hooke-Stra?e 5
+  28359 Bremen, Germany
+
+  Tel.:     +49 421 178 45-4193
+  Zentrale: +49 421 178 45-6550
+  Fax:      +49 421 178 45-4150
+  E-Mail:   matthias.goldhoorn at uni-bremen.de
+
+  Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+
+
+
+From cschulte at kth.se  Mon Apr 13 21:32:04 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 13 Apr 2015 21:32:04 +0200
+Subject: [gecode-users] Dynamic Branching Support?
+In-Reply-To: <552BCCD7.809@uni-bremen.de>
+References: <552BCCD7.809@uni-bremen.de>
+Message-ID: <008701d07620$87260030$95720090$@kth.se>
+
+Hi Matthias,
+
+Well there is a very simple answer which might be not very satisfying, though: the variable-value based branchings are just some pre-defined abstractions that come with Gecode. In principle you can implement whatever you like, the entire Part B of MPG is devoted to this.
+
+I do not know how much you have been exploring with the pre-defined variable selection strategies. But maybe you want to try ideas such as AFC and using restarts for search first. They sometimes can be remarkably effective.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se 
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Matthias Goldhoorn
+Sent: Monday, April 13, 2015 04:04 PM
+To: users at gecode.org
+Subject: [gecode-users] Dynamic Branching Support?
+
+Hi to everyone on the ML,
+i'm new to gecode and have already a kind of bug problem .
+
+My Search will not Terminate within days. I have several SetVarArrays, BoolArrays and so on on my Space.
+The Solutions they are found are valid for me, but the search is simply to slow (and sometimes to memory exhaustive).
+I used already gist for introspection, my problem is that i first branch on a BoolVarArrays which reduces the search space quite well until a spefici point. At this point i would like to keep Post prune the BoolVarArray and Continue branching on a SetVarArray. This wold faster reduce my search space than continue the branching on the Bool one.
+
+My question therefore is: is there a way to select dynamically the branching set?. I found on the documentation that it is possible to select a variable INSIDE a structure for branching. But that i need is a dynamic selection of the Set/Array where the branching should be done. 
+Is this possible in gecode. Or (@dev's) is the extension possible?
+
+Best,
+Matthias
+
+(P.S. Since i do open-source development i could provide my application if this helps the understanding.)
+
+--
+  Dipl.-Inf. Matthias Goldhoorn
+  Space and Underwater Robotic
+
+  Universit?t Bremen
+  FB 3 - Mathematik und Informatik
+  AG Robotik
+  Robert-Hooke-Stra?e 5
+  28359 Bremen, Germany
+
+  Tel.:     +49 421 178 45-4193
+  Zentrale: +49 421 178 45-6550
+  Fax:      +49 421 178 45-4150
+  E-Mail:   matthias.goldhoorn at uni-bremen.de
+
+  Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From matthias.goldhoorn at uni-bremen.de  Tue Apr 14 08:29:45 2015
+From: matthias.goldhoorn at uni-bremen.de (Matthias Goldhoorn)
+Date: Tue, 14 Apr 2015 08:29:45 +0200
+Subject: [gecode-users] Dynamic Branching Support?
+In-Reply-To: <008701d07620$87260030$95720090$@kth.se>
+References: <552BCCD7.809@uni-bremen.de>
+	<008701d07620$87260030$95720090$@kth.se>
+Message-ID: <552CB3D9.40604@uni-bremen.de>
+
+Good morning and thanks for your Answer first,
+
+I already read the Section B, my problem is that i still want to use the 
+variable-based branchers within my own brancher.
+My question therefore is how can i add a local instance of a brancher in 
+my self-written brancher?
+As i understood i cannot call branch(...) inside my own brancher. 
+Because this would register the brancher on the Space.
+I need a way to instanciate the brancher and then call the 'child' 
+brancher in choice/commit/(status) function from my brancher.
+Can you give me a hint howto create a brancher for this?
+
+I tried to change the brancher for my space, but unfortunately the 
+brancher(id) function are pure private to space. Therefore it seems to 
+forbidden to do this on the space directly.
+
+Regarding AFC, as i understood it does not change the layout of the 
+search tree (which on the other hand would be the case if i write a own 
+brancher). It only searches for another node to continue the search. I 
+Still want all solution for my 'problem'. Therefore AFC might (from my 
+understanding) not the way to go?
+
+Best,
+Matthias
+
+On 13.04.2015 21:32, Christian Schulte wrote:
+> Hi Matthias,
+>
+> Well there is a very simple answer which might be not very satisfying, though: the variable-value based branchings are just some pre-defined abstractions that come with Gecode. In principle you can implement whatever you like, the entire Part B of MPG is devoted to this.
+>
+> I do not know how much you have been exploring with the pre-defined variable selection strategies. But maybe you want to try ideas such as AFC and using restarts for search first. They sometimes can be remarkably effective.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Matthias Goldhoorn
+> Sent: Monday, April 13, 2015 04:04 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Dynamic Branching Support?
+>
+> Hi to everyone on the ML,
+> i'm new to gecode and have already a kind of bug problem .
+>
+> My Search will not Terminate within days. I have several SetVarArrays, BoolArrays and so on on my Space.
+> The Solutions they are found are valid for me, but the search is simply to slow (and sometimes to memory exhaustive).
+> I used already gist for introspection, my problem is that i first branch on a BoolVarArrays which reduces the search space quite well until a spefici point. At this point i would like to keep Post prune the BoolVarArray and Continue branching on a SetVarArray. This wold faster reduce my search space than continue the branching on the Bool one.
+>
+> My question therefore is: is there a way to select dynamically the branching set?. I found on the documentation that it is possible to select a variable INSIDE a structure for branching. But that i need is a dynamic selection of the Set/Array where the branching should be done.
+> Is this possible in gecode. Or (@dev's) is the extension possible?
+>
+> Best,
+> Matthias
+>
+> (P.S. Since i do open-source development i could provide my application if this helps the understanding.)
+>
+> --
+>    Dipl.-Inf. Matthias Goldhoorn
+>    Space and Underwater Robotic
+>
+>    Universit?t Bremen
+>    FB 3 - Mathematik und Informatik
+>    AG Robotik
+>    Robert-Hooke-Stra?e 5
+>    28359 Bremen, Germany
+>
+>    Tel.:     +49 421 178 45-4193
+>    Zentrale: +49 421 178 45-6550
+>    Fax:      +49 421 178 45-4150
+>    E-Mail:   matthias.goldhoorn at uni-bremen.de
+>
+>    Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+  Dipl.-Inf. Matthias Goldhoorn
+  Space and Underwater Robotic
+
+  Universit?t Bremen
+  FB 3 - Mathematik und Informatik
+  AG Robotik
+  Robert-Hooke-Stra?e 5
+  28359 Bremen, Germany
+
+  Tel.:     +49 421 178 45-4193
+  Zentrale: +49 421 178 45-6550
+  Fax:      +49 421 178 45-4150
+  E-Mail:   matthias.goldhoorn at uni-bremen.de
+
+  Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+
+
+
+From cschulte at kth.se  Tue Apr 14 11:56:47 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Apr 2015 11:56:47 +0200
+Subject: [gecode-users] Dynamic Branching Support?
+In-Reply-To: <552CB3D9.40604@uni-bremen.de>
+References: <552BCCD7.809@uni-bremen.de>	<008701d07620$87260030$95720090$@kth.se>
+	<552CB3D9.40604@uni-bremen.de>
+Message-ID: <013801d07699$532ff4b0$f98fde10$@kth.se>
+
+Uuups, I would have no idea how to wrap these branchers inside branchers. And honestly, that does not sound like a really good deal. It might be much easier to do your own branchers that store more than one array of views. So, no hint here ;-)
+
+I think you have to read again about AFC and play a little with it... Try it!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Matthias Goldhoorn
+Sent: Tuesday, April 14, 2015 8:30 AM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: [gecode-users] Dynamic Branching Support?
+
+Good morning and thanks for your Answer first,
+
+I already read the Section B, my problem is that i still want to use the variable-based branchers within my own brancher.
+My question therefore is how can i add a local instance of a brancher in my self-written brancher?
+As i understood i cannot call branch(...) inside my own brancher. 
+Because this would register the brancher on the Space.
+I need a way to instanciate the brancher and then call the 'child' 
+brancher in choice/commit/(status) function from my brancher.
+Can you give me a hint howto create a brancher for this?
+
+I tried to change the brancher for my space, but unfortunately the
+brancher(id) function are pure private to space. Therefore it seems to forbidden to do this on the space directly.
+
+Regarding AFC, as i understood it does not change the layout of the search tree (which on the other hand would be the case if i write a own brancher). It only searches for another node to continue the search. I Still want all solution for my 'problem'. Therefore AFC might (from my
+understanding) not the way to go?
+
+Best,
+Matthias
+
+On 13.04.2015 21:32, Christian Schulte wrote:
+> Hi Matthias,
+>
+> Well there is a very simple answer which might be not very satisfying, though: the variable-value based branchings are just some pre-defined abstractions that come with Gecode. In principle you can implement whatever you like, the entire Part B of MPG is devoted to this.
+>
+> I do not know how much you have been exploring with the pre-defined variable selection strategies. But maybe you want to try ideas such as AFC and using restarts for search first. They sometimes can be remarkably effective.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Matthias Goldhoorn
+> Sent: Monday, April 13, 2015 04:04 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Dynamic Branching Support?
+>
+> Hi to everyone on the ML,
+> i'm new to gecode and have already a kind of bug problem .
+>
+> My Search will not Terminate within days. I have several SetVarArrays, BoolArrays and so on on my Space.
+> The Solutions they are found are valid for me, but the search is simply to slow (and sometimes to memory exhaustive).
+> I used already gist for introspection, my problem is that i first branch on a BoolVarArrays which reduces the search space quite well until a spefici point. At this point i would like to keep Post prune the BoolVarArray and Continue branching on a SetVarArray. This wold faster reduce my search space than continue the branching on the Bool one.
+>
+> My question therefore is: is there a way to select dynamically the branching set?. I found on the documentation that it is possible to select a variable INSIDE a structure for branching. But that i need is a dynamic selection of the Set/Array where the branching should be done.
+> Is this possible in gecode. Or (@dev's) is the extension possible?
+>
+> Best,
+> Matthias
+>
+> (P.S. Since i do open-source development i could provide my 
+> application if this helps the understanding.)
+>
+> --
+>    Dipl.-Inf. Matthias Goldhoorn
+>    Space and Underwater Robotic
+>
+>    Universit?t Bremen
+>    FB 3 - Mathematik und Informatik
+>    AG Robotik
+>    Robert-Hooke-Stra?e 5
+>    28359 Bremen, Germany
+>
+>    Tel.:     +49 421 178 45-4193
+>    Zentrale: +49 421 178 45-6550
+>    Fax:      +49 421 178 45-4150
+>    E-Mail:   matthias.goldhoorn at uni-bremen.de
+>
+>    Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+--
+  Dipl.-Inf. Matthias Goldhoorn
+  Space and Underwater Robotic
+
+  Universit?t Bremen
+  FB 3 - Mathematik und Informatik
+  AG Robotik
+  Robert-Hooke-Stra?e 5
+  28359 Bremen, Germany
+
+  Tel.:     +49 421 178 45-4193
+  Zentrale: +49 421 178 45-6550
+  Fax:      +49 421 178 45-4150
+  E-Mail:   matthias.goldhoorn at uni-bremen.de
+
+  Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Tue Apr 14 15:26:11 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Apr 2015 15:26:11 +0200
+Subject: [gecode-users] Updated Windows packages for 4.4.0
+Message-ID: <017901d076b6$93408930$b9c19b90$@kth.se>
+
+Dear all,
+
+I just uploaded new Windows packages for Gecode 4.4.0 that fix problems with
+using Gist (fixing the error message "This application failed to start
+because it could not find or load the Qt platform plugin "windows"").
+
+Sorry for the inconvenience!
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+
+
+
+From tack at gecode.org  Wed Apr 15 12:12:27 2015
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 15 Apr 2015 20:12:27 +1000
+Subject: [gecode-users] Gecode 4.4.0 released
+Message-ID: <5DB65D36-DBDB-40E6-A8DC-CDE5B766377A@gecode.org>
+
+Dear all,
+
+sorry for the delayed announcement, this is to notify you that we released the next version of Gecode a few weeks ago:
+
+                    Gecode 4.4.0
+            http://www.gecode.org
+
+This release fixes some bugs and improves some search-related aspects.
+
+Note that the update may require changes to your code, please check the change log for details.  On our web site, you find source packages, binary packages for Windows and Mac OS, and the full documentation.
+
+Cheers,
+Guido
+
+
+
+From kurt.vandenbranden at agfa.com  Wed Apr 15 15:59:41 2015
+From: kurt.vandenbranden at agfa.com (Kurt Van Den Branden)
+Date: Wed, 15 Apr 2015 15:59:41 +0200
+Subject: [gecode-users] model with float variables sometimes hangs during
+	search
+Message-ID: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>
+
+hi,
+
+I have a Gecode model that uses float variables.
+I use a BAB searchengine with a Search::TimeStop object to interrupt the
+search when it takes too long.
+
+I noticed that when the model is created with certain parameters, the
+search isn't interrupted at the requested timelimit.
+it either continues a lot longer than allowed, or it doesn't stop at all.
+
+in these cases, the debugger shows that it's the method Space::status that 
+doesn't return sometimes.
+it keeps on propagating and never stops.
+
+I haven't been able to reproduce this with a limited test model yet.
+
+Does anybody have tips on what could cause this problem?
+
+Kind Regards,
+
+Kurt Van Den Branden | Agfa Graphics
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150415/a4632c37/attachment.html>
+
+From cschulte at kth.se  Wed Apr 15 16:05:57 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 15 Apr 2015 16:05:57 +0200
+Subject: [gecode-users] model with float variables sometimes hangs
+	during	search
+In-Reply-To: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>
+References: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>
+Message-ID: <002c01d07785$4c4a0720$e4de1560$@kth.se>
+
+Hi,
+
+ 
+
+This could be a feature and not a bug in that constraint propagation is just
+very slow to converge. For floating point numbers there is this risk.
+
+ 
+
+I would not know what to suggest without knowing how the model looks like
+but I am also not an expert in floating point. Vincent: do you have an idea?
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kurt Van Den Branden
+Sent: Wednesday, April 15, 2015 4:00 PM
+To: users at gecode.org
+Subject: [gecode-users] model with float variables sometimes hangs during
+search
+
+ 
+
+hi, 
+
+I have a Gecode model that uses float variables. 
+I use a BAB searchengine with a Search::TimeStop object to interrupt the 
+search when it takes too long. 
+
+I noticed that when the model is created with certain parameters, the 
+search isn't interrupted at the requested timelimit. 
+it either continues a lot longer than allowed, or it doesn't stop at all. 
+
+in these cases, the debugger shows that it's the method Space::status that
+doesn't return sometimes. 
+it keeps on propagating and never stops. 
+
+I haven't been able to reproduce this with a limited test model yet. 
+
+Does anybody have tips on what could cause this problem? 
+
+Kind Regards,
+
+Kurt Van Den Branden | Agfa Graphics
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150415/3a7cf3d1/attachment.html>
+
+From Vincent.Barichard at univ-angers.fr  Wed Apr 15 17:05:38 2015
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Wed, 15 Apr 2015 17:05:38 +0200
+Subject: [gecode-users] model with float variables sometimes hangs
+	during search
+In-Reply-To: <002c01d07785$4c4a0720$e4de1560$@kth.se>
+References: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>
+	<002c01d07785$4c4a0720$e4de1560$@kth.se>
+Message-ID: <CAF6ZHenVO96tmkrgDS5xXtOjnZVVtLPdDD_oPHdrvXWYue8Btg@mail.gmail.com>
+
+Hi,
+
+My first thought is that it is a slow convergency process. It often occurs
+when linear constraints are involved with particular coefficients. A first
+clue may be the number of propagations done in one call to Space::status().
+For the cases where the search ends (with a big amount of time) you may
+check the number of propagations done. If it is abnormally huge, it's
+probably a slow convergence. Without digging in the model and trace the
+search, I can't say much more. Sorry ....
+
+Regards,
+Vincent
+
+2015-04-15 16:05 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+
+> Hi,
+>
+>
+>
+> This could be a feature and not a bug in that constraint propagation is
+> just very slow to converge. For floating point numbers there is this risk.
+>
+>
+>
+> I would not know what to suggest without knowing how the model looks like
+> but I am also not an expert in floating point. Vincent: do you have an idea?
+>
+>
+>
+> Cheers
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Kurt Van Den Branden
+> *Sent:* Wednesday, April 15, 2015 4:00 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] model with float variables sometimes hangs
+> during search
+>
+>
+>
+> hi,
+>
+> I have a Gecode model that uses float variables.
+> I use a BAB searchengine with a Search::TimeStop object to interrupt the
+> search when it takes too long.
+>
+> I noticed that when the model is created with certain parameters, the
+> search isn't interrupted at the requested timelimit.
+> it either continues a lot longer than allowed, or it doesn't stop at all.
+>
+> in these cases, the debugger shows that it's the method Space::status that
+> doesn't return sometimes.
+> it keeps on propagating and never stops.
+>
+> I haven't been able to reproduce this with a limited test model yet.
+>
+> Does anybody have tips on what could cause this problem?
+>
+> Kind Regards,
+>
+> *Kurt Van Den Branden | Agfa Graphics*
+>
+
+
+
+-- 
+Vincent Barichard         Universit? d'Angers (LERIA)
+Tel:  02 41 73 52 06      D?partement Informatique
+Fax: 02 41 73 50 73      H203
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150415/b124fb7f/attachment.html>
+
+From kurt.vandenbranden at agfa.com  Thu Apr 16 08:12:19 2015
+From: kurt.vandenbranden at agfa.com (Kurt Van Den Branden)
+Date: Thu, 16 Apr 2015 08:12:19 +0200
+Subject: [gecode-users] model with float variables sometimes hangs
+	during search
+In-Reply-To: <CAF6ZHenVO96tmkrgDS5xXtOjnZVVtLPdDD_oPHdrvXWYue8Btg@mail.gmail.com>
+References: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>	<002c01d07785$4c4a0720$e4de1560$@kth.se>
+	<CAF6ZHenVO96tmkrgDS5xXtOjnZVVtLPdDD_oPHdrvXWYue8Btg@mail.gmail.com>
+Message-ID: <OFDB4CB26C.3637080F-ONC1257E29.00216F9E-C1257E29.0022163B@agfa.com>
+
+I did notice an enormous amount of propagations.
+is there some way I can detect slow convergency?
+or is there something I can do about it?
+
+I'll try to make the model simpler.
+see if I can reproduce the problem with a limited model.
+
+thanks,
+
+Kurt Van Den Branden | Agfa Graphics
+
+
+
+
+From:   Vincent Barichard <Vincent.Barichard at univ-angers.fr>
+To:     "cschulte at kth.se" <cschulte at kth.se>
+Cc:     Kurt Van Den Branden/AMAUK/AGFA at AGFA, Gecode <users at gecode.org>
+Date:   15/04/2015 17:05
+Subject:        Re: [gecode-users] model with float variables sometimes 
+hangs during search
+Sent by:        vincent.barichard at gmail.com
+
+
+
+Hi,
+
+My first thought is that it is a slow convergency process. It often occurs 
+when linear constraints are involved with particular coefficients. A first 
+clue may be the number of propagations done in one call to 
+Space::status(). For the cases where the search ends (with a big amount of 
+time) you may check the number of propagations done. If it is abnormally 
+huge, it's probably a slow convergence. Without digging in the model and 
+trace the search, I can't say much more. Sorry ....
+
+Regards,
+Vincent
+
+2015-04-15 16:05 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+Hi,
+ 
+This could be a feature and not a bug in that constraint propagation is 
+just very slow to converge. For floating point numbers there is this risk.
+ 
+I would not know what to suggest without knowing how the model looks like 
+but I am also not an expert in floating point. Vincent: do you have an 
+idea?
+ 
+Cheers
+Christian
+ 
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+ 
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf 
+Of Kurt Van Den Branden
+Sent: Wednesday, April 15, 2015 4:00 PM
+To: users at gecode.org
+Subject: [gecode-users] model with float variables sometimes hangs during 
+search
+ 
+hi, 
+
+I have a Gecode model that uses float variables. 
+I use a BAB searchengine with a Search::TimeStop object to interrupt the 
+search when it takes too long. 
+
+I noticed that when the model is created with certain parameters, the 
+search isn't interrupted at the requested timelimit. 
+it either continues a lot longer than allowed, or it doesn't stop at all. 
+
+in these cases, the debugger shows that it's the method Space::status that 
+doesn't return sometimes. 
+it keeps on propagating and never stops. 
+
+I haven't been able to reproduce this with a limited test model yet. 
+
+Does anybody have tips on what could cause this problem? 
+
+Kind Regards,
+
+Kurt Van Den Branden | Agfa Graphics
+
+
+
+-- 
+Vincent Barichard         Universit? d'Angers (LERIA)
+Tel:  02 41 73 52 06      D?partement Informatique
+Fax: 02 41 73 50 73      H203
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150416/ec1cba46/attachment-0001.html>
+
+From Vincent.Barichard at univ-angers.fr  Thu Apr 16 10:06:22 2015
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Thu, 16 Apr 2015 10:06:22 +0200
+Subject: [gecode-users] model with float variables sometimes hangs
+	during search
+In-Reply-To: <OFDB4CB26C.3637080F-ONC1257E29.00216F9E-C1257E29.0022163B@agfa.com>
+References: <OF4C70EE96.7398F0A6-ONC1257E28.004778FB-C1257E28.004CE04B@agfa.com>
+	<002c01d07785$4c4a0720$e4de1560$@kth.se>
+	<CAF6ZHenVO96tmkrgDS5xXtOjnZVVtLPdDD_oPHdrvXWYue8Btg@mail.gmail.com>
+	<OFDB4CB26C.3637080F-ONC1257E29.00216F9E-C1257E29.0022163B@agfa.com>
+Message-ID: <CAF6ZHenO=MPYhn7H7dkLiygze7gZfGJg=AiG7MPD2+Y2Z60J+w@mail.gmail.com>
+
+Hi,
+
+I can give you an example of slow convergence :
+
+#include <gecode/driver.hh>
+#include <gecode/minimodel.hh>
+#include <gecode/float.hh>
+
+using namespace Gecode;
+
+class SlowConvergenceTest : public Script {
+protected:
+  FloatVarArray x;
+public:
+  /// Actual model
+  SlowConvergenceTest(const Options& opt)
+    : Script(opt), x(*this,2,0,4) {
+    FloatNum coeff = 0.999999;
+    //FloatNum coeff = 1;
+
+    // Post equations
+    rel(*this, x[1] - x[0] == 0);
+    rel(*this, x[1] + coeff * x[0] == 2);
+
+    // Redondant constraint
+    //rel(*this, 2 * x[1] + (coeff - 1) * x[0] == 2);
+  }
+  SlowConvergenceTest(bool share, SlowConvergenceTest& p)
+    : Script(share,p) {
+    x.update(*this,share,p.x);
+  }
+  virtual Space* copy(bool share) {
+    return new SlowConvergenceTest(share,*this);
+  }
+  virtual void print(std::ostream& os) const {
+    os << "x  = [" << x[0].min() << ";" << x[0].max() << "]" << std::endl
+       << "y  = [" << x[1].min() << ";" << x[1].max() << "]" << std::endl
+       << std::endl;
+  }
+};
+int main(int argc, char* argv[]) {
+  Options opt("SlowConvergenceTest");
+  opt.parse(argc,argv);
+  Script::run<SlowConvergenceTest,DFS,Options>(opt);
+  return 0;
+}
+
+If you use this model, you will get a big number of propagations in order
+to compute
+the fix point (only 'status()' is called as there is no brancher). If you
+uncomment the redondant constraint, you get the solution very quickly.
+To identifiy a slow convergence, I count the number of calls of each
+constraint in
+the propagation step, then I try to tweek the model to overcome the
+difficulty.
+I hope it will help.
+
+Cheers,
+Vincent
+
+
+
+2015-04-16 8:12 GMT+02:00 Kurt Van Den Branden <kurt.vandenbranden at agfa.com>
+:
+
+> I did notice an enormous amount of propagations.
+> is there some way I can detect slow convergency?
+> or is there something I can do about it?
+>
+> I'll try to make the model simpler.
+> see if I can reproduce the problem with a limited model.
+>
+> thanks,
+>
+> * Kurt Van Den Branden | **Agfa Graphics*
+>
+>
+>
+>
+> From:        Vincent Barichard <Vincent.Barichard at univ-angers.fr>
+> To:        "cschulte at kth.se" <cschulte at kth.se>
+> Cc:        Kurt Van Den Branden/AMAUK/AGFA at AGFA, Gecode <users at gecode.org>
+> Date:        15/04/2015 17:05
+> Subject:        Re: [gecode-users] model with float variables sometimes
+> hangs during search
+> Sent by:        vincent.barichard at gmail.com
+> ------------------------------
+>
+>
+>
+> Hi,
+>
+> My first thought is that it is a slow convergency process. It often occurs
+> when linear constraints are involved with particular coefficients. A first
+> clue may be the number of propagations done in one call to Space::status().
+> For the cases where the search ends (with a big amount of time) you may
+> check the number of propagations done. If it is abnormally huge, it's
+> probably a slow convergence. Without digging in the model and trace the
+> search, I can't say much more. Sorry ....
+>
+> Regards,
+> Vincent
+>
+> 2015-04-15 16:05 GMT+02:00 Christian Schulte <*cschulte at kth.se*
+> <cschulte at kth.se>>:
+>
+> Hi,
+>
+>
+>
+> This could be a feature and not a bug in that constraint propagation is
+> just very slow to converge. For floating point numbers there is this risk.
+>
+>
+>
+> I would not know what to suggest without knowing how the model looks like
+> but I am also not an expert in floating point. Vincent: do you have an idea?
+>
+>
+>
+> Cheers
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, *www.gecode.org/~schulte*
+> <http://www.gecode.org/~schulte>
+>
+> Professor of Computer Science, KTH, *cschulte at kth.se* <cschulte at kth.se>
+>
+> Expert Researcher, SICS, *cschulte at sics.se* <cschulte at sics.se>
+>
+>
+>
+> *From:* *users-bounces at gecode.org* <users-bounces at gecode.org> [mailto:
+> *users-bounces at gecode.org* <users-bounces at gecode.org>] *On Behalf Of *Kurt
+> Van Den Branden
+> * Sent:* Wednesday, April 15, 2015 4:00 PM
+> * To:* *users at gecode.org* <users at gecode.org>
+> * Subject:* [gecode-users] model with float variables sometimes hangs
+> during search
+>
+>
+>
+> hi,
+>
+> I have a Gecode model that uses float variables.
+> I use a BAB searchengine with a Search::TimeStop object to interrupt the
+> search when it takes too long.
+>
+> I noticed that when the model is created with certain parameters, the
+> search isn't interrupted at the requested timelimit.
+> it either continues a lot longer than allowed, or it doesn't stop at all.
+>
+> in these cases, the debugger shows that it's the method Space::status that
+> doesn't return sometimes.
+> it keeps on propagating and never stops.
+>
+> I haven't been able to reproduce this with a limited test model yet.
+>
+> Does anybody have tips on what could cause this problem?
+>
+> Kind Regards,
+>
+> * Kurt Van Den Branden | **Agfa Graphics*
+>
+>
+>
+>
+> --
+> Vincent Barichard         Universit? d'Angers (LERIA)
+> Tel:  02 41 73 52 06      D?partement Informatique
+> Fax: 02 41 73 50 73      H203
+>
+>
+
+
+-- 
+Vincent Barichard         Universit? d'Angers (LERIA)
+Tel:  02 41 73 52 06      D?partement Informatique
+Fax: 02 41 73 50 73      H203
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150416/7e9b3627/attachment.html>
+

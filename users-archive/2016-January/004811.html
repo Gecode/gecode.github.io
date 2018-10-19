@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Usage of layered graphs,	without regard for propagation, and audit failure
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Usage%20of%20layered%20graphs%2C%0A%09without%20regard%20for%20propagation%2C%20and%20audit%20failure&In-Reply-To=%3C00ea01d14969%242d4e6080%2487eb2180%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004810.html">
+   <LINK REL="Next"  HREF="004812.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Usage of layered graphs,	without regard for propagation, and audit failure</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Usage%20of%20layered%20graphs%2C%0A%09without%20regard%20for%20propagation%2C%20and%20audit%20failure&In-Reply-To=%3C00ea01d14969%242d4e6080%2487eb2180%24%40kth.se%3E"
+       TITLE="[gecode-users] Usage of layered graphs,	without regard for propagation, and audit failure">cschulte at kth.se
+       </A><BR>
+    <I>Thu Jan  7 17:33:43 CET 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004810.html">[gecode-users] Order of branching
+</A></li>
+        <LI>Next message: <A HREF="004812.html">[gecode-users] Propagator for Set Constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4811">[ date ]</a>
+              <a href="thread.html#4811">[ thread ]</a>
+              <a href="subject.html#4811">[ subject ]</a>
+              <a href="author.html#4811">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Coby,
+
+Uff, that's really a hard one and I do not really have an answer. The key
+point is that the layered graph as constructed by initialize cannot be used
+really standalone. The data structure essentially makes three key
+assumptions:
+ 1. The variable domains are restricted as done in the ::post() member
+function.
+ 2. When the data structure is copied you do it as done the ::LayeredGraph
+constructor (the additional steps in the ::copy() meber function are really
+only optimizations of the data structure but not crucial).
+ 3. Any changes to the data structure are done as implemented by ::advise()
+and ::propagate() together. Only their combination make sure that the data
+structure's invariants hold.
+
+I do not know how much reading you already did in the Part P of MPG but you
+will have to read and understand pretty much all of it.
+
+The problem is really that the implementation is highly optimized and has
+pretty tricky invariants to maintain. The level of documentation is barely
+enough for me ;-)
+
+Sorry that I do not have to offer something more helpful than this.
+
+All the best
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Coby Viner
+Sent: Wednesday, December 23, 2015 12:26 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Usage of layered graphs, without regard for
+propagation, and audit failure
+
+Dear Gecode Users:
+
+I am working on a project for which (as an initial step) I need to convert
+regular expressions to layered graphs, of the form provided by Gilles Pesant
+in his 2004 LNCS paper.
+
+For this purpose, I would like to use
+Gecode::Int::Extensional::LayeredGraph, constructed from a Gecode
+DFA-converted regex. I am able to construct a valid DFA, but am having some
+difficulties constructing a layered graph corresponding to it. I can create
+the object itself, using the LayeredGraph (Home home, const VarArgArray&lt; Var
+&gt;<i> &amp;x, const DFA &amp;dfa) constructor for posting. However, the resulting graph
+</I>appears to be invalid.
+
+Upon posting it (via Gecode::Int::Extensional::LayeredGraph&lt; View, Val,
+Degree, StateIdx &gt;::LayeredGraph), it appears that I also need to run
+Gecode::Int::Extensional::LayeredGraph&lt; View, Val, Degree, StateIdx
+&gt;::<i>initialize, with the same arguments to get a valid initialization of the
+</I>layered graph (otherwise the pointer assigned to layers is invalid, as are
+further indices of that array). Once I call initialize, I can access all
+layers, and there are indeed as many as stated by n (the number of layers).
+However, the  data structures of the layered graph are not consistent. In
+particular, audit fails on its first assertion (concerning the number of
+edges). Manual inspection in gdb shows that the numbers reported for total
+states and edges are way off, both having values of zero, while the actual
+numbers vastly exceed that (e.g. layer 0 of 11, on support index 2, appears
+to have 16254 edges and 8880 states). Valgrind shows an error when a call to
+audit is included, saying that a &quot;Conditional jump or move depends on
+uninitialised value(s)&quot;, but providing no further information other than
+showing the error originated from the audit call and that the &quot;Uninitialised
+value was created b  y a stack allocation&quot; from the main method itself.
+Valgrind shows similar errors if n_states or n_edges are printed from the
+layered graph. While both erroneously (I assume) output 0, Valgrind detects
+memory errors, one similar to the previous one and another referring to the
+&quot;Use of uninitialised value of size 8&quot; at the line of code that outputs
+either n_states or n_edges.
+
+The documentation on this topic is sparse, and understandably so, since I am
+essentially abusing an internal Gecode class for something that it was not
+designed for. I was hoping for some guidance on how best to construct the
+layered graph corresponding to a DFA, ignoring notions of propagation or
+constraint-satisfaction, since I am only interested in using the layered
+graph itself.
+
+What would be a reasonable instantiation of the templates: &lt;View, Val,
+Degree, StateId&gt; for this purpose? Currently I am using: &lt;Int::IntView, int,
+int, int&gt;. Is this a sensible instantiation?
+
+For my purpose, I am attempting to use IntVarArgs that consist of constant
+integers (i.e. argument is an IntVar, but with min = max). 
+These integers correspond to those used in my DFA. Is there any issue with
+having such a sequence and is that a valid usage of IntVarArgs?
+
+What would be a good way to simply output the structure of the entire
+layered graph in some structured format or for me to access its components?
+It appears that I can access the layers easily enough, but the edges
+themselves are only temporarily recorded or bound to their support; is that
+correct? What would be an idiomatic way of iterating over the representation
+of transition variables / state variables?
+
+I apologize if my questions lack precision and would be happy to provide any
+necessary clarifications; this is far from my area of expertise.
+
+I would appreciate any pointers or advice that anyone can provide.
+
+Thank you in advance,
+
+Coby Viner
+
+P.S.  Congratulations on Gecode's recent 10th birthday!
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004810.html">[gecode-users] Order of branching
+</A></li>
+	<LI>Next message: <A HREF="004812.html">[gecode-users] Propagator for Set Constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4811">[ date ]</a>
+              <a href="thread.html#4811">[ thread ]</a>
+              <a href="subject.html#4811">[ subject ]</a>
+              <a href="author.html#4811">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

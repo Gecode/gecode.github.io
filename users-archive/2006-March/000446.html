@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Getting domain values after posting
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Getting%20domain%20values%20after%20posting&In-Reply-To=%3C6d69d7de0603290617xb953c6uecba1aeb442253df%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000441.html">
+   <LINK REL="Next"  HREF="000447.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Getting domain values after posting</H1>
+    <B>Efstratios Kalogirou</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Getting%20domain%20values%20after%20posting&In-Reply-To=%3C6d69d7de0603290617xb953c6uecba1aeb442253df%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Getting domain values after posting">efkalog at gmail.com
+       </A><BR>
+    <I>Wed Mar 29 16:17:09 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000441.html">[gecode-users] Getting domain values after posting
+</A></li>
+        <LI>Next message: <A HREF="000447.html">[gecode-users] Getting domain values after posting
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#446">[ date ]</a>
+              <a href="thread.html#446">[ thread ]</a>
+              <a href="subject.html#446">[ subject ]</a>
+              <a href="author.html#446">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi again,
+
+I have used the status function to perform constraint propagation. After the
+propagation I retrieve the values of the space to see if they are
+consistent. This works fine with many constraints (mostly simple
+cases) however there are other cases where the space is not reduced to the
+consistent values only. I am working on large scale disjunctions of
+conjunctions and I am interested in getting only the consistent values after
+the propagation. A very simplified example is the following:
+Three variables x1=[0..3], x2=[0..5], x3=[0..10] and a single constraint
+
+(x1==0) &amp;&amp; (x2==3) &amp;&amp; (x3==7)  ||
+(x1==0) &amp;&amp; (x2==5) &amp;&amp; (x3==9)
+
+The constraint represents allowed values, so the above is read as:
+x1 should be 0 and x2 should be 3 and x3 should be 7 or x1 should be 0 and
+x2 should be 5 and x3 should be 9.
+
+I would like to get the consistent values of the space after propagation,
+which are for the first variable, the value 0, for the second variable the
+values 3 and 5 and for the third variable the values 7 and 9. The value 1
+for example belongs to the space of the first variable but it's inconsistent
+because it doesn't satisfy the constraint.
+
+I have written the following code for the above problem (q is an IntVarArray
+of size 3):
+
+    IntVar x1(this,0,3);
+    IntVar x2(this,0,5);
+    IntVar x3(this,0,10);
+    q[0]=x1;
+    q[1]=x2;
+    q[2]=x3;
+    int values1[3]={0,3,7};
+    int values2[3]={0,5,9};
+
+    BoolVarArgs firstConjunction(3);      //stores the BoolVar representing
+each of the first 3 equalities
+    BoolVarArgs secondConjunction(3);//stores the BoolVar representing each
+of the last 3 equalities
+
+    for(int i=0;i&lt;3;i++)
+      {
+        //wraps each equality of the first conjunction in a single BoolVar
+        BoolVar temporar(this,0,1);
+        rel(this,q[i],IRT_EQ,values1[i],temporar);
+        firstConjunction[i]=temporar;
+
+        //wraps each equality of the second conjunction in a single BoolVar
+        BoolVar temporar2(this,0,1);
+        rel(this,q[i],IRT_EQ,values2[i],temporar2);
+        secondConjunction[i]=temporar2;
+      }
+    BoolVar result1(this,0,1);
+    BoolVar result2(this,0,1);
+    BoolVar disjunction(this,0,1);
+
+    bool_and(this,firstConjunction,result1);
+    bool_and(this,secondConjunction,result2);
+
+    bool_or(this,result1,result2,disjunction);
+
+    post(this,disjunction==1);
+
+
+    //performing propagation and getting the status report
+    unsigned int alt;
+    (void) status(alt);
+    IntVarValues ranger(q[0]);
+    while(ranger())
+      {
+        cout&lt;&lt;&quot;The value is &quot;&lt;&lt;ranger.val()&lt;&lt;endl;
+        ++ranger;
+      }
+
+
+The status report says that the problem is solved and gives me the solution
+0,3,7 but the retrival of the values of the space for the first variable
+still contains the incosistent values 1,2,3. If I didn't have the
+disjunction and I had only the constraint:
+(x1==0) &amp;&amp; (x2==3) &amp;&amp; (x3==7)
+the space would be successfully reduced to the consistent value 0 only.
+
+
+I am assuming that Gecode depending on the nature of the constraint
+sometimes reduces the space by removing inconsistent values, and other times
+it doesn't. If that's the case I am wondering if there is a way to reduce
+the space without me manually assigning a value to each variable,
+then performing propagation, getting the report and removing that value from
+the space of the variable if the propagation has failed.
+
+Best,
+
+Stratos
+
+On 3/28/06, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>&gt; wrote:
+&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> propagation in Gecode is not automatic (some simple cases are done
+</I>&gt;<i> immediately as you report, others are not). This is not a bug but an
+</I>&gt;<i> essential feature (this is what enables batch recomputation). In order to
+</I>&gt;<i> actually perform constraint propagation one has to invoke the
+</I>&gt;<i> status(unsigned int&amp;) member function of a space. Not only will that
+</I>&gt;<i> perform
+</I>&gt;<i> constraint propagation but it also reports about the status of a space: is
+</I>&gt;<i> it failed, solved, does it require branching. So in your case just add
+</I>&gt;<i> something along the lines:
+</I>&gt;<i>        unsigned int alt;
+</I>&gt;<i>        (void) status(alt); // Discard status result
+</I>&gt;<i>
+</I>&gt;<i> After that you will be able to observe the result of constraint
+</I>&gt;<i> propagation.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://web.imit.kth.se/~schulte/">http://web.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Efstratios Kalogirou
+</I>&gt;<i> Sent: Tuesday, March 28, 2006 5:35 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Getting domain values after posting
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi all,
+</I>&gt;<i>
+</I>&gt;<i> I am trying to get the remaining (valid) values and the size of the domain
+</I>&gt;<i> of a variable after posting some constraints (assuming that due to the
+</I>&gt;<i> constraints some values inside the domain are no longer valid). It seems
+</I>&gt;<i> that everything is fine when I don't use any BoolVar to wrap the
+</I>&gt;<i> contraint.
+</I>&gt;<i> For example:
+</I>&gt;<i>
+</I>&gt;<i> IntVarArray q(this,1,0,10);
+</I>&gt;<i> post(this,q[0]==3);
+</I>&gt;<i> cout&lt;&lt;&quot;The size of the domain is now &quot;&lt;&lt;q[0].size()&lt;&lt;endl;
+</I>&gt;<i>
+</I>&gt;<i> In the above case the size of the domain is indeed 1 and the solution is
+</I>&gt;<i> correctly the value 3.
+</I>&gt;<i>
+</I>&gt;<i> But things are different when I try to wrap the equality constraint in a
+</I>&gt;<i> BoolVar:
+</I>&gt;<i>
+</I>&gt;<i> IntVarArray q(this,1,0,10);
+</I>&gt;<i> BoolVar wrapper(this,0,1);
+</I>&gt;<i> rel(this,q[0],IRT_EQ,3,wrapper,ICL_BND);
+</I>&gt;<i> post(this, wrapper==1);
+</I>&gt;<i> cout&lt;&lt;&quot;The size of the domain is now &quot;&lt;&lt;q[0].size()&lt;&lt;endl;
+</I>&gt;<i>
+</I>&gt;<i> In the latter example I get again the corrent solution 3 but after posting
+</I>&gt;<i> the constraint the size of the domain remains 11 and doesn't shrink to 1
+</I>&gt;<i> as
+</I>&gt;<i> I would expect.
+</I>&gt;<i>
+</I>&gt;<i> Since I am solving problems using the second way I am wondering if there
+</I>&gt;<i> is
+</I>&gt;<i> a way to shrink the domain of the variable after posting as showed in the
+</I>&gt;<i> second example. Also how can I get all the valid values of the domain of a
+</I>&gt;<i> variable after posting? I assume this can be done by using iterators but I
+</I>&gt;<i> am not certain how exactly to relate the iterator with the IntVar or the
+</I>&gt;<i> IntSet that represents the variable, so any enlightening on that, would be
+</I>&gt;<i> highly appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Stratos Kalogirou
+</I>&gt;<i>
+</I>&gt;<i>
+</I>-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060329/e78d6d5d/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20060329/e78d6d5d/attachment.htm</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000441.html">[gecode-users] Getting domain values after posting
+</A></li>
+	<LI>Next message: <A HREF="000447.html">[gecode-users] Getting domain values after posting
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#446">[ date ]</a>
+              <a href="thread.html#446">[ thread ]</a>
+              <a href="subject.html#446">[ subject ]</a>
+              <a href="author.html#446">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

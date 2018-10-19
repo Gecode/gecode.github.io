@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] pdb files
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20pdb%20files&In-Reply-To=%3C46F3C5F0.9030500%40logis.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001074.html">
+   <LINK REL="Next"  HREF="001076.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] pdb files</H1>
+    <B>Filip Konvi&#269;ka</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20pdb%20files&In-Reply-To=%3C46F3C5F0.9030500%40logis.cz%3E"
+       TITLE="[gecode-users] pdb files">filip.konvicka at logis.cz
+       </A><BR>
+    <I>Fri Sep 21 15:24:00 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001074.html">[gecode-users] pdb files
+</A></li>
+        <LI>Next message: <A HREF="001076.html">[gecode-users] pdb files
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1075">[ date ]</a>
+              <a href="thread.html#1075">[ thread ]</a>
+              <a href="subject.html#1075">[ subject ]</a>
+              <a href="author.html#1075">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Guido Tack (21.9.2007 7:55):
+&gt;<i> Filip Konvi&#269;ka wrote:
+</I>&gt;&gt;<i>  Is there a
+</I>&gt;&gt;<i> recommended way of obtaining the pdb files? I think that it's necessary
+</I>&gt;&gt;<i> to pass &quot;/DEBUG /PDB:&quot;GecodeKernel.pdb&quot; to link.exe for the release
+</I>&gt;&gt;<i> build. (This IMHO does not change the dll files themselves, it just
+</I>&gt;&gt;<i> creates appropriate pdbs and thus enables debugging.)
+</I>&gt;<i>
+</I>&gt;<i> You can configure Gecode using
+</I>&gt;<i>
+</I>&gt;<i> ./configure --enable-debug CC=cl CXX=cl
+</I>&gt;<i>
+</I>&gt;<i> (and any other options you want).  Then build it (as detailed in the 
+</I>&gt;<i> documentation).  This will create the pdb files.
+</I>
+Hm, not exactly what I want. To give you the whole funny story, I'll 
+start at the beginning :-) First, I installed cygwin, then added the 
+things that configure complained about. I'm using MSVC 8, so I executed 
+the following:
+
+export PATH=/cygdrive/c/Program\ Files/Microsoft\ Visual\ Studio\ 
+8/Common7/IDE:/cygdrive/c/Program\ Files/Microsoft\ Visual\ Studio\ 
+8/VC/BIN:/cygdrive/c/Program\ Files/Microsoft\ Visual\ Studio\ 
+8/Common7/Tools:/cygdrive/c/Program\ Files/Microsoft\ Visual\ Studio\ 
+8/Common7/Tools/bin:/cygdrive/c/Program\ Files/Microsoft\ Visual\ 
+Studio\ 8/VC/PlatformSDK/bin:/cygdrive/c/Program\ Files/Microsoft\ 
+Visual\ Studio\ 8/SDK/v2.0/bin:/cygdrive/c/Program\ Files/Microsoft\ 
+Visual\ Studio\ 8/VC/VCPackages:$PATH
+export INCLUDE='C:\Program Files\Microsoft Visual Studio 
+8\VC\ATLMFC\INCLUDE;C:\Program Files\Microsoft Visual Studio 
+8\VC\INCLUDE;C:\Program Files\Microsoft Visual Studio 
+8\VC\PlatformSDK\include;C:\Program Files\Microsoft Visual Studio 
+8\SDK\v2.0\include'
+export LIB='C:\Program Files\Microsoft Visual Studio 
+8\VC\ATLMFC\LIB;C:\Program Files\Microsoft Visual Studio 
+8\VC\LIB;C:\Program Files\Microsoft Visual Studio 
+8\VC\PlatformSDK\lib;C:\Program Files\Microsoft Visual Studio 
+8\SDK\v2.0\lib'
+export LIBPATH=
+
+which is probably worth mentioning in the docs, as everybody probably 
+needs this and it is tiresome to reinvent (all of this comes from 
+vcvars32.bat somewhere in VC8 dirs). Anyway, configure went fine, so I 
+ran &quot;make&quot;. I think I had to install &quot;diff&quot; and &quot;make&quot;, which configure 
+did not check, and then make started complaining about missing perl. So 
+I installed that, but this time things got a bit worse, since compile 
+failed in gecode/int/int-set.cc (I think), complaining that (at 
+gecode\int\var.icc line 40) &quot;IntVarImpBase&quot; was not a base class. I 
+found out, after a while, that the defining include file 
+&quot;gecode\int\var\imp-hdr.icc&quot; was empty, probably cause of the previous 
+perl absence (which created it, zero-size, and failed, so subsequent 
+make attempts did not bother to re-create the file). The problem is that 
+the generated icc files are not deleted by &quot;make veryclean&quot;.
+
+OK, then I finally succeeded compiling everything with &quot;configure CC=cl 
+CXX=cl&quot;, so I tried --enable-debug, which does not work:
+
+cl -nologo -EHsc -Zi -LDd MDd gecode/kernel/exception.obj 
+gecode/kernel/core.obj gecode/kernel/memory-manager.obj \
+                -FeGecodeKernel.dll
+cl : Command line warning D9024 : unrecognized source file type 'MDd', 
+object file assumed
+LINK : fatal error LNK1181: cannot open input file 'MDd.obj'
+
+Clearly, it tries to pass &quot;MDd&quot; instead of &quot;/MDd&quot; to cl.exe. Never mind, 
+this is not what I want anyway, as it uses &quot;-Zi -LDd&quot; instead of &quot;-Ox&quot;. 
+In other words, I wanted to generate release-mode dlls and the 
+corresponding pdb files (so that I have full-performance gecode with 
+external symbols that enable call-stack decryption).
+
+After some research, I found out that the easiest way is to invoke
+
+export LINK=&quot;/DEBUG /OPT:REF /OPT:ICF&quot;
+
+before running make. The generated dlls are essentially same as the 
+distributed ones (only some header bits are changed to indicate that 
+symbols exist somewhere, AFAICT), and I have a set of pdb files so that 
+I can see the call stack while debugging my actors. If it's not too 
+complicated, I suggest that you build and distribute the pdb files in an 
+installer package - maybe as an optional download, it's a 1,4 MB 7-zip 
+(one floppy, rememer? :-)). It makes debugging in MSVC much easier.
+
+Cheers,
+Filip
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001074.html">[gecode-users] pdb files
+</A></li>
+	<LI>Next message: <A HREF="001076.html">[gecode-users] pdb files
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1075">[ date ]</a>
+              <a href="thread.html#1075">[ thread ]</a>
+              <a href="subject.html#1075">[ subject ]</a>
+              <a href="author.html#1075">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

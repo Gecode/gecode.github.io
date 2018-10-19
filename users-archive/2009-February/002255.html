@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Question about branching
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%20branching&In-Reply-To=%3C200902131754.41177.Vincent.Barichard%40univ-angers.fr%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002247.html">
+   <LINK REL="Next"  HREF="002276.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Question about branching</H1>
+    <B>Vincent Barichard</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%20branching&In-Reply-To=%3C200902131754.41177.Vincent.Barichard%40univ-angers.fr%3E"
+       TITLE="[gecode-users] Question about branching">Vincent.Barichard at univ-angers.fr
+       </A><BR>
+    <I>Fri Feb 13 17:54:40 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002247.html">[gecode-users] Question about branching
+</A></li>
+        <LI>Next message: <A HREF="002276.html">[gecode-users] Question about branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2255">[ date ]</a>
+              <a href="thread.html#2255">[ thread ]</a>
+              <a href="subject.html#2255">[ subject ]</a>
+              <a href="author.html#2255">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Christian,
+
+Le vendredi 13 f&#233;vrier 2009 10:32:36 Christian Schulte, vous avez &#233;crit :
+&gt;<i> Hi Vincent,
+</I>&gt;<i>
+</I>&gt;<i> would the following help: There will be two iterators Space::Propagators
+</I>&gt;<i> and Space::Branchings that iterate over all propagators or branchings of a
+</I>&gt;<i> space? Would be enough if they would just give const access?
+</I>&gt;<i>
+</I>
+A const access should be sufficient. It will be very convenient to be able to 
+parse propagators and branchings :-)
+
+&gt;<i> Your patch is wrong. The update function does everything thats needed. Or
+</I>&gt;<i> did you have a problem there?
+</I>&gt;<i>
+</I>
+Indeed, I encountered a problem. I designed a propagator which uses advisors. 
+Sometimes afer cloning, Gecode crashed. The debugger tells me that the crash 
+occured in the Council&lt;A&gt;::update function of my propagator and Valgrind said 
+that there is some uninitialized variables. 
+After reading the code, I saw that the field named &quot;advisors&quot; in the Council&lt;A&gt; 
+class is set to NULL in only one constructor. Furthermore, there is no recopy 
+constructor, so when cloning, a bad value may be copied in the &quot;advisors&quot; field 
+of the clone, and the variable &quot;c.advisors&quot; in the Council&lt;A&gt;::update function 
+may  not been correctly initialized.
+After putting &quot;co(home)&quot; in the recopy constructor of my propagator, 
+everything go well, so I thought it was the same problem for the 
+SpeedLinBoolInt propagator. I probably thought wrong, sorry.
+
+Cheers,
+Vincent
+
+
+&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Vincent Barichard
+</I>&gt;<i> Sent: Tuesday, February 10, 2009 10:03 PM
+</I>&gt;<i> To: Christian Schulte
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Question about branching
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Le mardi 10 f&#233;vrier 2009 14:52:37 Christian Schulte, vous avez &#233;crit :
+</I>&gt;<i> &gt; Hi,
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; no there is no way to find the x, in particular as some branchings
+</I>&gt;<i> &gt; might not have an array of variables.
+</I>&gt;<i>
+</I>&gt;<i> I wasn't sure but I suspected it.
+</I>&gt;<i>
+</I>&gt;<i> &gt; There is not even the notion of a current branching (there are two
+</I>&gt;<i> &gt; current
+</I>&gt;<i> &gt; branchings: one that is used for status() and the other that is used
+</I>&gt;<i> &gt; for
+</I>&gt;<i> &gt; commit() during recomputation).
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Branchings are designed to just implement a particular interface that's
+</I>&gt;<i>
+</I>&gt;<i> it.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> It is not completely clear for me. I will look more further in the code.
+</I>&gt;<i>
+</I>&gt;<i> &gt; Maybe you tell us what you want to do?
+</I>&gt;<i>
+</I>&gt;<i> I have created a new variable type and I want to do backjumping on the
+</I>&gt;<i> search tree. So I need to access to the variable of the BranchingDesc to
+</I>&gt;<i> know if I must to skip the BranchingDesc or not. After reading your mail, I
+</I>&gt;<i> decided to create sub-class of ViewValBranching and PosValDesc to get the
+</I>&gt;<i> information I need. Here comes a piece of the code I wrote in my search
+</I>&gt;<i> engine:
+</I>&gt;<i>
+</I>&gt;<i>               const BranchingDesc * bd;
+</I>&gt;<i>               int noAlt;
+</I>&gt;<i>               int noClosedDesc;
+</I>&gt;<i>               QBool::QBoolQuant quant;
+</I>&gt;<i>               do
+</I>&gt;<i>               {
+</I>&gt;<i>                 bd = rcs.nextDesc&lt; QBool::QBoolPosValDesc&lt;2&gt;
+</I>&gt;<i>
+</I>&gt;<i> &gt;(*this,noAlt,noClosedDesc);
+</I>&gt;<i>
+</I>&gt;<i>                 if (bd == NULL) return NULL;
+</I>&gt;<i>                 quant = static_cast&lt;const QBool::QBoolPosValDesc&lt;2&gt;*&gt;(bd)-
+</I>&gt;<i>
+</I>&gt;<i> &gt;quantifier();
+</I>&gt;<i>
+</I>&gt;<i>               } while (quant != QBool::QBoolVarImp::EXISTS);
+</I>&gt;<i>
+</I>&gt;<i>               delete cur;
+</I>&gt;<i>               cur = rcs.recompute&lt;false&gt;(d,*this);
+</I>&gt;<i>               EngineCtrl::current(cur);
+</I>&gt;<i>
+</I>&gt;<i> Sometimes, the line:
+</I>&gt;<i> &quot;              } while (quant != QBool::QBoolVarImp::EXISTS);&quot;
+</I>&gt;<i> changes, so I have to dynamically ask the variable of the BranchingDesc
+</I>&gt;<i> what is its quantifier.
+</I>&gt;<i>
+</I>&gt;<i> The problem here is that I have to assume that it is a
+</I>&gt;<i> QBool::QBoolPosValDesc&lt;2&gt; BranchingDesc and to cast it.
+</I>&gt;<i> I would like to test if it is a QBool::QBoolPosValDesc&lt;2&gt; and if it is the
+</I>&gt;<i> case, to test its quantifier.
+</I>&gt;<i>
+</I>&gt;<i> &gt; Then, reflection will be gone (see my next mail as to why) and there
+</I>&gt;<i> &gt; is currently no way to get the actors (unless you iterate over the
+</I>&gt;<i> &gt; list of actors, check how the function propagators() counting the
+</I>&gt;<i> &gt; number of propagators is implemented).
+</I>&gt;<i>
+</I>&gt;<i> I looked at propagators(), but It needs &quot;pc&quot; being public or protected in
+</I>&gt;<i> order to use it in our subclass of Space.
+</I>&gt;<i>
+</I>&gt;<i> Another thing, I am not sure it's a small bug or not, but I found that the
+</I>&gt;<i> &quot;co&quot; field of SpeedLinBoolInt is not initialized during cloning. As a
+</I>&gt;<i> result, the update function of Council&lt;A&gt; may not ends. I attached a patch
+</I>&gt;<i> in the mail.
+</I>&gt;<i>
+</I>&gt;<i> Thank you for your help.
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Vincent
+</I>
+-- 
+Vincent Barichard        Universit&#233; d'Angers (LERIA)
+Tel: 02 41 73 52 06      D&#233;partement Informatique
+Fax: 02 41 73 50 73      H203
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002247.html">[gecode-users] Question about branching
+</A></li>
+	<LI>Next message: <A HREF="002276.html">[gecode-users] Question about branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2255">[ date ]</a>
+              <a href="thread.html#2255">[ thread ]</a>
+              <a href="subject.html#2255">[ subject ]</a>
+              <a href="author.html#2255">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

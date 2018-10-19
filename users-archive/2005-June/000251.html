@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Gecode] Interaction between shared variables and idempotency
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Interaction%20between%20shared%20variables%20and%20idempotency&In-Reply-To=%3C007e01c56b6d%2453bd7660%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000250.html">
+   <LINK REL="Next"  HREF="000252.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Gecode] Interaction between shared variables and idempotency</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Interaction%20between%20shared%20variables%20and%20idempotency&In-Reply-To=%3C007e01c56b6d%2453bd7660%24acd4ed82%40beule%3E"
+       TITLE="[Gecode] Interaction between shared variables and idempotency">schulte at imit.kth.se
+       </A><BR>
+    <I>Tue Jun  7 16:29:35 CEST 2005</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000250.html">[Gecode] Re: Problem with operator== for views,	equality vs. aliasing.
+</A></li>
+        <LI>Next message: <A HREF="000252.html">[Gecode] bug: bab-copy.cc : BAB search not traversing rightmost	root subtree.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#251">[ date ]</a>
+              <a href="thread.html#251">[ thread ]</a>
+              <a href="subject.html#251">[ subject ]</a>
+              <a href="author.html#251">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear all,
+
+initially, the tests for sharing and equality on views was meant to address
+issues with shared variables for idempotent propagators.
+
+As a reminder, a propagator returns ES_FIX if it is at a fixpoint and
+ES_NOFIX if it is not at a fixpoint. For efficiency, the propagator should
+try hard to tell ES_FIX most of the times when it is actually at fixpoint.
+However, this is difficult for propagators computing on shared views:
+performing an operation on a view also narrows the domain of the shared
+view.
+
+Here are three strategies for finding out whether a propagator is at
+fixpoint with shared views.
+
+1. Suppose a propagator that only performs at most one write operation to a
+view. Typical examples are &quot;smart&quot; propagators such as distinct, regular,
+etc. They work by first computing new domain information for each view and
+then writing or posting this information back to the views. Here one can use
+a trick to find out whether one has computed a fixpoint or not: a view x
+provides an operation x.modified(). When a propagator starts execution
+modified() is false for all views. Only after a modification has taken
+place, it becomes true. So the following works: before the propagator posts
+to the view x, it checks whether x is already modified. If yes, the
+propagator might not be at a fixpoint. Otherwise, it is.
+
+2. The propagator computes in a loop until a fixpoint is reached. The
+propagator must make sure that this loop really computes a fixpoint! For
+example, when the loop is based until no view changes this also must
+consider that no shared view has been changed. Here the trick with modified
+is not available.
+
+3. Check for sharing once and for all. If none of the above works, just
+check whether the propagator has shared views or not. If it has, ALWAYS
+report ES_NOFIX! This can be achieved most efficiently by making the
+propagator generic with respect to whether to return ES_FIX and ES_NOFIX
+through a template.
+
+Here comes also an example why this matters. Assume domain consistent
+distinct and variables x with domain {1,2} and y both with domain {2,3} and
+the following three views v1 := x+0, v2 := x+1, v3 := y. Propagation should
+yield x=1 and y=3 directly! However, if the propagator does not detect that
+v1 and v2 are shared it will only propagate that x=1 and y in {2,3}!
+
+And yes, sharing sucks. And yes, almost all propagators are faulty (but
+linear and bool!)...
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000250.html">[Gecode] Re: Problem with operator== for views,	equality vs. aliasing.
+</A></li>
+	<LI>Next message: <A HREF="000252.html">[Gecode] bug: bab-copy.cc : BAB search not traversing rightmost	root subtree.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#251">[ date ]</a>
+              <a href="thread.html#251">[ thread ]</a>
+              <a href="subject.html#251">[ subject ]</a>
+              <a href="author.html#251">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

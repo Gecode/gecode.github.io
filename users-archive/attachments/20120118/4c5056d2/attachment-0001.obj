@@ -1,0 +1,230 @@
+Index: changelog.in
+===================================================================
+--- changelog.in	(revision 12492)
++++ changelog.in	(working copy)
+@@ -73,6 +73,23 @@
+ Fixes, or perhaps more?
+ 
+ [ENTRY]
++Module: driver
++What:   new
++Rank:   minor
++Thanks: Josef Eisl
++[DESCRIPTION]
++The command line -print-last configures whether only the last
++solution found is printed.
++
++[ENTRY]
++Module: driver
++What:   change
++Rank:   minor
++[DESCRIPTION]
++Boolean options (BoolOption) now expect a false or true argument
++and hence are in-line with all other option types.
++
++[ENTRY]
+ Module: int
+ What:   change
+ Rank:   minor
+Index: gecode/driver.hh
+===================================================================
+--- gecode/driver.hh	(revision 12492)
++++ gecode/driver.hh	(working copy)
+@@ -256,8 +256,8 @@
+     protected:
+       bool cur; ///< Current value
+     public:
+-      /// Initialize for option \a o and explanation \a e and default false
+-      BoolOption(const char* o, const char* e);
++      /// Initialize for option \a o and explanation \a e and default value \a v
++      BoolOption(const char* o, const char* e, bool v=false);
+       /// Set default value to \a v
+       void value(bool v);
+       /// Return current option value
+@@ -332,6 +332,7 @@
+     Driver::StringOption      _mode;       ///< Script mode to run
+     Driver::UnsignedIntOption _samples;    ///< How many samples
+     Driver::UnsignedIntOption _iterations; ///< How many iterations per sample
++    Driver::BoolOption        _print_last; ///< Print only last solution found
+     //@}
+ 
+   public:
+@@ -431,15 +432,20 @@
+     /// Return mode
+     ScriptMode mode(void) const;
+     
++    /// Set default number of samples
++    void samples(unsigned int s);
++    /// Return number of samples
++    unsigned int samples(void) const;
++
+     /// Set default number of iterations
+     void iterations(unsigned int i);
+     /// Return number of iterations
+     unsigned int iterations(void) const;
+     
+-    /// Set default number of samples
+-    void samples(unsigned int s);
+-    /// Return number of samples
+-    unsigned int samples(void) const;
++    /// Set whether to print only last solution found
++    void print_last(bool p);
++    /// Return whether to print only last solution found
++    bool print_last(void) const;
+     //@}
+ 
+ #ifdef GECODE_HAS_GIST
+Index: gecode/driver/options.hpp
+===================================================================
+--- gecode/driver/options.hpp	(revision 12492)
++++ gecode/driver/options.hpp	(working copy)
+@@ -130,8 +130,8 @@
+      *
+      */
+     inline
+-    BoolOption::BoolOption(const char* o, const char* e) 
+-      : BaseOption(o,e), cur(false) {}
++    BoolOption::BoolOption(const char* o, const char* e, bool v) 
++      : BaseOption(o,e), cur(v) {}
+     inline void
+     BoolOption::value(bool v) {
+       cur = v;
+@@ -334,6 +334,15 @@
+   }
+   
+   inline void
++  Options::samples(unsigned int s) {
++    _samples.value(s);
++  }
++  inline unsigned int
++  Options::samples(void) const {
++    return _samples.value();
++  }
++
++  inline void
+   Options::iterations(unsigned int i) {
+     _iterations.value(i);
+   }
+@@ -343,12 +352,12 @@
+   }
+   
+   inline void
+-  Options::samples(unsigned int s) {
+-    _samples.value(s);
++  Options::print_last(bool p) {
++    _print_last.value(p);
+   }
+-  inline unsigned int
+-  Options::samples(void) const {
+-    return _samples.value();
++  inline bool
++  Options::print_last(void) const {
++    return _print_last.value();
+   }
+ 
+ #ifdef GECODE_HAS_GIST
+Index: gecode/driver/script.hpp
+===================================================================
+--- gecode/driver/script.hpp	(revision 12492)
++++ gecode/driver/script.hpp	(working copy)
+@@ -238,13 +238,30 @@
+           if (o.interrupt())
+             Cutoff::installCtrlHandler(true);
+           Engine<Script> e(s,so);
+-          do {
+-            Script* ex = e.next();
+-            if (ex == NULL)
+-              break;
+-            ex->print(std::cout);
+-            delete ex;
+-          } while (--i != 0);
++          if (o.print_last()) {
++            Script* px = NULL;
++            do {
++              Script* ex = e.next();
++              if (ex == NULL) {
++                if (px != NULL) {
++                  px->print(std::cout);
++                  delete px;
++                }
++                break;
++              } else {
++                delete px;
++                px = ex;
++              }
++            } while (--i != 0);
++          } else {
++            do {
++              Script* ex = e.next();
++              if (ex == NULL)
++                break;
++              ex->print(std::cout);
++              delete ex;
++            } while (--i != 0);
++          }
+           if (o.interrupt())
+             Cutoff::installCtrlHandler(false);
+           Search::Statistics stat = e.statistics();
+Index: gecode/driver/options.cpp
+===================================================================
+--- gecode/driver/options.cpp	(revision 12492)
++++ gecode/driver/options.cpp	(working copy)
+@@ -253,18 +253,33 @@
+       if ((argc < 2) || strcmp(argv[1],opt)) {
+         return false;
+       }
++      if (argc == 2) {
++        std::cerr << "Missing argument for option \"" << opt << "\"" << std::endl;
++        exit(EXIT_FAILURE);
++      }
++      if (!strcmp(argv[2],"true") || !strcmp(argv[2],"1")) {
++        cur = true;
++      } else if (!strcmp(argv[2],"false") || !strcmp(argv[2],"0")) {
++        cur = false;
++      } else {
++        std::cerr << "Wrong argument \"" << argv[2]
++                  << "\" for option \"" << opt << "\""
++                  << std::endl;
++        exit(EXIT_FAILURE);
++      }
+       // Remove options
+-      argc--;
++      argc -= 2;
+       for (int i=1; i<argc; i++)
+-        argv[i] = argv[i+1];
+-      cur = true;
++        argv[i] = argv[i+2];
+       return true;
+     }
+ 
+     void 
+     BoolOption::help(void) {
+       using namespace std;
+-      cerr << '\t' << opt << endl << "\t\t" << exp << endl;
++      cerr << '\t' << opt << " (false, true) default: " 
++           << (cur ? "true" : "false") << endl 
++           << "\t\t" << exp << endl;
+     }
+ 
+   
+@@ -360,7 +375,10 @@
+       
+       _mode("-mode","how to execute script",SM_SOLUTION),
+       _samples("-samples","how many samples (time mode)",1),
+-      _iterations("-iterations","iterations per sample (time mode)",1)
++      _iterations("-iterations","iterations per sample (time mode)",1),
++      _print_last("-print-last",
++                  "whether to only print the last solution (solution mode)",
++                  false)
+   {
+     
+     _icl.add(ICL_DEF, "def"); _icl.add(ICL_VAL, "val");
+@@ -378,7 +396,7 @@
+     add(_branching);
+     add(_search); add(_solutions); add(_threads); add(_c_d); add(_a_d);
+     add(_node); add(_fail); add(_time); add(_interrupt);
+-    add(_mode); add(_iterations); add(_samples);
++    add(_mode); add(_iterations); add(_samples); add(_print_last);
+   }
+ 
+   

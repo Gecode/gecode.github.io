@@ -1,0 +1,3364 @@
+From malcolmr at cse.unsw.edu.au  Mon Mar  2 05:01:08 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 2 Mar 2009 15:01:08 +1100
+Subject: [gecode-users] Reified Distinct Constraint
+In-Reply-To: <001a01c990e3$3feccfb0$bfc66f10$@se>
+References: <20090216132124.289780@gmx.net>
+	<000301c990d7$bf784b30$3e68e190$@se> <499A8428.30904@gmx.de>
+	<001a01c990e3$3feccfb0$bfc66f10$@se>
+Message-ID: <8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+
+Well a 'soft distinct' like this could easily be converted to a  
+reified distinct:
+
+soft_distinct(args, nViolations);
+BoolVar b = post(space, ~(nViolations == 0));
+
+Malcolm
+
+On 17/02/2009, at 8:36 PM, Christian Schulte wrote:
+
+> No, not really. I do not know what this distinct would be good for.  
+> A more
+> useful one would be a soft distinct where the number of violations is
+> counted (there, one actually also could get some propagation). Check  
+> for
+> example:
+> 	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.3.7071
+>
+> What do you need a reified distinct for?
+>
+> Christian
+>
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: Max [mailto:chaosangel at gmx.de]
+> Sent: Tuesday, February 17, 2009 10:32 AM
+> To: Christian Schulte
+> Cc: 'gecode list'
+> Subject: Re: [gecode-users] Reified Distinct Constraint
+>
+> Thank you for the quick answer.
+> Is this feature planned for the release of GeCode3.0?
+> I just found a mail in the archive of somebody requesting the same  
+> feature.
+> Currently i do use O(n^2) constraints for this, but i wanted to show
+> that i can transform it into a constant number of rules.
+> Thats why i would need the reified version.
+>
+> Max
+>
+> Christian Schulte wrote:
+>> No, there is no reified version. The best you can do at emulating  
+>> is use
+>> excessive reification: Create O(n^2) reified disequality  
+>> constraints for
+> all
+>> variable-variable pairs, and then the reified control variable is the
+>> conjunction of all the control variables from the disequalities. As  
+>> said,
+>> not very good.
+>>
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.it.kth.se/~cschulte/
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+>> Behalf
+>> Of Max Ostrowski
+>> Sent: Monday, February 16, 2009 2:21 PM
+>> To: gecode list
+>> Subject: [gecode-users] Reified Distinct Constraint
+>>
+>> I just found the distinct constraint, that hopefully makes all  
+>> variables
+>> distinct. This could greatly reduce the number of constraints, as i  
+>> am
+>> translating from a logic program.
+>> But i would need a reified version of the distinct constraint.
+>> I there any or can i at least emulate thie behaviour?
+>>
+>> Thank you in advance,
+>> Max
+>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Mon Mar  2 05:34:36 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 2 Mar 2009 15:34:36 +1100
+Subject: [gecode-users] Saving memory with IntVarArrays
+Message-ID: <B3F178CA-6560-4E2F-AB2F-893755C607BD@cse.unsw.edu.au>
+
+A question about IntVarArrays:
+
+I have a large CSP that I have coded to be constructed incrementally  
+as the search proceeds to reduce memory usage. To simplify, lets say  
+that I have an array of N variables for some large N, and each one is  
+constrained by some relationship with its neighbours. Rather than  
+create all N variables and N-1 constraints immediately, I create and  
+constrain variables incrementally once the previous variable has been  
+assigned. (My real situation is actually more complex than this, but  
+my question remains the same).
+
+Currently, I create an IntVarArray as:
+
+vars = IntVarArray(space, N);
+
+and then incrementally create variables as:
+
+vars[t] = IntVar(space, domainSet);
+
+My question is: does this actually save memory? I assume that creating  
+the array created N 'uninitialised' IntVars. Are these variables  
+significantly smaller than initialised IntVars? Or is this a false  
+saving? Would I be better to create a smaller IntVarArray and replace  
+it with an incrementally longer one as variables are created?
+
+Thanks,
+
+Malcolm
+
+
+
+From tack at ps.uni-sb.de  Mon Mar  2 08:09:25 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 2 Mar 2009 18:09:25 +1100
+Subject: [gecode-users] Saving memory with IntVarArrays
+In-Reply-To: <B3F178CA-6560-4E2F-AB2F-893755C607BD@cse.unsw.edu.au>
+References: <B3F178CA-6560-4E2F-AB2F-893755C607BD@cse.unsw.edu.au>
+Message-ID: <9450EA0C-27FC-49E4-BE77-1DA77C916D02@ps.uni-sb.de>
+
+Malcolm Ryan wrote:
+> Currently, I create an IntVarArray as:
+>
+> vars = IntVarArray(space, N);
+>
+> and then incrementally create variables as:
+>
+> vars[t] = IntVar(space, domainSet);
+>
+> My question is: does this actually save memory? I assume that creating
+> the array created N 'uninitialised' IntVars. Are these variables
+> significantly smaller than initialised IntVars? Or is this a false
+> saving?
+
+An IntVar is just a container for a pointer to an "IntVar  
+implementation".  An uninitialized IntVar therefore is much smaller  
+than an actual IntVar.
+
+> Would I be better to create a smaller IntVarArray and replace
+> it with an incrementally longer one as variables are created?
+
+You can grow IntVarArrays incrementally using the add method (they are  
+resized automatically).  That way you may save some more memory, and  
+all the IntVars in the array are initialized at all times.  Otherwise  
+you can't e.g. call update on the array, you always have to update the  
+variables individually, right?
+
+Cheers,
+	Guido
+
+
+
+
+From ChaosAngel at gmx.de  Mon Mar  2 11:05:58 2009
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 02 Mar 2009 11:05:58 +0100
+Subject: [gecode-users] Reified Distinct Constraint
+In-Reply-To: <8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+References: <20090216132124.289780@gmx.net>
+	<000301c990d7$bf784b30$3e68e190$@se> <499A8428.30904@gmx.de>
+	<001a01c990e3$3feccfb0$bfc66f10$@se>
+	<8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+Message-ID: <20090302100558.291190@gmx.net>
+
+Hmm, maybe i got you wrong, but i did not found a "soft_distinct" function in the gecode library.
+
+Max
+-------- Original-Nachricht --------
+> Datum: Mon, 2 Mar 2009 15:01:08 +1100
+> Von: Malcolm Ryan <malcolmr at cse.unsw.edu.au>
+> An: gecode list <users at gecode.org>
+> Betreff: Re: [gecode-users] Reified Distinct Constraint
+
+> Well a 'soft distinct' like this could easily be converted to a  
+> reified distinct:
+> 
+> soft_distinct(args, nViolations);
+> BoolVar b = post(space, ~(nViolations == 0));
+> 
+> Malcolm
+> 
+> On 17/02/2009, at 8:36 PM, Christian Schulte wrote:
+> 
+> > No, not really. I do not know what this distinct would be good for.  
+> > A more
+> > useful one would be a soft distinct where the number of violations is
+> > counted (there, one actually also could get some propagation). Check  
+> > for
+> > example:
+> > 	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.3.7071
+> >
+> > What do you need a reified distinct for?
+> >
+> > Christian
+> >
+> > --
+> > Christian Schulte, www.it.kth.se/~cschulte/
+> >
+> >
+> > -----Original Message-----
+> > From: Max [mailto:chaosangel at gmx.de]
+> > Sent: Tuesday, February 17, 2009 10:32 AM
+> > To: Christian Schulte
+> > Cc: 'gecode list'
+> > Subject: Re: [gecode-users] Reified Distinct Constraint
+> >
+> > Thank you for the quick answer.
+> > Is this feature planned for the release of GeCode3.0?
+> > I just found a mail in the archive of somebody requesting the same  
+> > feature.
+> > Currently i do use O(n^2) constraints for this, but i wanted to show
+> > that i can transform it into a constant number of rules.
+> > Thats why i would need the reified version.
+> >
+> > Max
+> >
+> > Christian Schulte wrote:
+> >> No, there is no reified version. The best you can do at emulating  
+> >> is use
+> >> excessive reification: Create O(n^2) reified disequality  
+> >> constraints for
+> > all
+> >> variable-variable pairs, and then the reified control variable is the
+> >> conjunction of all the control variables from the disequalities. As  
+> >> said,
+> >> not very good.
+> >>
+> >> Christian
+> >>
+> >> --
+> >> Christian Schulte, www.it.kth.se/~cschulte/
+> >>
+> >> -----Original Message-----
+> >> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+> >> Behalf
+> >> Of Max Ostrowski
+> >> Sent: Monday, February 16, 2009 2:21 PM
+> >> To: gecode list
+> >> Subject: [gecode-users] Reified Distinct Constraint
+> >>
+> >> I just found the distinct constraint, that hopefully makes all  
+> >> variables
+> >> distinct. This could greatly reduce the number of constraints, as i  
+> >> am
+> >> translating from a logic program.
+> >> But i would need a reified version of the distinct constraint.
+> >> I there any or can i at least emulate thie behaviour?
+> >>
+> >> Thank you in advance,
+> >> Max
+> >>
+> >
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Computer Bild Tarifsieger! GMX FreeDSL - Telefonanschluss + DSL
+f?r nur 17,95 ?/mtl.!* http://dsl.gmx.de/?ac=OM.AD.PD003K11308T4569a
+
+
+
+From cschulte at kth.se  Mon Mar  2 11:06:06 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 2 Mar 2009 11:06:06 +0100
+Subject: [gecode-users] Reified Distinct Constraint
+In-Reply-To: <8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+References: <20090216132124.289780@gmx.net>	<000301c990d7$bf784b30$3e68e190$@se>
+	<499A8428.30904@gmx.de>	<001a01c990e3$3feccfb0$bfc66f10$@se>
+	<8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+Message-ID: <009401c99b1e$81df77c0$859e6740$@se>
+
+Well, yes. But one still needs to implement it... Maybe I'll announce a
+master thesis for some soft constraints because they are pretty useful and I
+got interested in them for some other reasons, too.
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Monday, March 02, 2009 5:01 AM
+To: gecode list
+Subject: Re: [gecode-users] Reified Distinct Constraint
+
+Well a 'soft distinct' like this could easily be converted to a  
+reified distinct:
+
+soft_distinct(args, nViolations);
+BoolVar b = post(space, ~(nViolations == 0));
+
+Malcolm
+
+On 17/02/2009, at 8:36 PM, Christian Schulte wrote:
+
+> No, not really. I do not know what this distinct would be good for.  
+> A more
+> useful one would be a soft distinct where the number of violations is
+> counted (there, one actually also could get some propagation). Check  
+> for
+> example:
+> 	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.3.7071
+>
+> What do you need a reified distinct for?
+>
+> Christian
+>
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: Max [mailto:chaosangel at gmx.de]
+> Sent: Tuesday, February 17, 2009 10:32 AM
+> To: Christian Schulte
+> Cc: 'gecode list'
+> Subject: Re: [gecode-users] Reified Distinct Constraint
+>
+> Thank you for the quick answer.
+> Is this feature planned for the release of GeCode3.0?
+> I just found a mail in the archive of somebody requesting the same  
+> feature.
+> Currently i do use O(n^2) constraints for this, but i wanted to show
+> that i can transform it into a constant number of rules.
+> Thats why i would need the reified version.
+>
+> Max
+>
+> Christian Schulte wrote:
+>> No, there is no reified version. The best you can do at emulating  
+>> is use
+>> excessive reification: Create O(n^2) reified disequality  
+>> constraints for
+> all
+>> variable-variable pairs, and then the reified control variable is the
+>> conjunction of all the control variables from the disequalities. As  
+>> said,
+>> not very good.
+>>
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.it.kth.se/~cschulte/
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+>> Behalf
+>> Of Max Ostrowski
+>> Sent: Monday, February 16, 2009 2:21 PM
+>> To: gecode list
+>> Subject: [gecode-users] Reified Distinct Constraint
+>>
+>> I just found the distinct constraint, that hopefully makes all  
+>> variables
+>> distinct. This could greatly reduce the number of constraints, as i  
+>> am
+>> translating from a logic program.
+>> But i would need a reified version of the distinct constraint.
+>> I there any or can i at least emulate thie behaviour?
+>>
+>> Thank you in advance,
+>> Max
+>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Mon Mar  2 11:08:06 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 2 Mar 2009 11:08:06 +0100
+Subject: [gecode-users] Reified Distinct Constraint
+In-Reply-To: <20090302100558.291190@gmx.net>
+References: <20090216132124.289780@gmx.net>	<000301c990d7$bf784b30$3e68e190$@se>
+	<499A8428.30904@gmx.de>	<001a01c990e3$3feccfb0$bfc66f10$@se>	<8DC128F4-5FA4-40EF-ACE1-2A098DE5176C@cse.unsw.edu.au>
+	<20090302100558.291190@gmx.net>
+Message-ID: <009701c99b1e$d076caa0$71645fe0$@se>
+
+Yep, that's why I wrote "would be". Just wishful thinking and trying to make
+the point that if I'd the time, I'd put it into a soft distinct rather than
+a reified one.
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max Ostrowski
+Sent: Monday, March 02, 2009 11:06 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Reified Distinct Constraint
+
+Hmm, maybe i got you wrong, but i did not found a "soft_distinct" function
+in the gecode library.
+
+Max
+-------- Original-Nachricht --------
+> Datum: Mon, 2 Mar 2009 15:01:08 +1100
+> Von: Malcolm Ryan <malcolmr at cse.unsw.edu.au>
+> An: gecode list <users at gecode.org>
+> Betreff: Re: [gecode-users] Reified Distinct Constraint
+
+> Well a 'soft distinct' like this could easily be converted to a  
+> reified distinct:
+> 
+> soft_distinct(args, nViolations);
+> BoolVar b = post(space, ~(nViolations == 0));
+> 
+> Malcolm
+> 
+> On 17/02/2009, at 8:36 PM, Christian Schulte wrote:
+> 
+> > No, not really. I do not know what this distinct would be good for.  
+> > A more
+> > useful one would be a soft distinct where the number of violations is
+> > counted (there, one actually also could get some propagation). Check  
+> > for
+> > example:
+> > 	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.3.7071
+> >
+> > What do you need a reified distinct for?
+> >
+> > Christian
+> >
+> > --
+> > Christian Schulte, www.it.kth.se/~cschulte/
+> >
+> >
+> > -----Original Message-----
+> > From: Max [mailto:chaosangel at gmx.de]
+> > Sent: Tuesday, February 17, 2009 10:32 AM
+> > To: Christian Schulte
+> > Cc: 'gecode list'
+> > Subject: Re: [gecode-users] Reified Distinct Constraint
+> >
+> > Thank you for the quick answer.
+> > Is this feature planned for the release of GeCode3.0?
+> > I just found a mail in the archive of somebody requesting the same  
+> > feature.
+> > Currently i do use O(n^2) constraints for this, but i wanted to show
+> > that i can transform it into a constant number of rules.
+> > Thats why i would need the reified version.
+> >
+> > Max
+> >
+> > Christian Schulte wrote:
+> >> No, there is no reified version. The best you can do at emulating  
+> >> is use
+> >> excessive reification: Create O(n^2) reified disequality  
+> >> constraints for
+> > all
+> >> variable-variable pairs, and then the reified control variable is the
+> >> conjunction of all the control variables from the disequalities. As  
+> >> said,
+> >> not very good.
+> >>
+> >> Christian
+> >>
+> >> --
+> >> Christian Schulte, www.it.kth.se/~cschulte/
+> >>
+> >> -----Original Message-----
+> >> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+> >> Behalf
+> >> Of Max Ostrowski
+> >> Sent: Monday, February 16, 2009 2:21 PM
+> >> To: gecode list
+> >> Subject: [gecode-users] Reified Distinct Constraint
+> >>
+> >> I just found the distinct constraint, that hopefully makes all  
+> >> variables
+> >> distinct. This could greatly reduce the number of constraints, as i  
+> >> am
+> >> translating from a logic program.
+> >> But i would need a reified version of the distinct constraint.
+> >> I there any or can i at least emulate thie behaviour?
+> >>
+> >> Thank you in advance,
+> >> Max
+> >>
+> >
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Computer Bild Tarifsieger! GMX FreeDSL - Telefonanschluss + DSL
+f?r nur 17,95 ?/mtl.!* http://dsl.gmx.de/?ac=OM.AD.PD003K11308T4569a
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From filip.konvicka at logis.cz  Tue Mar  3 11:04:54 2009
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Tue, 03 Mar 2009 11:04:54 +0100
+Subject: [gecode-users] Building trunk
+Message-ID: <goivcb$t5h$1@ger.gmane.org>
+
+Hi,
+
+I was trying to build the current trunk under cygwin/msvc9. I tried to 
+build in a separate directory, and I had to create the directory
+"gecode/set/branch" manually. Is there something special about this 
+directory?
+
+Also, I tried to edit variables.vsl.in to add support for floatvars 
+again, and I ran about a million things to re-generate variables.vsl, 
+but I'm not sure whether I got it right.... what is the proper incantation?
+
+Thanks,
+Filip
+
+
+
+
+From cschulte at kth.se  Tue Mar  3 11:12:11 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 3 Mar 2009 11:12:11 +0100
+Subject: [gecode-users] Building trunk
+In-Reply-To: <goivcb$t5h$1@ger.gmane.org>
+References: <goivcb$t5h$1@ger.gmane.org>
+Message-ID: <003601c99be8$855c5ab0$90151010$@se>
+
+Hi,
+
+I just added the set branch dir. For the rest, Guido must chip in (but I
+think you get it through the Makefile.contribs. That has changed yesterday
+as I accidently removed a file that Guido then later put back).
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Tuesday, March 03, 2009 11:05 AM
+To: users at gecode.org
+Subject: [gecode-users] Building trunk
+
+Hi,
+
+I was trying to build the current trunk under cygwin/msvc9. I tried to 
+build in a separate directory, and I had to create the directory
+"gecode/set/branch" manually. Is there something special about this 
+directory?
+
+Also, I tried to edit variables.vsl.in to add support for floatvars 
+again, and I ran about a million things to re-generate variables.vsl, 
+but I'm not sure whether I got it right.... what is the proper incantation?
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ggutierrez at atlas.puj.edu.co  Tue Mar  3 11:14:01 2009
+From: ggutierrez at atlas.puj.edu.co (Gustavo Gutierrez)
+Date: Tue, 3 Mar 2009 11:14:01 +0100
+Subject: [gecode-users] Building trunk
+In-Reply-To: <goivcb$t5h$1@ger.gmane.org>
+References: <goivcb$t5h$1@ger.gmane.org>
+Message-ID: <e7b0e5a40903030214v4f693412k97265dd690a92b55@mail.gmail.com>
+
+On Tue, Mar 3, 2009 at 11:04 AM, Filip Konvi?ka <filip.konvicka at logis.cz> wrote:
+> Hi,
+>
+> I was trying to build the current trunk under cygwin/msvc9. I tried to
+> build in a separate directory, and I had to create the directory
+> "gecode/set/branch" manually. Is there something special about this
+> directory?
+>
+> Also, I tried to edit variables.vsl.in to add support for floatvars
+> again, and I ran about a million things to re-generate variables.vsl,
+> but I'm not sure whether I got it right.... what is the proper incantation?
+
+Something similar for me with graph contribution, check variables.vsl :
+
+\nFile: contribs/graph/graph.vis\n
+
+and should be:
+File: contribs/graph/graph.vis
+
+
+But I don't know if is the same situation you describe, if you don't
+remove '\n' gcc is going to complain.
+
+Regards,
+Gustavo
+
+
+
+From gualandi at elet.polimi.it  Tue Mar  3 18:15:51 2009
+From: gualandi at elet.polimi.it (Stefano Gualandi)
+Date: Tue, 3 Mar 2009 17:15:51 +0000
+Subject: [gecode-users] strange behaviour of SetVarArray
+Message-ID: <7C86BA38-2207-4315-953D-E85D7E7E8E7A@elet.polimi.it>
+
+Hi,
+there is a strange behavior of one of the SetVarArray constructors, in  
+the trunk version.
+In practice, if you try to define an array of set variables as follows:
+
+     x ( *this, 4, IntSet::empty, 2, 4, 0, 4 )
+
+it raises an exception, since it fails the test in the file gecode/set/ 
+array.cpp at lines 84-85:
+
+84:    if (minCard > maxCard || minCard > lubSize || maxCard < glbSize  
+||
+85:        glb.min() < ubMin || glb.max() > ubMax)
+
+The point is that glb.min() of an empty set is 1 (?).
+Commenting the line 85 seems to fix the problem, but I don't know if  
+it breaks some other assumption.
+
+You can find attached the smallest example the show the *behavior*.
+
+cheers,
+Stefano
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cpp
+Type: application/octet-stream
+Size: 1008 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090303/17185b13/attachment.obj>
+-------------- next part --------------
+
+
+From jeffreym9 at yahoo.com.hk  Wed Mar  4 03:17:18 2009
+From: jeffreym9 at yahoo.com.hk (Jeffrey)
+Date: Tue, 3 Mar 2009 18:17:18 -0800 (PST)
+Subject: [gecode-users] How to get the next solution?
+Message-ID: <294683.97195.qm@web111409.mail.gq1.yahoo.com>
+
+i would like to get all the solution for a problem.
+How to get them?
+
+Using gecode, does it mean I need to trigger the search, and then, get the solution, and then trigger search again, until no solution is returned?
+How to do it? Is there any example?
+
+
+      Yahoo!???????????????????! ??? http://hk.promo.yahoo.com/security/ ????!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090303/520aa2a5/attachment.htm>
+
+From zayenz at kth.se  Wed Mar  4 10:04:14 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Wed, 4 Mar 2009 10:04:14 +0100
+Subject: [gecode-users] How to get the next solution?
+In-Reply-To: <294683.97195.qm@web111409.mail.gq1.yahoo.com>
+References: <294683.97195.qm@web111409.mail.gq1.yahoo.com>
+Message-ID: <63b5c8b00903040104k134e6bdbr86467415befbd74e@mail.gmail.com>
+
+Hi,
+
+A search in the mailing.list archives for getting all the solutions
+gives the following:
+    http://search.gmane.org/search.php?group=gmane.comp.lib.gecode.user&query=getting+all+solutions
+
+Cheers,
+Mikael
+
+2009/3/4 Jeffrey <jeffreym9 at yahoo.com.hk>:
+> i would like to get all the solution for a problem.
+> How to get them?
+>
+> Using gecode, does it mean I need to trigger the search, and then, get the
+> solution, and then trigger search again, until no solution is returned?
+> How to do it? Is there any example?
+> ________________________________
+> Yahoo!???????????????????!????
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From tack at ps.uni-sb.de  Thu Mar  5 01:53:56 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 5 Mar 2009 11:53:56 +1100
+Subject: [gecode-users] strange behaviour of SetVarArray
+In-Reply-To: <7C86BA38-2207-4315-953D-E85D7E7E8E7A@elet.polimi.it>
+References: <7C86BA38-2207-4315-953D-E85D7E7E8E7A@elet.polimi.it>
+Message-ID: <DBC0A36C-FFD1-4BFC-978C-04C137B01016@ps.uni-sb.de>
+
+Stefano,
+
+thanks for the bug report.  I just fixed it in the trunk (empty  
+IntSets now have min=Int::Limits::max and max=Int::Limits::min).
+
+Cheers,
+	Guido
+
+Stefano Gualandi wrote:
+
+> Hi,
+> there is a strange behavior of one of the SetVarArray constructors,  
+> in the trunk version.
+> In practice, if you try to define an array of set variables as  
+> follows:
+>
+>    x ( *this, 4, IntSet::empty, 2, 4, 0, 4 )
+>
+> it raises an exception, since it fails the test in the file gecode/ 
+> set/array.cpp at lines 84-85:
+>
+> 84:    if (minCard > maxCard || minCard > lubSize || maxCard <  
+> glbSize ||
+> 85:        glb.min() < ubMin || glb.max() > ubMax)
+>
+> The point is that glb.min() of an empty set is 1 (?).
+> Commenting the line 85 seems to fix the problem, but I don't know if  
+> it breaks some other assumption.
+>
+> You can find attached the smallest example the show the *behavior*.
+>
+> cheers,
+> Stefano
+>
+>
+> <test.cpp>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Fri Mar  6 08:41:38 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Fri, 6 Mar 2009 18:41:38 +1100
+Subject: [gecode-users] Deleting spaces
+Message-ID: <A60F3319-9240-43B1-AD0F-0DABE5960D8C@cse.unsw.edu.au>
+
+A question about memory management. If I do the following:
+
+Space* space = new Space();
+//... set up problem
+
+Search::Options o;
+Gecode::DFS<Space> dfs(space, o);
+
+Space* result = dfs.next();
+
+Should I now delete space? Should I delete result? Or do they belong  
+to dfs?
+
+Malcolm
+
+
+
+From cschulte at kth.se  Fri Mar  6 08:53:54 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 6 Mar 2009 08:53:54 +0100
+Subject: [gecode-users] Deleting spaces
+In-Reply-To: <A60F3319-9240-43B1-AD0F-0DABE5960D8C@cse.unsw.edu.au>
+References: <A60F3319-9240-43B1-AD0F-0DABE5960D8C@cse.unsw.edu.au>
+Message-ID: <004401c99e30$b37c5ae0$1a7510a0$@se>
+
+You should delete both. The creation of a search engine takes a snapshot
+clone by default, and the responsibility for anything returned is with the
+client.
+
+What the heck, you can already have a preview of the upcoming tutorial
+documentation (where I just explained that). Please keep in mind that this
+doc is for Gecode 3.0.0 (where the interface has changed quite some) and is
+still being proofread:
+	http://www.gecode.org/doc/3.0.0/modeling.pdf
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Friday, March 06, 2009 8:42 AM
+To: gecode list
+Subject: [gecode-users] Deleting spaces
+
+A question about memory management. If I do the following:
+
+Space* space = new Space();
+//... set up problem
+
+Search::Options o;
+Gecode::DFS<Space> dfs(space, o);
+
+Space* result = dfs.next();
+
+Should I now delete space? Should I delete result? Or do they belong  
+to dfs?
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From gualandi at elet.polimi.it  Fri Mar  6 12:09:57 2009
+From: gualandi at elet.polimi.it (Stefano Gualandi)
+Date: Fri, 6 Mar 2009 11:09:57 +0000
+Subject: [gecode-users] Deleting spaces
+In-Reply-To: <004401c99e30$b37c5ae0$1a7510a0$@se>
+References: <A60F3319-9240-43B1-AD0F-0DABE5960D8C@cse.unsw.edu.au>
+	<004401c99e30$b37c5ae0$1a7510a0$@se>
+Message-ID: <69AF3B45-8326-401C-9FB5-8357CFE6F577@elet.polimi.it>
+
+> What the heck, you can already have a preview of the upcoming tutorial
+> documentation (where I just explained that). Please keep in mind  
+> that this
+> doc is for Gecode 3.0.0 (where the interface has changed quite some)  
+> and is
+> still being proofread:
+> 	http://www.gecode.org/doc/3.0.0/modeling.pdf
+
+Thanks so much to you authors for sharing this document!!!
+
+cheers,
+Stefano
+
+
+
+From cschulte at kth.se  Fri Mar  6 23:02:41 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 6 Mar 2009 23:02:41 +0100
+Subject: [gecode-users] Deleting spaces
+In-Reply-To: <69AF3B45-8326-401C-9FB5-8357CFE6F577@elet.polimi.it>
+References: <A60F3319-9240-43B1-AD0F-0DABE5960D8C@cse.unsw.edu.au>	<004401c99e30$b37c5ae0$1a7510a0$@se>
+	<69AF3B45-8326-401C-9FB5-8357CFE6F577@elet.polimi.it>
+Message-ID: <000301c99ea7$475e4fe0$d61aefa0$@se>
+
+Well, well. Isn't it that we authors tend to share quite some and then.
+
+Sorry, just couldn't resist!
+
+But: if you have comments, please let us know. We are eager to please.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Stefano Gualandi
+Sent: Friday, March 06, 2009 12:10 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Deleting spaces
+
+> What the heck, you can already have a preview of the upcoming tutorial
+> documentation (where I just explained that). Please keep in mind  
+> that this
+> doc is for Gecode 3.0.0 (where the interface has changed quite some)  
+> and is
+> still being proofread:
+> 	http://www.gecode.org/doc/3.0.0/modeling.pdf
+
+Thanks so much to you authors for sharing this document!!!
+
+cheers,
+Stefano
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From josel2820 at gmail.com  Sat Mar  7 00:30:26 2009
+From: josel2820 at gmail.com (=?ISO-8859-1?Q?Jos=E9__Luis_Pulido_Burbano?=)
+Date: Fri, 6 Mar 2009 18:30:26 -0500
+Subject: [gecode-users] Implementing of customize variable and customize
+	Delta
+Message-ID: <f5fee82a0903061530m608d6a5au499f0bfedb73a047@mail.gmail.com>
+
+ Hello I am trying to implement a new variable type
+my variable type uses two setvars inside
+I had implemented the subscribe methods, the tell methods..and so on..
+It works.
+however I would like to to be able to launch my own customize Delta
+in order to catch them in the advise methods.
+
+Currently my variable type doesnt inherit from any Gecode class,
+could you please advise me from which class I can inherit so I dont have to
+repeat code(e.g when subscribing to a propagator)
+and also being able to launch my own Delta Objetcs, Ive read a bit of source
+code and I guess notify function does that in the tells functions, but Im
+not sure.
+
+Thank you in advance!
+Cheers , Jose Luis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090306/8a6f58cb/attachment.htm>
+
+From malcolmr at cse.unsw.edu.au  Mon Mar  9 08:18:10 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 9 Mar 2009 18:18:10 +1100
+Subject: [gecode-users] Finalizing TupleSets
+Message-ID: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+
+The following code causes a crash in Gecode 2.2.0:
+
+	TupleSet tuples;
+	tuples.finalize();
+
+It seems that finalising an empty TupleSet is not allowed.
+
+Curiously enough, there doesn't seem to be anything stopping you from  
+using an unfinalised TupleSet as a constraint.
+
+Malcolm
+
+
+
+From cschulte at kth.se  Mon Mar  9 10:43:01 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 9 Mar 2009 10:43:01 +0100
+Subject: [gecode-users] Implementing of customize variable and
+	customize	Delta
+In-Reply-To: <f5fee82a0903061530m608d6a5au499f0bfedb73a047@mail.gmail.com>
+References: <f5fee82a0903061530m608d6a5au499f0bfedb73a047@mail.gmail.com>
+Message-ID: <001101c9a09b$700b17c0$50214740$@se>
+
+Please have a look to some examples where to inherit from. One particular
+example might be the float variables contributed by Filip Konvicka (search
+this group to find out more).
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jos? Luis Pulido Burbano
+Sent: Saturday, March 07, 2009 12:30 AM
+To: mailing list Gecode users
+Subject: [gecode-users] Implementing of customize variable and customize
+Delta
+
+ 
+
+Hello I am trying to implement a new variable type
+my variable type uses two setvars inside
+I had implemented the subscribe methods, the tell methods..and so on..
+It works.
+however I would like to to be able to launch my own customize Delta 
+in order to catch them in the advise methods.
+
+Currently my variable type doesnt inherit from any Gecode class,
+could you please advise me from which class I can inherit so I dont have to
+repeat code(e.g when subscribing to a propagator)
+and also being able to launch my own Delta Objetcs, Ive read a bit of source
+code and I guess notify function does that in the tells functions, but Im
+not sure.
+
+Thank you in advance!
+Cheers , Jose Luis 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090309/42bd5c66/attachment.htm>
+
+From cschulte at kth.se  Mon Mar  9 10:55:08 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 9 Mar 2009 10:55:08 +0100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+Message-ID: <002801c9a09d$21a79430$64f6bc90$@se>
+
+Hi Malcolm,
+
+the attempt to use a not finalized tuple set raises an exception in 3.0.0.
+The attempt to finalize an empty tuple set will also throw an exception but
+most likely only in 3.0.1 and not 3.0.0.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Monday, March 09, 2009 8:18 AM
+To: gecode list
+Subject: [gecode-users] Finalizing TupleSets
+
+The following code causes a crash in Gecode 2.2.0:
+
+	TupleSet tuples;
+	tuples.finalize();
+
+It seems that finalising an empty TupleSet is not allowed.
+
+Curiously enough, there doesn't seem to be anything stopping you from  
+using an unfinalised TupleSet as a constraint.
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Tue Mar 10 02:20:32 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Tue, 10 Mar 2009 12:20:32 +1100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <002801c9a09d$21a79430$64f6bc90$@se>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+	<002801c9a09d$21a79430$64f6bc90$@se>
+Message-ID: <B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+
+On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+
+> Hi Malcolm,
+>
+> the attempt to use a not finalized tuple set raises an exception in  
+> 3.0.0.
+> The attempt to finalize an empty tuple set will also throw an  
+> exception but
+> most likely only in 3.0.1 and not 3.0.0.
+
+Is that the intended behaviour? Having an empty tuple set seems  
+perfectly legitimate to me.
+
+Malcolm
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Tue Mar 10 06:20:48 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Tue, 10 Mar 2009 16:20:48 +1100
+Subject: [gecode-users] More than one Stop object?
+Message-ID: <21A9395A-F0B7-4AD5-AA50-BF97D2FD0E8A@cse.unsw.edu.au>
+
+Can a search have multiple Stop objects, eg for time and memory limits?
+
+Malcolm
+
+
+
+From cschulte at kth.se  Tue Mar 10 08:14:59 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Mar 2009 08:14:59 +0100
+Subject: [gecode-users] More than one Stop object?
+In-Reply-To: <21A9395A-F0B7-4AD5-AA50-BF97D2FD0E8A@cse.unsw.edu.au>
+References: <21A9395A-F0B7-4AD5-AA50-BF97D2FD0E8A@cse.unsw.edu.au>
+Message-ID: <002b01c9a14f$ecfa1330$c6ee3990$@se>
+
+Hi Malcolm,
+
+Yes, that is possible: A stop object is nothing but something that inherits
+from Search::Stop and implements a virtual stop member function. Building a
+class that combines several other stop objects by conjunction or disjunction
+is easy.
+
+Below find something that I have taken out off the example support for
+Gecode 3.0.0: it combines three stop objects if they are needed. 
+
+Cheers
+Christian
+
+  /**
+   * \brief Stop object based on nodes, failures, and time
+   *
+   */
+  class Cutoff : public Search::Stop {
+  private:
+    Search::NodeStop* ns; ///< Used node stop object
+    Search::FailStop* fs; ///< Used fail stop object
+    Search::TimeStop* ts; ///< Used time stop object
+    /// Initialize stop object
+    Cutoff(unsigned int node, unsigned int fail, unsigned int time)
+      : ns((node > 0) ? new Search::NodeStop(node) : NULL),
+        fs((fail > 0) ? new Search::FailStop(fail) : NULL),
+        ts((time > 0) ? new Search::TimeStop(time) : NULL) {}
+  public:
+    /// Test whether search must be stopped
+    virtual bool stop(const Search::Statistics& s) {
+      return
+        ((ns != NULL) && ns->stop(s)) ||
+        ((fs != NULL) && fs->stop(s)) ||
+        ((ts != NULL) && ts->stop(s));
+    }
+    /// Create appropriate stop-object
+    static Search::Stop*
+    create(unsigned int node, unsigned int fail, unsigned int time) {
+      if ((node == 0) && (fail == 0) && (time == 0))
+        return NULL;
+      else
+        return new Cutoff(node,fail,time);
+    }
+    /// Destructor
+    ~Cutoff(void) {
+      delete ns; delete fs; delete ts;
+    }
+  };
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Tuesday, March 10, 2009 6:21 AM
+To: gecode list
+Subject: [gecode-users] More than one Stop object?
+
+Can a search have multiple Stop objects, eg for time and memory limits?
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Tue Mar 10 08:17:05 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Mar 2009 08:17:05 +0100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>	<002801c9a09d$21a79430$64f6bc90$@se>
+	<B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+Message-ID: <002e01c9a150$377f6040$a67e20c0$@se>
+
+Hmmm, the problem is that a TupleSet knows its arity only after the first
+tuple has been added. So, if you think an empty TupleSet is important we can
+change the design. Otherwise, you are of course right.
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Tuesday, March 10, 2009 2:21 AM
+To: gecode list
+Subject: Re: [gecode-users] Finalizing TupleSets
+
+On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+
+> Hi Malcolm,
+>
+> the attempt to use a not finalized tuple set raises an exception in  
+> 3.0.0.
+> The attempt to finalize an empty tuple set will also throw an  
+> exception but
+> most likely only in 3.0.1 and not 3.0.0.
+
+Is that the intended behaviour? Having an empty tuple set seems  
+perfectly legitimate to me.
+
+Malcolm
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From zayenz at kth.se  Tue Mar 10 08:16:28 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Tue, 10 Mar 2009 08:16:28 +0100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+	<002801c9a09d$21a79430$64f6bc90$@se>
+	<B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+Message-ID: <63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+
+On Tue, Mar 10, 2009 at 2:20 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+>> The attempt to finalize an empty tuple set will also throw an
+>> exception but
+>> most likely only in 3.0.1 and not 3.0.0.
+>
+> Is that the intended behaviour? Having an empty tuple set seems
+> perfectly legitimate to me.
+
+An empty TupleSet is not a meaningful object to use for a constraint,
+since it would mean direct failure.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Tue Mar 10 08:28:41 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Mar 2009 08:28:41 +0100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>	<002801c9a09d$21a79430$64f6bc90$@se>	<B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+	<63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+Message-ID: <003f01c9a151$d6a8a810$83f9f830$@se>
+
+As you see, not really agreement among us ;-) Somehow, we try to avoid
+silent failure as this is something that is difficult to track. But on the
+other hand, for automatically generated tables this might actually be the
+intended behavior.
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Tuesday, March 10, 2009 8:16 AM
+To: Malcolm Ryan
+Cc: gecode list
+Subject: Re: [gecode-users] Finalizing TupleSets
+
+On Tue, Mar 10, 2009 at 2:20 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au>
+wrote:
+> On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+>> The attempt to finalize an empty tuple set will also throw an
+>> exception but
+>> most likely only in 3.0.1 and not 3.0.0.
+>
+> Is that the intended behaviour? Having an empty tuple set seems
+> perfectly legitimate to me.
+
+An empty TupleSet is not a meaningful object to use for a constraint,
+since it would mean direct failure.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Tue Mar 10 09:14:19 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Tue, 10 Mar 2009 19:14:19 +1100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+	<002801c9a09d$21a79430$64f6bc90$@se>
+	<B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+	<63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+Message-ID: <D483C3A7-6419-4F6B-A505-4A2372FAE9DD@cse.unsw.edu.au>
+
+I use a TupleSet to represent the edges of a graph to constrain paths.  
+It is certainly possible to have a graph with no edges. When I go  
+looking for paths in that graph, I want failure. What I _don't_ want  
+is for the code to crash.
+
+Malcolm
+
+On 10/03/2009, at 6:16 PM, Mikael Zayenz Lagerkvist wrote:
+
+> On Tue, Mar 10, 2009 at 2:20 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+>>> The attempt to finalize an empty tuple set will also throw an
+>>> exception but
+>>> most likely only in 3.0.1 and not 3.0.0.
+>>
+>> Is that the intended behaviour? Having an empty tuple set seems
+>> perfectly legitimate to me.
+>
+> An empty TupleSet is not a meaningful object to use for a constraint,
+> since it would mean direct failure.
+>
+> Cheers,
+> Mikael
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From zayenz at kth.se  Tue Mar 10 09:21:32 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Tue, 10 Mar 2009 09:21:32 +0100
+Subject: [gecode-users] Finalizing TupleSets
+In-Reply-To: <D483C3A7-6419-4F6B-A505-4A2372FAE9DD@cse.unsw.edu.au>
+References: <961D5D7D-F8A9-443B-A863-D5E5331B0A4C@cse.unsw.edu.au>
+	<002801c9a09d$21a79430$64f6bc90$@se>
+	<B4989F33-DC67-46AA-89B2-6E50DC8653CA@cse.unsw.edu.au>
+	<63b5c8b00903100016o3b93cc37nefbc59d911a8905@mail.gmail.com>
+	<D483C3A7-6419-4F6B-A505-4A2372FAE9DD@cse.unsw.edu.au>
+Message-ID: <63b5c8b00903100121y4d47d1f3veae01f7ed124a5e9@mail.gmail.com>
+
+This sounds reasonable, I didn't see a real use for defining TupleSets
+that meant direct failure before (I just assumed that that would be a
+modeling error).
+
+It won't be in 3.0.0, but it will be added after 3.0.0 is released.
+
+Cheers,
+Mikael
+
+On Tue, Mar 10, 2009 at 9:14 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> I use a TupleSet to represent the edges of a graph to constrain paths.
+> It is certainly possible to have a graph with no edges. When I go
+> looking for paths in that graph, I want failure. What I _don't_ want
+> is for the code to crash.
+>
+> Malcolm
+>
+> On 10/03/2009, at 6:16 PM, Mikael Zayenz Lagerkvist wrote:
+>
+>> On Tue, Mar 10, 2009 at 2:20 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au
+>> > wrote:
+>>> On 09/03/2009, at 8:55 PM, Christian Schulte wrote:
+>>>> The attempt to finalize an empty tuple set will also throw an
+>>>> exception but
+>>>> most likely only in 3.0.1 and not 3.0.0.
+>>>
+>>> Is that the intended behaviour? Having an empty tuple set seems
+>>> perfectly legitimate to me.
+>>
+>> An empty TupleSet is not a meaningful object to use for a constraint,
+>> since it would mean direct failure.
+>>
+>> Cheers,
+>> Mikael
+>>
+>> --
+>> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Tue Mar 10 11:00:01 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Mar 2009 11:00:01 +0100
+Subject: [gecode-users] More than one Stop object?
+In-Reply-To: <002b01c9a14f$ecfa1330$c6ee3990$@se>
+References: <21A9395A-F0B7-4AD5-AA50-BF97D2FD0E8A@cse.unsw.edu.au>
+	<002b01c9a14f$ecfa1330$c6ee3990$@se>
+Message-ID: <007501c9a166$faef9070$f0ceb150$@se>
+
+Oh, just one more thing: the NodeStop class only exists in 3.0.0 but not in
+2.2.0.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Christian Schulte
+Sent: Tuesday, March 10, 2009 8:15 AM
+To: 'Malcolm Ryan'; 'gecode list'
+Subject: Re: [gecode-users] More than one Stop object?
+
+Hi Malcolm,
+
+Yes, that is possible: A stop object is nothing but something that inherits
+from Search::Stop and implements a virtual stop member function. Building a
+class that combines several other stop objects by conjunction or disjunction
+is easy.
+
+Below find something that I have taken out off the example support for
+Gecode 3.0.0: it combines three stop objects if they are needed. 
+
+Cheers
+Christian
+
+  /**
+   * \brief Stop object based on nodes, failures, and time
+   *
+   */
+  class Cutoff : public Search::Stop {
+  private:
+    Search::NodeStop* ns; ///< Used node stop object
+    Search::FailStop* fs; ///< Used fail stop object
+    Search::TimeStop* ts; ///< Used time stop object
+    /// Initialize stop object
+    Cutoff(unsigned int node, unsigned int fail, unsigned int time)
+      : ns((node > 0) ? new Search::NodeStop(node) : NULL),
+        fs((fail > 0) ? new Search::FailStop(fail) : NULL),
+        ts((time > 0) ? new Search::TimeStop(time) : NULL) {}
+  public:
+    /// Test whether search must be stopped
+    virtual bool stop(const Search::Statistics& s) {
+      return
+        ((ns != NULL) && ns->stop(s)) ||
+        ((fs != NULL) && fs->stop(s)) ||
+        ((ts != NULL) && ts->stop(s));
+    }
+    /// Create appropriate stop-object
+    static Search::Stop*
+    create(unsigned int node, unsigned int fail, unsigned int time) {
+      if ((node == 0) && (fail == 0) && (time == 0))
+        return NULL;
+      else
+        return new Cutoff(node,fail,time);
+    }
+    /// Destructor
+    ~Cutoff(void) {
+      delete ns; delete fs; delete ts;
+    }
+  };
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Tuesday, March 10, 2009 6:21 AM
+To: gecode list
+Subject: [gecode-users] More than one Stop object?
+
+Can a search have multiple Stop objects, eg for time and memory limits?
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From josel2820 at gmail.com  Tue Mar 10 16:50:11 2009
+From: josel2820 at gmail.com (=?ISO-8859-1?Q?Jos=E9__Luis_Pulido_Burbano?=)
+Date: Tue, 10 Mar 2009 10:50:11 -0500
+Subject: [gecode-users] Propagators scheduling
+Message-ID: <f5fee82a0903100850sc74a1c9t9110a2e9d51a37ba@mail.gmail.com>
+
+Hello, Ive been taking a look into Gecode's code, as far as I understand
+a propagator is scheduled when any of its variables  return a certain
+modification Event
+that is related to the PropCond.
+When a variable is subscribed to an advisor and the advisor's propagator
+overwrites the advise function
+then the advise method is called in order to establish whether or not to run
+the propagator's propagate method when the subscribed variable is modified.
+So when the propagator is scheduled because of its PropCond then the advise
+method wont be called.
+am I right about it?
+thanks in advance
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090310/24a9be15/attachment.htm>
+
+From cschulte at kth.se  Tue Mar 10 17:11:45 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 10 Mar 2009 17:11:45 +0100
+Subject: [gecode-users] Propagators scheduling
+In-Reply-To: <f5fee82a0903100850sc74a1c9t9110a2e9d51a37ba@mail.gmail.com>
+References: <f5fee82a0903100850sc74a1c9t9110a2e9d51a37ba@mail.gmail.com>
+Message-ID: <00ba01c9a19a$e897ae60$b9c70b20$@se>
+
+No. The advise method is called whenever a variable to which an advisor is
+subscribed is modified. This is independent of whether the propagators has
+been scheduled or not.
+
+ 
+
+Maybe you don't want to read the code first but the publications that
+explain the architecture:
+
+                http://www.gecode.org/publications.html
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jos? Luis Pulido Burbano
+Sent: Tuesday, March 10, 2009 4:50 PM
+To: mailing list Gecode users
+Subject: [gecode-users] Propagators scheduling
+
+ 
+
+Hello, Ive been taking a look into Gecode's code, as far as I understand
+a propagator is scheduled when any of its variables  return a certain
+modification Event
+that is related to the PropCond.
+When a variable is subscribed to an advisor and the advisor's propagator
+overwrites the advise function
+then the advise method is called in order to establish whether or not to run
+the propagator's propagate method when the subscribed variable is modified.
+So when the propagator is scheduled because of its PropCond then the advise
+method wont be called.
+am I right about it?
+thanks in advance
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090310/97f34f67/attachment.htm>
+
+From tack at ps.uni-sb.de  Fri Mar 13 01:25:48 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 13 Mar 2009 11:25:48 +1100
+Subject: [gecode-users] Gecode 3.0.0,
+	Gecode modeling tutorial and Gecode/FlatZinc 1.4 released
+Message-ID: <8E7E4BD2-7ECF-4B36-B129-468867B2BF81@ps.uni-sb.de>
+
+Dear all,
+
+we are happy and proud to announce our next major release:
+
+                  Gecode 3.0.0
+           http://www.gecode.org
+
+as well as the brand-new tutorial documentation on modeling with Gecode.
+
+This release is a major consolidation release: interfaces have been  
+cleaned up (consistent parameter passing, consistent naming, simpler  
+Gist interface, namespaces for operator overloading); some  
+functionality has been extended (propagators can be non-monotonic;  
+branchings support tie-breaking and random variable and value  
+selection); some functionality that did not meet our quality goals has  
+been removed (complete set variables, reflection); usage has been  
+simplified (auto-linking on Windows, more commonly used filename  
+extensions); important aspects have been optimized (memory management,  
+memory usage and efficiency on 64bit machines). These cleanups were in  
+particular necessary to make Gecode easier to document (this release  
+is the first to be accompanied by tutorial documentation explaining  
+how to model with Gecode).
+
+The complete changelog is available at
+	http://www.gecode.org/changes.html
+
+We also release
+
+                  Gecode/FlatZInc 1.4
+           http://www.gecode.org/flatzinc.html
+
+which has been updated to work with Gecode 3.0.0, as well as received  
+minor fixes.
+
+On our web site, you find source packages, as well as binary packages  
+for Windows and Mac OS.
+
+Cheers,
+	Guido
+
+
+
+
+From michal at tulacek.eu  Fri Mar 13 02:27:58 2009
+From: michal at tulacek.eu (=?UTF-8?B?TWljaGFsIFR1bMOhxI1law==?=)
+Date: Fri, 13 Mar 2009 02:27:58 +0100
+Subject: [gecode-users] Gecode 3.0.0,
+	Gecode modeling tutorial and 	Gecode/FlatZinc 1.4 released
+In-Reply-To: <8E7E4BD2-7ECF-4B36-B129-468867B2BF81@ps.uni-sb.de>
+References: <8E7E4BD2-7ECF-4B36-B129-468867B2BF81@ps.uni-sb.de>
+Message-ID: <3859397f0903121827p76cf6aaeucecf4384a9d655a6@mail.gmail.com>
+
+Dear gecode team,
+
+  congratulations!
+
+  I spend nearly whole last week with old gecode and its documentation
+and I became more and more depressed, so I received this announcement
+with pleasure. Especially the new "Modelling with Gecode"
+documentation looks great! Sure I haven't read it whole yet but I did
+quick review and it looks that it is really well done work. I look
+forward to test this new gecode.
+
+Michal Tulacek
+
+On Fri, Mar 13, 2009 at 1:25 AM, Guido Tack <tack at ps.uni-sb.de> wrote:
+> Dear all,
+>
+> we are happy and proud to announce our next major release:
+>
+> ? ? ? ? ? ? ? ? ?Gecode 3.0.0
+> ? ? ? ? ? http://www.gecode.org
+>
+> as well as the brand-new tutorial documentation on modeling with Gecode.
+>
+
+
+
+From tack at ps.uni-sb.de  Fri Mar 13 07:07:06 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 13 Mar 2009 17:07:06 +1100
+Subject: [gecode-users] Gecode/FlatZinc and Gist
+Message-ID: <EF8879CF-7442-4556-915F-1DB62D90F493@ps.uni-sb.de>
+
+Hi everyone.
+
+There's one known issue in the just-released Gecode/FlatZinc 1.4 - it  
+currently doesn't work with Gist although it lists gist as one of the  
+mode options.  However, there will be another release of Gecode/ 
+FlatZinc in two to three weeks (adapting to upcoming FlatZinc language  
+changes), which will include a fix for this.
+
+Cheers,
+	Guido
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Mon Mar 16 08:50:53 2009
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 16 Mar 2009 18:50:53 +1100
+Subject: [gecode-users] Branching functions
+Message-ID: <70D3CD2A-B6C5-4E48-9E60-31C889AE8D17@cse.unsw.edu.au>
+
+Is there any guarantee on the order of calls to the functions status,  
+description and commit on a Branching?
+
+In particular, I want to know whether I rely on status always being  
+called before description so that I can cache the results of the  
+status computation and avoid having to re-determine which variable to  
+select when description is called.
+
+If it makes a difference, I'm still using v2.2.0. (How much work is it  
+likely to be to translate to 3.0.0?)
+
+Thanks,
+
+Malcolm
+
+
+
+From zayenz at kth.se  Mon Mar 16 09:00:12 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Mon, 16 Mar 2009 09:00:12 +0100
+Subject: [gecode-users] Branching functions
+In-Reply-To: <70D3CD2A-B6C5-4E48-9E60-31C889AE8D17@cse.unsw.edu.au>
+References: <70D3CD2A-B6C5-4E48-9E60-31C889AE8D17@cse.unsw.edu.au>
+Message-ID: <63b5c8b00903160100x1d042180j4f647b8902c29413@mail.gmail.com>
+
+On Mon, Mar 16, 2009 at 8:50 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> Is there any guarantee on the order of calls to the functions status,
+> description and commit on a Branching?
+>
+> In particular, I want to know whether I rely on status always being
+> called before description so that I can cache the results of the
+> status computation and avoid having to re-determine which variable to
+> select when description is called.
+
+See the documentation for description:
+http://www.gecode.org/doc/2.2.0/reference/classGecode_1_1Branching.html#7430d74988ef698bd86ecb202e347676
+
+
+> If it makes a difference, I'm still using v2.2.0. (How much work is it
+> likely to be to translate to 3.0.0?)
+
+It shouldn't be that hard to upgrade. See
+http://www.gecode.org/doc-latest/reference/PageHowToChange_3.html for
+the most important changes.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From trosky99 at gmail.com  Mon Mar 16 10:24:28 2009
+From: trosky99 at gmail.com (Alberto Delgado)
+Date: Mon, 16 Mar 2009 10:24:28 +0100
+Subject: [gecode-users] problem with gecode 3.0
+Message-ID: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+
+Hi,
+
+I'm getting some weird solutions from a problem I'm solving with
+gecode 3.0 that i don't when i use gecode 2.2.
+
+There is a simplified version of the problem where i've isolated the
+specific situation in the attached files.
+Basically,  what the problem does is to determine whether there is any
+repeated occurences of a value assigned to a
+position in a stack below such position.  I define an objective
+variable that is the sum of positions with repeated
+occurrences below them.
+
+When i try to find the best solution  some of the reified variables i
+use are set to 0 in situations where they shoudn't,
+and the objective variable takes values that don't match the valuation
+of the solution.
+
+prueba.cc is  set to be run using gecode 3.0 and prueba2.cc using gecode 2.2.
+
+Thanks ind advance for any help/advice.
+
+
+Alberto
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: prueba2.cc
+Type: text/x-c++src
+Size: 2672 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090316/67ed6b58/attachment.cc>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: prueba.cc
+Type: text/x-c++src
+Size: 2703 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090316/67ed6b58/attachment-0001.cc>
+
+From andrea.rendl at gmail.com  Tue Mar 17 14:00:33 2009
+From: andrea.rendl at gmail.com (Andrea Rendl)
+Date: Tue, 17 Mar 2009 13:00:33 +0000
+Subject: [gecode-users] propagators on auxiliary variables
+Message-ID: <413703fd0903170600m45985109m43f207b57f648ea9@mail.gmail.com>
+
+Hi all,
+
+I hope someone can help me with a problem with
+propagators on auxiliary variables - I couldn't find any
+related thread in the mailing list.
+
+In my problem class, I have one main decision variable
+array and a set of auxiliary variable arrays (IntVarArrays
+and BoolVarArrays). I post propagators on the main array,
+on both main array and aux arrays, and on the aux arrays.
+If I branch over the main array and the aux arrays, the
+corresponding solutions only comply with the propagators
+posted on the main array. However, if I branch over the
+aux-arrays only, then the solutions comply to all posted
+propagators. Is this normal?
+
+I thought by "linking" the aux-arrays and the main-array
+with propagators the propagators on aux-arrays will have
+an effect on the main array.
+
+I would be happy about any pointers from you :)
+
+Thanks,
+Andrea
+
+
+
+From zayenz at kth.se  Tue Mar 17 14:27:24 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Tue, 17 Mar 2009 14:27:24 +0100
+Subject: [gecode-users] propagators on auxiliary variables
+In-Reply-To: <413703fd0903170600m45985109m43f207b57f648ea9@mail.gmail.com>
+References: <413703fd0903170600m45985109m43f207b57f648ea9@mail.gmail.com>
+Message-ID: <63b5c8b00903170627h7c465f20na54ffb3b849ac578@mail.gmail.com>
+
+Hi Andrea,
+
+I don't fully understand what you problem is. Could you perhaps send
+some small example that exhibits the strange behaviour that you are
+seeing?
+
+Cheers,
+Mikael
+
+On Tue, Mar 17, 2009 at 2:00 PM, Andrea Rendl <andrea.rendl at gmail.com> wrote:
+> Hi all,
+>
+> I hope someone can help me with a problem with
+> propagators on auxiliary variables - I couldn't find any
+> related thread in the mailing list.
+>
+> In my problem class, I have one main decision variable
+> array and a set of auxiliary variable arrays (IntVarArrays
+> and BoolVarArrays). I post propagators on the main array,
+> on both main array and aux arrays, and on the aux arrays.
+> If I branch over the main array and the aux arrays, the
+> corresponding solutions only comply with the propagators
+> posted on the main array. However, if I branch over the
+> aux-arrays only, then the solutions comply to all posted
+> propagators. Is this normal?
+>
+> I thought by "linking" the aux-arrays and the main-array
+> with propagators the propagators on aux-arrays will have
+> an effect on the main array.
+>
+> I would be happy about any pointers from you :)
+>
+> Thanks,
+> Andrea
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From andrea.rendl at gmail.com  Tue Mar 17 15:54:14 2009
+From: andrea.rendl at gmail.com (Andrea Rendl)
+Date: Tue, 17 Mar 2009 14:54:14 +0000
+Subject: [gecode-users] propagators on auxiliary variables
+In-Reply-To: <63b5c8b00903170627h7c465f20na54ffb3b849ac578@mail.gmail.com>
+References: <413703fd0903170600m45985109m43f207b57f648ea9@mail.gmail.com>
+	<63b5c8b00903170627h7c465f20na54ffb3b849ac578@mail.gmail.com>
+Message-ID: <413703fd0903170754n1bc440aembc1cdf768978e1f4@mail.gmail.com>
+
+Hi Mikael,
+
+I tried to simplify my problem and then discovered that the reason for
+the strange behaviour was that i used the abs-propagator in a wrong
+way (B = abs(this,A) instead of abs(this,A,B) ). So it's working now
+:)
+
+Anyway, thanks for your answers.
+
+Andrea
+
+2009/3/17 Mikael Zayenz Lagerkvist <zayenz at kth.se>:
+> Hi Andrea,
+>
+> I don't fully understand what you problem is. Could you perhaps send
+> some small example that exhibits the strange behaviour that you are
+> seeing?
+>
+> Cheers,
+> Mikael
+>
+> On Tue, Mar 17, 2009 at 2:00 PM, Andrea Rendl <andrea.rendl at gmail.com> wrote:
+>> Hi all,
+>>
+>> I hope someone can help me with a problem with
+>> propagators on auxiliary variables - I couldn't find any
+>> related thread in the mailing list.
+>>
+>> In my problem class, I have one main decision variable
+>> array and a set of auxiliary variable arrays (IntVarArrays
+>> and BoolVarArrays). I post propagators on the main array,
+>> on both main array and aux arrays, and on the aux arrays.
+>> If I branch over the main array and the aux arrays, the
+>> corresponding solutions only comply with the propagators
+>> posted on the main array. However, if I branch over the
+>> aux-arrays only, then the solutions comply to all posted
+>> propagators. Is this normal?
+>>
+>> I thought by "linking" the aux-arrays and the main-array
+>> with propagators the propagators on aux-arrays will have
+>> an effect on the main array.
+>>
+>> I would be happy about any pointers from you :)
+>>
+>> Thanks,
+>> Andrea
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+
+
+
+From nikos42 at gmail.com  Wed Mar 18 11:27:53 2009
+From: nikos42 at gmail.com (Nicolas)
+Date: Wed, 18 Mar 2009 10:27:53 +0000
+Subject: [gecode-users] Dead links on website
+Message-ID: <49C0CCA9.2030805@gmail.com>
+
+Hello,
+
+The links to the source codes on 
+http://www.gecode.org/benchmark_examples.html are dead. Could you please 
+correct them?
+
+Thank you in advance,
+Nicolas
+
+
+
+From tack at ps.uni-sb.de  Wed Mar 18 12:21:20 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 18 Mar 2009 22:21:20 +1100
+Subject: [gecode-users] Dead links on website
+In-Reply-To: <49C0CCA9.2030805@gmail.com>
+References: <49C0CCA9.2030805@gmail.com>
+Message-ID: <BBDEA740-22A8-45FC-8296-2C0093544BCD@ps.uni-sb.de>
+
+Nicolas wrote:
+> The links to the source codes on
+> http://www.gecode.org/benchmark_examples.html are dead. Could you  
+> please
+> correct them?
+
+Thanks for letting us know.  They work now.
+
+Cheers,
+	Guido
+
+
+
+
+From cschulte at kth.se  Wed Mar 18 14:57:48 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 18 Mar 2009 14:57:48 +0100
+Subject: [gecode-users] problem with gecode 3.0
+In-Reply-To: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+References: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+Message-ID: <000001c9a7d1$8d5e70f0$a81b52d0$@se>
+
+Hi Alberto,
+
+That seems to be a problem with reified Boolean linear constraints (which
+are new in 3.0.0). I'll have a look as soon as I find time.
+
+For the meantime, you could channel the 0/1 variables to integers and then
+use the integer version... 
+
+Sorry
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alberto Delgado
+Sent: Monday, March 16, 2009 10:24 AM
+To: users at gecode.org
+Subject: [gecode-users] problem with gecode 3.0
+
+Hi,
+
+I'm getting some weird solutions from a problem I'm solving with gecode 3.0
+that i don't when i use gecode 2.2.
+
+There is a simplified version of the problem where i've isolated the
+specific situation in the attached files.
+Basically,  what the problem does is to determine whether there is any
+repeated occurences of a value assigned to a position in a stack below such
+position.  I define an objective variable that is the sum of positions with
+repeated occurrences below them.
+
+
+When i try to find the best solution  some of the reified variables i use
+are set to 0 in situations where they shoudn't, and the objective variable
+takes values that don't match the valuation of the solution.
+
+prueba.cc is  set to be run using gecode 3.0 and prueba2.cc using gecode
+2.2.
+
+Thanks ind advance for any help/advice.
+
+
+Alberto
+
+
+
+
+From Vincent.Barichard at univ-angers.fr  Wed Mar 18 15:22:41 2009
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Wed, 18 Mar 2009 15:22:41 +0100
+Subject: [gecode-users] Change of behaviour since Gecode 3
+Message-ID: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+
+Hi,
+
+I noticed a change of behaviour with Gecode 3. When I run some test problems I 
+get a different number of propagations and different domains. Is there any 
+trouble in some propagators or maybe I missed something.
+
+I attached a small example:
+  test.cc is for Gecode 2.2
+  test.cpp is for Gecode 3
+
+Thanks for your help.
+
+Cheers,
+Vincent
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090318/96b1c401/attachment.htm>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cc
+Type: text/x-c++src
+Size: 971 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090318/96b1c401/attachment.cc>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cpp
+Type: text/x-c++src
+Size: 981 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090318/96b1c401/attachment.cpp>
+
+From cschulte at kth.se  Mon Mar 23 10:25:29 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Mar 2009 10:25:29 +0100
+Subject: [gecode-users] Change of behaviour since Gecode 3
+In-Reply-To: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+References: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+Message-ID: <000301c9ab99$509d6c90$f1d845b0$@se>
+
+Dear Vincent,
+
+ 
+
+while the change of propagation steps can happen (some priorities changed)
+there seems to be a bug in element... I'll dig some more and come back
+later.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vincent Barichard
+Sent: Wednesday, March 18, 2009 3:23 PM
+To: users at gecode.org
+Subject: [gecode-users] Change of behaviour since Gecode 3
+
+ 
+
+Hi,
+
+I noticed a change of behaviour with Gecode 3. When I run some test problems
+I get a different number of propagations and different domains. Is there any
+trouble in some propagators or maybe I missed something.
+
+I attached a small example:
+
+test.cc is for Gecode 2.2
+
+test.cpp is for Gecode 3
+
+Thanks for your help.
+
+Cheers,
+
+Vincent
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090323/3509b575/attachment.htm>
+
+From zayenz at kth.se  Mon Mar 23 15:49:22 2009
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Mon, 23 Mar 2009 15:49:22 +0100
+Subject: [gecode-users] Change of behaviour since Gecode 3
+In-Reply-To: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+References: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+Message-ID: <63b5c8b00903230749h17866b27m4752519e36150d77@mail.gmail.com>
+
+Hi,
+
+Both your test-programs actually give the same result: failure. A
+change in propagation order can easily result in different paths to
+the failure, giving the seemingly different domains. See also Section
+3.1.7 in "Modeling with Gecode".
+
+Cheers,
+Mikael
+
+On Wed, Mar 18, 2009 at 3:22 PM, Vincent Barichard
+<Vincent.Barichard at univ-angers.fr> wrote:
+> Hi,
+>
+> I noticed a change of behaviour with Gecode 3. When I run some test problems
+> I get a different number of propagations and different domains. Is there any
+> trouble in some propagators or maybe I missed something.
+>
+> I attached a small example:
+>
+> test.cc is for Gecode 2.2
+>
+> test.cpp is for Gecode 3
+>
+> Thanks for your help.
+>
+> Cheers,
+>
+> Vincent
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Mon Mar 23 16:32:51 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Mar 2009 16:32:51 +0100
+Subject: [gecode-users] problem with gecode 3.0
+In-Reply-To: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+References: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+Message-ID: <005401c9abcc$a0cdf4e0$e269dea0$@se>
+
+Hi Alberto,
+
+I reproduced the bug but haven't found or fixed it (it is still a puzzle to
+me how this bug could have escaped our tests...).
+
+But, you should have never experienced the bug in the first place: you use
+	linear(*this, x, IRT_GR, 0, b)
+where x is an array of Boolean variables. With other words: b is 1 iff there
+is one x which is one. This constraint is known as Boolean disjunction!
+
+So, you should rewrite it to (twice in your program):
+	rel(*this, BOT_OR, x, b);
+
+Much faster (and no bugs in 3.0.0).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alberto Delgado
+Sent: Monday, March 16, 2009 10:24 AM
+To: users at gecode.org
+Subject: [gecode-users] problem with gecode 3.0
+
+Hi,
+
+I'm getting some weird solutions from a problem I'm solving with gecode 3.0
+that i don't when i use gecode 2.2.
+
+There is a simplified version of the problem where i've isolated the
+specific situation in the attached files.
+Basically,  what the problem does is to determine whether there is any
+repeated occurences of a value assigned to a position in a stack below such
+position.  I define an objective variable that is the sum of positions with
+repeated occurrences below them.
+
+
+When i try to find the best solution  some of the reified variables i use
+are set to 0 in situations where they shoudn't, and the objective variable
+takes values that don't match the valuation of the solution.
+
+prueba.cc is  set to be run using gecode 3.0 and prueba2.cc using gecode
+2.2.
+
+Thanks ind advance for any help/advice.
+
+
+Alberto
+
+
+
+
+From cschulte at kth.se  Tue Mar 24 07:55:15 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Mar 2009 07:55:15 +0100
+Subject: [gecode-users] problem with gecode 3.0
+In-Reply-To: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+References: <e3e0e6e10903160224i2f2c1a6bt6601816b610a6ca0@mail.gmail.com>
+Message-ID: <001701c9ac4d$7cf74950$76e5dbf0$@se>
+
+Hi Alberto,
+
+We are just preparing 3.0.1 which will have the bug fixed.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alberto Delgado
+Sent: Monday, March 16, 2009 10:24 AM
+To: users at gecode.org
+Subject: [gecode-users] problem with gecode 3.0
+
+Hi,
+
+I'm getting some weird solutions from a problem I'm solving with gecode 3.0
+that i don't when i use gecode 2.2.
+
+There is a simplified version of the problem where i've isolated the
+specific situation in the attached files.
+Basically,  what the problem does is to determine whether there is any
+repeated occurences of a value assigned to a position in a stack below such
+position.  I define an objective variable that is the sum of positions with
+repeated occurrences below them.
+
+
+When i try to find the best solution  some of the reified variables i use
+are set to 0 in situations where they shoudn't, and the objective variable
+takes values that don't match the valuation of the solution.
+
+prueba.cc is  set to be run using gecode 3.0 and prueba2.cc using gecode
+2.2.
+
+Thanks ind advance for any help/advice.
+
+
+Alberto
+
+
+
+
+From Vincent.Barichard at univ-angers.fr  Tue Mar 24 08:49:49 2009
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Tue, 24 Mar 2009 08:49:49 +0100
+Subject: [gecode-users] Change of behaviour since Gecode 3
+In-Reply-To: <63b5c8b00903230749h17866b27m4752519e36150d77@mail.gmail.com>
+References: <200903181522.41238.Vincent.Barichard@univ-angers.fr>
+	<63b5c8b00903230749h17866b27m4752519e36150d77@mail.gmail.com>
+Message-ID: <200903240849.50104.Vincent.Barichard@univ-angers.fr>
+
+Hi,
+
+In my first mail, I put the smallest examples which are not solved identically. 
+In order to make it simplier, I tried to remove as much as constraints as 
+possible from my true test problem.
+
+In this mail, I put examples with more constraints to make the change of 
+behaviour more obvious.
+The correct one is test.cc with gecode-2.2.0.
+
+Thanks for your help.
+
+Cheers,
+
+Vincent
+
+Le lundi 23 mars 2009 15:49:22 Mikael Zayenz Lagerkvist, vous avez ?crit :
+> Hi,
+>
+> Both your test-programs actually give the same result: failure. A
+> change in propagation order can easily result in different paths to
+> the failure, giving the seemingly different domains. See also Section
+> 3.1.7 in "Modeling with Gecode".
+>
+> Cheers,
+> Mikael
+>
+> On Wed, Mar 18, 2009 at 3:22 PM, Vincent Barichard
+>
+> <Vincent.Barichard at univ-angers.fr> wrote:
+> > Hi,
+> >
+> > I noticed a change of behaviour with Gecode 3. When I run some test
+> > problems I get a different number of propagations and different domains.
+> > Is there any trouble in some propagators or maybe I missed something.
+> >
+> > I attached a small example:
+> >
+> > test.cc is for Gecode 2.2
+> >
+> > test.cpp is for Gecode 3
+> >
+> > Thanks for your help.
+> >
+> > Cheers,
+> >
+> > Vincent
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Vincent Barichard        Universit? d'Angers (LERIA)
+Tel: 02 41 73 52 06      D?partement Informatique
+Fax: 02 41 73 50 73      H203
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090324/3eb8cd25/attachment.htm>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cc
+Type: text/x-c++src
+Size: 3515 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090324/3eb8cd25/attachment.cc>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cpp
+Type: text/x-c++src
+Size: 3539 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090324/3eb8cd25/attachment.cpp>
+
+From cschulte at kth.se  Tue Mar 24 15:10:54 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Mar 2009 15:10:54 +0100
+Subject: [gecode-users] Change of behaviour since Gecode 3
+In-Reply-To: <200903240849.50104.Vincent.Barichard@univ-angers.fr>
+References: <200903181522.41238.Vincent.Barichard@univ-angers.fr>	<63b5c8b00903230749h17866b27m4752519e36150d77@mail.gmail.com>
+	<200903240849.50104.Vincent.Barichard@univ-angers.fr>
+Message-ID: <010e01c9ac8a$618af210$24a0d630$@se>
+
+Hi Vincent,
+
+ 
+
+I just fixed your bug. We are going to release 3.0.1 tonight with the fix
+included. I'll put it in the trunk asap.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vincent Barichard
+Sent: Tuesday, March 24, 2009 8:50 AM
+To: Mikael Lagerkvist
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Change of behaviour since Gecode 3
+
+ 
+
+Hi,
+
+In my first mail, I put the smallest examples which are not solved
+identically. In order to make it simplier, I tried to remove as much as
+constraints as possible from my true test problem.
+
+In this mail, I put examples with more constraints to make the change of
+behaviour more obvious.
+
+The correct one is test.cc with gecode-2.2.0.
+
+Thanks for your help.
+
+Cheers,
+
+Vincent
+
+Le lundi 23 mars 2009 15:49:22 Mikael Zayenz Lagerkvist, vous avez ?crit :
+
+> Hi,
+
+> 
+
+> Both your test-programs actually give the same result: failure. A
+
+> change in propagation order can easily result in different paths to
+
+> the failure, giving the seemingly different domains. See also Section
+
+> 3.1.7 in "Modeling with Gecode".
+
+> 
+
+> Cheers,
+
+> Mikael
+
+> 
+
+> On Wed, Mar 18, 2009 at 3:22 PM, Vincent Barichard
+
+> 
+
+> <Vincent.Barichard at univ-angers.fr> wrote:
+
+> > Hi,
+
+> >
+
+> > I noticed a change of behaviour with Gecode 3. When I run some test
+
+> > problems I get a different number of propagations and different domains.
+
+> > Is there any trouble in some propagators or maybe I missed something.
+
+> >
+
+> > I attached a small example:
+
+> >
+
+> > test.cc is for Gecode 2.2
+
+> >
+
+> > test.cpp is for Gecode 3
+
+> >
+
+> > Thanks for your help.
+
+> >
+
+> > Cheers,
+
+> >
+
+> > Vincent
+
+> >
+
+> > _______________________________________________
+
+> > Gecode users mailing list
+
+> > users at gecode.org
+
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+
+Vincent Barichard Universit? d'Angers (LERIA)
+
+Tel: 02 41 73 52 06 D?partement Informatique
+
+Fax: 02 41 73 50 73 H203
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090324/94c97a58/attachment.htm>
+
+From gutierrez.gustavo at uclouvain.be  Tue Mar 24 18:45:08 2009
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Tue, 24 Mar 2009 18:45:08 +0100
+Subject: [gecode-users] minimodel question
+Message-ID: <e7b0e5a40903241045r58d83c94w2086514e7a20feaa@mail.gmail.com>
+
+Hello,
+
+After migrating my code to gecode 3.0, I am having a problem when
+posting a constraint on a boolean relation. The file attached compiles
+with gecode 3.0 but when executing it I got a bus error (a
+segmentation fault, I think). The file contains mostly a
+simplification of my code but it is good enough to exhibit the
+behavior.
+
+The only constraint I am posting is:
+post(*this, tt(imp(~(x == 1), ~(y != 1))));
+
+which seems to be valid according with the specification presented in
+modeling.pdf at page 54. Am I doing something wrong?, I am not
+familiar with the minimodel part of gecode at all, so maybe this is
+produced because I am doing something stupid.
+
+Thanks in advance,
+Gustavo
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test.cpp
+Type: application/octet-stream
+Size: 920 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090324/e304cf8d/attachment.obj>
+
+From tack at ps.uni-sb.de  Tue Mar 24 21:33:40 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 25 Mar 2009 07:33:40 +1100
+Subject: [gecode-users] Gecode 3.0.1 and Gecode/FlatZinc 1.5 released
+Message-ID: <9BB63565-EB99-4989-BB73-BFD0CA0E906B@ps.uni-sb.de>
+
+Dear all,
+
+we are releasing bugfix versions:
+
+                  Gecode 3.0.1
+           http://www.gecode.org
+
+This is a bug fix release fixing an embarassing bug in reified Boolean  
+linear constraints (plus other minor fixes).
+The complete changelog is available at
+	http://www.gecode.org/changes.html
+
+                  Gecode/FlatZInc 1.5
+           http://www.gecode.org/flatzinc.html
+
+which now works with Gist.
+
+On our web site, you find source packages, as well as binary packages
+for Windows and Mac OS.
+
+Cheers,
+	Guido
+
+
+
+
+From cschulte at kth.se  Tue Mar 24 22:52:01 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Mar 2009 22:52:01 +0100
+Subject: [gecode-users] minimodel question
+In-Reply-To: <e7b0e5a40903241045r58d83c94w2086514e7a20feaa@mail.gmail.com>
+References: <e7b0e5a40903241045r58d83c94w2086514e7a20feaa@mail.gmail.com>
+Message-ID: <003301c9acca$c3b09270$4b11b750$@se>
+
+Hi Gustavo,
+
+No: by now it should be clear that the only people doing something stupid is us and not our users ;-( This is again a case that escaped our test cases.
+
+Sorry for the inconvenience and it looks as if 3.0.2 should be on its way...
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Gustavo Gutierrez
+Sent: Tuesday, March 24, 2009 6:45 PM
+To: gecode list
+Subject: [gecode-users] minimodel question
+
+Hello,
+
+After migrating my code to gecode 3.0, I am having a problem when posting a constraint on a boolean relation. The file attached compiles with gecode 3.0 but when executing it I got a bus error (a segmentation fault, I think). The file contains mostly a simplification of my code but it is good enough to exhibit the behavior.
+
+The only constraint I am posting is:
+post(*this, tt(imp(~(x == 1), ~(y != 1))));
+
+which seems to be valid according with the specification presented in modeling.pdf at page 54. Am I doing something wrong?, I am not familiar with the minimodel part of gecode at all, so maybe this is produced because I am doing something stupid.
+
+Thanks in advance,
+Gustavo
+
+
+
+
+From filip.konvicka at logis.cz  Wed Mar 25 14:18:03 2009
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Wed, 25 Mar 2009 14:18:03 +0100
+Subject: [gecode-users] Memory management bug in 2.2.0?
+Message-ID: <gqdaui$1mm$1@ger.gmane.org>
+
+Hi,
+
+I know I'm probably late with this... I am hunting a memory leak in a 
+program that uses Gecode 2.2.0. The script (space) constructor 
+incrementally adds variables to a var-array (one by one). IMHO, 
+VarArray::resize acts strangely:
+
+   VarArray<Var>::resize(Space* home, int m) {
+...
+     x = static_cast<Var*>(Memory::malloc(sizeof(Var)*newsize));
+...
+     if (used != n)
+       Memory::free(oldx);
+     else
+       home->reuse(oldx, n);
+     n = newsize; used = m;
+   }
+
+In my case, "used==n" always holds, so the allocated blocks are 
+"deallocated" using Space::reuse(), not Memory::free().
+
+Originally, I was using the default constructor for the array. After I 
+saw this I tried to initialize it with (this, 0) in the constructor 
+initializer list, but this does not change anything.
+
+It seems to me that VarArray::add and VarArray::resize could never 
+actually work... the only way the var-array allocates memory from space 
+is in the constructor and update(). Or did I miss something in the docs? 
+Is it forbidden to call add and resize?
+
+Thanks,
+Filip
+
+
+
+
+From cschulte at kth.se  Wed Mar 25 14:59:27 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 25 Mar 2009 14:59:27 +0100
+Subject: [gecode-users] Memory management bug in 2.2.0?
+In-Reply-To: <gqdaui$1mm$1@ger.gmane.org>
+References: <gqdaui$1mm$1@ger.gmane.org>
+Message-ID: <001201c9ad51$e9d81ae0$bd8850a0$@se>
+
+Hi Filip,
+
+yes that was strange stuff and we fixed for 3.0.0... Guido knows more about
+it.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Wednesday, March 25, 2009 2:18 PM
+To: users at gecode.org
+Subject: [gecode-users] Memory management bug in 2.2.0?
+
+Hi,
+
+I know I'm probably late with this... I am hunting a memory leak in a 
+program that uses Gecode 2.2.0. The script (space) constructor 
+incrementally adds variables to a var-array (one by one). IMHO, 
+VarArray::resize acts strangely:
+
+   VarArray<Var>::resize(Space* home, int m) {
+...
+     x = static_cast<Var*>(Memory::malloc(sizeof(Var)*newsize));
+...
+     if (used != n)
+       Memory::free(oldx);
+     else
+       home->reuse(oldx, n);
+     n = newsize; used = m;
+   }
+
+In my case, "used==n" always holds, so the allocated blocks are 
+"deallocated" using Space::reuse(), not Memory::free().
+
+Originally, I was using the default constructor for the array. After I 
+saw this I tried to initialize it with (this, 0) in the constructor 
+initializer list, but this does not change anything.
+
+It seems to me that VarArray::add and VarArray::resize could never 
+actually work... the only way the var-array allocates memory from space 
+is in the constructor and update(). Or did I miss something in the docs? 
+Is it forbidden to call add and resize?
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Wed Mar 25 21:47:51 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 25 Mar 2009 21:47:51 +0100
+Subject: [gecode-users] minimodel question
+In-Reply-To: <e7b0e5a40903241045r58d83c94w2086514e7a20feaa@mail.gmail.com>
+References: <e7b0e5a40903241045r58d83c94w2086514e7a20feaa@mail.gmail.com>
+Message-ID: <003001c9ad8a$f6e03270$e4a09750$@se>
+
+Hi Gustavo,
+
+We fixed the bug but a new release might take one or two more days.
+
+We went through all changes in 3.0.0 again and checked whether they are covered by our tests (which they were not, of course. But that's fixed now). Retesting everything will take a day or two.
+
+So far, Gecode 3.0.* has been a total disaster and hence we decided to carefully go through everything again. The problem was really in our testing methodology: we did not check carefully enough that the new optimizations and in particular their bordercases are covered. All bugs discovered had in common that they were uncovered optimizations.
+
+Cheers and thanks
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Gustavo Gutierrez
+Sent: Tuesday, March 24, 2009 6:45 PM
+To: gecode list
+Subject: [gecode-users] minimodel question
+
+Hello,
+
+After migrating my code to gecode 3.0, I am having a problem when posting a constraint on a boolean relation. The file attached compiles with gecode 3.0 but when executing it I got a bus error (a segmentation fault, I think). The file contains mostly a simplification of my code but it is good enough to exhibit the behavior.
+
+The only constraint I am posting is:
+post(*this, tt(imp(~(x == 1), ~(y != 1))));
+
+which seems to be valid according with the specification presented in modeling.pdf at page 54. Am I doing something wrong?, I am not familiar with the minimodel part of gecode at all, so maybe this is produced because I am doing something stupid.
+
+Thanks in advance,
+Gustavo
+
+
+
+
+From rcas at kth.se  Wed Mar 25 23:56:30 2009
+From: rcas at kth.se (=?iso-8859-1?Q?Roberto_Casta=F1eda?=)
+Date: Wed, 25 Mar 2009 23:56:30 +0100
+Subject: [gecode-users] Problems following the document "Modeling with
+	Gecode"
+Message-ID: <A181A0452CF6794EA26C5E974855598010DB5CB737@MAIL03.ug.kth.se>
+
+Hi everybody!
+
+I have just compiled and installed Gecode 3.0.1 in my system (Ubuntu 8.04.2, GCC 4.2.4), and followed religiously the steps given in the section 2 ("Getting started") from the document "Modeling with Gecode". But when I have tried to do a first compilation (section 2.3.3 of the document), I have realized that I need to add the option -c to the g++ command line in order to create the object file send-more-money.o, otherwise g++ does not succeed. The suggested line in the documentation is:
+
+g++ -I<dir>/include send-more-money.cpp
+
+But what actually works for me is:
+
+g++ -I<dir>/include -c send-more-money.cpp
+
+Is this a documentation bug or am I missing something?
+Thanks for your time!
+
+Roberto
+
+
+From tack at ps.uni-sb.de  Thu Mar 26 00:39:00 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 26 Mar 2009 10:39:00 +1100
+Subject: [gecode-users] Problems following the document "Modeling
+	with	Gecode"
+In-Reply-To: <A181A0452CF6794EA26C5E974855598010DB5CB737@MAIL03.ug.kth.se>
+References: <A181A0452CF6794EA26C5E974855598010DB5CB737@MAIL03.ug.kth.se>
+Message-ID: <9BB5A4CE-F017-4CC2-A37B-C5B2C3F14156@ps.uni-sb.de>
+
+Dear Roberto,
+
+you are of course right, you have to use -c.  We'll update the  
+document shortly. Thanks!
+
+Guido
+
+Roberto Casta?eda wrote:
+> I have just compiled and installed Gecode 3.0.1 in my system (Ubuntu  
+> 8.04.2, GCC 4.2.4), and followed religiously the steps given in the  
+> section 2 ("Getting started") from the document "Modeling with  
+> Gecode". But when I have tried to do a first compilation (section  
+> 2.3.3 of the document), I have realized that I need to add the  
+> option -c to the g++ command line in order to create the object file  
+> send-more-money.o, otherwise g++ does not succeed. The suggested  
+> line in the documentation is:
+>
+> g++ -I<dir>/include send-more-money.cpp
+>
+> But what actually works for me is:
+>
+> g++ -I<dir>/include -c send-more-money.cpp
+>
+> Is this a documentation bug or am I missing something?
+> Thanks for your time!
+>
+> Roberto
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From tack at ps.uni-sb.de  Thu Mar 26 22:34:50 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 27 Mar 2009 08:34:50 +1100
+Subject: [gecode-users] Gecode 3.0.2 released
+Message-ID: <D9558008-E404-4DDC-B2F1-C2306D80FB00@ps.uni-sb.de>
+
+Dear all,
+
+here's a bugfix release (again):
+
+                  Gecode 3.0.2
+           http://www.gecode.org
+
+This is a bug fix release fixing two more embarrassing bugs. However,  
+this time we redesigned our tests carefully such that they cover all  
+changes and optimizations done for the transition from 2.2.0 to 3.0.*.  
+Please update asap.
+The complete changelog is available at
+	http://www.gecode.org/changes.html
+
+On our web site, you find source packages, as well as binary packages  
+for Windows and Mac OS.
+
+Cheers,
+	Guido
+
+
+
+
+From tack at ps.uni-sb.de  Thu Mar 26 22:50:17 2009
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 27 Mar 2009 08:50:17 +1100
+Subject: [gecode-users] Memory management bug in 2.2.0?
+In-Reply-To: <001201c9ad51$e9d81ae0$bd8850a0$@se>
+References: <gqdaui$1mm$1@ger.gmane.org> <001201c9ad51$e9d81ae0$bd8850a0$@se>
+Message-ID: <35A263C3-1867-4DBB-9B9F-2C672E7582B3@ps.uni-sb.de>
+
+Hi Filip,
+
+the idea was (and still is) to initially allocate all VarArrays from  
+the space, and only when they are resized (by using add), the array is  
+copied to the heap.  That way, most arrays are still efficiently  
+allocated in the space (e.g. copying an array always allocates it in  
+the space again).
+
+The invariant I had in mind (and which now actually works only since  
+3.0.0) is the following: the array has been allocated from the space  
+iff used==n (and we renamed used to n and n to capacity...).
+If you're interested in the correct invariants (or back-porting stuff  
+to 2.2.0), they are documented in gecode/kernel/array.hpp in the  
+current version.
+
+Cheers,
+	Guido
+
+Christian Schulte wrote:
+
+> Hi Filip,
+>
+> yes that was strange stuff and we fixed for 3.0.0... Guido knows  
+> more about
+> it.
+>
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+> Behalf
+> Of Filip Konvicka
+> Sent: Wednesday, March 25, 2009 2:18 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Memory management bug in 2.2.0?
+>
+> Hi,
+>
+> I know I'm probably late with this... I am hunting a memory leak in a
+> program that uses Gecode 2.2.0. The script (space) constructor
+> incrementally adds variables to a var-array (one by one). IMHO,
+> VarArray::resize acts strangely:
+>
+>   VarArray<Var>::resize(Space* home, int m) {
+> ...
+>     x = static_cast<Var*>(Memory::malloc(sizeof(Var)*newsize));
+> ...
+>     if (used != n)
+>       Memory::free(oldx);
+>     else
+>       home->reuse(oldx, n);
+>     n = newsize; used = m;
+>   }
+>
+> In my case, "used==n" always holds, so the allocated blocks are
+> "deallocated" using Space::reuse(), not Memory::free().
+>
+> Originally, I was using the default constructor for the array. After I
+> saw this I tried to initialize it with (this, 0) in the constructor
+> initializer list, but this does not change anything.
+>
+> It seems to me that VarArray::add and VarArray::resize could never
+> actually work... the only way the var-array allocates memory from  
+> space
+> is in the constructor and update(). Or did I miss something in the  
+> docs?
+> Is it forbidden to call add and resize?
+>
+> Thanks,
+> Filip
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From filip.konvicka at logis.cz  Fri Mar 27 08:46:32 2009
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Fri, 27 Mar 2009 08:46:32 +0100
+Subject: [gecode-users] Memory management bug in 2.2.0?
+In-Reply-To: <35A263C3-1867-4DBB-9B9F-2C672E7582B3@ps.uni-sb.de>
+References: <gqdaui$1mm$1@ger.gmane.org> <001201c9ad51$e9d81ae0$bd8850a0$@se>
+	<35A263C3-1867-4DBB-9B9F-2C672E7582B3@ps.uni-sb.de>
+Message-ID: <49CC8458.2040708@logis.cz>
+
+Hi Guido,
+
+> the idea was (and still is) to initially allocate all VarArrays from  
+> the space, and only when they are resized (by using add), the array is  
+> copied to the heap.  That way, most arrays are still efficiently  
+> allocated in the space (e.g. copying an array always allocates it in  
+> the space again).
+> 
+> The invariant I had in mind (and which now actually works only since  
+> 3.0.0) is the following: the array has been allocated from the space  
+> iff used==n (and we renamed used to n and n to capacity...).
+> If you're interested in the correct invariants (or back-porting stuff  
+> to 2.2.0), they are documented in gecode/kernel/array.hpp in the  
+> current version.
+
+thanks for the explanation. The workaround for 2.2.0 is simple:
+
+struct MySpace : Space {
+   BoolVarArray bva;
+   MySpace(...) {
+     std::vector<BoolVar> bva_;
+     ...
+     bva_.push_back(v);
+     ...
+     BoolVarArray tmp(this, bva_.size());
+     for(int i=bva_.size()-1; i>=0; --i)
+       tmp[i]=bva_[i];
+     bva=tmp;
+     ...
+   }
+   ...
+};
+
+Cheers,
+Filip
+
+
+
+
+From filip.konvicka at logis.cz  Fri Mar 27 08:46:32 2009
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Fri, 27 Mar 2009 08:46:32 +0100
+Subject: [gecode-users] Memory management bug in 2.2.0?
+In-Reply-To: <35A263C3-1867-4DBB-9B9F-2C672E7582B3@ps.uni-sb.de>
+References: <gqdaui$1mm$1@ger.gmane.org> <001201c9ad51$e9d81ae0$bd8850a0$@se>
+	<35A263C3-1867-4DBB-9B9F-2C672E7582B3@ps.uni-sb.de>
+Message-ID: <49CC8458.2040708@logis.cz>
+
+
+
+Hi Guido,
+
+> the idea was (and still is) to initially allocate all VarArrays from  
+> the space, and only when they are resized (by using add), the array is  
+> copied to the heap.  That way, most arrays are still efficiently  
+> allocated in the space (e.g. copying an array always allocates it in  
+> the space again).
+> 
+> The invariant I had in mind (and which now actually works only since  
+> 3.0.0) is the following: the array has been allocated from the space  
+> iff used==n (and we renamed used to n and n to capacity...).
+> If you're interested in the correct invariants (or back-porting stuff  
+> to 2.2.0), they are documented in gecode/kernel/array.hpp in the  
+> current version.
+
+thanks for the explanation. The workaround for 2.2.0 is simple:
+
+struct MySpace : Space {
+   BoolVarArray bva;
+   MySpace(...) {
+     std::vector<BoolVar> bva_;
+     ...
+     bva_.push_back(v);
+     ...
+     BoolVarArray tmp(this, bva_.size());
+     for(int i=bva_.size()-1; i>=0; --i)
+       tmp[i]=bva_[i];
+     bva=tmp;
+     ...
+   }
+   ...
+};
+
+Cheers,
+Filip
+
+
+
+
+From lingrui at gmail.com  Tue Mar 31 03:14:07 2009
+From: lingrui at gmail.com (Lingrui Liao)
+Date: Mon, 30 Mar 2009 21:14:07 -0400
+Subject: [gecode-users] Compatibility with Visual C++
+Message-ID: <8e8ee8c10903301814kded23d2reae19c7e22960028@mail.gmail.com>
+
+I've downloaded and installed Gecode-3.0.2-x86.msi (32-bit) on Windows XP.
+Instructions in the document "Modeling with Gecode" was followed to
+configure a Windows console application within Visual Studio 2005.
+When I was trying to compile an example program with Gecode, Visual
+C++ 2005 reports the following error(among some similar ones):
+
+...
+Error	12	error C2248: 'Gecode::Branching::cast' : cannot access
+private member declared in class 'Gecode::Branching'	c:\program
+files\gecode\include\gecode\kernel\core.hpp	3362
+...
+
+the indicated site of error is like:
+...
+forceinline const Branching&
+  Space::Branchings::branching(void) const {
+    return *Branching::cast(c);
+  }
+...
+
+
+It seems to be a compatibility issue on private member accessibility.
+Does anyone know a way to work around it? Thanks.
+
+Lingrui Liao
+
+
+
+From cschulte at kth.se  Tue Mar 31 09:32:28 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 31 Mar 2009 09:32:28 +0200
+Subject: [gecode-users] Compatibility with Visual C++
+In-Reply-To: <8e8ee8c10903301814kded23d2reae19c7e22960028@mail.gmail.com>
+References: <8e8ee8c10903301814kded23d2reae19c7e22960028@mail.gmail.com>
+Message-ID: <002301c9b1d2$d8c5cce0$8a5166a0$@se>
+
+Hi Lingrui,
+
+the easiest fix would be to upgrade to Visual Studio 2008 (that's what we
+are using and what we have used to compile the packages). Unfortunately we
+don't have access to Visual Studio 2005.
+
+Would that be possible?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Lingrui Liao
+Sent: Tuesday, March 31, 2009 3:14 AM
+To: users at gecode.org
+Subject: [gecode-users] Compatibility with Visual C++
+
+I've downloaded and installed Gecode-3.0.2-x86.msi (32-bit) on Windows XP.
+Instructions in the document "Modeling with Gecode" was followed to
+configure a Windows console application within Visual Studio 2005.
+When I was trying to compile an example program with Gecode, Visual
+C++ 2005 reports the following error(among some similar ones):
+
+...
+Error	12	error C2248: 'Gecode::Branching::cast' : cannot access
+private member declared in class 'Gecode::Branching'	c:\program
+files\gecode\include\gecode\kernel\core.hpp	3362
+...
+
+the indicated site of error is like:
+...
+forceinline const Branching&
+  Space::Branchings::branching(void) const {
+    return *Branching::cast(c);
+  }
+...
+
+
+It seems to be a compatibility issue on private member accessibility.
+Does anyone know a way to work around it? Thanks.
+
+Lingrui Liao
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From jeffreym9 at yahoo.com.hk  Tue Mar 31 20:23:55 2009
+From: jeffreym9 at yahoo.com.hk (Jeffrey)
+Date: Tue, 31 Mar 2009 11:23:55 -0700 (PDT)
+Subject: [gecode-users] Performance Issue of Gecode
+Message-ID: <133074.68504.qm@web111408.mail.gq1.yahoo.com>
+
+Dear all,
+
+I have written a problem with a IntVarArray of size 49?for branching.
+
+Each IntVar is in domain {0-2}
+
+There are 30 something constraints. It turns out to run around 1 hour.
+Is that a normal performance?
+
+Is there any way I can optimize my program?
+Any pointer for me in how to optimize my program?
+
+
+
+      Yahoo!???????????????????! ??? http://hk.promo.yahoo.com/security/ ????!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090331/dc3e408c/attachment.htm>
+
+From cschulte at kth.se  Tue Mar 31 23:40:55 2009
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 31 Mar 2009 23:40:55 +0200
+Subject: [gecode-users] Performance Issue of Gecode
+In-Reply-To: <133074.68504.qm@web111408.mail.gq1.yahoo.com>
+References: <133074.68504.qm@web111408.mail.gq1.yahoo.com>
+Message-ID: <000301c9b249$5f4b0ac0$1de12040$@se>
+
+Dear Jeffrey,
+
+ 
+
+That?s not a performance issue, that?s a modeling issue. Without more detail there is very little one could say but that if your model is poor, it might search 3^49 nodes.
+
+ 
+
+Did you try  the standard modeling techniques: symmetry breaking, branching heuristics, implied constraints, choosing sufficiently strong propagators for your constraints, and so on?
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Jeffrey
+Sent: Tuesday, March 31, 2009 8:24 PM
+To: gecode at gecode.org
+Subject: [gecode-users] Performance Issue of Gecode
+
+ 
+
+Dear all,
+
+ 
+
+I have written a problem with a IntVarArray of size 49 for branching.
+
+ 
+
+Each IntVar is in domain {0-2}
+
+ 
+
+There are 30 something constraints. It turns out to run around 1 hour.
+
+Is that a normal performance?
+
+ 
+
+Is there any way I can optimize my program?
+
+Any pointer for me in how to optimize my program?
+
+ 
+
+ 
+
+  _____  
+
+Yahoo!???????????????????! <http://hk.promo.yahoo.com/security/> ????
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20090331/b09410f8/attachment.htm>
+

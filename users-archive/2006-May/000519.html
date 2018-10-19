@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] std::set to Gecode::IntVar conversion - my quick	and dirty solution
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20std%3A%3Aset%20to%20Gecode%3A%3AIntVar%20conversion%20-%20my%20quick%0A%09and%20dirty%20solution&In-Reply-To=%3C44633CB4.8000801%40informatik.uni-freiburg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000518.html">
+   <LINK REL="Next"  HREF="000520.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] std::set to Gecode::IntVar conversion - my quick	and dirty solution</H1>
+    <B>Martin Mann</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20std%3A%3Aset%20to%20Gecode%3A%3AIntVar%20conversion%20-%20my%20quick%0A%09and%20dirty%20solution&In-Reply-To=%3C44633CB4.8000801%40informatik.uni-freiburg.de%3E"
+       TITLE="[gecode-users] std::set to Gecode::IntVar conversion - my quick	and dirty solution">mmann at informatik.uni-freiburg.de
+       </A><BR>
+    <I>Thu May 11 15:31:32 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000518.html">[gecode-users] std::set to Gecode::IntVar conversion
+</A></li>
+        <LI>Next message: <A HREF="000520.html">[gecode-users] std::set to Gecode::IntVar conversion - my quick	and dirty solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#519">[ date ]</a>
+              <a href="thread.html#519">[ thread ]</a>
+              <a href="subject.html#519">[ subject ]</a>
+              <a href="author.html#519">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Gr&#233;goire Dooms schrieb:
+&gt;<i> Martin Mann wrote:
+</I>&gt;&gt;<i> Moin Christian,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> mhh.. ok I ll have a look if I can write a worthy conversion! ;)
+</I>&gt;&gt;<i> Will have to have a deeper look into IntVar implementations..
+</I>&gt;&gt;<i>
+</I>&gt;<i> You can find two in the contribs/graph/view/iter.icc
+</I>&gt;<i> They are called StlToGecodeRangeIterator and StlToGecodeValIterator
+</I>&gt;<i> See example below.
+</I>
+Thanks to Gr&#233;goire Doom and his source code example I got the idea to 
+write a Range iterator, that can be used in the constructor of a 
+Gecode::IntSet object.
+
+It is not a final solution, because I would like to have a direct 
+conversion from std::set&lt;int&gt; to Gecode::IntVar, but with a 
+Gecode::IntSet step between it is usable.
+
+I didnt used the graph package, that already have got the feature 
+std::iterator -&gt; Gecode::Iterator, because I ve got trouble to compile 
+the package on my cygwin system with the included boost version. I gave 
+it up at the moment.
+
+my class looks like that:
+
+---------------------------------------------------------
+/**
+  * provides a constant Gecode RangeIterator of a std::set&lt;int&gt; that
+  * calculates the ranges on demand.
+  */
+class GC_StlSetRangeIterator
+{
+  private:
+    //! the set this iterator operates on
+   const std::set&lt;int&gt;* data;
+    //! the current position in data
+   std::set&lt;int&gt;::const_iterator actElem;
+    //! == true if the iterator has reached the end
+   bool noFurtherRange;
+     //! the current range
+   int nextMin, nextMax;
+     //! searchs for the next range and sets the inner members
+   void getNextRange() {
+     if (data==NULL || actElem == data-&gt;end()) {
+       noFurtherRange = true;
+       return;
+     }
+	 // init and identify next range
+     nextMin = *actElem;
+     nextMax = nextMin;
+	 // build next range
+     while ( (++actElem != data-&gt;end()) &amp;&amp; (*actElem == (nextMax+1)))
+       nextMax++;
+   }
+
+  public:
+   GC_StlSetRangeIterator();
+   GC_StlSetRangeIterator(const std::set&lt;int&gt;* data_);
+   virtual ~GC_StlSetRangeIterator() {}
+
+   void init(const std::set&lt;int&gt;* const data_) {
+     data = data_;
+     noFurtherRange = false;
+     getNextRange();
+   }
+	
+   bool operator()(void) const { return !noFurtherRange; }
+   void operator++(void) { getNextRange(); }
+
+   int min(void) const { return nextMin; }
+   int max(void) const { return nextMax; }
+   unsigned int width(void) { return nextMax-nextMin+1; }
+};
+
+----------------------------------------------------------------
+
+and can be used like that:
+
+----------------------------------------------------------------
+
+#include &lt;int.hh&gt;
+#include &lt;set&gt;
+#include &lt;iostream&gt;
+#include &lt;GC_StlSetRangeIterator.hh&gt;
+
+int main(int argc, char** argv) {
+   std::set&lt;int&gt; s;
+   for(int i=0; i&lt;5; i++) {
+     s.insert(i);
+     s.insert(i+7);
+     s.insert(i*5);
+   }
+
+   GC_StlSetRangeIterator it(&amp;s);
+
+   Gecode::IntSet is(it);
+
+   std::cout&lt;&lt;&quot;new IntSet = &quot; &lt;&lt;is &lt;&lt;std::endl;
+
+   return 0;
+}
+----------------------------------------------------------------
+
+there may be much better implementations or possibilies.. ;)
+
+Thanks to all of you!
+
+Martin
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000518.html">[gecode-users] std::set to Gecode::IntVar conversion
+</A></li>
+	<LI>Next message: <A HREF="000520.html">[gecode-users] std::set to Gecode::IntVar conversion - my quick	and dirty solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#519">[ date ]</a>
+              <a href="thread.html#519">[ thread ]</a>
+              <a href="subject.html#519">[ subject ]</a>
+              <a href="author.html#519">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

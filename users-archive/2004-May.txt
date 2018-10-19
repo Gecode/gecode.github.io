@@ -1,0 +1,1745 @@
+From schulte at imit.kth.se  Sat May  1 13:50:47 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sat, 1 May 2004 13:50:47 +0200
+Subject: [Gecode] Succeded with DLLs
+Message-ID: <000001c42f72$8ac833d0$acd4ed82@beule>
+
+Dear all,
+
+after two days of fiddling I managed to get DLLs to work under Windows with
+MSVC. Now it should be easy to do the same with gcc (both cygwin and mingw).
+Nice enough, it is absolutely straightforward, the problems I had to solve
+where so stupid (a declaration without the DLLEXPORT was always processed
+before the one with the export as I screwed up the order in which the
+headers were included).
+
+But on the other hand I am quite confused with the automake and other
+issues. Separate mails.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Sat May  1 13:57:15 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sat, 1 May 2004 13:57:15 +0200
+Subject: [Gecode] Some issues in the code you contributed...
+Message-ID: <000101c42f73$724f2330$acd4ed82@beule>
+
+Dear all,
+
+I stumbled over the following two issues and some minor stuff:
+
+If you have a template <class A, class B>, then you can't have a template
+<class A, class A>. First of all, this awkward construction is not
+necessary, if you want to have that better iterator, then just give it a
+different name. Grep for #ifdef FUCKED. Your code might not compile/work
+right now.
+
+The max and min double values are exactly those for which floating point
+arithmetic is exact. Basing the configuration on the fact that long long is
+64 bits is worse than using the predefined constant (which is guaranteed by
+the C++ standard afaik).
+
+Then please:
+
+NO C STYLE CASTS, NOWHERE. READ AND UNDERSTAND CASTS IN C++ (Denys will
+agree with me that C-style casts actually put Mozart in big shit, I won't
+have that again).
+
+NO FUNKY LAYOUT! Fact is, do it as I did it (I know that's tough luck, but
+such is life).
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Sat May  1 13:59:56 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sat, 1 May 2004 13:59:56 +0200
+Subject: [Gecode] Autoconf: incomplete, works, how?
+Message-ID: <000201c42f73$d23500d0$acd4ed82@beule>
+
+Guido & Gabor,
+
+how I am supposed to pull the autoconf stuff off. I tried and failed.
+
+What I want you to try is the following:
+ - Go to a virgin directory, check out Gecode and build it (and seee it
+fail?) Please also do it on Cygwin
+ - Put proper .cvsignore files everywhere
+ - Add what is missing, or tell me what to do
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From tack at ps.uni-sb.de  Sat May  1 17:47:02 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sat, 1 May 2004 17:47:02 +0200
+Subject: [Gecode] Some issues in the code you contributed...
+In-Reply-To: <000101c42f73$724f2330$acd4ed82@beule>
+References: <000101c42f73$724f2330$acd4ed82@beule>
+Message-ID: <200405011747.03035.tack@ps.uni-sb.de>
+
+Hello.
+
+On Saturday 01 May 2004 13:57, Christian Schulte wrote:
+> Dear all,
+>
+> I stumbled over the following two issues and some minor stuff:
+>
+> If you have a template <class A, class B>, then you can't have a template
+> <class A, class A>. First of all, this awkward construction is not
+> necessary, if you want to have that better iterator, then just give it a
+> different name. Grep for #ifdef FUCKED. Your code might not compile/work
+> right now.
+
+I think this was intended to be a specialized version. The problem was that 
+you relied on the two arguments being of the same type to exchange them 
+(using Common::swap), that's why we had to split it in a generic and a 
+specialised version. The code compiled and worked, although I don't know at 
+all what the msvc might think about it...
+
+> The max and min double values are exactly those for which floating point
+> arithmetic is exact. Basing the configuration on the fact that long long is
+> 64 bits is worse than using the predefined constant (which is guaranteed by
+> the C++ standard afaik).
+
+The configuration is not based on that fact. It tests whether this holds, in 
+which case the constants can be computed the way I did. Otherwise, they have 
+to be computed the way you did in arith-conf.cc, which will be automatically 
+done by make. I would be very surprised if these constants were really 
+guaranteed by the C++ standard, I couldn't find anything like that on the web 
+or in "The C++ programming language".
+
+The problem with computing the constants at "configure" time the way you did 
+in arith-conf.cc is if you try to cross-compile, as you have to run the 
+generated executable... That is why I tried to get around this if the 
+platform supports it.
+
+> Then please:
+>
+> NO C STYLE CASTS, NOWHERE. READ AND UNDERSTAND CASTS IN C++ (Denys will
+> agree with me that C-style casts actually put Mozart in big shit, I won't
+> have that again).
+
+Ok, we'll go through the code and get rid of them.
+
+> NO FUNKY LAYOUT! Fact is, do it as I did it (I know that's tough luck, but
+> such is life).
+
+What layout are you referring to? Directory structure or coding conventions? 
+I'm sure we'll have to work on both...
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Sat May  1 17:49:50 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sat, 1 May 2004 17:49:50 +0200
+Subject: [Gecode] Autoconf: incomplete, works, how?
+In-Reply-To: <000201c42f73$d23500d0$acd4ed82@beule>
+References: <000201c42f73$d23500d0$acd4ed82@beule>
+Message-ID: <200405011749.50009.tack@ps.uni-sb.de>
+
+Hi.
+
+On Saturday 01 May 2004 13:59, Christian Schulte wrote:
+> how I am supposed to pull the autoconf stuff off. I tried and failed.
+
+> What I want you to try is the following:
+>  - Go to a virgin directory, check out Gecode and build it (and seee it
+> fail?) Please also do it on Cygwin
+>  - Put proper .cvsignore files everywhere
+>  - Add what is missing, or tell me what to do
+
+We tried it yesterday, with Linux and Cygwin, but I'll check again...
+Here is what you usually have to do:
+* check it out from CVS
+* make -f Makefile.cvs to generate the necessary files
+* ./configure
+* make all
+* cd examples
+* make all
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Sat May  1 17:50:54 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sat, 1 May 2004 17:50:54 +0200
+Subject: [Gecode] Succeded with DLLs
+In-Reply-To: <000001c42f72$8ac833d0$acd4ed82@beule>
+References: <000001c42f72$8ac833d0$acd4ed82@beule>
+Message-ID: <200405011750.54651.tack@ps.uni-sb.de>
+
+Hello.
+
+On Saturday 01 May 2004 13:50, Christian Schulte wrote:
+> Dear all,
+>
+> after two days of fiddling I managed to get DLLs to work under Windows with
+> MSVC. Now it should be easy to do the same with gcc (both cygwin and
+> mingw). Nice enough, it is absolutely straightforward, the problems I had
+> to solve where so stupid (a declaration without the DLLEXPORT was always
+> processed before the one with the export as I screwed up the order in which
+> the headers were included).
+
+Now that's good news! I'll try it out and make the set stuff work as well.
+
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed May  5 11:35:07 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 5 May 2004 11:35:07 +0200
+Subject: [Gecode] Kill name virtual methods...
+Message-ID: <002b01c43284$405fd270$acd4ed82@beule>
+
+The subject says it all: it like to get rid of this. It had been ment for
+debugging but I actually never used it, as it is not good enough anyway.
+
+If we would like to have something like that we should use a more
+informative scheme which works together with output streams (such as a print
+method) anyway.
+
+If nobody screams (Gabor? Guido?) I'll remove it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From tack at ps.uni-sb.de  Wed May  5 15:40:54 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 5 May 2004 15:40:54 +0200
+Subject: [Gecode] count propagators won't build
+Message-ID: <200405051540.54672.tack@ps.uni-sb.de>
+
+Hi!
+
+It seems some recent change broke the count propagators, at least for gcc:
+
+../int/count.hh: In instantiation of `Count::IntLe<IntVar, ConstIntVar, 
+Count::RelEq<IntVar> >':
+count/post.cc:33:   instantiated from here
+../int/count.hh:106: error: base `Count::IntLq<IntVar, ConstIntVar,
+   Count::RelEq<IntVar> >' with only non-default constructor in class without 
+a constructor
+
+(and some more similar errors)
+
+Any ideas?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed May  5 16:59:01 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 5 May 2004 16:59:01 +0200
+Subject: [Gecode] count propagators won't build
+In-Reply-To: <200405051540.54672.tack@ps.uni-sb.de>
+Message-ID: <003301c432b1$8073f620$acd4ed82@beule>
+
+Fixed. I declared a class inheriting from another class but only having a
+static method. Here, gcc insists on having a constructor as the superclass
+has a constructor. This, I think, is wrong! I just added declarations for
+(private) default constructors to silence it.
+
+Oh, there comes to mind a better solution: do not inherit (I don't need it
+actually any longer).
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, May 05, 2004 3:41 PM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] count propagators won't build
+
+
+Hi!
+
+It seems some recent change broke the count propagators, at least for gcc:
+
+../int/count.hh: In instantiation of `Count::IntLe<IntVar, ConstIntVar, 
+Count::RelEq<IntVar> >':
+count/post.cc:33:   instantiated from here
+../int/count.hh:106: error: base `Count::IntLq<IntVar, ConstIntVar,
+   Count::RelEq<IntVar> >' with only non-default constructor in class
+without 
+a constructor
+
+(and some more similar errors)
+
+Any ideas?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From tack at ps.uni-sb.de  Wed May  5 18:07:51 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 5 May 2004 18:07:51 +0200
+Subject: [Gecode] count propagators won't build
+In-Reply-To: <003301c432b1$8073f620$acd4ed82@beule>
+References: <003301c432b1$8073f620$acd4ed82@beule>
+Message-ID: <200405051807.51130.tack@ps.uni-sb.de>
+
+On Wednesday 05 May 2004 16:59, Christian Schulte wrote:
+> Fixed. I declared a class inheriting from another class but only having a
+> static method. Here, gcc insists on having a constructor as the superclass
+> has a constructor. This, I think, is wrong! I just added declarations for
+> (private) default constructors to silence it.
+>
+> Oh, there comes to mind a better solution: do not inherit (I don't need it
+> actually any longer).
+
+Seems to be ok now.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed May  5 22:26:39 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 5 May 2004 22:26:39 +0200
+Subject: [Gecode] Major design flaw and solution
+Message-ID: <003601c432df$456c2e70$acd4ed82@beule>
+
+Dear all,
+
+we have been thinking (triggered by Gabor) for a while about what is the
+right way to post a propagator. Here I stumbled about a major design flaw
+but I think I have a solution and also have a sensible design guideline.
+
+To get my message across clearly, first some notation (Wow!). By a propagate
+method I mean the propagate member function every propagator needs to
+implement. By a propagator post function I refer to the static member
+function every propagator should provide for posting a propagator of that
+class. By a post-function I refer to the functions which are used by clients
+of Gecode to create propagators (they are implemented in terms of propagator
+post functions).
+
+Let me tell what the prupose of the two different post functions are:
+
+POST_FUNCTION
+
+	As said, serves as interface to the clients of Gecode. Here, typical
+tasks are preprocessing of arguments and dispatch on the level of
+consistency.
+
+PROPAGATOR POST FUNCTION
+
+	They are propagator specific (static). Their purpose is to create a
+propagator, if needed. Also, take care of special cases such as creating a
+special variant of the propagator, enforcing some invariants on variables
+required by the propagator or avoiding propagator creation at all (just do a
+tell, for example).
+
+	Propagator post functions are used for two purposes: one is to
+provide the means to implements post-functions. Secondly, they are used for
+posting propagator inside the propagation functions of other propagators
+(think of a refied propagator).
+
+	A propagator post function is the ONLY way to create a propagator
+(so I actually declared all constructors protected!), as they are the guys
+to ensure the right invariants PRIOR to propagator creation proper.
+
+	HERE IS THE FLAW: A PROPAGATOR POST FUNCTION CAN FAIL (AND IT DOES).
+If you invoke a propagator post function in a propagation function you are
+fucked: failure goes unnoticed. And I don't want to hack that, it is
+important that failure in posting also is transferred the same way as
+failure in tells.
+
+So what needs to be done is to have propagator post functions return a
+status. That is what I did (and what I will check in):
+
+Introduce a new enumeration type PostStatus with values POS_NONE and
+POS_FAILED (that is instead of having static void post(...) we get static
+PostStatus post(...)).
+
+To disambiguate from PropStatus values I renamed them from PS_* to PRS_*.
+
+The macro FAILCHECK is gone. For replacement the following macros are used
+(all macros need to start with GECODE_ anyway ;-( )
+
+GECODE_CME_PROP(me): That is the former FAILCHECK: check whether tell has
+failed and forward status. During propagation.
+
+The other then are straightforward (check for kernel/macros.hh):
+GECODE_CME_POST(me): Tell inside propagator post function.
+
+GECODE_CME_SPACE(me): Tell inside post-function.
+
+The latter two guys should make life much easier (hi Gabor!).
+
+The same set exists now also for propagator post functions:
+GECODE_CPOS_PROP, GECODE_CPOS_POST, GECODE_CPOS_SPACE
+
+
+
+The names may suck, but that we can fix later.
+
+What still needs to be done, is to convert everything into using the above
+discipline.
+
+Not that clear the Email, I am tired. Does it make sense?
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Thu May  6 15:52:03 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 6 May 2004 15:52:03 +0200
+Subject: [Gecode] Some more details on posting...
+Message-ID: <005b01c43371$4f7c6550$acd4ed82@beule>
+
+There are two more things to be taken into account for posting.
+
+The first is that one needs to make sure that a propagator is never posted
+in a failed space (as there is not guarantee that the datastructures in a
+failed space obey the invariants). Therefore a post-function first needs to
+check whether the space is failed or not. You might want to use the macro
+GECODE_CFAILED() for that (see kernel/macros.hh).
+
+The second issue has to with the two different array types: ArgsArray<...>
+and VarArray<...> (such as SetVarArgs and VarArray<SetVar>). The former is
+reserved for passing arrays to post-functions, and that ONLY by const& (that
+is the type must be const SetVarArgs&). The latter are the arrays with which
+propagators compute. The propagator post function is the only function which
+takes the type VarArray<SetVar>. The constructors always take
+VarArray<SetVar>&. Why: when passing a ArgsArray to something that expects a
+VarArray a copy of the array is created (coercion). This of course should
+only happen when it is really needed and this is in the post-function. If it
+were to happen in the static propagator post method, each time you would
+invoke that you would do that copy!
+
+I know changed the propagator abstractions to follow that rule which broke
+the set stuff. If you want to look for an example check out the distinct or
+bool stuff: This is also interesting to see where to do inlinining and where
+not.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From tack at ps.uni-sb.de  Thu May  6 17:03:36 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 6 May 2004 17:03:36 +0200
+Subject: [Gecode] Some more details on posting...
+In-Reply-To: <005b01c43371$4f7c6550$acd4ed82@beule>
+References: <005b01c43371$4f7c6550$acd4ed82@beule>
+Message-ID: <200405061703.36496.tack@ps.uni-sb.de>
+
+Some changes seem to break the build on Linux: We get undefined symbols.
+
+money-dom.o(.gnu.linkonce.t._ZN5Money6ScriptC2E8conlevel+0x40): In function 
+`Money::Script::Script[not-in-charge](conlevel)':
+../kernel/array.icc:60: undefined reference to 
+`IntVarArray::IntVarArray[in-charge](int, int, int)'
+
+and others. Do you know what's going on here?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Thu May  6 17:18:00 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 6 May 2004 17:18:00 +0200
+Subject: [Gecode] Some more details on posting...
+In-Reply-To: <200405061703.36496.tack@ps.uni-sb.de>
+References: <005b01c43371$4f7c6550$acd4ed82@beule>
+	<200405061703.36496.tack@ps.uni-sb.de>
+Message-ID: <200405061718.00276.tack@ps.uni-sb.de>
+
+On Thursday 06 May 2004 17:03, Guido Tack wrote:
+> Some changes seem to break the build on Linux: We get undefined symbols.
+>
+> money-dom.o(.gnu.linkonce.t._ZN5Money6ScriptC2E8conlevel+0x40): In function
+> `Money::Script::Script[not-in-charge](conlevel)':
+> ../kernel/array.icc:60: undefined reference to
+> `IntVarArray::IntVarArray[in-charge](int, int, int)'
+>
+> and others. Do you know what's going on here?
+
+false alarm... sorry.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Thu May  6 17:23:10 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 6 May 2004 17:23:10 +0200
+Subject: [Gecode] Some more details on posting...
+In-Reply-To: <200405061703.36496.tack@ps.uni-sb.de>
+Message-ID: <000901c4337e$0a8990a0$acd4ed82@beule>
+
+Hmmm. Looks like "make distclean" to me?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Thursday, May 06, 2004 5:04 PM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Some more details on posting...
+
+
+Some changes seem to break the build on Linux: We get undefined symbols.
+
+money-dom.o(.gnu.linkonce.t._ZN5Money6ScriptC2E8conlevel+0x40): In function 
+`Money::Script::Script[not-in-charge](conlevel)':
+../kernel/array.icc:60: undefined reference to 
+`IntVarArray::IntVarArray[in-charge](int, int, int)'
+
+and others. Do you know what's going on here?
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From schulte at imit.kth.se  Sun May  9 22:56:49 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sun, 9 May 2004 22:56:49 +0200
+Subject: [Gecode] Indexed dependencies
+Message-ID: <002d01c43608$260ef810$acd4ed82@beule>
+
+Dear all,
+
+one part of Gecode which has been just a mock-up for long is how
+dependencies are maintained. So far all dependencies have been stored
+contigously in one big array (leading to very low memory overhead due to
+unsued entries in the arrays). However, the big disadvantage of this is that
+in order to find all propagators for a certain propgation condition requires
+scanning _all_ dependencies.
+
+I added a new implementation (define DEPENDENCIES_BY_PROPCOND to enable)
+which still stores all dependencies in one big array, however manintains a
+partition according to propagation condition. This is achieved by
+maintaining index information yielding the start of the different classes in
+the partition (quite tricky but very efficient). 
+
+Pros/Cons:
+ - Requires a little more memory (six words per variable)
+ - Subscribing becomes slower (but still constant time)
+ - Releasing becomes faster (as now only the class in the partition with the
+right propagation condition needs to be considered). Remember: releasing is
+executed much more often than subscribing (cloning!).
+ - Copying should stay about the same.
+ - Amazingly to me, there is a great opportunity to improve one of the core
+loops (process for Boards). This has a big impact!
+ - Adds one more size restriction: propagation conditions are to be less
+than PC_GEN_MAX (less than 5 for now). PC_GEN_MAX actually defines the size
+of the index data structure. If this is not good enough, there is no
+problem: for all but copying it easily possible to pass this information,
+and for copying one could delegate copying of dependency information to the
+VarModBoards (as done for proessing already).
+
+The reason I did it is actually for set vars, where this should buy much
+more than for int vars. Unfortunately, this does currently not compile...
+Please check out what difference in efficiency you can observe (I hacked the
+SetVarModBoard::process() function but you have to check it).
+
+For intvars, everything is faster typically in the range of 3 to 8 percent.
+One example is very interesting though: here one gets a 40% speed-up. This
+is for the "trashing" benchmark where the only thing that is basically
+measured is how fast the system can process events and schedule propagators.
+
+A warning: as of course the order of how propagators are invoked is changed
+by this, you can even sometimes note a slowdown as the different execution
+order could require some more steps until reaching a fixpoint.
+
+Please let me know
+Christian
+ 
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Sun May  9 23:01:39 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Sun, 9 May 2004 23:01:39 +0200
+Subject: [Gecode] DllExport not yet okay on Windows...
+Message-ID: <002e01c43608$d2ca7b60$acd4ed82@beule>
+
+Dear all,
+
+the DllExport swamp has not yet driep up... While it works like a charm for
+MSVC, the solution is not yet good enough for gcc. 
+
+When declaring an entire class to be exported, for MSVC it means that even
+if a _inline_ member function is exported, MSVC will use the inline version.
+This is not the case for gcc, it chooses to always do a call.
+
+Impact for performance is desastrous: The runtime increases by a factor of
+six (clear, no inlining!).
+
+Easy to fix (but tedious): instrument all class members individously and
+spare inline functions... 
+
+I'll try and come back to you whether this works.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Mon May 10 12:08:53 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 10 May 2004 12:08:53 +0200
+Subject: [Gecode] Indexed dependencies for Sets
+Message-ID: <000801c43676$cc09ed60$acd4ed82@beule>
+
+Dear all,
+
+I just made the experiments with sets for the new indexed representation.
+Unfortunately, it does not buy anything but yields most often a slight slow
+down (2%). Only for one example (steiner) one sees a ten percent speedup.
+
+Anyway, as said this is something that had to be done anyway. I will make
+the indexed representation the default and remove the old flat
+representation. I'll do that in two steps:
+ - Remove the old.
+ - Remove the class Dependency (not longer needed). That means that
+subscribe will take a propagator and a propagation condition. Release does
+the same even though I will rename it to cancel (to make it better fit the
+picture of a subscription).
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Mon May 10 15:33:08 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 10 May 2004 15:33:08 +0200
+Subject: [Gecode] Some more tips for coding style...
+Message-ID: <000901c43693$54b7f190$acd4ed82@beule>
+
+Dear all,
+
+just some things that occurred to me when changing the subscribe/cancel
+functionality:
+
+Run Loops Backward by Default!
+
+If you have a loop for (int i=0; i<n; i++) and the order of the iterations
+do not matter, run it backwards:
+	for (int i = n; i--; )
+Why: it requires one register less (unless n is a constant of course). Quite
+important on Intel as there are only so few registers. If you run backwards
+use exactly the above pattern, so that everybody recognizes it.
+
+
+Use Array Operations for Subscribing/Cancelling
+
+The VarArray class has a subscribe/cancel function. Use it! Don't build your
+own loop.
+
+
+Use Boolean Variable Operations!
+
+BoolVars feature handcrafted operations for testing and telling. Use them.
+Use a b* for variable name that it is clear that it is a Boolean variable.
+
+
+Have a Look Now and Then...
+
+Please now and then check how things are done in the integer part. Try to
+follow the style there.
+
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From tack at ps.uni-sb.de  Tue May 11 10:16:12 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 11 May 2004 10:16:12 +0200
+Subject: [Gecode] Reified nary equality
+Message-ID: <200405111016.12919.tack@ps.uni-sb.de>
+
+Has the reified nary equality propagator for int vars. somehow vanished, or am 
+I just blind?
+(trying to get the Alice binding in sync again...)
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Tue May 11 10:36:40 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 May 2004 10:36:40 +0200
+Subject: [Gecode] Reified nary equality
+In-Reply-To: <200405111016.12919.tack@ps.uni-sb.de>
+Message-ID: <000f01c43733$14b43270$acd4ed82@beule>
+
+Uups, yes it did vanish... Sorry for screwing the interface. Alas, it never
+had an implementation ;-)
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Tuesday, May 11, 2004 10:16 AM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] Reified nary equality
+
+
+Has the reified nary equality propagator for int vars. somehow vanished, or
+am 
+I just blind?
+(trying to get the Alice binding in sync again...)
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From schulte at imit.kth.se  Wed May 12 16:30:18 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 12 May 2004 16:30:18 +0200
+Subject: [Gecode] Clarification about posting again...
+Message-ID: <005201c4382d$a5e1a9d0$acd4ed82@beule>
+
+After rewriting your static post methods to the "right" style there is NO
+NEED WHATSEOVER to call Space::fail. Please check.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Thu May 13 16:26:02 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 13 May 2004 16:26:02 +0200
+Subject: [Gecode] GCC and Windows....
+Message-ID: <002501c438f6$383cde80$acd4ed82@beule>
+
+I just tried to have a smaller sets of exports on windows. However this
+doesn't do the job.
+
+In summary, the libraries compiled with gcc are worthless as they run TEN
+TIMES SLOWER! As I have no clue what all this autoconf nonsense is actually
+doing, I also have no clue how I can look at what is going on (I cannot even
+build .s files with the nonsense Makefiles).
+
+Any idea?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From duchier at ps.uni-sb.de  Thu May 13 16:56:47 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Thu, 13 May 2004 16:56:47 +0200
+Subject: [Gecode] GCC and Windows....
+In-Reply-To: <002501c438f6$383cde80$acd4ed82@beule> (Christian Schulte's
+	message of "Thu, 13 May 2004 16:26:02 +0200")
+References: <002501c438f6$383cde80$acd4ed82@beule>
+Message-ID: <87ekpo5qa8.fsf@tdg.loria.fr>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> doing, I also have no clue how I can look at what is going on (I cannot even
+> build .s files with the nonsense Makefiles).
+
+can't you somehow add a -save-temps option
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+
+
+From schulte at imit.kth.se  Tue May 18 16:00:41 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 18 May 2004 16:00:41 +0200
+Subject: [Gecode] A nice gotcha to be prevented...
+Message-ID: <006f01c43ce0$814e7500$acd4ed82@beule>
+
+Dear all,
+
+the following left me quite puzzled and after solving the puzzle I am once
+more horrified by C++.
+
+I did the following class hierarchy (where only the virtual priority member
+functions matter):
+
+class Base {
+  ...
+public:
+   Base(...) {
+      x.subscribe(this,PC_INT_BND);
+   }
+   // No priority 
+};
+
+class A : public Base {
+public:
+   ...
+   A(...) : Base(...) {}
+   virtual PropPrio priority(void) { ... }
+}
+
+(The reason to define priority only in A is to have also a B, C, and so on
+with different code for priority).
+
+Now, what happens is: pure virtual function called...
+
+How come: when constructing an A, first Base::Base(..) is executed assuming
+an object of type Base. And here we do subscribe, which actually also might
+call priority! And, of course, it will call priority for an object of type
+Base... 
+
+So in this situation one also has to define a priority function in Base.
+This one is thean actually only called during construction, later the
+virtual priority of A will be called.
+
+Yes, C++ is a very simple language...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Tue May 18 16:03:49 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 18 May 2004 16:03:49 +0200
+Subject: [Gecode] Found problem with dynamic linking on Windows and gcc
+Message-ID: <007001c43ce0$f1700dd0$acd4ed82@beule>
+
+The incredible slowdown is due to the fact that gcc wraps any access to an
+exported memory location into a procedure call! Tada, guess what? The magic
+Space::cur which is used very often always costs a procedure call.
+
+What I can see is that gcc is ABSOLUTELY INCAPABLE of building DLLs under
+Windows. Let's just forget about it. Not to bad after MSVC is freely
+available.
+
+On the other hand even static linking with autoconf shows the same problem.
+What's going on there?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From tack at ps.uni-sb.de  Tue May 18 16:21:48 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 18 May 2004 16:21:48 +0200
+Subject: [Gecode] Found problem with dynamic linking on Windows and gcc
+In-Reply-To: <007001c43ce0$f1700dd0$acd4ed82@beule>
+References: <007001c43ce0$f1700dd0$acd4ed82@beule>
+Message-ID: <200405181621.48310.tack@ps.uni-sb.de>
+
+On Tuesday 18 May 2004 16:03, Christian Schulte wrote:
+> What I can see is that gcc is ABSOLUTELY INCAPABLE of building DLLs under
+> Windows. Let's just forget about it. Not to bad after MSVC is freely
+> available.
+
+Still VERY annoying. That makes it e.g. a little inconvenient to build the 
+Alice binding for Windows...
+
+> On the other hand even static linking with autoconf shows the same problem.
+> What's going on there?
+
+You mean the problem doesn't show up if you build static libs with your 
+makefiles? Then I'd really have to look at it. Might have something to do 
+with libtool, don't know...
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From duchier at ps.uni-sb.de  Tue May 18 19:30:48 2004
+From: duchier at ps.uni-sb.de (Denys Duchier)
+Date: Tue, 18 May 2004 19:30:48 +0200
+Subject: [Gecode] Found problem with dynamic linking on Windows and gcc
+In-Reply-To: <007001c43ce0$f1700dd0$acd4ed82@beule> (Christian Schulte's
+	message of "Tue, 18 May 2004 16:03:49 +0200")
+References: <007001c43ce0$f1700dd0$acd4ed82@beule>
+Message-ID: <86zn85ve0n.fsf@speedy.ps.uni-sb.de>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> The incredible slowdown is due to the fact that gcc wraps any access to an
+> exported memory location into a procedure call!
+
+Have you jumped through all the weird dll hoops?  I see the following
+in the gcc manual:
+
+     The use of the `dllimport' attribute on functions is not necessary,
+     but provides a small performance benefit by eliminating a thunk in
+     the dll. The use of the `dllimport' attribute on imported
+     variables was required on older versions of GNU ld, but can now be
+     avoided by passing the `--enable-auto-import' switch to ld. As
+     with functions, using the attribute for a variable eliminates a
+     thunk in the dll.
+
+>From what you're describing, it seems that you still have the thunk
+and you'd like to get rid of it :-)
+
+Cheers,
+
+-- 
+Dr. Denys Duchier - ?quipe Calligramme - LORIA, Nancy, FRANCE
+AIM: duchierdenys
+
+
+
+From tack at ps.uni-sb.de  Wed May 19 09:42:12 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 May 2004 09:42:12 +0200
+Subject: [Gecode] Overflow problem in mult
+Message-ID: <200405190942.12356.tack@ps.uni-sb.de>
+
+Hi!
+
+The mult propagator doesn't seem to be aware of overflows. 
+
+E.g. this line
+    GECODE_CME_PROP(x2 <= Arith::max(x0.min()*x1.min(),x0.max()*x1.max()));
+
+clearly produces bogus results if x0.min==x1.min==0 and 
+x0.max==x1.max>(INT_MAX/2), because then x0.max*x1.max will overflow and 
+become < x0.min*x1.min.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed May 19 10:00:31 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 19 May 2004 10:00:31 +0200
+Subject: [Gecode] Found problem with dynamic linking on Windows and gcc
+In-Reply-To: <86zn85ve0n.fsf@speedy.ps.uni-sb.de>
+Message-ID: <007d01c43d77$5b828720$acd4ed82@beule>
+
+Denys, thanks: that looks interesting. But I seem to remember that I tried
+to build shared libraries with the explicit import/export off. I'll try
+again...
+
+And boy I like to get rid of it...
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Denys Duchier [mailto:duchier at ps.uni-sb.de] 
+Sent: Tuesday, May 18, 2004 7:31 PM
+To: schulte at imit.kth.se
+Cc: Technical discussions about Gecode
+Subject: Re: [Gecode] Found problem with dynamic linking on Windows and gcc
+
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> The incredible slowdown is due to the fact that gcc wraps any access 
+> to an exported memory location into a procedure call!
+
+Have you jumped through all the weird dll hoops?  I see the following in the
+gcc manual:
+
+     The use of the `dllimport' attribute on functions is not necessary,
+     but provides a small performance benefit by eliminating a thunk in
+     the dll. The use of the `dllimport' attribute on imported
+     variables was required on older versions of GNU ld, but can now be
+     avoided by passing the `--enable-auto-import' switch to ld. As
+     with functions, using the attribute for a variable eliminates a
+     thunk in the dll.
+
+>From what you're describing, it seems that you still have the thunk and
+you'd like to get rid of it :-)
+
+Cheers,
+
+-- 
+Dr. Denys Duchier - ?quipe Calligramme - LORIA, Nancy, FRANCE
+AIM: duchierdenys
+
+
+
+
+From schulte at imit.kth.se  Wed May 19 10:56:38 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 19 May 2004 10:56:38 +0200
+Subject: [Gecode] Overflow problem in mult
+In-Reply-To: <200405190942.12356.tack@ps.uni-sb.de>
+Message-ID: <008901c43d7f$31fd20b0$acd4ed82@beule>
+
+Thanks for the info. I'll fix it...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, May 19, 2004 9:42 AM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] Overflow problem in mult
+
+
+Hi!
+
+The mult propagator doesn't seem to be aware of overflows. 
+
+E.g. this line
+    GECODE_CME_PROP(x2 <= Arith::max(x0.min()*x1.min(),x0.max()*x1.max()));
+
+clearly produces bogus results if x0.min==x1.min==0 and 
+x0.max==x1.max>(INT_MAX/2), because then x0.max*x1.max will overflow and 
+become < x0.min*x1.min.
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From schulte at imit.kth.se  Wed May 19 15:14:50 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 19 May 2004 15:14:50 +0200
+Subject: [Gecode] Bug tracking?
+Message-ID: <00b401c43da3$43ee49b0$acd4ed82@beule>
+
+What should we do about that? Any proposals?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From tack at ps.uni-sb.de  Wed May 19 17:00:30 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 May 2004 17:00:30 +0200 (CEST)
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <00b401c43da3$43ee49b0$acd4ed82@beule>
+Message-ID: <Pine.LNX.4.44.0405191654020.32184-100000@grizzly.ps.uni-sb.de>
+
+On Wed, 19 May 2004, Christian Schulte wrote:
+
+> What should we do about that? Any proposals?
+
+We could have a bugzilla here - we have a setup for Alice anyway.
+Of course it might be a bit heavyweight, and the interface can be 
+confusing sometimes, but at least it seams to work. I saw that Mozart uses
+"jitterbug", but I couldn't find any information on it, its web site seems 
+to be dead. Maybe Denys knows more about it?
+
+Guido
+
+-- 
+Guido Tack
+mailto:tack at ps.uni-sb.de
+http://www.ps.uni-sb.de/~tack/
+
+
+
+From duchier at ps.uni-sb.de  Wed May 19 17:45:51 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Wed, 19 May 2004 17:45:51 +0200
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <Pine.LNX.4.44.0405191654020.32184-100000@grizzly.ps.uni-sb.de>
+	(Guido Tack's message of "Wed, 19 May 2004 17:00:30 +0200 (CEST)")
+References: <Pine.LNX.4.44.0405191654020.32184-100000@grizzly.ps.uni-sb.de>
+Message-ID: <87lljoto7k.fsf@tdg.loria.fr>
+
+Guido Tack <tack at ps.uni-sb.de> writes:
+
+> I saw that Mozart uses "jitterbug", but I couldn't find any
+> information on it, its web site seems to be dead. Maybe Denys knows
+> more about it?
+
+My recommendation is to go with a _standard_ and _modern_ tool.
+Forget jitterbug it doesn't satisfy either criterion.  While bugzilla
+is rather complex, it has become so ubiquitous that people have become
+familiar with it anyway.  I like the fact that bugzilla supports
+attachments: the lack of them is a big drawback in jitterbug.  I also
+like the "activity log".
+
+Cheers,
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+
+
+From tack at ps.uni-sb.de  Wed May 19 18:46:47 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 May 2004 18:46:47 +0200 (CEST)
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <87lljoto7k.fsf@tdg.loria.fr>
+Message-ID: <Pine.LNX.4.44.0405191830190.5841-100000@grizzly.ps.uni-sb.de>
+
+On Wed, 19 May 2004 duchier at ps.uni-sb.de wrote:
+
+> My recommendation is to go with a _standard_ and _modern_ tool.
+> Forget jitterbug it doesn't satisfy either criterion.  While bugzilla
+> is rather complex, it has become so ubiquitous that people have become
+> familiar with it anyway.  I like the fact that bugzilla supports
+> attachments: the lack of them is a big drawback in jitterbug.  I also
+> like the "activity log".
+
+Ok, cool. If you all agree, I could set up a gecode bugzilla on Friday or 
+Monday (depending on whether I need root privileges, as Thorsten is on 
+vacation). BTW, we will need some kind of gecode homepage anyway if we 
+want to release sometime ;-)
+
+I could of course offer http://www.ps.uni-sb.de/gecode, and that's where 
+I'd put up the bug tracking system.
+
+Guido
+
+-- 
+Guido Tack
+mailto:tack at ps.uni-sb.de
+http://www.ps.uni-sb.de/~tack/
+
+
+
+From schulte at imit.kth.se  Wed May 19 19:30:57 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 19 May 2004 19:30:57 +0200
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <Pine.LNX.4.44.0405191830190.5841-100000@grizzly.ps.uni-sb.de>
+Message-ID: <00c001c43dc7$0baa4170$acd4ed82@beule>
+
+Bugzilla is fine with me.
+
+For obvious reasons, www.ps.uni-sb.de/gecode is completely out of question!
+Well, at least for anything to the public. If it goes there, then only with
+password. I think it is so obvious, that I don't have to explain, do I?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, May 19, 2004 6:47 PM
+To: Technical discussions about Gecode
+Subject: Re: [Gecode] Bug tracking?
+
+
+On Wed, 19 May 2004 duchier at ps.uni-sb.de wrote:
+
+> My recommendation is to go with a _standard_ and _modern_ tool. Forget 
+> jitterbug it doesn't satisfy either criterion.  While bugzilla is 
+> rather complex, it has become so ubiquitous that people have become 
+> familiar with it anyway.  I like the fact that bugzilla supports
+> attachments: the lack of them is a big drawback in jitterbug.  I also 
+> like the "activity log".
+
+Ok, cool. If you all agree, I could set up a gecode bugzilla on Friday or 
+Monday (depending on whether I need root privileges, as Thorsten is on 
+vacation). BTW, we will need some kind of gecode homepage anyway if we 
+want to release sometime ;-)
+
+I could of course offer http://www.ps.uni-sb.de/gecode, and that's where 
+I'd put up the bug tracking system.
+
+Guido
+
+-- 
+Guido Tack
+mailto:tack at ps.uni-sb.de
+http://www.ps.uni-sb.de/~tack/
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From duchier at ps.uni-sb.de  Wed May 19 20:25:49 2004
+From: duchier at ps.uni-sb.de (Denys Duchier)
+Date: Wed, 19 May 2004 20:25:49 +0200
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <00c001c43dc7$0baa4170$acd4ed82@beule> (Christian Schulte's
+	message of "Wed, 19 May 2004 19:30:57 +0200")
+References: <00c001c43dc7$0baa4170$acd4ed82@beule>
+Message-ID: <86n04446ky.fsf@speedy.ps.uni-sb.de>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> For obvious reasons, www.ps.uni-sb.de/gecode is completely out of question!
+> Well, at least for anything to the public. If it goes there, then only with
+> password. I think it is so obvious, that I don't have to explain, do I?
+
+I don't much like secrecy. Is there any chance that you could register
+the domain gecode.org?
+
+Cheers,
+
+-- 
+Dr. Denys Duchier - ?quipe Calligramme - LORIA, Nancy, FRANCE
+AIM: duchierdenys
+
+
+
+From tack at ps.uni-sb.de  Wed May 19 22:41:18 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 May 2004 22:41:18 +0200 (CEST)
+Subject: [Gecode] Bug tracking?
+In-Reply-To: <00c001c43dc7$0baa4170$acd4ed82@beule>
+Message-ID: <Pine.LNX.4.44.0405192225010.13418-100000@grizzly.ps.uni-sb.de>
+
+On Wed, 19 May 2004, Christian Schulte wrote:
+
+> Bugzilla is fine with me.
+> 
+> For obvious reasons, www.ps.uni-sb.de/gecode is completely out of question!
+> Well, at least for anything to the public. If it goes there, then only with
+> password. I think it is so obvious, that I don't have to explain, do I?
+
+Yes, it is, and no, you don't ;-)
+Well, maybe I should have asked, but I assumed that you probably don't 
+have a web server with such a liberal policy as ours, and that it might be 
+the easiest thing to install it here.
+
+Regarding Denys' suggestion, we might (as soon as Gecode is released, of 
+course) also consider something like SourceForge.net or 
+Savannah.gnu.org, that would give us CVS, bug tracking, web space and 
+mailing lists for free. I have actually never used any of these, it just 
+came to my mind.
+
+Guido
+
+-- 
+Guido Tack
+mailto:tack at ps.uni-sb.de
+http://www.ps.uni-sb.de/~tack/
+
+
+
+From schulte at imit.kth.se  Fri May 21 16:20:52 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 21 May 2004 16:20:52 +0200
+Subject: [Gecode] Memory leak fixed: Important, read carefully
+Message-ID: <00cd01c43f3e$d2bfe490$acd4ed82@beule>
+
+Dear all,
+
+after considerable effort I have been able to fix the memory leak in Gecode.
+Instrumental in finding the leak has been valgrind, which is highly
+recommended (thanks to Guido for bringing valgrind to my attention).
+Valgrind actually also revelaed that Gecode wrongly assumes that malloc's
+are 8-aligned, Sigh...
+
+The leak was in static-pqueue and has been introduced by somebody who did -
+in my opinion - something that I really don't appreciate much. Let me
+clarify why. (I didn't look who was it, I hope it was not me... :-) )
+
+Point one: There's no problem whatsoever if you don't know some things.
+That's normal.
+
+Point two: There's a big problem, if you don't know what you are doing but
+do it anyway. This is TERRIBLE. Why? 
+
+Ask, that's why we do development jointly.
+
+Discuss, more than one person are MUCH MUCH smarter than a single person!
+
+Then, some technical food for thought (the problem was with reference
+counting):
+
+ - Whenever you have a copying constructor, also have an assignment operator
+and vice versa.
+ - UNDERSTAND how they work!
+ - In reference counting, you associate the counter with the resource (that
+is the block of memory). 
+ - All clients of that resource manipulate the shared counter.
+ - There is really no point in having a counter per client as you want to
+count resource usage.
+ - You might want to read about auto_ptr or reference counting in some
+material on GC.
+
+Let me clarify: I am not angry because there was a bug. That's normal. I am
+angry as the code showed so clearly that the person had not clue whatsoever
+about the issue at hand. That's terrible. Ask instead!
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From tack at ps.uni-sb.de  Fri May 21 17:23:04 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 21 May 2004 17:23:04 +0200
+Subject: [Gecode] Memory leak fixed: Important, read carefully
+In-Reply-To: <00cd01c43f3e$d2bfe490$acd4ed82@beule>
+References: <00cd01c43f3e$d2bfe490$acd4ed82@beule>
+Message-ID: <200405211723.04437.tack@ps.uni-sb.de>
+
+On Friday 21 May 2004 16:20, Christian Schulte wrote:
+> Let me clarify: I am not angry because there was a bug. That's normal. I am
+> angry as the code showed so clearly that the person had not clue whatsoever
+> about the issue at hand. That's terrible. Ask instead!
+
+It seems I introduced that bug, I'm sorry. I definitely had no clue what I was 
+doing, now that I look at the code again - but OTOH I certainly would have 
+asked if I had noticed that I had no clue.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Sat May 22 11:50:26 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sat, 22 May 2004 11:50:26 +0200
+Subject: [Gecode] INT module is _not_ always there!
+Message-ID: <200405221150.26636.tack@ps.uni-sb.de>
+
+Hi.
+
+If you build static gecode libs and you link them with a program that doesn't 
+use anything from the int module but only set variables, the vmb WON'T be 
+initialized for type VTI_INT! (And I guess we have the same problem with 
+dlls, I just didn't check) That's why the optimization in core.icc checked in 
+yesterday is a bit premature... Should we just revert to the old version or 
+think of something clever?
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Mon May 24 11:53:20 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 24 May 2004 11:53:20 +0200
+Subject: [Gecode] INT module is _not_ always there!
+In-Reply-To: <200405221150.26636.tack@ps.uni-sb.de>
+Message-ID: <010001c44174$f23926a0$acd4ed82@beule>
+
+Fixed, sorry I assumed that the integer mod board would always be there when
+sets are in use...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Saturday, May 22, 2004 11:50 AM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] INT module is _not_ always there!
+
+
+Hi.
+
+If you build static gecode libs and you link them with a program that
+doesn't 
+use anything from the int module but only set variables, the vmb WON'T be 
+initialized for type VTI_INT! (And I guess we have the same problem with 
+dlls, I just didn't check) That's why the optimization in core.icc checked
+in 
+yesterday is a bit premature... Should we just revert to the old version or 
+think of something clever?
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Tue May 25 10:38:54 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 25 May 2004 10:38:54 +0200
+Subject: [Gecode] Bugzilla
+Message-ID: <200405251038.54510.tack@ps.uni-sb.de>
+
+Hi!
+
+With the help of Thorsten I have set up a bugzilla system for Gecode. It is 
+available under
+http://www.ps.uni-sb.de/gecode/bugzilla
+
+You will need a login/password to access it:
+login: "gecode"
+pwd: "pr.p.g.t." (that is "propagate" with all the vowels replaced by a ".").
+
+You can then use bugzilla the usual way. If you have any comments or 
+suggestions, please tell me.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Thu May 27 10:30:44 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 27 May 2004 10:30:44 +0200
+Subject: [Gecode] Equality, variable aliasing and AllDistinct
+Message-ID: <200405271030.44961.tack@ps.uni-sb.de>
+
+Hi!
+
+In a discussion with Thorsten and Didier, a technical question came up:
+
+In Mozart, {FD.distinct [A B C]} will immediately detect failure if A=B. This 
+is not the case for Gecode, where A=B just posts a propagator instead of 
+identifying the two variables. I know from a discussion with Christian that 
+he thinks that identifying variables in the store is a bad thing because it 
+makes the system much more complicated. So the question was whether there is 
+either a simple solution that enables distinct to test for aliasing, or 
+whether this is a border case that is not interesting in practical 
+applications.
+
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Thu May 27 10:43:10 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 27 May 2004 10:43:10 +0200
+Subject: [Gecode] Equality, variable aliasing and AllDistinct
+In-Reply-To: <200405271030.44961.tack@ps.uni-sb.de>
+Message-ID: <004a01c443c6$a4418740$acd4ed82@beule>
+
+Not interesting in the least (currently). In particular for distinct I do
+not know about a single example.
+
+However, there are two things to be distinguished here: one is whether it
+makes sense to consider equality between variables as a basic constraint as
+well. Here the answer is that it can make sense, but only in rare cases (the
+cases known are actually Boolean variables with Boolean propagators).
+
+The other aspect is how to implement variable variable equality. There the
+solution which is good for data structures (realising it in the store) is
+required for entailment. With propagation only it does not make sense: a
+propagator has to always rediscover from the store which aliasing happened. 
+
+A solution which we might want to explore in the future is a substitution
+based approach: aliasing two variables will eliminate one and will replace
+in all occurrence (read propagators) one by the other. Here the information
+for which propagators substitution has to be performed is directly
+available. Another aspect is factorization: with substitution, aliasing
+becomes a completely orthogonal aspect to both propagation and how variables
+are implemented! Data structures such as variable arrays storing solutions
+then have to be equipped with a propagator maintaining aliased variables.
+
+This is quite interesting and a new idea, however the benefits might be not
+that large.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Thursday, May 27, 2004 10:31 AM
+To: Technical Discussions about Gecode
+Subject: [Gecode] Equality, variable aliasing and AllDistinct
+
+
+Hi!
+
+In a discussion with Thorsten and Didier, a technical question came up:
+
+In Mozart, {FD.distinct [A B C]} will immediately detect failure if A=B.
+This 
+is not the case for Gecode, where A=B just posts a propagator instead of 
+identifying the two variables. I know from a discussion with Christian that 
+he thinks that identifying variables in the store is a bad thing because it 
+makes the system much more complicated. So the question was whether there is
+
+either a simple solution that enables distinct to test for aliasing, or 
+whether this is a border case that is not interesting in practical 
+applications.
+
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From duchier at ps.uni-sb.de  Thu May 27 11:11:54 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Thu, 27 May 2004 11:11:54 +0200
+Subject: [Gecode] Equality, variable aliasing and AllDistinct
+In-Reply-To: <004a01c443c6$a4418740$acd4ed82@beule> (Christian Schulte's
+	message of "Thu, 27 May 2004 10:43:10 +0200")
+References: <004a01c443c6$a4418740$acd4ed82@beule>
+Message-ID: <87r7t6xmhx.fsf@tdg.loria.fr>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> Not interesting in the least (currently). In particular for distinct I do
+> not know about a single example.
+>
+> However, there are two things to be distinguished here: one is whether it
+> makes sense to consider equality between variables as a basic constraint as
+> well. Here the answer is that it can make sense, but only in rare cases (the
+> cases known are actually Boolean variables with Boolean propagators).
+
+There are many applications in linguistics where (1) identification of
+variables make sense, (2) distinctness constraints play an important
+role.  For example, when modeling trees, you may want to represent the
+"parent" of a node.  In a problem instance, you may have a constraint
+that require two nodes A and B to have distinct parents.  If you now
+"identify" the two nodes A and B (because that is one of the
+composition operations available), you'd like (at least) to discover
+failure early rather than late.  In such applications, the benefits
+can be quite significant.
+
+Cheers,
+
+PS: on the other hand, if I get to vote, I'd rather see support for
+"or"-style combinators first :-)
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+
+
+From schulte at imit.kth.se  Thu May 27 11:31:00 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 27 May 2004 11:31:00 +0200
+Subject: [Gecode] Equality, variable aliasing and AllDistinct
+In-Reply-To: <87r7t6xmhx.fsf@tdg.loria.fr>
+Message-ID: <000001c443cd$52c75b90$acd4ed82@beule>
+
+Good point, I was refering to integer problems. Actullay, doing it is not
+difficult... But there are more intersting things to do than that.
+
+Combinators is one. However, we will only start after the first milestone,
+where we are sure that the kernel and the libraries have the right structure
+without combinators. I think we are there right now and the next thing is
+writing papers and documentation. Actually, the first paper using and
+mentioning Gecode will be accepted for toplas anytime soon...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: duchier at ps.uni-sb.de [mailto:duchier at ps.uni-sb.de] 
+Sent: Thursday, May 27, 2004 11:12 AM
+To: schulte at imit.kth.se
+Cc: Technical discussions about Gecode
+Subject: Re: [Gecode] Equality, variable aliasing and AllDistinct
+
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> Not interesting in the least (currently). In particular for distinct I 
+> do not know about a single example.
+>
+> However, there are two things to be distinguished here: one is whether 
+> it makes sense to consider equality between variables as a basic 
+> constraint as well. Here the answer is that it can make sense, but 
+> only in rare cases (the cases known are actually Boolean variables 
+> with Boolean propagators).
+
+There are many applications in linguistics where (1) identification of
+variables make sense, (2) distinctness constraints play an important role.
+For example, when modeling trees, you may want to represent the "parent" of
+a node.  In a problem instance, you may have a constraint that require two
+nodes A and B to have distinct parents.  If you now "identify" the two nodes
+A and B (because that is one of the composition operations available), you'd
+like (at least) to discover failure early rather than late.  In such
+applications, the benefits can be quite significant.
+
+Cheers,
+
+PS: on the other hand, if I get to vote, I'd rather see support for
+"or"-style combinators first :-)
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+AIM: duchierdenys
+
+
+
+
+
+From tack at ps.uni-sb.de  Thu May 27 13:02:18 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 27 May 2004 13:02:18 +0200
+Subject: [Gecode] 
+	CVS compile problem, friend class Variable without template
+Message-ID: <200405271302.18904.tack@ps.uni-sb.de>
+
+Hi Christian.
+
+In core.hh, class Propagator is declared friend of class Variable. Now that 
+Variable is parametric, this doesn't compile (does it work on Windows???). Is 
+there anything you forgot to check in, or is there a fundamental problem? (We 
+can't make Propagator parametric, it may depend on more than one Variable 
+type!)
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+

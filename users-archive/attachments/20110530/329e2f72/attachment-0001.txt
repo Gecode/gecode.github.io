@@ -1,0 +1,175 @@
+#ifndef AllocTime_h__
+#define AllocTime_h__
+
+#include <gecode/driver.hh>
+#include <gecode/minimodel.hh>
+#include <gecode/scheduling.hh>
+
+#define GE_USE_GIST
+
+#ifdef GE_USE_GIST
+#include <gecode/gist.hh>
+#endif
+
+using namespace Gecode;
+
+/*
+ * each resource can do certain tasks,
+ * some tasks can be done only after another tasks
+ * each resource can do a task at a time
+ * each resource has a availability interval
+ */
+class AllocTime : public MinimizeScript {
+public:
+	enum {
+		SEARCH_DFS,
+		SEARCH_BAB,
+		SEARCH_RESTART
+	};
+
+private:
+	const static int nrResources = 21;
+	const static int nrTasks = 5;
+
+	IntVarArray resources;
+	IntVarArray start_times;
+	IntVarArray end_times;
+
+	IntVar z;
+public:
+	AllocTime(const Options & options) : MinimizeScript() {
+		// only some resources can be assigned to certain tasks
+		int _resources[5][7] = {
+			{  0,  1,  2,  3,  4,  5,  6 },
+			{  0,  1,  2,  3,  4,  5,  6 },
+			{  7,  8,  9, 10, 11, 12, 13 },
+			{  7,  8,  9, 10, 11, 12, 13 },
+			{ 14, 15, 16, 17, 18, 19, 20 } };
+		resources = IntVarArray(*this, nrTasks, 0, nrResources - 1);
+		for(int i=0; i<nrTasks; i++) {
+			dom(*this, resources[i], IntArgs(7, _resources[i]));
+		}
+
+		const int maxTime = 660 * 7; // max interval * nr days
+		start_times = IntVarArray(*this, nrTasks, 0, maxTime);
+		end_times = IntVarArray(*this, nrTasks, 0, maxTime);
+		z = IntVar(*this, 0, maxTime);
+
+		int _durations[5] = {12, 60, 60, 60, 60};
+		IntArgs durations(nrTasks, _durations);
+
+		for(int i=0; i<nrTasks; i++) {
+			rel(*this, end_times[i] == start_times[i] + durations[i]);
+		}
+
+		// tasks have order
+		for(int i=1; i<nrTasks; i++) {
+			rel(*this, end_times[0], IRT_LQ, start_times[i]);
+		}
+						
+		BoolVarArgs _m(*this, nrTasks*nrResources, 0, 1);
+		Matrix<BoolVarArgs> m(_m, nrTasks, nrResources);
+		for (int j=0; j<nrTasks; j++) {
+			channel(*this, m.col(j), resources[j]);
+		}
+		for (int i=0; i<nrResources; i++) {
+			for (int j=0; j<nrTasks; j++) {
+				IntSet v = getTimeIntervals(i);
+				dom(*this, start_times[j], v, m(j, i));
+			}
+			unary(*this, start_times, durations, m.row(i));
+		}
+		
+		for (int j=0; j<nrTasks; j++) {
+			linear(*this, m.col(j), IRT_EQ, 1); // each task is scheduled on exactly one resource
+		}
+		
+		// we minimize the total time
+		max(*this, end_times, z, options.icl());
+
+		branch(*this, resources, INT_VAR_NONE, INT_VAL_MIN);
+		branch(*this, start_times, INT_VAR_NONE, INT_VAL_MIN);
+		branch(*this, end_times, INT_VAR_NONE, INT_VAL_MIN);
+	}
+
+	virtual IntVar cost(void) const {
+		return z;
+	}
+
+	virtual void print(std::ostream& os) const {
+		os << "cost: " << z << std::endl;
+		os << "nr tasks: " << nrTasks << std::endl;
+		for(int i = 0; i < nrTasks; i++) {
+			os << i << ": s" << start_times[i] << " e" << end_times[i] << " res: " << resources[i] << std::endl;
+		}
+	}
+
+private:
+	// each resource has a availability period, based on that we calculate the starting intervals
+	IntSet getTimeIntervals(int resource) {
+		int intervals[21][2][2] =
+              { {{ 60 , 360 }, { 420 , 660 } },
+				{{ 720 , 1020 }, { 1080 , 1320 }},
+				{{ 1380 , 1680 }, { 1740 , 1980 }},
+				{{ 2040 , 2340 }, { 2400 , 2640 }},
+				{{ 2700 , 3000 }, { 3060 , 3300 }},
+				{{ }, { }},
+				{{ }, { }},
+				{{ 60 , 360 }, { 420 , 660 }},
+				{{ 720 , 1020 }, { 1080 , 1320 }},
+				{{ 1380 ,  1680 }, { 1740 , 1980 }},
+				{{ 2040 , 2340 }, { 2400 , 2640 }},
+				{{ 2700 , 3000 }, { 3060 , 3300 }},
+				{{ }, { }},
+				{{ }, { }},
+				{{ 0 , 300 }, { 360 , 600 }},
+				{{ 660 , 960 }, { 1020 , 1260 }},
+				{{ 1320 , 1620 }, { 1680 , 1920 }},
+				{{ 1980 , 2280 }, { 2340 , 2580 }},
+				{{ 2640 , 2940 }, { 3000 , 3240 }},
+				{{ 3360 , 3600 }, {}},
+				{{ }, { }} };
+		int s[] = { 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 1, 0 };
+
+		if(s[resource] == 0) {
+			return IntSet::empty;
+		}
+		else {
+			return IntSet(intervals[resource], s[resource]);
+		}
+	}
+
+public:
+	AllocTime(bool share, AllocTime& s) : MinimizeScript(share,s) {
+		resources.update(*this, share, s.resources);
+		start_times.update(*this, share, s.start_times);
+		end_times.update(*this, share, s.end_times);
+
+		z.update(*this, share, s.z);
+	}
+
+	virtual Space* copy(bool share) {
+		return new AllocTime(share,*this);
+	}
+
+#ifdef GE_USE_GIST
+public:
+	virtual void compare(const Space& s, std::ostream& os) const {
+		const AllocTime& aa = static_cast<const AllocTime&>(s);
+		os << Gist::Comparator::compare("z", z, aa.z) << std::endl;
+		for(int i=0; i<this->nrTasks; i++) {
+			std::string msg = "r";
+			os << Gist::Comparator::compare(msg, resources[i], aa.resources[i]) << ", ";
+		}
+		os << std::endl;
+		for(int i=0; i<this->nrTasks; i++) {
+			std::string msg = "t";
+			os << Gist::Comparator::compare(msg, start_times[i], aa.start_times[i]) << ", ";
+		}
+		os << std::endl;
+	}
+
+#endif
+};
+
+#endif // AllocTime_h__

@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Extra level of variables needed for count?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extra%20level%20of%20variables%20needed%20for%20count%3F&In-Reply-To=%3CCY4PR15MB1239C4B9BC1635249543DBD7B5D30%40CY4PR15MB1239.namprd15.prod.outlook.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="005009.html">
+   <LINK REL="Next"  HREF="005011.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Extra level of variables needed for count?</H1>
+    <B>Neill Clift</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extra%20level%20of%20variables%20needed%20for%20count%3F&In-Reply-To=%3CCY4PR15MB1239C4B9BC1635249543DBD7B5D30%40CY4PR15MB1239.namprd15.prod.outlook.com%3E"
+       TITLE="[gecode-users] Extra level of variables needed for count?">NeillClift at live.com
+       </A><BR>
+    <I>Mon Mar 12 17:29:30 CET 2018</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="005009.html">[gecode-users] Extra level of variables needed for count?
+</A></li>
+        <LI>Next message: <A HREF="005011.html">[gecode-users] Extra level of variables needed for count?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5010">[ date ]</a>
+              <a href="thread.html#5010">[ thread ]</a>
+              <a href="subject.html#5010">[ subject ]</a>
+              <a href="author.html#5010">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>OK thanks for that. This makes the code simpler but I do still have to make a set of variables to contain the multiplicities (the v&#8217;s).
+Of course they immediately become assigned to a single value. Would it be right in assuming the cost of that on the model is very small?
+
+Sent from Mail&lt;<A HREF="https://go.microsoft.com/fwlink/?LinkId=550986">https://go.microsoft.com/fwlink/?LinkId=550986</A>&gt; for Windows 10
+
+________________________________
+From: Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+Sent: Monday, March 12, 2018 2:31:26 AM
+To: Neill Clift; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: Extra level of variables needed for count?
+
+Hi,
+
+I think you stopped reading a little too early. MPG says that you can also use integer sets instead of variables.
+
+Then, in your example you do not need x and c, just pass b and v directly! IntVarArray is automatically casted to IntVarArgs.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>&gt;
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Neill Clift
+Sent: Saturday, March 10, 2018 20:37
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Extra level of variables needed for count?
+
+Hi,
+I want to restrict the values of an array to members of a multiset. This is a bit like distinct but can have repeated values.
+So for example I want the values of b[0..7] to come from the multiset {5,5,5,4,3,2,1,0}. The b&#8217;s are essentially a permutation of the multiset
+Count seems to be the way to achieve this but I have to add a whole new set of variables (the v&#8217;s below) that contain the counts of the multiplicities.
+I cut out a bunch of stuff that&#8217;s not relevant to the code below so I hope it still makes  sense.
+bp.MaxBit is the number of distinct values in the multiset. And bp.Bits[i] is the multiplicity for the multiset value i.
+Is this the expected way to do what I am trying to do here?
+Thanks.
+Neill.
+
+public:
+                IntVarArray b;
+
+public:
+                PartialOrderSort(LPTYPER n, BIT_PATTERN &amp;bp, LPTYPER TopIndex) :
+                                b(*this, n, 0, TopIndex)
+                {
+                                IntVarArgs x(n);
+                                IntVarArgs c((LPTYPER)bp.MaxBit);
+                                for (int i = 0; i &lt; n; i++) {
+                                                x[i] = b[i];
+                                }
+                                IntVarArray v(*this, (LPTYPER)bp.MaxBit, 0, n - 1);
+                                for (int i = 0; i &lt; bp.MaxBit; i++) {
+                                                c[i] = v[i];
+                                                rel(*this, v[i] == (LPTYPER)bp.Bits[i]);
+                                }
+
+                                count(*this, x, c, IPL_DOM);
+
+
+Sent from Mail&lt;<A HREF="https://go.microsoft.com/fwlink/?LinkId=550986">https://go.microsoft.com/fwlink/?LinkId=550986</A>&gt; for Windows 10
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180312/89ee66c2/attachment.html">http://www.gecode.org/pipermail/users/attachments/20180312/89ee66c2/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="005009.html">[gecode-users] Extra level of variables needed for count?
+</A></li>
+	<LI>Next message: <A HREF="005011.html">[gecode-users] Extra level of variables needed for count?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5010">[ date ]</a>
+              <a href="thread.html#5010">[ thread ]</a>
+              <a href="subject.html#5010">[ subject ]</a>
+              <a href="author.html#5010">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

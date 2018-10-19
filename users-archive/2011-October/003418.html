@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Sum of IntVarArrays with changing array positions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3C4E95A3B8.3080801%40itwm.fhg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003417.html">
+   <LINK REL="Next"  HREF="003419.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Sum of IntVarArrays with changing array positions</H1>
+    <B>Mathias Dalheimer</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3C4E95A3B8.3080801%40itwm.fhg.de%3E"
+       TITLE="[gecode-users] Sum of IntVarArrays with changing array positions">dalheimer at itwm.fhg.de
+       </A><BR>
+    <I>Wed Oct 12 16:27:04 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003417.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+        <LI>Next message: <A HREF="003419.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3418">[ date ]</a>
+              <a href="thread.html#3418">[ thread ]</a>
+              <a href="subject.html#3418">[ subject ]</a>
+              <a href="author.html#3418">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Dear Guido, dear Christian, list,
+
+wow, I'm impressed - usually not even paid support does answer so fast
+and so accurate. Thank you very much!
+
+I've implemented Guidos idea, but I still have a problem. My code looks
+like this:
+
+I have some member variables (all IntVarArrays), here's the
+initialization list:
+
+  :_start_times(*this, devices.size(), 0, MINS_PER_DAY)
+  _movable_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev0_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev1_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev0(*this, devices[0].size(), 0, 15000)
+  _dev1(*this, devices[1].size(), 0, 15000)
+
+devices is of type std::vector&lt; std::vector &gt;, I copy the
+initial device data to _dev0 (and _dev1):
+
+  for (size_t i=0; i &lt; devices[0].size(); ++i) {
+    rel(*this, _dev0[i] == devices[0][i]);
+  }
+
+Then, I use Guido's recommendation:
+
+ for (int j=0; j &lt; _dev0.size(); ++j) {
+    rel(*this, _dev0_load[j] == element(_dev0, _start_times[0] + j));
+ }
+
+Please note that I was not able to use the post function - the compiler
+complains that the function is not defined, although minimodel.hh is
+included. After this step (again the same code for _dev1), I can sum up
+the _devX_load IntVarArrays:
+
+  for (int i=0; i&lt;_movable_load.size(); ++i) {
+    rel(*this, _movable_load[i] == _dev0_load[i] + _dev1_load[i]);
+  }
+
+This works in principle (The _movable_load series is calculated
+correctly), but only if the device positions (_start_times) are 0. These
+are also the solutions found by Gecode. If I restrict the start times to
+something different, i.e.
+
+  rel(*this, _start_times[0] == 1);
+
+Gecode will not find any solutions. I'm sure I'm only missing something
+simple - any ideas? Thanks again for your time!
+
+Cheers,
+- -Mathias
+
+
+Guido Tack wrote:
+&gt;<i> Hi Mathias,
+</I>&gt;<i> 
+</I>&gt;<i> you can express the constraint using element constraints.  Say the 
+</I>&gt;<i> two sequences are x and y, you create two new sequences xx and yy 
+</I>&gt;<i> (with appropriate length) and then post the following constraints:
+</I>&gt;<i> 
+</I>&gt;<i> for (int i=0; i&lt; m || i &gt; m+x.size())
+</I>&gt;&gt;&gt;<i> xx[i]==0)); for (int i=0; i&lt; n || i
+</I>&gt;&gt;<i> n+y.size()) &gt;&gt; yy[i]==0));
+</I>&gt;<i> I didn't test the code, but I hope you get the idea.
+</I>&gt;<i> 
+</I>&gt;<i> Christian's email just arrived - I think my solution is different in 
+</I>&gt;<i> that the time series can be variables, which means you can't use 
+</I>&gt;<i> regular.  I understand that correctly from your description?
+</I>&gt;<i> 
+</I>&gt;<i> Cheers, Guido
+</I>&gt;<i> 
+</I>&gt;<i> On 12 Oct 2011, at 10:57, Mathias Dalheimer wrote:
+</I>&gt;<i> 
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> I'm having trouble expressing the following constraints: I have two
+</I>&gt;&gt;<i> IntVarArrays which contain short timeseries (i.e. consumption 
+</I>&gt;&gt;<i> values for one hour, while the remaining hours of one day are 
+</I>&gt;&gt;<i> empty/not constrained). The *position* of the constraints of the 
+</I>&gt;&gt;<i> consumption can move within the day, this is governed by two 
+</I>&gt;&gt;<i> IntVars (m, n) (which are my optimization goal, so the cost 
+</I>&gt;&gt;<i> function is calculated depending on the position variables). The 
+</I>&gt;&gt;<i> underlying question is where to place the consumption in order to 
+</I>&gt;&gt;<i> optimize some cost function.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Now I have some other constraints that depend on the position m
+</I>&gt;&gt;<i> and n of the consumption. I need to sum the timeseries. So, as an 
+</I>&gt;&gt;<i> example, I have something like this (. denotes no constraint):
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3 . . . . . . . 2 4 5 6 5 
+</I>&gt;&gt;<i> . . . . .   // n=8
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Now my question: How do I encode a constraint that depends on the 
+</I>&gt;&gt;<i> sum of these two IntVarArrays while m and n (the position) can 
+</I>&gt;&gt;<i> change?
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> So, in the previous example, this would be:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3 . . . . . . . 2 4 5 6 5 
+</I>&gt;&gt;<i> . . . . .   // n=8 . . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> In another example with different m and n:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 1 2 1 2 3 . . . . . . . . . . . .  // m=0 . . . . . . . 2 4 5 6 5
+</I>&gt;&gt;<i> . . . . .  // n=8 1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Different m's and n's are being evaluated and an optimal set of m 
+</I>&gt;&gt;<i> and n is the result of the optimization.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Thanks for any pointers, -Mathias
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> _______________________________________________ Gecode users 
+</I>&gt;&gt;<i> mailing list <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> 
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (Darwin)
+Comment: Using GnuPG with Mozilla - <A HREF="http://enigmail.mozdev.org/">http://enigmail.mozdev.org/</A>
+
+iEYEARECAAYFAk6VtB8ACgkQ/Rbs3OTm+ySf6wCg0c/kkj/TI98JdoP2jpKc6bSr
+a/MAnjWOkQrhcJxmgdltGcpA5v+xYS+y
+=Wboo
+-----END PGP SIGNATURE-----
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003417.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+	<LI>Next message: <A HREF="003419.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3418">[ date ]</a>
+              <a href="thread.html#3418">[ thread ]</a>
+              <a href="subject.html#3418">[ subject ]</a>
+              <a href="author.html#3418">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

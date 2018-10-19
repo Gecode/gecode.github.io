@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Optimization
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Optimization&In-Reply-To=%3C72D4A282-4F7A-463A-9206-6EDEF7720399%40gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002826.html">
+   <LINK REL="Next"  HREF="002830.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Optimization</H1>
+    <B>Peter Vanhee</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Optimization&In-Reply-To=%3C72D4A282-4F7A-463A-9206-6EDEF7720399%40gmail.com%3E"
+       TITLE="[gecode-users] Optimization">peter.vanhee at gmail.com
+       </A><BR>
+    <I>Wed Feb  3 16:56:04 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002826.html">[gecode-users] Optimization
+</A></li>
+        <LI>Next message: <A HREF="002830.html">[gecode-users] Optimization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2827">[ date ]</a>
+              <a href="thread.html#2827">[ thread ]</a>
+              <a href="subject.html#2827">[ subject ]</a>
+              <a href="author.html#2827">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Thanks for the answer. Conceptually, I see a problem in the energy constraint:
+it can only work if all variables are instantiated. Would it make sense to write
+a function that posts the energy constraint? Something like
+
+void energy(Home home, const IntVarArgs&amp; x, double n, IntConLevel icl=ICL_DEF);
+
+that would then implement a propagator that will get called once all variables
+are instantiated, checks if the energy is better than n, and if not, fails the space.
+
+I could then probably call this constraint within the constrain() function and bypass
+use of static variables. Still, it wouldn't change the search tree, but this is
+simply because the energy constraint is unable the domains. Is this correct
+reasoning? The static variable seemed much easier to implement than implementing
+a post function.
+
+I hadn't given it a thought to convert the double to an int, but would this make
+sense if there is nothing to prune?
+
+Thanks a lot,
+Peter
+
+On 3 Feb 2010, at 16:39, Christian Schulte wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> The problem with your solution is that you do not use branch and bound for
+</I>&gt;<i> search (as you basically say yourself): what you will do is basically find
+</I>&gt;<i> all solutions and pick a best one among them (provided I really understand
+</I>&gt;<i> what you are doing). The idea of branch and bound is to add a constraint
+</I>&gt;<i> after a solution has been found such that the additional constraint will
+</I>&gt;<i> guarantee that a better solution is found next and - crucially! - the added
+</I>&gt;<i> constraint can prune the search space by triggering additional propagation.
+</I>&gt;<i> 
+</I>&gt;<i> Moreover, your idea is not compatible with parallel search (static
+</I>&gt;<i> variable).
+</I>&gt;<i> 
+</I>&gt;<i> Did you think about turning your double value into a sufficiently accurate
+</I>&gt;<i> integer variable?
+</I>&gt;<i> 
+</I>&gt;<i> Christian
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Peter Vanhee
+</I>&gt;<i> Sent: Wednesday, February 03, 2010 4:30 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Optimization
+</I>&gt;<i> 
+</I>&gt;<i> Hi all,
+</I>&gt;<i> 
+</I>&gt;<i> I am working on an optimization problem defined using constraints,
+</I>&gt;<i> to compute the lowest energy model of a protein lattice. My variables are
+</I>&gt;<i> implemented as integer variables that refer to a pool of protein fragments,
+</I>&gt;<i> and I wish to implement an optimization function that - given an assignment
+</I>&gt;<i> of all variables - returns an energy value (double) that should be
+</I>&gt;<i> minimized.
+</I>&gt;<i> 
+</I>&gt;<i> So far, I've implemented the optimization as follows:
+</I>&gt;<i> 
+</I>&gt;<i> - in the model constructor, I use synchronized execution to call a function
+</I>&gt;<i> c when all variables become assigned (using wait(Space&amp;, IntVarArray&amp;, c&amp;)
+</I>&gt;<i> 
+</I>&gt;<i> - a static variable that holds the best energy so far
+</I>&gt;<i> 
+</I>&gt;<i> static BEST_ENERGY = 10000;
+</I>&gt;<i> 
+</I>&gt;<i> - the continuation function c looks something like 
+</I>&gt;<i> 
+</I>&gt;<i> static void c(Space&amp; _home) {
+</I>&gt;<i> 	// compute energy using assigned variables
+</I>&gt;<i> 	double energy = ...;
+</I>&gt;<i> 
+</I>&gt;<i> 	if(energy &gt; BEST_ENERGY) {
+</I>&gt;<i> 		// fail if energy is worse
+</I>&gt;<i> 		home.fail();
+</I>&gt;<i> 	} else {
+</I>&gt;<i> 		BEST_ENERGY = energy;
+</I>&gt;<i> 	}
+</I>&gt;<i> }
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> This works fine, and I can use different search algorithms to traverse the
+</I>&gt;<i> tree
+</I>&gt;<i> and move into the direction of lowest energy. However, I am not sure if this
+</I>&gt;<i> is the 
+</I>&gt;<i> correct way. Initially, I thought about implementing the cost() function but
+</I>&gt;<i> quickly
+</I>&gt;<i> discarded it because it only seems to work with integer variables. Also
+</I>&gt;<i> using the
+</I>&gt;<i> constrain function I need to use a static variable as well, and I don't know
+</I>&gt;<i> what
+</I>&gt;<i> kind of constrained I should post there (the energy function can not prune
+</I>&gt;<i> domains,
+</I>&gt;<i> it can either accept it as better or fail the space..)
+</I>&gt;<i> 
+</I>&gt;<i> Thanks for the clarification!
+</I>&gt;<i> Peter
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> 
+</I>
+
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002826.html">[gecode-users] Optimization
+</A></li>
+	<LI>Next message: <A HREF="002830.html">[gecode-users] Optimization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2827">[ date ]</a>
+              <a href="thread.html#2827">[ thread ]</a>
+              <a href="subject.html#2827">[ subject ]</a>
+              <a href="author.html#2827">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

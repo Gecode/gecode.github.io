@@ -1,0 +1,224 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Linear function problem
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Linear%20function%20problem&In-Reply-To=%3CCAKWqT4AwRre4Bt95t6hHEXyP%2Bqci8i3hDmFF5q315iuCgUXnGw%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004109.html">
+   <LINK REL="Next"  HREF="004118.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Linear function problem</H1>
+    <B>manel askri</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Linear%20function%20problem&In-Reply-To=%3CCAKWqT4AwRre4Bt95t6hHEXyP%2Bqci8i3hDmFF5q315iuCgUXnGw%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Linear function problem">askri.manel1 at gmail.com
+       </A><BR>
+    <I>Tue Aug 27 23:11:55 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004109.html">[gecode-users] Populating a parsed FlatZinc model with data	programmatically.
+</A></li>
+        <LI>Next message: <A HREF="004118.html">[gecode-users] Linear function problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4117">[ date ]</a>
+              <a href="thread.html#4117">[ thread ]</a>
+              <a href="subject.html#4117">[ subject ]</a>
+              <a href="author.html#4117">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE> hi everyone !
+
+I have problem with Linear function when i compile , the compiler tells me
+that :
+
+exeption Int::linear :size of arguments mismatch
+
+i think that the problem is with the linear function : my code is this :
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class MMKP : public Script{
+
+protected:
+	static const int n=4 ;//number of testers
+	static const int m=5;// number of nodes
+	IntArgs R;
+	IntArgs C;
+	IntArgs B;
+	IntArgs Dr;
+	IntArgs Dc;
+	IntArgs Db;
+	IntArgs g;
+
+	IntVarArray a;
+	IntVarArray k;
+	IntVar l;
+public :
+	enum {
+    find_Optimal_Solution, find_realizable_solution
+  };
+	MMKP (const Options&amp; opt) : a(*this,n*m, 0,1){
+
+		R=IntArgs(4,10,15,20,40);
+		C=IntArgs(4,20,25,30,40);
+		B=IntArgs(4,20,30,35,40);
+
+		Dr=IntArgs(4,5,10,15,25);
+		Dc=IntArgs(4,15,20,35,37);
+		Db=IntArgs(4,10,15,20,35);
+
+
+		k=IntVarArray(*this,n*m ,0,100000);
+		Matrix &lt;IntVarArray&gt; results(k, n,m);
+
+		//creation variables
+
+		//IntVarArray a(*this,n*m,0,1); // Array of n*m boolean variables
+		Matrix &lt;IntVarArray&gt; X (a,n,m);// Matrix &quot;view&quot; of the array a
+
+		// objectiv variable
+		IntVar gain (*this, 1,1000000);
+
+
+		//creation of constraints
+			// ... over rows
+		for ( int j=0; j&lt;n;j++)
+		{
+
+				linear(*this , X.row(j),IRT_EQ,1);
+			
+		}
+
+		//... over columns
+			// first, get the columns, we will use an intermidiare matrix XDual
+
+		IntVarArray b(*this, m*n,0,1);
+		Matrix &lt;IntVarArray&gt; XDual (b, m, n);
+		for (int i=0; i&lt;m;i++)
+		{
+			for ( int j =0; j&lt;n ; j++)
+			{
+				XDual(i,j)=X(j,i);
+			}
+		}
+
+		for (int j = 0; j &lt; m; j++) {
+
+			linear(*this, Dr,XDual.row(j),IRT_NQ, R[j]);
+		}
+
+		for (int j = 0; j &lt; m; j++) {
+			linear (*this, Dc, XDual.row(j), IRT_NQ,C[j]);
+
+		}
+
+		for (int j = 0; j &lt; m; j++) {
+			linear (*this, Db, XDual.row(j), IRT_NQ,B[j]);
+
+		}
+		switch (opt.model()) {
+        case find_Optimal_Solution:
+
+			g=IntArgs(4,20,30,40,50);
+		//Objective function
+
+		for (int i = 0; i &lt; n; i++)
+		{
+			linear(*this, g,X.row(i), IRT_EQ, gain);
+
+		}
+		for ( int i=0; i&lt;n;i++){
+			for ( int j =0; j&lt;m;j++)
+			{
+				results(i,j)=X(i,j);
+			}
+		}
+
+		break;
+
+		case find_realizable_solution:
+			for ( int i=0; i&lt;n;i++){
+			for ( int j =0; j&lt;m;j++)
+			{
+				results(i,j)=X(i,j);
+			}
+		}
+        break;
+
+		    // post branching
+        branch(*this, a, INT_VAR_SIZE_MAX(), INT_VAL_MAX());
+		}
+	}
+		// search support
+     MMKP(bool share, MMKP&amp; s) : Script(share, s){
+      a.update(*this, share, s.a);
+    }
+
+    virtual Space* copy(bool share) {
+      return new MMKP(share,*this);
+    }
+
+	    // print solution
+    void print(std::ostream&amp; os) const  {
+		for(int i = 0; i &lt; n; i++) {
+		 for(int j = 0; j &lt; n; j++)
+           os &lt;&lt; std::setw(4) &lt;&lt; a[i * n + j];
+		 os &lt;&lt; std::endl;
+	}
+}
+	};
+
+	// main function
+int main(int argc, char* argv[]) {
+  Options opt(&quot;MMKP&quot;);
+  opt.model(MMKP::find_Optimal_Solution);
+  opt.model(MMKP::find_realizable_solution);
+
+  opt.parse(argc,argv);
+  Script::run&lt;MMKP,DFS,Options&gt;(opt);
+  return 0;
+}
+
+so thank you very much for helping me
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130827/188c5dfa/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130827/188c5dfa/attachment.html</A>&gt;
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004109.html">[gecode-users] Populating a parsed FlatZinc model with data	programmatically.
+</A></li>
+	<LI>Next message: <A HREF="004118.html">[gecode-users] Linear function problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4117">[ date ]</a>
+              <a href="thread.html#4117">[ thread ]</a>
+              <a href="subject.html#4117">[ subject ]</a>
+              <a href="author.html#4117">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

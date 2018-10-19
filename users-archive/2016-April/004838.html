@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Poor performance on simple allocation problem: did I	make something wrong?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Poor%20performance%20on%20simple%20allocation%20problem%3A%20did%20I%0A%09make%20something%20wrong%3F&In-Reply-To=%3CCAMW3hvPonBwmDMjXVDr3_D3YG6s0nqsHQJJ1%3DVyDwAk5vb2fiw%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004842.html">
+   <LINK REL="Next"  HREF="004840.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Poor performance on simple allocation problem: did I	make something wrong?</H1>
+    <B>Florent Teichteil</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Poor%20performance%20on%20simple%20allocation%20problem%3A%20did%20I%0A%09make%20something%20wrong%3F&In-Reply-To=%3CCAMW3hvPonBwmDMjXVDr3_D3YG6s0nqsHQJJ1%3DVyDwAk5vb2fiw%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Poor performance on simple allocation problem: did I	make something wrong?">florent.teichteil at gmail.com
+       </A><BR>
+    <I>Sun Apr  3 22:18:31 CEST 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004842.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+        <LI>Next message: <A HREF="004840.html">[gecode-users] Poor performance on simple allocation problem:	did I make something wrong?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4838">[ date ]</a>
+              <a href="thread.html#4838">[ thread ]</a>
+              <a href="subject.html#4838">[ subject ]</a>
+              <a href="author.html#4838">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi all,
+
+I am wondering if I use Gecode the right way since I get poor performances
+on a simple optimal allocation problem. The B&amp;B search algorithm keeps
+improving the cost but without ever converging (even after several minutes)
+while the same problem is solved in less than 100ms with the CBC solver
+from COIN. I must say that I am more comfortable with operation research
+algorithms than with CP ones, so it is possible that I misuse Gecode.
+
+The problem consists in assigning objects in A to objects in B so as to
+maximize the overall revenue.
+Allocations are optional, i.e. a given object in B does not need to have an
+assigned object from A if it decreases the overall revenue.
+By abusing the notation I represent A and B as positive integers and the
+corresponding object sets as {0,...,A-1} and {0,...,B-1}
+
+ILP model:
+  * Decision variables: x(a,b) in {0,1} for each a in {0,...,A-1} and b in
+{0,...,B-1}
+  * R(a,b)=floor(A*B*cos(2*PI*a*b/A*B)) is the revenue of the allocation
+pair (a,b)
+  * max sum_{a in {0,...,A-1}, b in {0,...,B-1}} x(a,b) * R(a,b)
+  * for each a in {0,...,A-1}: sum(b in {0,...,B-1}) x(a,b) &lt;= 1
+  * for each b in {0,...,B-1}: sum(a in {0,...,A-1}) x(a,b) &lt;= 1
+
+CP model:
+  * Decision variables:
+      - x(b) in {0,...,A} for each b in {0,...,B-1}; x(b)=A when no object
+from A is assigned to b
+      - y(b) = R(x(b),b) in {0,...} if x(b) != A else 0, for each b in
+{0,...,B-1}
+  * with R(a,b)=floor(A*B*cos(2*PI*a*b/A*B)) is the revenue of the
+allocation pair (a,b)
+  * max sum_{b in {0,...,B-1}} y(b)
+  * for each b in {0,...,B-1}: y(b) = floor(A*B*cos(2*PI*x(b)*b/A*B)) if
+x(b) != A else 0
+  * alldistinct(x)
+  * branching with: branch(*this, x, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+
+In my test I use A=200 and B=100.
+The ILP CBC solver can even solve the problem with A=2000 and B=1000 like a
+charm.
+Note that the number of variables in the ILP model is much larger than in
+the CP model.
+I tried also to use Gecode with the ILP model but the performances are poor
+too.
+
+Why can't Gecode solve this simple problem? Did I make something wrong?
+Are MILP solvers much better than CP ones for such optimization problems?
+The entire code is given below.
+
+Many thanks in advance!
+Florent
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class Allocation : public MaximizeScript {
+protected:
+    static const int A = 200;
+    static const int B = 100;
+    IntVarArray x;
+    IntVarArray y;
+    IntVar total_reward;
+
+public:
+    Allocation(const SizeOptions&amp; opt)
+    : MaximizeScript(opt),
+      x(*this, B, 0, A),
+      y(*this, B, Int::Limits::min, Int::Limits::max),
+      total_reward(*this, Int::Limits::min, Int::Limits::max) {
+        IntArgs rewards((A+1)*B);
+        double PI = std::acos(-1.0);
+        for (unsigned int b = 0 ; b &lt; B ; b++) {
+            for (unsigned int a = 0 ; a &lt; A ; a++) {
+                rewards[a + b * (A+1)] =
+static_cast&lt;int&gt;(std::floor(A*B*std::cos(2*PI*((double) a*b)/((double)
+A*B))));
+                if (rewards[a + b * (A+1)] &lt; 0.0) {
+                    rel(*this, x[b] != a);
+                }
+            }
+            rewards[A*(b+1) + b] = 0.0;
+        }
+
+        IntSharedArray sc(rewards);
+        for (unsigned int b = 0 ; b &lt; B ; b++) {
+            rel(*this, y[b] == element(sc, x[b] + b * (A+1)));
+        }
+
+        distinct(*this, x);
+
+        rel(*this, total_reward == sum(y));
+
+        branch(*this, x, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+//      branch(*this, x, INT_VAR_DEGREE_MIN(), INT_VAL_MIN());
+    }
+
+    virtual void print(std::ostream&amp; os) const {
+        os &lt;&lt; &quot;total_reward: &quot; &lt;&lt; total_reward &lt;&lt; std::endl;
+        for(int b = 0; b &lt; B; b++) {
+            os &lt;&lt; x[b] &lt;&lt; &quot; &quot;;
+        }
+        os &lt;&lt; std::endl;
+    }
+
+    virtual IntVar cost(void) const {
+        return total_reward;
+    }
+
+    Allocation(bool share, Allocation&amp; s)
+    : MaximizeScript(share,s) {
+        x.update(*this, share, s.x);
+        y.update(*this, share, s.y);
+        total_reward.update(*this, share, s.total_reward);
+    }
+
+    virtual Space* copy(bool share) {
+        return new Allocation(share,*this);
+    }
+
+};
+
+int main(int argc, char* argv[]) {
+    SizeOptions opt(&quot;Allocation&quot;);
+    opt.solutions(0);
+    opt.iterations(20000);
+    opt.parse(argc,argv);
+    MaximizeScript::run&lt;Allocation,BAB,SizeOptions&gt;(opt);
+    return 0;
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20160403/1db018c8/attachment.html">http://www.gecode.org/pipermail/users/attachments/20160403/1db018c8/attachment.html</A>&gt;
+</PRE>
+
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004842.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+	<LI>Next message: <A HREF="004840.html">[gecode-users] Poor performance on simple allocation problem:	did I make something wrong?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4838">[ date ]</a>
+              <a href="thread.html#4838">[ thread ]</a>
+              <a href="subject.html#4838">[ subject ]</a>
+              <a href="author.html#4838">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

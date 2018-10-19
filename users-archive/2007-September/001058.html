@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] status of Space* in Branching::copy
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20status%20of%20Space%2A%20in%20Branching%3A%3Acopy&In-Reply-To=%3C46DFDD1B.90500%40logis.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001057.html">
+   <LINK REL="Next"  HREF="001053.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] status of Space* in Branching::copy</H1>
+    <B>Filip Konvi&#269;ka</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20status%20of%20Space%2A%20in%20Branching%3A%3Acopy&In-Reply-To=%3C46DFDD1B.90500%40logis.cz%3E"
+       TITLE="[gecode-users] status of Space* in Branching::copy">filip.konvicka at logis.cz
+       </A><BR>
+    <I>Thu Sep  6 12:57:31 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001057.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+        <LI>Next message: <A HREF="001053.html">[gecode-users] Building an intset with an int[][2]
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1058">[ date ]</a>
+              <a href="thread.html#1058">[ thread ]</a>
+              <a href="subject.html#1058">[ subject ]</a>
+              <a href="author.html#1058">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Well, as I said, there were too many maybes in my suggestion, and I 
+should have looked at the code before suggesting anything in the first 
+place. The last thing I'd want is breaking invariants.
+
+Accessing space's data from an actor works fine, one just must avoid 
+accessing it during cloning. This implies that sometimes you need to 
+have a pointer instead of a reference to the data (you can initialize 
+the pointer later, but you can't do the same with a reference). This is 
+no performance killer, either (one more &quot;if&quot;...). Maybe put a note to 
+Actor::copy docs stating that the space being passed to it is in fact 
+just a space embryo.
+
+Cheers,
+Filip
+
+&gt;<i> Hmmm, actually the copying is already a two stage process (and a extremly
+</I>&gt;<i> delicate one). One of the key invariants in the process is that no new
+</I>&gt;<i> actors (actually, no new anything) can be created during cloning!
+</I>&gt;<i>
+</I>&gt;<i> It is already now the case that when the constructor Space::Space is
+</I>&gt;<i> finished, the space is not yet fully initialized, however all data
+</I>&gt;<i> structures in the newly created space can be inspected (with const member
+</I>&gt;<i> functions). When moving things around the way you suggest that would not
+</I>&gt;<i> work an&#253; longer. Some const member functions would be not allowed (as they
+</I>&gt;<i> just would segfault). I really would like to keep this invariant: everything
+</I>&gt;<i> can be inspected but nothing can be changed. Even though this only matters
+</I>&gt;<i> for constructors.
+</I>&gt;<i>
+</I>&gt;<i> So, the idea to store the data in the space does not look that good after
+</I>&gt;<i> all. We kind of know what to do but as we have no example we could use to
+</I>&gt;<i> shape the right abstractions I don't know what to do. If you yourself want
+</I>&gt;<i> to experiment, we could tell you how to massage the code for copying to hack
+</I>&gt;<i> around.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Filip Konvicka
+</I>&gt;<i> Sent: Thursday, September 06, 2007 10:10 AM
+</I>&gt;<i> To: Guido Tack
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] status of Space* in Branching::copy
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack (5.9.2007 21:10):
+</I>&gt;<i>   
+</I>&gt;&gt;<i> Filip Konvi&#269;ka wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     
+</I>&gt;&gt;&gt;<i> one thing that keeps me occupied: when a branching or propagator is 
+</I>&gt;&gt;&gt;<i> cloned, the space instance it is passed is just partially 
+</I>&gt;&gt;&gt;<i> constructed. This makes it difficult to make references to any data 
+</I>&gt;&gt;&gt;<i> inside the space (which is simply not there yet in e.g. 
+</I>&gt;&gt;&gt;<i> Branching::copy). Is there no other way? I understand that the 
+</I>&gt;&gt;&gt;<i> branching/propagator cloning takes place in Space copy ctor, but it 
+</I>&gt;&gt;&gt;<i> would be far more convenient for me to get a fully-constructed space 
+</I>&gt;&gt;&gt;<i> in Branching::copy. (For example, I'm unable to construct some 
+</I>&gt;&gt;&gt;<i> non-trivial references to space's data in my branching, as this 
+</I>&gt;&gt;&gt;<i> initialization can't be moved out of the
+</I>&gt;&gt;&gt;<i> constructor.)
+</I>&gt;&gt;&gt;<i>       
+</I>&gt;&gt;<i> That's just not possible in the current architecture.  If I understand
+</I>&gt;&gt;<i> you correctly, you need to make sure that some object is cloned before 
+</I>&gt;&gt;<i> all actors (propagators &amp; branchings) are. That way, you can be sure 
+</I>&gt;&gt;<i> that that object is initialized when your Branching::copy is called.  
+</I>&gt;&gt;<i> I have something like that in a private branch, I'll dig a bit and let 
+</I>&gt;&gt;<i> you know.
+</I>&gt;&gt;<i>     
+</I>&gt;<i> Thanks!
+</I>&gt;<i>
+</I>&gt;<i> The thing is that the cloning of actors is (my guess) done in 
+</I>&gt;<i> Space::Space. So say that I have derived my own space class Space2. My 
+</I>&gt;<i> actors are passed, during cloning, a pointer to the new clone of Space2, 
+</I>&gt;<i> but since the cloning of the actors is done in Space::Space, the Space2 
+</I>&gt;<i> object is not fully initialized yet and I can not static_cast it to 
+</I>&gt;<i> Space2 there.
+</I>&gt;<i>
+</I>&gt;<i> Note that in the Space2::Space2() constructor (when creating the root 
+</I>&gt;<i> space), I can make sure that the needed parts of Space2 are already 
+</I>&gt;<i> constructed before posting the actor. So it came as a surprise to me 
+</I>&gt;<i> that I got a runtime error in cloning, because things worked just fine 
+</I>&gt;<i> for the root space. The space I saw being passed to the actor looked 
+</I>&gt;<i> invalid, and it was not immediately obvious what was happening.
+</I>&gt;<i>
+</I>&gt;<i> One way that I think this could be handled is cloning in 2 steps: first 
+</I>&gt;<i> create a copy of the space, then re-create the actors. Since, from the 
+</I>&gt;<i> user's point of view, a space does not have explicit access to its 
+</I>&gt;<i> actors (yet :-)), I don't see how this could be a problem (maybe just 
+</I>&gt;<i> that it should be explicitly prohibited to create actors during 
+</I>&gt;<i> cloning). The only thing is, who and how would trigger the cloning of 
+</I>&gt;<i> the actors. Maybe Space::clone() could be &quot;protected&quot; and renamed to 
+</I>&gt;<i> &quot;getClone&quot;, and there could be a public non-virtual
+</I>&gt;<i>
+</I>&gt;<i> Space* Space::clone() const {
+</I>&gt;<i>   Space *pClone=getClone();
+</I>&gt;<i>   pClone-&gt;copyActorsFrom(this);
+</I>&gt;<i>   return pClone;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> That's many maybes :-) Just wanted to explain what problems I am facing. 
+</I>&gt;<i> But there are workarounds, so nothing serious.
+</I>&gt;<i>
+</I>&gt;<i> Otherwise, the library works extremely well, bravo!
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Filip
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>   
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001057.html">[gecode-users] status of Space* in Branching::copy
+</A></li>
+	<LI>Next message: <A HREF="001053.html">[gecode-users] Building an intset with an int[][2]
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1058">[ date ]</a>
+              <a href="thread.html#1058">[ thread ]</a>
+              <a href="subject.html#1058">[ subject ]</a>
+              <a href="author.html#1058">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

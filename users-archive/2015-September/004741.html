@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Freeze with MSVC 2015 optimized build
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Freeze%20with%20MSVC%202015%20optimized%20build&In-Reply-To=%3Cms91ji%24t2s%241%40ger.gmane.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004740.html">
+   <LINK REL="Next"  HREF="004742.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Freeze with MSVC 2015 optimized build</H1>
+    <B>Filip Konvi&#269;ka</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Freeze%20with%20MSVC%202015%20optimized%20build&In-Reply-To=%3Cms91ji%24t2s%241%40ger.gmane.org%3E"
+       TITLE="[gecode-users] Freeze with MSVC 2015 optimized build">filip.konvicka at logis.cz
+       </A><BR>
+    <I>Thu Sep  3 10:49:54 CEST 2015</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004740.html">[gecode-users] propagation consistency of count (single value)	constraint
+</A></li>
+        <LI>Next message: <A HREF="004742.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4741">[ date ]</a>
+              <a href="thread.html#4741">[ thread ]</a>
+              <a href="subject.html#4741">[ subject ]</a>
+              <a href="author.html#4741">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+I'm having issues with the trunk version of Gecode compiled with MSVC 
+2015 RTM. The &quot;Release&quot; build seems to get stuck on the attached simple 
+test case. The &quot;Debug&quot; version of the same (configured with 
+--enable-debug), as well as the official 4.4.0 distribution compiled 
+with MSVC 2013 x64 seem to work without issue.
+
+In the test case source code there is a constant &quot;8686.9666660000003&quot;. 
+Changing it to &quot;8686&quot; seems to fix the problem - but even &quot;8686.9&quot; makes 
+dfs freeze.  It also seems that it is the branching strategy 
+'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+
+I have built Gecode using my usual setup (the environment is set up for 
+the &quot;xp&quot; compiler toolset) - in the 2015 x64 command prompt I run:
+
+set &quot;INCLUDE=%ProgramFiles(x86)%\Microsoft 
+SDKs\Windows\7.1A\Include;%INCLUDE%&quot;
+set &quot;PATH=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Bin;%PATH%&quot;
+set &quot;LIB=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Lib\x64;%LIB%&quot;
+set &quot;CL=/D_USING_V110_SDK71_&quot;
+set &quot;LINK=/SUBSYSTEM:CONSOLE,5.02&quot;
+C:\cygwin\cygwin
+cd /cygdrive/c/build/gecode
+./configure --disable-examples --disable-qt --disable-gist 
+--disable-flatzinc --prefix=`pwd`/x64rel
+make -j7 install
+
+As you may notice I'm building without Gist so I could not easily check 
+the progress of the search; as far as I could tell from the callstack 
+there seems to be some kind of loop but I'm not sure how tight it is. 
+I'm now trying to get Qt and build with it but so far I'm struggling 
+with that (is there a howto on building with Qt on Windows?)
+
+Thanks for any hints,
+Filip
+
+-------------- next part --------------
+#pragma warning(push)
+#pragma warning(disable : 4251 4355 4800)
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+#pragma warning(pop)
+
+//#include &lt;gecode/gist.hh&gt;
+
+using namespace Gecode;
+
+struct LayoutCalculator2 : public Space {
+  double min_edge_width;
+  double fit_to_width;
+
+  IntVar      total_width;
+  IntVar      scroll_area;
+
+  IntVarArray start_times;
+  IntVarArray widths;
+  FloatVar    scaler;
+
+  /// Constructor for cloning \a s
+  LayoutCalculator2(bool share, LayoutCalculator2&amp; s)
+    : Space(share,s)
+    , min_edge_width(s.min_edge_width)
+    , fit_to_width(s.fit_to_width)
+  {
+    total_width.update(*this, share, s.total_width);
+    scroll_area.update(*this, share, s.scroll_area);
+    start_times.update(*this, share, s.start_times);
+    widths.update(*this, share, s.widths);
+    scaler.update(*this, share, s.scaler);
+  }
+
+  /// Copy during cloning
+  virtual Space*
+    copy(bool share) {
+      return new LayoutCalculator2(share,*this);
+  }
+
+  /// Actual model
+  LayoutCalculator2(double min_edge_width, double fit_to_width)
+    : min_edge_width(min_edge_width)
+    , fit_to_width(fit_to_width)
+  {
+    const int num_nodes = 2;
+    total_width = IntVar(*this, 0, Gecode::Int::Limits::max);
+    scroll_area = IntVar(*this, 0, Gecode::Int::Limits::max);
+    start_times = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    widths = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    scaler = FloatVar(*this, 0, Gecode::Float::Limits::max);
+
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(228.),
+                     8686.9666660000003
+                     * scaler) &lt;= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width &lt;= widths[0]);
+    }
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(265.), 1. * scaler) &lt;= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width &lt;= widths[0]);
+      rel(*this, start_times[0] + widths[0] + (int)min_edge_width &lt;= start_times[1]);
+      rel(*this, start_times[1] + widths[1] &lt;= total_width);
+    }
+
+    rel(*this, max(0, total_width - (int)fit_to_width) == scroll_area);
+
+    // Minimize scroll area
+    branch(*this, scroll_area, INT_VAL_MIN());
+    // Maximize scaler
+    //branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    /*
+    // Minimize total width (just assign)
+    branch(*this, total_width, INT_VAL_MIN());
+    // Maximize all start times (push right)
+    branch(*this, start_times, INT_VAR_MAX_MIN(), INT_VAL_MAX());
+    // Minimize widths
+    branch(*this, widths, INT_VAR_MAX_MIN(), INT_VAL_SPLIT_MIN());
+    */
+  }
+};
+
+
+int main()
+{
+  LayoutCalculator2 init(50, 893);
+  Gecode::Search::TimeStop t(1000);
+  Gecode::Search::Options o;
+  o.stop = &t;
+  Gecode::dfs(&amp;init, o);
+  //Gist::dfs(&amp;init);
+  return 0;
+}
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004740.html">[gecode-users] propagation consistency of count (single value)	constraint
+</A></li>
+	<LI>Next message: <A HREF="004742.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4741">[ date ]</a>
+              <a href="thread.html#4741">[ thread ]</a>
+              <a href="subject.html#4741">[ subject ]</a>
+              <a href="author.html#4741">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

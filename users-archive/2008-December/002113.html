@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Quicksort bug
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C006101c9604f%24c49aec20%244dd0c460%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002101.html">
+   <LINK REL="Next"  HREF="002095.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Quicksort bug</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C006101c9604f%24c49aec20%244dd0c460%24%40se%3E"
+       TITLE="[gecode-users] Quicksort bug">cschulte at kth.se
+       </A><BR>
+    <I>Wed Dec 17 15:00:06 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002101.html">[gecode-users] Quicksort bug
+</A></li>
+        <LI>Next message: <A HREF="002095.html">[gecode-users] reified set/min constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2113">[ date ]</a>
+              <a href="thread.html#2113">[ thread ]</a>
+              <a href="subject.html#2113">[ subject ]</a>
+              <a href="author.html#2113">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Michal,
+
+you are absolutely right, our quicksort implementation only handles strict
+comparison! And actually, I did it that way because partitioning becomes
+more efficient that way.
+
+However, the bug was in the docs which omitted that piece of information
+(quicksort is actually one of the oldest parts of Gecode and existed before
+Gecode got its documentation)! That's now fixed together with the assertions
+you suggested and works for arrays that have more than 2^32 elements (I
+chose sizeof(int) * CHAR_BITS, as you can only use integers to specify the
+number of elements to sort).
+
+I also fixed the order for TupleSet but not the duplicate issue (just make
+the order strict), I'll leave that to Mikael who will be back tomorrow.
+
+Thanks again for your kind effort!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Michal D. [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">michal.dobrogost at gmail.com</A>] 
+Sent: Tuesday, December 16, 2008 5:24 AM
+To: Christian Schulte
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Quicksort bug
+
+Hi Christian,
+
+Put the attached file in the same directory as sort.icc. Compile with &quot;g++
+-ggdb main.cpp&quot;.
+
+The program uses quicksort on an array of 21 uniform elements. I get a seg
+fault right on line 121 as predicted (hehe, can't believe my luck, or rather
+bad luck).  It only happens with the &quot;&lt;&quot; comparison. I haven't tried on a 32
+bit system but I don't imagine it would make any difference.
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000400dda in Gecode::Support::partition&lt;int, comp&gt; (l=0x800d01084,
+r=0x800d010cc, lt=@0x7fffffffea9f) at sort.icc:121
+121           while (lt(*(++i),v)) {}
+
+Does Gecode admit the use of asserts? Maybe it should have a simple check
+&quot;assert(! lt(L[i], L[i]))&quot; for all elements in the array in debug mode
+before launching into the sort? I know the std library containers do this
+type of thing (at least in MSVC).
+
+Cheers,
+
+Michal
+
+On Mon, Dec 15, 2008 at 4:32 PM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+&gt;<i> Hi Michal,
+</I>&gt;<i>
+</I>&gt;<i> I think that your reasoning is not fully correct:
+</I>&gt;<i>  - Gecode's quicksort uses O(log n) stackspace: it will always push 
+</I>&gt;<i> the larger array onto the stack,
+</I>&gt;<i>   which will be at least n/2 long! That's O(log n).
+</I>&gt;<i>  - There is no difference (in principle) whether you use a strict or 
+</I>&gt;<i> non-strict ordering (as the complement
+</I>&gt;<i>   will be the opposite).
+</I>&gt;<i>
+</I>&gt;<i> The only problem I see is that 32 was not good enough. Could you be so 
+</I>&gt;<i> kind and retry what happens with replacing 32 by &quot;sizeof(int) * 64&quot;?
+</I>&gt;<i>
+</I>&gt;<i> Then, how much memory does your machine have? Then, how deep does the 
+</I>&gt;<i> stack grow for Quicksort and how many elements does the array have you 
+</I>&gt;<i> try to sort?
+</I>&gt;<i>
+</I>&gt;<i> Thanks
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.it.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On 
+</I>&gt;<i> Behalf Of Michal D.
+</I>&gt;<i> Sent: Saturday, December 13, 2008 7:03 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Quicksort bug
+</I>&gt;<i>
+</I>&gt;<i> Hi All,
+</I>&gt;<i>
+</I>&gt;<i> I had one hell of a bug hunt recently. What started as a crash on 
+</I>&gt;<i> winxp x64 ended up in a &quot;true&quot; being changed to a &quot;false&quot; on freebsd 
+</I>&gt;<i> (so I could sanely debug into the Gecode code base). The culprit was 
+</I>&gt;<i> FullTupleCompare
+</I>&gt;<i> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in 
+</I>&gt;<i> the cross-fire.
+</I>&gt;<i>
+</I>&gt;<i> FullTupleCompare implements a less than or equal (&lt;=) operator and not 
+</I>&gt;<i> a strict less than (&lt;) operator. In effect, for the case where both 
+</I>&gt;<i> tuples are identical up the arity it returns true instead of false.
+</I>&gt;<i> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+</I>&gt;<i>
+</I>&gt;<i> The gecode quicksort assumes that its stack will never exceed a depth of
+</I>32.
+&gt;<i> This was getting exceeded when used on a large tupleset with the above 
+</I>&gt;<i> comparison operator. However, in general this assumption is wrong. 
+</I>&gt;<i> Stack usage for quicksort is worst case O(n) depending on the values 
+</I>&gt;<i> that are chosen for the pivot! Exceeding the stack current results in 
+</I>&gt;<i> an outright crash as an out of bounds pointer is dereferenced. I toyed
+</I>with two fixes:
+&gt;<i>
+</I>&gt;<i> 1) make push return a success/failure code and if the push fails then 
+</I>&gt;<i> call quicksort recursively instead of pushing onto the stack. See
+</I>sort.icc.diff.
+&gt;<i>
+</I>&gt;<i> 2) start off with an static stack and expand it dynamically if it's 
+</I>&gt;<i> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the 
+</I>&gt;<i> right ways to go about grabbing memory. There is no performance 
+</I>&gt;<i> penalty if the stack depth does not exceed 32 entries. See sort.icc.diff2.
+</I>&gt;<i>
+</I>&gt;<i> Both solutions have the overhead of checking if the stack is going to 
+</I>&gt;<i> exceed
+</I>&gt;<i> 32 entries on a push. This doesn't seem significant especially since 
+</I>&gt;<i> most of the work should be happening in partition. My vote is for fix 
+</I>&gt;<i> # 2 as it seems to be the more robust solution (no potential stack
+</I>overflow).
+&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Michal
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002101.html">[gecode-users] Quicksort bug
+</A></li>
+	<LI>Next message: <A HREF="002095.html">[gecode-users] reified set/min constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2113">[ date ]</a>
+              <a href="thread.html#2113">[ thread ]</a>
+              <a href="subject.html#2113">[ subject ]</a>
+              <a href="author.html#2113">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

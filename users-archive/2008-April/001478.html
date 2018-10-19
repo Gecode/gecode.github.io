@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Extending Integer Variable
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20Integer%20Variable&In-Reply-To=%3C000601c89562%24bbc124b0%2433436e10%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001477.html">
+   <LINK REL="Next"  HREF="001480.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Extending Integer Variable</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20Integer%20Variable&In-Reply-To=%3C000601c89562%24bbc124b0%2433436e10%24%40se%3E"
+       TITLE="[gecode-users] Extending Integer Variable">cschulte at kth.se
+       </A><BR>
+    <I>Thu Apr  3 10:14:25 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001477.html">[gecode-users] Extending Integer Variable
+</A></li>
+        <LI>Next message: <A HREF="001480.html">[gecode-users] FAQ/Documentation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1478">[ date ]</a>
+              <a href="thread.html#1478">[ thread ]</a>
+              <a href="subject.html#1478">[ subject ]</a>
+              <a href="author.html#1478">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear Vincent,
+
+let me first elaborate a little bit how Gecode's variables and propagators
+are structured before I actually attempt to give an answer.
+
+Gecode has three important concepts regarding variables:
+ - variables: they are used for modeling, and the only operations they
+provide are good for modeling. In particular,
+   variables to not provide operations to update their domain. Examples are
+IntVar, BoolVar, etc. Variables are
+   hence provide nothing but an interface to variable implementations
+(actually, variables are implemented as
+   a pointer to variable implementations).
+ - variable implementations: they are the real objects storing the domain
+and which propagators and advisors must be
+   executed when the domain changes. They themselves are constructed in two
+steps: a domain independent stub that is 
+   automatically generated from a simple description (just a few lines). The
+stub is concerned with events, how
+   propagators can be subscribed to, and linking the variable
+implementations to the Gecode kernel etc. The real 
+   variable implementation then inherits from the generated stub and adds
+the variable domain and so on.
+ - views: like variables they are nothing but an interface for variable
+implementations. However, views are used
+   by propagators and branching and provide operations to update variable
+domains, subscribe propagators to changes,
+   and so on. More importantly, for the same variable implementation several
+views exist: a MinusView for a variable
+   implementation x, for example, provides an interface that behaves as if
+the operations on the MinusView are executed
+   on -x rather than x. Examples are IntView, BoolView, MinusView,
+OffsetView, ... For more on views there is paper
+   on the Gecode webpage.
+
+Propagators themselves have two parts: a post function and the actual
+propagator. A post function (such as rel, distinct, linear, etc.) is used
+for modeling and hence takes variables as arguments. It then chooses the
+right propagator and the right views (converting variables to views by
+passing the underlying reference to the variable implementation).
+
+Propagators are typically parametric (as templates in C++) with respect to
+the view they are using: for example, the Max propagator is instantiated for
+the max posting function with an IntView whereas it is also instantiated
+with a MinusView for the min posting function.
+
+Sorry for the long blurb, let's move to the answer: as Gecode is designed,
+you can reuse propagators provided that you implement: a variable
+implementation by yourself (that's what you want to do), variables for them
+(so that you can model), and views for them (so that you can reuse the
+propagators), post functions (because they talk about your variables).
+
+This is a lot of effort! If you want to make something that is used (rather
+than an experiment), then one could also make views and variables parametric
+wrt the variable implementation used. That is easy but requires intimate
+Gecode knowledge. Then, in principal, one could also make the post functions
+parametric but this is almost impossible in reality as they should provide
+simple static linkage as they constitute the basic interface to Gecode.
+
+So it really depends on what you want to do. For an experiment, hack the
+variable implementation. For something, first do the experiment ;-)
+
+What do you want to do? Do you think it me be generally useful to be
+included in Gecode anyway?
+
+All the best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Vincent Barichard
+Sent: Wednesday, April 02, 2008 4:08 PM
+To: gecode list
+Subject: [gecode-users] Extending Integer Variable
+
+Hi,
+
+I am trying to extend IntVar in order to use it in my self(-made algorithms.
+I would like to use an unaltered Gecode, but I need to add an &quot;int&quot; member
+in 
+the IntVar implementation. I don't want to make my own Integer Variable
+class 
+because I also need to use the algorithms designed in Gecode.
+Is there a clean way to extend this class (by inheritance maybe ....) and
+add 
+a member without altering Gecode ?
+
+Thank you for your assistance.
+Best regards,
+
+Vincent
+-- 
+Vincent Barichard &#160; &#160; &#160; &#160;Universit&#233; d'Angers (LERIA)
+Tel: 02 41 73 52 06 &#160; &#160; &#160;D&#233;partement Informatique
+Fax: 02 41 73 50 73 &#160; &#160; &#160;H203
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001477.html">[gecode-users] Extending Integer Variable
+</A></li>
+	<LI>Next message: <A HREF="001480.html">[gecode-users] FAQ/Documentation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1478">[ date ]</a>
+              <a href="thread.html#1478">[ thread ]</a>
+              <a href="subject.html#1478">[ subject ]</a>
+              <a href="author.html#1478">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

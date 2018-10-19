@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Schedule Branching Recommendations
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Schedule%20Branching%20Recommendations&In-Reply-To=%3C001b01c7e947%24f1c0e950%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001038.html">
+   <LINK REL="Next"  HREF="001040.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Schedule Branching Recommendations</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Schedule%20Branching%20Recommendations&In-Reply-To=%3C001b01c7e947%24f1c0e950%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] Schedule Branching Recommendations">cschulte at kth.se
+       </A><BR>
+    <I>Tue Aug 28 09:49:20 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001038.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+        <LI>Next message: <A HREF="001040.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1039">[ date ]</a>
+              <a href="thread.html#1039">[ thread ]</a>
+              <a href="subject.html#1039">[ subject ]</a>
+              <a href="author.html#1039">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Filip,
+
+well, well. Let me just summarize some facts:
+
+ - Your idea will work but, as you say yourself, is not going to win any
+   software design beauty contest. It might be good to tinker, but for
+   Gecode itself a design will be needed that does not require to change
+   a space (that's typically a user's model) when using a propagator
+   cum branching.
+
+ - The idea that this data is just a cache is very helpful. Indeed, we
+   use the very same idea to great advantage in many propagators that
+   ship with Gecode: do not copy the data just reconstruct it when needed,
+   and if the data is already there keep it up to date while doing
+   propagation. If the data becomes to messy, just flush the cache (data)
+   an reconstruct it.
+
+ - Invoking the status method of a space will always compute a fixpoint,
+   regardless of recomputation or not (as does the attempt to clone a
+   space). This also entails that when the status method of a branching
+   is called, the home is at fixpoint (stable).
+
+ - Invoking a commit method however will not compute a fixpoint: the very
+   idea of making recomputation efficient relies on this.
+
+ - You might be able to speed up branching considerably if you take
+advantage
+   of branching descriptions. They must store information to actually
+perform
+   a commit operation (as the space is typically not at fixpoint, see
+above).
+   You have the possibility to add additional information to the branching 
+   description that assists in maintaing your data.
+   
+The idea to maintain the data as a cache is orthogonal to these facts.
+
+Hope that helps
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: Filip Konvicka [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>] 
+Sent: Monday, August 27, 2007 5:55 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Schedule Branching Recommendations
+
+
+Hi Christian,
+
+&gt;<i> Please do not hesitate to ask more questions of that sort! Do you 
+</I>&gt;<i> consider to only do branching or also propagation? Because there is a 
+</I>&gt;<i> very interesting issue for edge-finding/first-last: both propagation 
+</I>&gt;<i> and branching should share the same data structures to maintain their 
+</I>&gt;<i> information for efficiency. Support for sharing state among several 
+</I>&gt;<i> propagators/branching is on our todo list for a long time but we 
+</I>&gt;<i> decided to only do it when we implement exactly what you are now 
+</I>&gt;<i> appareantly trying to do...
+</I>&gt;<i>   
+</I>
+I am in a similar situation now. Could you please explain why (if this 
+is the case indeed) is it not possible to just share the data in some 
+raw data structure inside the Space? I mean, in the above mentioned 
+case, propagation computes some information that can be re-used in the 
+branching. I was under the impression that the following might work in 
+similar cases:
+
+- During propagation, store (overwrite) some &quot;raw&quot; data in the Space 
+instance (I know, this is not exactly a good architecture design...)
+- As soon as the Space is stable, the system looks for active 
+branchings, asking for alternatives
+- The branching might access the data now, knowing that it is the result 
+of the last propagation (which led to the fixpoint), and return some 
+alternatives
+
+The thing I'm not sure about is whether there must always be a 
+propagation step after recomputation. In case that not, the branching 
+should have the possibility to compute the data from scratch, using only 
+the variables' domains (in this case, copying the space should 
+invalidate the data to make sure it is recomputed).
+
+The reason I believe this could work is that the shared information is 
+after all just some kind of cache which reflects the current domains.
+
+Thanks for any comments,
+Filip
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001038.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+	<LI>Next message: <A HREF="001040.html">[gecode-users] Schedule Branching Recommendations
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1039">[ date ]</a>
+              <a href="thread.html#1039">[ thread ]</a>
+              <a href="subject.html#1039">[ subject ]</a>
+              <a href="author.html#1039">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

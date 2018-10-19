@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Reification of the extensional constraint
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reification%20of%20the%20extensional%20constraint&In-Reply-To=%3C53A3EC2D.4080504%40gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004459.html">
+   <LINK REL="Next"  HREF="004461.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Reification of the extensional constraint</H1>
+    <B>Amina Kemmar</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reification%20of%20the%20extensional%20constraint&In-Reply-To=%3C53A3EC2D.4080504%40gmail.com%3E"
+       TITLE="[gecode-users] Reification of the extensional constraint">kemmar.amina at gmail.com
+       </A><BR>
+    <I>Fri Jun 20 10:09:17 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004459.html">[gecode-users] Reification of the extensional constraint
+</A></li>
+        <LI>Next message: <A HREF="004461.html">[gecode-users] Reification of the extensional constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4460">[ date ]</a>
+              <a href="thread.html#4460">[ thread ]</a>
+              <a href="subject.html#4460">[ subject ]</a>
+              <a href="author.html#4460">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi everybody,
+
+Thanks for the explanation. I need just a half reification of the 
+extensional constraint. For that, i implement a class named &quot;reg&quot; 
+allowing to specify a control variable &quot;b&quot; as follow:
+
+template &lt;class View&gt;
+   class reg : public Propagator{
+   protected:
+         ViewArray&lt;View&gt; x;
+         DFA dfa;
+         Int::BoolView b;
+     /// Constructor for posting
+     reg(Space&amp; home, ViewArray&lt;View&gt;&amp; x0, Int::BoolView b0);
+     /// Constructor for cloning \a p
+     reg(Space&amp; home, bool share, reg&amp; p);
+   public:
+     /// Copy propagator during cloning
+     virtual Actor*     copy(Space&amp; home, bool share);
+     /// Perform propagation
+     virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp; med);
+     virtual size_t dispose(Space&amp; home);
+     /// Post propagator for view array \a x
+     static ExecStatus post(Space&amp; home, const IntVarArgs&amp; x0, const 
+DFA&amp; dfa, Int::BoolView b0);
+   };
+
+the constructor:
+
+template &lt;class View&gt;
+   forceinline
+   reg&lt;View&gt;::reg(Space&amp; home, ViewArray&lt;View&gt;&amp; x0, Int::BoolView b0)
+     : Propagator(home), x(x0), b(b0) {
+             x.subscribe(home,*this,PC_INT_VAL);
+             b.subscribe(home,*this,PC_BOOL_VAL);
+     }
+
+The post function:
+
+   template &lt;class View&gt;
+   ExecStatus
+   reg&lt;View&gt;::post_amina(Space&amp; home,  const IntVarArgs&amp; x0, const DFA&amp; 
+dfa, Int::BoolView b){
+
+      ViewArray&lt;IntView&gt; xv(home,x0);
+*(void) new (home) reg&lt;View&gt;(home,xv,b);*
+     return ES_OK;
+   }
+
+After compilation, I obtained the following error:
+
+regular.hpp:115:5: error: cannot allocate an object of abstract type 
+'myprop::reg&lt;Gecode::Int::IntView&gt;'
+regular.hpp:41:9: note:   because the following virtual functions are 
+pure within 'myprop::reg&lt;Gecode::Int::IntView&gt;':
+/usr/local/include/gecode/kernel/core.hpp:811:22: note: virtual 
+Gecode::PropCost Gecode::Propagator::cost(const Gecode::Space&amp;, const 
+ModEventDelta&amp;) const
+
+ 1. This error is due to the line : *(void) new (home)
+    reg&lt;View&gt;(home,xv,b); *if anyone have any idea about this, it will
+    be very helpful for me.
+ 2. In the propagate function I call
+    Gecode::Int::Extensional::post_lgp(home,x,dfa); x is of type
+    IntVarArgs and not ViewArray, I want to know if it is the right way
+    to to this?
+
+Thanks.
+---
+Amina
+
+
+
+On 06/15/2014 04:05 AM, Guido Tack wrote:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> you're right that you'd have to implement your own propagator for 
+</I>&gt;<i> that.  Before you do that you should check if you actually need full 
+</I>&gt;<i> reification (i.e. b &lt;-&gt; c) or if an implication would be enough (b -&gt; 
+</I>&gt;<i> c).  In the latter case, you don't need to implement the negation of c 
+</I>&gt;<i> (where c is your extensional constraint).
+</I>&gt;<i>
+</I>&gt;<i> If you implement the full version, negating a DFA is (in principle) 
+</I>&gt;<i> easy, just make all accepting states rejecting and all rejecting 
+</I>&gt;<i> states accepting.  In the Gecode representation the rejecting states 
+</I>&gt;<i> aren't represented directly so you'll have to work around that a bit.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> -- 
+</I>&gt;<i> Guido Tack
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A> 
+</I>&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On 14 Jun 2014, at 8:35 pm, Amina Kemmar &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kemmar.amina at gmail.com</A> 
+</I>&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kemmar.amina at gmail.com</A>&gt;&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi all,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I want to use a reification version of the extensional constraint, 
+</I>&gt;&gt;<i> but I think that it is not implemented in Gecode.
+</I>&gt;&gt;<i> The chapter 24 explains how to implement a reification version of a 
+</I>&gt;&gt;<i> constraint, I understand that we need the negation of the automata 
+</I>&gt;&gt;<i> DFA. So, I want to know if there is an easy way to do this with 
+</I>&gt;&gt;<i> extensional constraint? If you have any details about this, it will 
+</I>&gt;&gt;<i> be very helpful for me.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best regards,
+</I>&gt;&gt;<i> ---
+</I>&gt;&gt;<i> Amina
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140620/52bc1029/attachment.html">http://www.gecode.org/pipermail/users/attachments/20140620/52bc1029/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004459.html">[gecode-users] Reification of the extensional constraint
+</A></li>
+	<LI>Next message: <A HREF="004461.html">[gecode-users] Reification of the extensional constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4460">[ date ]</a>
+              <a href="thread.html#4460">[ thread ]</a>
+              <a href="subject.html#4460">[ subject ]</a>
+              <a href="author.html#4460">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

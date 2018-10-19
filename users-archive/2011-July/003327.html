@@ -1,0 +1,252 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] IIS using undoing
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20IIS%20using%20undoing&In-Reply-To=%3C67055EA5-05A3-469A-BD51-C07916590163%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003326.html">
+   <LINK REL="Next"  HREF="003328.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] IIS using undoing</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20IIS%20using%20undoing&In-Reply-To=%3C67055EA5-05A3-469A-BD51-C07916590163%40gecode.org%3E"
+       TITLE="[gecode-users] IIS using undoing">tack at gecode.org
+       </A><BR>
+    <I>Tue Jul 19 11:42:33 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003326.html">[gecode-users] IIS using undoing
+</A></li>
+        <LI>Next message: <A HREF="003328.html">[gecode-users] Computing Variable Domains (Integer)
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3327">[ date ]</a>
+              <a href="thread.html#3327">[ thread ]</a>
+              <a href="subject.html#3327">[ subject ]</a>
+              <a href="author.html#3327">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On 18 Jul 2011, at 13:22, Max Ostrowski wrote:
+
+&gt;<i> Thanks again.
+</I>&gt;<i> Last question according to this.
+</I>&gt;<i> I finally only need a linear amount of calls to the status function of the space, but as trailsize can be huge i want to avoid overhead.
+</I>&gt;<i> So consider i have a space with the reified constraints posted.
+</I>&gt;<i> Lets call this the initial Space.
+</I>&gt;<i> 
+</I>&gt;<i> Now i do a copy of the initial Space setting all constraints b_1 ... b_n-1 to true. Calling status i can see if my constraint x is propagated or not.
+</I>&gt;<i> If yes, i do not need to consider the constraint b_n anymore.
+</I>&gt;<i> 
+</I>&gt;<i> Now, in the next step, i do a copy of the initial Space setting all constraints b_1 ... b_n-2 to true. Calling statis i can see if my constraint x is propagated or not.
+</I>&gt;<i> If yes, i do not need to consider the constraint b_n-1 anymore.
+</I>&gt;<i> ...
+</I>&gt;<i> ...
+</I>&gt;<i> 
+</I>&gt;<i> This means i need a linear amount of copies of the space (not at the same time but successively).
+</I>&gt;<i> Can i somehow reuse parts of the propagation?
+</I>&gt;<i> So, let n=150000, a lot of the propagation could be reused if it does not affect the constraint b_n-2.
+</I>&gt;<i> So is there a possibility in Gecode that does (similar) things?
+</I>
+What you're trying to do here is the opposite of search: during search, the variables become monotonically more restricted, so the propagation is reused in that sense (you only propagate the new changes).  Your variables become monotonically less restricted (you start with all being 1, then un-assigning them one by one).  Constraint solvers are not built for this kind of anti-monotonicity, so they can't reuse the propagation (they'd have to find out which constraints are not affected by the variable you are un-assigning, which is the exact opposite of finding our which ones are affected by the new assignment).
+
+Cheers,
+Guido
+
+&gt;<i> 
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> -------- Original-Nachricht --------
+</I>&gt;&gt;<i> Datum: Mon, 18 Jul 2011 12:54:24 +0200
+</I>&gt;&gt;<i> Von: Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+</I>&gt;&gt;<i> An: Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ChaosAngel at gmx.de</A>&gt;
+</I>&gt;&gt;<i> CC: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Betreff: Re: [gecode-users] IIS using undoing
+</I>&gt;<i> 
+</I>&gt;&gt;<i> On 18 Jul 2011, at 12:03, Max Ostrowski wrote:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Thanks for the information.
+</I>&gt;&gt;&gt;<i> Do you think that recomputation in this case could pay off?
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> I don't know.  In terms of memory, possibly.  In terms of runtime, only if
+</I>&gt;&gt;<i> the search tree is deep.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Furthmore, to turn it into a constraint problem, how could i configure
+</I>&gt;&gt;<i> my search in a way that the reified constraint xb==x becomes true/false,
+</I>&gt;&gt;<i> without labeling xb.
+</I>&gt;&gt;&gt;<i> I can not set xb to true/false, because i want the propagation of the
+</I>&gt;&gt;<i> other constraints to be the cause that xb comes true/false.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> You can't use reification to observe anything about propagation, there's
+</I>&gt;&gt;<i> no reliable notion of &quot;cause&quot; here.  The only thing you can observe are
+</I>&gt;&gt;<i> solutions of the problem, i.e., whether an assignment satisfies the constraints
+</I>&gt;&gt;<i> (including the reified ones) or not.  And for that it doesn't matter if
+</I>&gt;&gt;<i> the xb are labeled before or after the other variables (as Chris has pointed
+</I>&gt;&gt;<i> out).
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> My first idea was double reification.
+</I>&gt;&gt;&gt;<i> Consider the reified constraint set B=C are the set to minimize so that
+</I>&gt;&gt;<i> they still propagate x.
+</I>&gt;&gt;&gt;<i> I do know the values of B.
+</I>&gt;&gt;&gt;<i> I could post the constraints D=C with fresh boolean variables D.
+</I>&gt;&gt;&gt;<i> Adding then boolean reified constraints (val(B)==D)==F.
+</I>&gt;&gt;&gt;<i> So that F_i indicates that the constraint c_i has the predifined
+</I>&gt;&gt;<i> value(or not).
+</I>&gt;&gt;&gt;<i> I could then minimize on the number of true F's(branching on F).
+</I>&gt;&gt;&gt;<i> But i do not know how to ensure that x==xb will be decided.
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Any ideas?
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> -------- Original-Nachricht --------
+</I>&gt;&gt;&gt;&gt;<i> Datum: Mon, 18 Jul 2011 10:30:35 +0200
+</I>&gt;&gt;&gt;&gt;<i> Von: Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+</I>&gt;&gt;&gt;&gt;<i> An: Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ChaosAngel at gmx.de</A>&gt;
+</I>&gt;&gt;&gt;&gt;<i> CC: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i> Betreff: Re: [gecode-users] IIS using undoing
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> Hello Max,
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> you may be able to turn this into a constraint problem that you can
+</I>&gt;&gt;<i> solve
+</I>&gt;&gt;&gt;&gt;<i> using the Gecode search engines, but they are also copying the spaces
+</I>&gt;&gt;<i> under
+</I>&gt;&gt;&gt;&gt;<i> the hood.  The only thing they may do different from plain copying is
+</I>&gt;&gt;&gt;&gt;<i> recomputation (see Sect. 7.2 in Modeling and Programming with Gecode). 
+</I>&gt;&gt;<i> There
+</I>&gt;&gt;&gt;&gt;<i> is no mechanism in Gecode to undo any changes to a variable domain.
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;&gt;<i> Guido
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> On 18 Jul 2011, at 10:05, Max Ostrowski wrote:
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> i want to compute an &quot;Irreducible Infeasible Set&quot; (IIS) and some
+</I>&gt;&gt;&gt;&gt;<i> derivatives.
+</I>&gt;&gt;&gt;&gt;&gt;<i> This means, given a set of contraints C that are infeasible i want to
+</I>&gt;&gt;&gt;&gt;<i> find the source of infeasibility.
+</I>&gt;&gt;&gt;&gt;&gt;<i> I'm satisfied with a rather small (but not necessarily optimal) and
+</I>&gt;&gt;<i> fast
+</I>&gt;&gt;&gt;&gt;<i> approach.
+</I>&gt;&gt;&gt;&gt;&gt;<i> A simple way of doing this would now be, trying to remove all single
+</I>&gt;&gt;&gt;&gt;<i> constraints from the set C and see if it is still infeasible. If yes,
+</I>&gt;&gt;<i> we can
+</I>&gt;&gt;&gt;&gt;<i> remove the constraint from the set.
+</I>&gt;&gt;&gt;&gt;&gt;<i> In Gecode i could do this using a lot of copies of the Space, always
+</I>&gt;&gt;&gt;&gt;<i> posting the constraints again.
+</I>&gt;&gt;&gt;&gt;&gt;<i> Instead of posting them again i could also use reified constraints and
+</I>&gt;&gt;&gt;&gt;<i> set all but one to true.
+</I>&gt;&gt;&gt;&gt;&gt;<i> But here i also have to copy the space, as i can not ? undo the
+</I>&gt;&gt;<i> setting
+</I>&gt;&gt;&gt;&gt;<i> of a variable.
+</I>&gt;&gt;&gt;&gt;&gt;<i> So is there a clever way of doing this abusing the Gecode SearchEngine
+</I>&gt;&gt;<i> ?
+</I>&gt;&gt;&gt;&gt;<i> (what i understood from the manual there is undoing instead of copying
+</I>&gt;&gt;<i> at
+</I>&gt;&gt;&gt;&gt;<i> some points).
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> The same thing i wanna do with a similar set C and a reified
+</I>&gt;&gt;<i> constraint
+</I>&gt;&gt;&gt;&gt;<i> x.
+</I>&gt;&gt;&gt;&gt;&gt;<i> I wanna find the minimal (small) subset of C that the reified
+</I>&gt;&gt;<i> constraint
+</I>&gt;&gt;&gt;&gt;<i> x is still decided (true or false does not matter).
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> Thanks in advance for your proposals.
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> -- 
+</I>&gt;&gt;&gt;&gt;&gt;<i> NEU: FreePhone - kostenlos mobil telefonieren!			
+</I>&gt;&gt;&gt;&gt;&gt;<i> Jetzt informieren: <A HREF="http://www.gmx.net/de/go/freephone">http://www.gmx.net/de/go/freephone</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> -- 
+</I>&gt;&gt;&gt;&gt;<i> Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> -- 
+</I>&gt;&gt;&gt;<i> NEU: FreePhone - kostenlos mobil telefonieren!			
+</I>&gt;&gt;&gt;<i> Jetzt informieren: <A HREF="http://www.gmx.net/de/go/freephone">http://www.gmx.net/de/go/freephone</A>
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> -- 
+</I>&gt;&gt;<i> Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> -- 
+</I>&gt;<i> NEU: FreePhone - kostenlos mobil telefonieren!			
+</I>&gt;<i> Jetzt informieren: <A HREF="http://www.gmx.net/de/go/freephone">http://www.gmx.net/de/go/freephone</A>
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-- 
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003326.html">[gecode-users] IIS using undoing
+</A></li>
+	<LI>Next message: <A HREF="003328.html">[gecode-users] Computing Variable Domains (Integer)
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3327">[ date ]</a>
+              <a href="thread.html#3327">[ thread ]</a>
+              <a href="subject.html#3327">[ subject ]</a>
+              <a href="author.html#3327">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

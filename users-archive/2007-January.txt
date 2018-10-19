@@ -1,0 +1,1069 @@
+From pieter.thysebaert at intec.ugent.be  Fri Jan  5 14:55:08 2007
+From: pieter.thysebaert at intec.ugent.be (Pieter Thysebaert)
+Date: Fri, 05 Jan 2007 14:55:08 +0100
+Subject: [gecode-users] Newbie: Cost function with squared variables
+	propagation trouble
+Message-ID: <459E58BC.6000007@intec.ugent.be>
+
+Hello,
+
+I'm using Gecode 1.2.2 on Debian sarge.
+
+While modelling a scheduling problem I have stumbled across the following:
+
+Let's say the decision variables of my problem are X_ijk, binary.
+Let integer variables Y_i >= 0 be related to the X_ij by  Y_i = k <=>
+X_ijk = 1 for some range of j, expressed by using constraints like
+eq(this, Y_i, k, X_ijk); for that range of j
+
+The cost function I want to minimize is
+sum_over_i  (Y_i - Constant_i)^2
+
+Clearly, if for some i, Constant_i < 0 the cost is at least (Y_i -
+Constant_i)^2.
+
+However, for all but the most trivial instances of my problem, the
+minimal cost after initial propagation is smaller than this "intuitive"
+lower bound.
+I believe (but I can be wrong) that this is partly due to my feable
+modelling skills: in order to implement the cost function above, I have
+
+1. expanded each square term into a polynomial
+2. introduced auxiliary variables Z_i = sqr(Y_i)
+3. written the cost as a sum of Z_i and Y_i terms
+
+Is there a more concise way to express the cost function above without
+introducing explicit extra constraints stating the obvious (i.e. cost >=
+intuitive lower bound for Constant_i < 0) that will nevertheless
+propagate and find these "intuitive" cost bounds?
+If not, can someone point me to an exmaple which would show me how to
+implement my own propagator for such a cost function?
+
+As a side note, I have also been caught by the following oddity (well
+that's how it seemed to me at first).
+If I want to build a MiniModel::LinExpr using the following code
+
+LinExpr myExpr;
+
+for (int i = 0; i < ...; i++) {
+    myExpr = myExpr + some_term(i);
+}
+
+On my machine, this code fails upon the first assignment to the empty
+LinExpr, and only works when explicitly initializing myExpr with the
+first term and then adding the others.
+Is this standard behavior?
+
+Thx,
+Pieter
+
+
+
+
+
+
+
+
+
+From penche21 at hotmail.com  Fri Jan  5 22:46:25 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Fri, 05 Jan 2007 21:46:25 +0000
+Subject: [gecode-users] Var indexes-help
+Message-ID: <BAY119-F18BE3C4D073BE443E1F038D9BF0@phx.gbl>
+
+Hi,
+
+I am having a problem with referring to a VarArray when the index is not 
+integers but Var.
+I have VarArrays A,B,C and I need the constraint A[i] = B[c[i-1]]
+
+I tried;
+
+1) rel(this, A.get(i), IRT_EQ, B.get( (C.get(i-1) ) )
+
+C.get(i-1) works fine as i is an integer. but B.get( (C.get(i-1) ) stucks as 
+(C.get(i-1) returns a Var.
+
+2) I also tried 'element' to express this constraint
+
+Int Var x;
+element(this, B, C.get(i - 1), x);
+rel(this,A.get(i),IRT_EQ,x);
+
+This does not work either.
+Because, I think, element makes B[c[i-1] to get the value of x. but i need 
+the reverse.
+
+In short, I need to express A[i] = B[c[i-1]] where all A,B,C are VarArrays 
+and could not succeed.
+
+Thanks in advance!
+
+_________________________________________________________________
+Her y?n?yle sohbetin tadi ancak Messenger ile ?ikar! 
+http://messenger.msn.com/?mkt=tr&DI=3490&XAPID=2584
+
+
+
+
+From pekczynski at ps.uni-sb.de  Sat Jan  6 13:57:41 2007
+From: pekczynski at ps.uni-sb.de (pekczynski at ps.uni-sb.de)
+Date: Sat, 6 Jan 2007 13:57:41 +0100 (CET)
+Subject: [gecode-users] Var indexes-help
+In-Reply-To: <BAY119-F18BE3C4D073BE443E1F038D9BF0@phx.gbl>
+References: <BAY119-F18BE3C4D073BE443E1F038D9BF0@phx.gbl>
+Message-ID: <49615.84.165.219.126.1168088261.squirrel@www.ps.uni-sb.de>
+
+Hi there,
+I think using the element constraint is the correct choice.
+Maybe the little example I attached will help you out.
+At least you can use the element constraint to model
+
+B[C[i-1]]=A[i]
+
+and indeed the alg also does
+
+A[i]=B[C[i-1]]
+
+see http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html
+
+> 2) I also tried 'element' to express this constraint
+>
+> Int Var x;
+> element(this, B, C.get(i - 1), x);
+> rel(this,A.get(i),IRT_EQ,x);
+
+So this was quite right, but you can directly use
+
+ element(this, B, C[i - 1], A[i]);
+
+so you don't need the rel constraint.
+
+If there are any further questions, let us know.
+:-D
+Cheers
+Patrick
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: arrayex.cc
+Type: application/octet-stream
+Size: 1931 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070106/3d14ea20/attachment.obj>
+
+From penche21 at hotmail.com  Mon Jan  8 21:43:02 2007
+From: penche21 at hotmail.com (penche)
+Date: Mon, 8 Jan 2007 20:43:02 +0000 (UTC)
+Subject: [gecode-users] Re: Var indexes-help
+References: <BAY119-F18BE3C4D073BE443E1F038D9BF0@phx.gbl>
+	<49615.84.165.219.126.1168088261.squirrel@www.ps.uni-sb.de>
+Message-ID: <loom.20070108T212454-941@post.gmane.org>
+
+<pekczynski at ...> writes:
+
+> 
+> Hi there,
+> I think using the element constraint is the correct choice.
+> Maybe the little example I attached will help you out.
+> At least you can use the element constraint to model
+> 
+> B[C[i-1]]=A[i]
+> 
+> and indeed the alg also does
+> 
+> A[i]=B[C[i-1]]
+> 
+> see http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html
+> 
+> > 2) I also tried 'element' to express this constraint
+> >
+> > Int Var x;
+> > element(this, B, C.get(i - 1), x);
+> > rel(this,A.get(i),IRT_EQ,x);
+> 
+> So this was quite right, but you can directly use
+> 
+>  element(this, B, C[i - 1], A[i]);
+> 
+> so you don't need the rel constraint.
+> 
+> If there are any further questions, let us know.
+> :-D
+> Cheers
+> Patrick
+> 
+> 
+> Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at ...
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+Thank you, I now see rel is useless and element is just enough. 
+But one point is; we will need Var indexes inevitable when the relations 
+get nested.
+
+For example; A[i] = B [ C [A[j]] ]
+
+1) obviously rel does not work. 
+rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+
+2) I tried to introduce new Vars, but below did not work also. 
+
+IntVar intermediate1= new IntVar(this,min,max);
+IntVar intermediate2= new IntVar(this,min, max);
+
+element(this, C, A.get(j), intermediate1);
+element(this, B, intermediate1, intermediate2);
+
+rel(this, A.get(i), IRT_EQ, intermediate2);
+
+3) Any way to write this constraint?
+
+Thanks!
+
+
+
+
+
+
+From zayenz at gmail.com  Tue Jan  9 08:10:37 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 9 Jan 2007 08:10:37 +0100
+Subject: [gecode-users] Re: Var indexes-help
+In-Reply-To: <loom.20070108T212454-941@post.gmane.org>
+References: <BAY119-F18BE3C4D073BE443E1F038D9BF0@phx.gbl>
+	<49615.84.165.219.126.1168088261.squirrel@www.ps.uni-sb.de>
+	<loom.20070108T212454-941@post.gmane.org>
+Message-ID: <63b5c8b00701082310o4fc23b79qeee28ef3e169b7af@mail.gmail.com>
+
+On 1/8/07, penche <penche21 at hotmail.com> wrote:
+> <pekczynski at ...> writes:
+>
+> >
+> > Hi there,
+> > I think using the element constraint is the correct choice.
+> > Maybe the little example I attached will help you out.
+> > At least you can use the element constraint to model
+> >
+> > B[C[i-1]]=A[i]
+> >
+> > and indeed the alg also does
+> >
+> > A[i]=B[C[i-1]]
+> >
+> > see http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html
+> >
+> > > 2) I also tried 'element' to express this constraint
+> > >
+> > > Int Var x;
+> > > element(this, B, C.get(i - 1), x);
+> > > rel(this,A.get(i),IRT_EQ,x);
+> >
+> > So this was quite right, but you can directly use
+> >
+> >  element(this, B, C[i - 1], A[i]);
+> >
+> > so you don't need the rel constraint.
+> >
+> > If there are any further questions, let us know.
+> > :-D
+> > Cheers
+> > Patrick
+> >
+> >
+> > Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at ...
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+>
+> Thank you, I now see rel is useless and element is just enough.
+> But one point is; we will need Var indexes inevitable when the relations
+> get nested.
+>
+> For example; A[i] = B [ C [A[j]] ]
+>
+> 1) obviously rel does not work.
+> rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+>
+> 2) I tried to introduce new Vars, but below did not work also.
+>
+> IntVar intermediate1= new IntVar(this,min,max);
+> IntVar intermediate2= new IntVar(this,min, max);
+>
+> element(this, C, A.get(j), intermediate1);
+> element(this, B, intermediate1, intermediate2);
+>
+> rel(this, A.get(i), IRT_EQ, intermediate2);
+>
+> 3) Any way to write this constraint?
+
+The element constraint implements A[I]=V where A is a VarArray of
+integer variables and I and V are integer variables. If you want your
+index variable to be looked up in another variable array, then this is
+another element constraint. Thus something like 2 is the correct way
+to model your desired constraints.
+
+One thing to note is that you can skip intermediate2, and directly
+replace it with A.get(i). This gives the following code:
+
+  IntVar intermediate1= new IntVar(this,min,max);
+  element(this, C, A.get(j), intermediate1);
+  element(this, B, intermediate1, A.get(j));
+
+this implements B[C[A[i]]] = A[j]. The only direct reason I see that
+this would not work is if min and max are wrong. Safe, unconstraining
+bounds are min=0 and max=B.size().
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Tue Jan  9 12:13:42 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 9 Jan 2007 12:13:42 +0100
+Subject: [gecode-users] Newbie: Cost function with squared variables
+	propagation trouble
+In-Reply-To: <459E58BC.6000007@intec.ugent.be>
+References: <459E58BC.6000007@intec.ugent.be>
+Message-ID: <63b5c8b00701090313q2a18e291k4dec399f62fea1d0@mail.gmail.com>
+
+On 1/5/07, Pieter Thysebaert <pieter.thysebaert at intec.ugent.be> wrote:
+> Hello,
+>
+> I'm using Gecode 1.2.2 on Debian sarge.
+>
+> While modelling a scheduling problem I have stumbled across the following:
+>
+> Let's say the decision variables of my problem are X_ijk, binary.
+> Let integer variables Y_i >= 0 be related to the X_ij by  Y_i = k <=>
+> X_ijk = 1 for some range of j, expressed by using constraints like
+> eq(this, Y_i, k, X_ijk); for that range of j
+>
+> The cost function I want to minimize is
+> sum_over_i  (Y_i - Constant_i)^2
+>
+> Clearly, if for some i, Constant_i < 0 the cost is at least (Y_i -
+> Constant_i)^2.
+>
+> However, for all but the most trivial instances of my problem, the
+> minimal cost after initial propagation is smaller than this "intuitive"
+> lower bound.
+> I believe (but I can be wrong) that this is partly due to my feable
+> modelling skills: in order to implement the cost function above, I have
+>
+> 1. expanded each square term into a polynomial
+> 2. introduced auxiliary variables Z_i = sqr(Y_i)
+> 3. written the cost as a sum of Z_i and Y_i terms
+>
+> Is there a more concise way to express the cost function above without
+> introducing explicit extra constraints stating the obvious (i.e. cost >=
+> intuitive lower bound for Constant_i < 0) that will nevertheless
+> propagate and find these "intuitive" cost bounds?
+> If not, can someone point me to an exmaple which would show me how to
+> implement my own propagator for such a cost function?
+
+In general the arithmetic constraints reason on the bounds of the
+variables. For some constraints there is also stronger propagation
+available (using ICL_DOM) although this is usually very costly. For
+the multiplication propagator, though, bounds propagation is the only
+propagation available in Gecode.
+
+I'm not sure what the obvious lower bound is in your example, and
+where it is missing. Could you perhaps give a small example that
+demonstrates the problem?
+
+
+> As a side note, I have also been caught by the following oddity (well
+> that's how it seemed to me at first).
+> If I want to build a MiniModel::LinExpr using the following code
+>
+> LinExpr myExpr;
+>
+> for (int i = 0; i < ...; i++) {
+>     myExpr = myExpr + some_term(i);
+> }
+>
+> On my machine, this code fails upon the first assignment to the empty
+> LinExpr, and only works when explicitly initializing myExpr with the
+> first term and then adding the others.
+> Is this standard behavior?
+
+Yes, this is standard behaviour currently. The LinExpr are originally
+designed for construction from expressions by overloaded operators, in
+which case there is always a first term to start from.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cgervet at cs.brown.edu  Tue Jan  9 16:12:41 2007
+From: cgervet at cs.brown.edu (Carmen Gervet)
+Date: Tue, 9 Jan 2007 10:12:41 -0500
+Subject: [gecode-users] [cfp] CP'2007 Research Papers
+Message-ID: <2608bee50701090712i18cc04f0g2596b05d6a180c1b@mail.gmail.com>
+
+ *Apologies for cross posting. Please forward to interested people*
+
+====================================================================
+                  *First* *Call for Research Papers*
+
+                             *CP 2007*
+             *Thirteenth International Conference on
+        Principles and Practice of Constraint Programming*
+
+                    *September 23 - 27, 2007*
+                      Providence, RI, USA
+                     http://www.cp2007.org/
+      (on behalf of the Association for Constraint Programming)
+
+                  (co-located event: ICAPS'07,
+http://abotea.rsise.anu.edu.au/icaps07/)
+
+====================================================================
+
+
+The CP conference is the annual international conference on constraint
+programming.   It is  concerned  with all  aspects  of computing  with
+constraints,    including:     theory,    algorithms,    applications,
+environments,  languages,  models  and  systems. CP  2007  includes  a
+technical programme,  where presentations of  research and application
+papers, as well as invited  talks and tutorials, aim at describing the
+best  results and  techniques  in the  state-of-the-art of  constraint
+programming.  CP 2007 will  place particular emphasis on applications,
+with a special  event on the use of CP  in applications.  Moreover, CP
+2007 continues  the tradition of  the CP doctoral programme,  in which
+PhD students can present their work, listen to tutorials on career and
+ethical issues, and  discuss their work with senior  researchers via a
+mentoring scheme.  Finally, there are workshops, where researchers can
+meet in an  informal setting and discuss their  most recent ideas with
+their peers.
+
+Papers are solicited from  all disciplines concerned with constraints.
+Papers  describing  implementation  issues  are  strongly  encouraged.
+Papers that report on successful applications of constraint technology
+are also solicited.  The simplified submission process for application
+papers is explained in a separate call for application papers.
+
+Submitted  papers must  be  original and  must  not be  simultaneously
+submitted  for publication in  a journal  or another  conference. This
+year,  submission is done  under the  double-blind scheme  and authors
+will  have the  opportunity to  respond  to reviews  before the  final
+selection is  made.  Authors are  required to prepare their  papers by
+following  the instructions  in the  submission page  (not  open yet).
+Papers longer than 15 LNCS pages will be rejected without review.  The
+proceedings will be published by Springer Verlag, in the Lecture Notes
+in Computer Science series.
+
+
+IMPORTANT DATES
+
+  *  *April 18, 2007: Deadline for submissions*
+  *  June 16,  2007: Notifications
+  *  July  1,  2007: Camera-ready copy
+
+
+ORGANIZATION
+
+Conference Chairs:
+Laurent Michel, University of Connecticut, USA
+Meinolf Sellmann, Brown University, RI, USA
+
+Programme Chair:
+Christian Bessiere, LIRMM-CNRS, U.Montpellier, France
+
+Workshop and tutorial chair:
+Pedro Meseguer, IIIA, CSIC, Bellaterra, Spain
+
+Doctoral Program Chairs:
+Brahim Hnich, Izmir University of Economics, Turkey
+Kostas Stergiou, University of the Aegean, Greece
+
+Publicity Chair:
+Carmen Gervet, Boston University, Met. College,MA,
+                        and Brown University, RI, USA
+
+Sponsorship Chair:
+Barry O'Sullivan, University College Cork, Ireland
+
+
+Programme committee:
+Fahiem Bacchus, University of Toronto, Canada
+Roman Bartak, Charles University, Czech Republic
+Christopher Beck, University of Toronto, Canada
+Frederic Benhamou, University of Nantes, France
+Alexander Brodsky, George Mason University, VA, USA
+Mats Carlsson, SICS, Sweden
+Hubie Chen, Universitat Pompeu Fabra, Spain
+Rina Dechter, UC-Irvine, CA, USA
+Boi Faltings, EPFL, Switzerland
+Pierre Flener, Uppsala University, Sweden
+Thom Fruhwirth, University of Ulm, Germany
+Maria Garcia de la Banda, Monash University, Australia
+Carla Gomes, Cornell University, NY, USA
+Narendra Jussien, EMN/LINA, France
+Brahim Hnich, Izmir University of Economics, Turkey
+Javier Larrosa, UPC, Spain
+Christophe Lecoutre, CRIL, France
+Jimmy Lee, The Chinese Univ of Hong Kong, Hong Kong
+Olivier Lhomme, ILOG, France
+Felip Manya, Universitat de Lleida, Spain
+Joao Marques-Silva, University of Southampton, UK
+Amnon Meisels, Ben-Gurion University, Israel
+Laurent Michel, University of Connecticut, USA
+Ian Miguel, University of St Andrews, UK
+Bertrand Neveu, CERTIS INRIA, France
+Barry O'Sullivan, University College Cork, Ireland
+Gilles Pesant, Ecole Polytechnique Montreal, Canada
+Francesca Rossi, University of Padova, Italy
+Thomas Schiex, INRA Toulouse, France
+Christian Schulte, KTH, Royal Inst. of Tech., Sweden
+Meinolf Sellmann, Brown University, RI, USA
+Kostas Stergiou, University of the Aegean, Greece
+Peter van Beek, University of Waterloo, Canada
+Willem-Jan van Hoeve, Cornell University, NY, USA
+Gerard Verfaillie, ONERA, Toulouse, France
+Toby Walsh, NICTA and UNSW, Australia
+Roland Yap, National University of Singapore
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070109/08d6d7a1/attachment.htm>
+
+From cgervet at cs.brown.edu  Tue Jan  9 16:59:52 2007
+From: cgervet at cs.brown.edu (Carmen Gervet)
+Date: Tue, 09 Jan 2007 10:59:52 -0500
+Subject: [gecode-users] [cfp] CP'2007 Application Papers
+Message-ID: <1168358392.45a3bbf8232d2@webmail.cs.brown.edu>
+
+
+*Apologies for cross posting. Please forward to interested people*
+
+====================================================================
+                    *Call for Application Papers
+
+                             CP 2007
+             Thirteenth International Conference on
+        Principles and Practice of Constraint Programming*
+
+                    September 23 - 27, 2007
+                      Providence, RI, USA
+                     http://www.cp2007.org/
+      (on behalf of the Association for Constraint Programming)
+
+                  (co-located event: ICAPS'07)
+
+====================================================================
+
+
+
+The CP conference is the annual international conference on constraint
+programming.   It is  concerned  with all  aspects  of computing  with
+constraints.   CP  2007   wishes  to   promote  the   presentation  of
+applications  using  CP  technology.   One  of  the  ways  to  attract
+application papers is this special submission scheme.
+
+The two major  differences from the regular submission  scheme are the
+following.  First,  application papers will  be reviewed by  a special
+committee  of  people  with  much  experience  in the  use  of  CP  in
+applications.   Second,  the  writing  of  the paper  itself  is  made
+extremely simple  since it is framed  around the answers  to four main
+questions (see below)  that will form the four  sections of the paper.
+Examples  of  issues to  address  inside  each  section are  given  as
+guidelines. It is not mandatory to answer all of them.
+
+-------------------------------------
+Title
+
+Authors/Company
+
+Section 1: The problem
+- context, description, definition...
+- size of the application (constraint part/others)?
+- how important the problem is? (impact...),
+   in which terms? (monetary, safety, etc.)
+- what is a solution to this  problem? (decision, exemplification,
+   enumeration, counting, optimisation, approximation, etc.)
+
+Section 2. Why CP?
+- what was used before? (hand made, LP...),
+   why change? (didn't it work well? was it difficult to maintain?...),
+   why/how did you come to CP?
+
+Section 3. How CP?
+- model, implementation,
+- pure CP or hybrid? (is CP used in conjunction with some other
+   problem solving technique such as LP/MIP, SAT, custom heuristic?),
+   which decomposition method?
+
+Section 4. Added value of CP?
+- cost of development? / time spent developing the application?
+- how long has it been into production mode (if development completed)?
+- what is the feedback from user experience (if applicable)?
+- was it difficult/necessary for the end-user to understand
+   constraint technology?
+- what is the return on investment (if applicable)?
+- do you plan any new CP based development?
+- what are the lessons learned from the use of CP?
+-------------------------------------
+
+Authors will  have the  opportunity to respond  to reviews  before the
+final selection is made.  Authors are required to prepare their papers
+by following the  instructions in the submission page  (not open yet).
+Papers longer than LNCS 15 pages will be rejected without review.  The
+accepted  papers  will appear  in  the  same  proceedings as  research
+papers, published by Springer Verlag, in the Lecture Notes in Computer
+Science series.
+
+
+IMPORTANT DATES
+
+*  *  April 18, 2007: Deadline for submissions*
+  *  June 16,  2007: Notifications
+  *  July  1,  2007: Camera-ready copy
+
+
+ORGANIZATION
+
+Conference Chairs:
+Laurent Michel, U. of Connecticut, USA
+Meinolf Sellmann, Brown University, RI, USA
+
+Programme Chair:
+Christian Bessiere, LIRMM-CNRS, U.Montpellier, France
+
+Workshop and tutorial chair:
+Pedro Meseguer, IIIA, CSIC, Bellaterra, Spain
+
+Doctoral Program Chairs:
+Brahim Hnich, Izmir University of Economics, Turkey
+Kostas Stergiou, University of the Aegean, Greece
+
+Publicity Chair:
+Carmen Gervet, Boston University, Meyt. College, MA,
+               and Brown University, RI, USA
+
+Sponsorship Chair:
+Barry O'Sullivan, University College Cork, Ireland
+
+Application Committee:
+Barry O'Sullivan, University College Cork, Ireland
+Jean-Francois Puget, ILOG, France
+Helmut Simonis, CrossCore Optimization Ltd, UK
+Pascal Van Hentenryck, Brown University, RI, USA
+Mark Wallace, Monash University, Australia
+
+
+
+
+----------------------------------------------------------------
+This message was sent using IMP, the Internet Messaging Program.
+
+
+
+From ml13 at onlinehome.de  Thu Jan 11 19:33:33 2007
+From: ml13 at onlinehome.de (Kilian Sprotte)
+Date: Thu, 11 Jan 2007 19:33:33 +0100
+Subject: [gecode-users] Branching subclass
+Message-ID: <269AA898-120B-4F54-9B38-A9F60137DD93@onlinehome.de>
+
+Hi,
+
+I am currently trying to work out how to create a custom branching.
+The examples I am looking at are BlackHoleBranch and QueenBranch.
+
+I was wondering, if anyone else has already written custom
+branchings I could possibly study as additional examples.
+
+It would be very helpful to have a most trivial example -
+maybe a re-implementation of one of the ViewValBranchings? :)
+
+I would be grateful for any additional pointers. Should I look
+into Gecode/J maybe to find further examples?
+
+Also a pointer into to the literature that talks about batch  
+recomputation
+would be great, since I /think/ this is not really explained in any  
+of http://www.gecode.org/publications.html?
+
+Thanks a lot,
+   Kilian
+
+
+
+
+
+From tack at ps.uni-sb.de  Thu Jan 11 23:51:12 2007
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 11 Jan 2007 23:51:12 +0100
+Subject: [gecode-users] Branching subclass
+In-Reply-To: <269AA898-120B-4F54-9B38-A9F60137DD93@onlinehome.de>
+References: <269AA898-120B-4F54-9B38-A9F60137DD93@onlinehome.de>
+Message-ID: <5A0D82F4-AFC1-46DD-BEA3-78DDC75B7922@ps.uni-sb.de>
+
+Hi.
+> It would be very helpful to have a most trivial example -
+> maybe a re-implementation of one of the ViewValBranchings? :)
+>
+> I would be grateful for any additional pointers. Should I look
+> into Gecode/J maybe to find further examples?
+
+You could have a look at the file QueensJavaPropagator.java
+http://www.gecode.org/gecodej/doc/QueensJavaPropagator_8java-source.html
+
+It implements a naive branching, should be fairly easy to understand.  
+The difference to a C++ branching is not too big.
+
+> Also a pointer into to the literature that talks about batch  
+> recomputation
+> would be great, since I /think/ this is not really explained in any  
+> of http://www.gecode.org/publications.html?
+
+That would be
+Components for State Restoration in Tree Search by Chiu Wo Choi,  
+Martin Henz, and Ka Boon Ng, CP 2001. This is the paper that  
+introduced the concept, so don't expect the Gecode implementation to  
+follow it 1:1.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070111/2c9948bf/attachment.htm>
+
+From jpeliz at icmc.usp.br  Fri Jan 12 21:17:09 2007
+From: jpeliz at icmc.usp.br (Jorge Marques Pelizzoni)
+Date: Fri, 12 Jan 2007 18:17:09 -0200 (BRST)
+Subject: [gecode-users] advice on building interface (with Haskell)
+Message-ID: <11321.200.158.222.116.1168633029.squirrel@mail2.icmc.usp.br>
+
+
+
+Hi, all! I am considering interfacing Haskell with gecode, although I'm
+totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+background and can see the strong resemblance between the two systems, but
+there are some points that are not quite clear to me. First of all, do you
+think using a simple, fixed subclass of Space instantiating the copy
+methods with something like this:
+
+SimpleSpace(bool share, SimpleSpace &other): Space(share, other) { }
+
+virtual Space* copy(bool share) {
+   return new SimpleSpace(share,*this);
+}
+
+would do the job? I mean: my idea would be to create such objects and
+(indirectly, from Haskell) apply propagator-imposing functions (post,
+etc.) on them. Have you done anything much different for Alice?
+
+My real doubt is: how far one can go with such a na?ve copy semantics? I
+often noticed specialized versions of copy in the examples...
+
+Thanks in advance. Cheers,
+
+Jorge M. Pelizzoni
+ICMC - Universidade de S?o Paulo
+
+
+
+
+
+From zayenz at kth.se  Fri Jan 12 22:43:22 2007
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Fri, 12 Jan 2007 22:43:22 +0100
+Subject: [gecode-users] advice on building interface (with Haskell)
+In-Reply-To: <11321.200.158.222.116.1168633029.squirrel@mail2.icmc.usp.br>
+References: <11321.200.158.222.116.1168633029.squirrel@mail2.icmc.usp.br>
+Message-ID: <63b5c8b00701121343o30fd7f97ka83ea1be2b8f59d4@mail.gmail.com>
+
+HI,
+
+The purpose of the copy function is to allow construction of a copy, a
+sort of virtual constructor.
+
+The copy constructor for a Space needs to update it's references to
+interesting variables, and construct copies of any other specific data
+structures. Without updating the variables, one can not access them in
+the copy.
+
+In the Alice bindings to Gecode, all the constructed variables are
+collected in variable arrays in a Space akin to your proposed
+SimpleSpace, one array per variable type. The AliceML interface can
+then reference variables in a specific Space (for example, a solution)
+using the index into these arrays. The GeOz project (which aims to
+interface Gecode with Mozart) does something similar for managing
+variables.
+
+This is probably the best way to manage variables in a simple
+interface to Gecode.
+
+The Gecode/J Java wrapper, as a contrast, uses a more complicated
+scheme which allows Java Spaces to implement their own copy-method and
+copy-constructor. This is probably overkill for a simple interface to
+Gecode
+
+Cheers,
+Mikael
+
+On 1/12/07, Jorge Marques Pelizzoni <jpeliz at icmc.usp.br> wrote:
+>
+>
+> Hi, all! I am considering interfacing Haskell with gecode, although I'm
+> totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+> background and can see the strong resemblance between the two systems, but
+> there are some points that are not quite clear to me. First of all, do you
+> think using a simple, fixed subclass of Space instantiating the copy
+> methods with something like this:
+>
+> SimpleSpace(bool share, SimpleSpace &other): Space(share, other) { }
+>
+> virtual Space* copy(bool share) {
+>   return new SimpleSpace(share,*this);
+> }
+>
+> would do the job? I mean: my idea would be to create such objects and
+> (indirectly, from Haskell) apply propagator-imposing functions (post,
+> etc.) on them. Have you done anything much different for Alice?
+>
+> My real doubt is: how far one can go with such a na?ve copy semantics? I
+> often noticed specialized versions of copy in the examples...
+>
+> Thanks in advance. Cheers,
+>
+> Jorge M. Pelizzoni
+> ICMC - Universidade de S?o Paulo
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From tack at ps.uni-sb.de  Mon Jan 15 09:45:36 2007
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 15 Jan 2007 09:45:36 +0100
+Subject: [gecode-users] advice on building interface (with Haskell)
+In-Reply-To: <11321.200.158.222.116.1168633029.squirrel@mail2.icmc.usp.br>
+References: <11321.200.158.222.116.1168633029.squirrel@mail2.icmc.usp.br>
+Message-ID: <01427CC6-45DC-4448-A4CC-778EFCBCC9C5@ps.uni-sb.de>
+
+Hi.
+
+> Hi, all! I am considering interfacing Haskell with gecode, although  
+> I'm
+> totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+> background and can see the strong resemblance between the two  
+> systems, but
+> there are some points that are not quite clear to me. First of all,  
+> do you
+> think using a simple, fixed subclass of Space instantiating the copy
+> methods with something like this:
+>
+> SimpleSpace(bool share, SimpleSpace &other): Space(share, other) { }
+>
+> virtual Space* copy(bool share) {
+>    return new SimpleSpace(share,*this);
+> }
+>
+> would do the job? I mean: my idea would be to create such objects and
+> (indirectly, from Haskell) apply propagator-imposing functions (post,
+> etc.) on them. Have you done anything much different for Alice?
+
+As Mikael already pointed out, the Alice interface uses exactly this  
+approach.
+
+For a Haskell interface, I'd suggest a slightly different approach,  
+though. Instead of actually calling the propagator posting functions  
+directly from Haskell, just create a value of some data type that  
+represents the problem. Without having thought this fully through, a  
+model would be a list of constraints, which in turn would be defined  
+in terms of constraint variables. Of course monads might come in  
+handy for creation of models.
+
+The advantage of this setup would be that the creation of a model is  
+purely functional.
+
+The C/C++ part would then just take that abstract representation,  
+create the real Gecode model, solve it, and return the solution as a  
+Haskell term. I don't know how exactly the Haskell foreign function  
+interface works, but I think something along these lines should be  
+doable. In fact, even this operation then is purely functional.
+
+One thing I am not so sure about is how exactly to return the  
+solutions. One could make a model a pair of a list of constraints and  
+a list of variables, and then make the solver return a list of  
+"solution variables" that correspond to the variables of the model.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+
+
+From penche21 at hotmail.com  Fri Jan 26 12:09:19 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Fri, 26 Jan 2007 11:09:19 +0000
+Subject: [gecode-users] Re: Var indexes-help
+In-Reply-To: <63b5c8b00701082310o4fc23b79qeee28ef3e169b7af@mail.gmail.com>
+Message-ID: <BAY119-F30B55A958D6783D862FA0BD9A20@phx.gbl>
+
+Hi again,
+
+Thanks for the advice, it works smooth now.
+But one last question about the Var equalities.
+
+suppose Var A, B and an integer array I
+Let A to be the one possible values of index i where  B=I[i]
+
+sth like;
+for all indexes i
+if " A equals I[i]" then "B can be assigned to i"
+
+but I couldnot find a way to imply the equality of VAR&Intger on another 
+VAR's possible values.
+
+I kept some BoolVars for assignability but ...
+I will really appreciate if you can pop up a constraint for that.
+
+Cheers,
+Penche
+
+>From: "Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+>To: penche <penche21 at hotmail.com>
+>CC: users at gecode.org
+
+>Subject: Re: [gecode-users] Re: Var indexes-help
+>Date: Tue, 9 Jan 2007 08:10:37 +0100
+>
+>On 1/8/07, penche <penche21 at hotmail.com> wrote:
+>><pekczynski at ...> writes:
+>>
+>> >
+>> > Hi there,
+>> > I think using the element constraint is the correct choice.
+>> > Maybe the little example I attached will help you out.
+>> > At least you can use the element constraint to model
+>> >
+>> > B[C[i-1]]=A[i]
+>> >
+>> > and indeed the alg also does
+>> >
+>> > A[i]=B[C[i-1]]
+>> >
+>> > see 
+>>http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html
+>> >
+>> > > 2) I also tried 'element' to express this constraint
+>> > >
+>> > > Int Var x;
+>> > > element(this, B, C.get(i - 1), x);
+>> > > rel(this,A.get(i),IRT_EQ,x);
+>> >
+>> > So this was quite right, but you can directly use
+>> >
+>> >  element(this, B, C[i - 1], A[i]);
+>> >
+>> > so you don't need the rel constraint.
+>> >
+>> > If there are any further questions, let us know.
+>> > :-D
+>> > Cheers
+>> > Patrick
+>> >
+>> >
+>> > Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+>> >
+>> > _______________________________________________
+>> > Gecode users mailing list
+>> > users at ...
+>> > https://www.gecode.org/mailman/listinfo/gecode-users
+>> >
+>>
+>>Thank you, I now see rel is useless and element is just enough.
+>>But one point is; we will need Var indexes inevitable when the relations
+>>get nested.
+>>
+>>For example; A[i] = B [ C [A[j]] ]
+>>
+>>1) obviously rel does not work.
+>>rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+>>
+>>2) I tried to introduce new Vars, but below did not work also.
+>>
+>>IntVar intermediate1= new IntVar(this,min,max);
+>>IntVar intermediate2= new IntVar(this,min, max);
+>>
+>>element(this, C, A.get(j), intermediate1);
+>>element(this, B, intermediate1, intermediate2);
+>>
+>>rel(this, A.get(i), IRT_EQ, intermediate2);
+>>
+>>3) Any way to write this constraint?
+>
+>The element constraint implements A[I]=V where A is a VarArray of
+>integer variables and I and V are integer variables. If you want your
+>index variable to be looked up in another variable array, then this is
+>another element constraint. Thus something like 2 is the correct way
+>to model your desired constraints.
+>
+>One thing to note is that you can skip intermediate2, and directly
+>replace it with A.get(i). This gives the following code:
+>
+>  IntVar intermediate1= new IntVar(this,min,max);
+>  element(this, C, A.get(j), intermediate1);
+>  element(this, B, intermediate1, A.get(j));
+>
+>this implements B[C[A[i]]] = A[j]. The only direct reason I see that
+>this would not work is if min and max are wrong. Safe, unconstraining
+>bounds are min=0 and max=B.size().
+>
+>Cheers,
+>Mikael
+>
+>--
+>Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+_________________________________________________________________
+Yagmura yakalanmamak i?in sadece semsiyenize degil, MSN hava durumuna 
+g?venin! http://www.msn.com.tr/havadurumu/
+
+
+
+

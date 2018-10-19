@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Issue with a MiniZinc model
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Issue%20with%20a%20MiniZinc%20model&In-Reply-To=%3CAANLkTikPMqNdo1T6HY1z1a80uqwhXtfPWAjEsdxR%3DnCd%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003107.html">
+   <LINK REL="Next"  HREF="003109.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Issue with a MiniZinc model</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Issue%20with%20a%20MiniZinc%20model&In-Reply-To=%3CAANLkTikPMqNdo1T6HY1z1a80uqwhXtfPWAjEsdxR%3DnCd%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Issue with a MiniZinc model">zayenz at gmail.com
+       </A><BR>
+    <I>Thu Jan 13 15:16:44 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003107.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+        <LI>Next message: <A HREF="003109.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3108">[ date ]</a>
+              <a href="thread.html#3108">[ thread ]</a>
+              <a href="subject.html#3108">[ subject ]</a>
+              <a href="author.html#3108">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Your model specifies that the values for resources could be anything (in
+Gecode, that is approximately from -2 billion to +2 billion). Any negative
+value for resources leads to a failure, but that is not detected until it is
+tried since your model uses reified constraints. It is very important to
+always think about the size of your initial domain.
+
+The crash you see is simply when your computer has run out of memory for the
+search-tree you are generating. Try a few variants with the minimum value
+for resources being 0, -10, -100, -1000 and run it in Gist (fz - mode gist)
+to see the resulting search tree.
+
+Cheers,
+Mikael
+
+2011/1/13 Lucie Ku&#269;erov&#225; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">lucie.kucerova at mensa.cz</A>&gt;
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I've created a simple MiniZinc model describing a planning domain &amp;
+</I>&gt;<i> problem. The issue is that although MiniZinc itself solves it instantly,
+</I>&gt;<i> when I use Gecode's fz.exe on the generated FlatZinc model, the program
+</I>&gt;<i> computes for a while and then crashes.
+</I>&gt;<i>
+</I>&gt;<i> The MiniZinc model in question is attached below. The only problematic
+</I>&gt;<i> constraint is the last one from the succesor state constraints, without
+</I>&gt;<i> it all works OK. Any ideas what is causing the issue?
+</I>&gt;<i>
+</I>&gt;<i> Thank you in advance
+</I>&gt;<i> Lucie Kucerova
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> % Constants
+</I>&gt;<i> int: t = 2;
+</I>&gt;<i> int: num_preds = 5;
+</I>&gt;<i> int: num_actions = 6;
+</I>&gt;<i> int: num_resc = 1;
+</I>&gt;<i>
+</I>&gt;<i> % Variables
+</I>&gt;<i> array[0..t, 0..num_preds - 1] of var bool: predicates;
+</I>&gt;<i> array[0..t - 1, 0..num_actions - 1] of var bool: actions;
+</I>&gt;<i> array[0..t, 0..num_resc - 1] of var int: resources;
+</I>&gt;<i>
+</I>&gt;<i> % Constraints
+</I>&gt;<i>
+</I>&gt;<i> % Init
+</I>&gt;<i> constraint predicates[0, 0];
+</I>&gt;<i> constraint not predicates[0, 1];
+</I>&gt;<i> constraint not predicates[0, 2];
+</I>&gt;<i> constraint not predicates[0, 3];
+</I>&gt;<i> constraint not predicates[0, 4];
+</I>&gt;<i> constraint resources[0, 0] = 0;
+</I>&gt;<i>
+</I>&gt;<i> % Goal
+</I>&gt;<i> constraint predicates[t, 3];
+</I>&gt;<i> constraint predicates[t, 4];
+</I>&gt;<i> constraint resources[t, 0] = 100;
+</I>&gt;<i>
+</I>&gt;<i> % Preconditions
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 0] -&gt; predicates[i, 0]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 1] -&gt; predicates[i, 1]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 2] -&gt; predicates[i, 0]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 3] -&gt; predicates[i, 2]);
+</I>&gt;<i>
+</I>&gt;<i> % Succesor state
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 0] &lt;-&gt; predicates[i - 1, 0]
+</I>&gt;<i> /\ not actions[i - 1, 0] /\ not actions[i - 1, 2]);
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 1] &lt;-&gt; actions[i - 1, 0] \/
+</I>&gt;<i> (predicates[i - 1, 1] /\ not actions[i - 1, 1]));
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 2] &lt;-&gt; actions[i - 1, 1] \/
+</I>&gt;<i> actions[i - 1, 2] \/ (predicates[i - 1, 2] /\ not actions[i - 1, 3]));
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 3] &lt;-&gt; actions[i - 1, 3] \/
+</I>&gt;<i> predicates[i - 1, 3]);
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 4] &lt;-&gt; actions[i - 1, 4] \/
+</I>&gt;<i> predicates[i - 1, 4]);
+</I>&gt;<i> constraint forall (i in 1..t) ((resources[i, 0] = resources[i - 1, 0])
+</I>&gt;<i> \/ ((resources[i, 0] = resources[i - 1, 0] + 100) /\ actions[i - 1, 5]));
+</I>&gt;<i>
+</I>&gt;<i> % Incompatible predicates
+</I>&gt;<i> constraint forall (i in 0..t) (bool2int(predicates[i, 0]) +
+</I>&gt;<i> bool2int(predicates[i, 1]) + bool2int(predicates[i, 2]) +
+</I>&gt;<i> bool2int(predicates[i, 3]) &lt; 2);
+</I>&gt;<i>
+</I>&gt;<i> % Solution
+</I>&gt;<i> solve satisfy;
+</I>&gt;<i>
+</I>&gt;<i> % Output
+</I>&gt;<i> output
+</I>&gt;<i>  [ show(predicates[i,j]) ++ &quot; &quot; ++ if j == num_preds - 1 then &quot;\n&quot; else
+</I>&gt;<i> &quot; &quot; endif | i in 0..t, j in 0..num_preds - 1] ++
+</I>&gt;<i>  [&quot;\n&quot;] ++
+</I>&gt;<i>  [ show(resources[i,j]) ++ &quot; &quot; ++ if j == num_resc - 1 then &quot;\n&quot; else &quot;
+</I>&gt;<i> &quot; endif | i in 0..t, j in 0..num_resc - 1] ++
+</I>&gt;<i>  [&quot;\n&quot;] ++
+</I>&gt;<i>  [ show(actions[i,j]) ++ if j == num_actions - 1 then &quot;\n&quot; else &quot; &quot;
+</I>&gt;<i> endif | i in 0..t - 1, j in 0..num_actions - 1];
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110113/13e56eeb/attachment.html">http://www.gecode.org/pipermail/users/attachments/20110113/13e56eeb/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003107.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+	<LI>Next message: <A HREF="003109.html">[gecode-users] Issue with a MiniZinc model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3108">[ date ]</a>
+              <a href="thread.html#3108">[ thread ]</a>
+              <a href="subject.html#3108">[ subject ]</a>
+              <a href="author.html#3108">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Debugging branching
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Debugging%20branching&In-Reply-To=%3C63b5c8b00901202337q47fd8553x9e5f41eaa2dafbbf%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002170.html">
+   <LINK REL="Next"  HREF="002173.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Debugging branching</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Debugging%20branching&In-Reply-To=%3C63b5c8b00901202337q47fd8553x9e5f41eaa2dafbbf%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Debugging branching">zayenz at kth.se
+       </A><BR>
+    <I>Wed Jan 21 08:37:37 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002170.html">[gecode-users] Debugging branching
+</A></li>
+        <LI>Next message: <A HREF="002173.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2171">[ date ]</a>
+              <a href="thread.html#2171">[ thread ]</a>
+              <a href="subject.html#2171">[ subject ]</a>
+              <a href="author.html#2171">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>First of all, I meant the copy constructor in your custom branching.
+
+Secondly, I re-read your originally posted code, and saw that you use
+the status/description/commit interface erroneously. From the
+documentation of description [1]:
+    &quot;This member function can only be called after the member
+     function Space::status on the same space has been called
+     and in between no non-const member function has been
+     called on this space.&quot;
+
+Cheers,
+Mikael
+
+[1] <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskSearch.html">http://www.gecode.org/gecode-doc-latest/group__TaskSearch.html</A>
+
+
+On Wed, Jan 21, 2009 at 8:12 AM, Malcolm Ryan &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">malcolmr at cse.unsw.edu.au</A>&gt; wrote:
+&gt;<i> On 21/01/2009, at 5:36 PM, Mikael Zayenz Lagerkvist wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> While I'm not sure about the exact reason for your failure (especially
+</I>&gt;&gt;<i> without seeing your code), it could be that you call the wrong
+</I>&gt;&gt;<i> Branching-constructor in your copy constructor. See the example custom
+</I>&gt;&gt;<i> branchings in examples/black-hole.cc and examples/queen-armies.cc for
+</I>&gt;&gt;<i> guidance.
+</I>&gt;<i>
+</I>&gt;<i> Yes, I was following those examples. My code for the space is:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> ConcretePlanSpace::ConcretePlanSpace(Graph *graph, int nRobots, int
+</I>&gt;<i> maxLength) :
+</I>&gt;<i>        Space(), myPlan(this, graph, nRobots, maxLength, true) {
+</I>&gt;<i>
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> ConcretePlanSpace::ConcretePlanSpace(bool share, ConcretePlanSpace
+</I>&gt;<i> &amp;space) :
+</I>&gt;<i>        Space(share, space) {
+</I>&gt;<i>        myPlan.update(this, share, space.myPlan);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> ConcretePlanSpace::~ConcretePlanSpace() {
+</I>&gt;<i>        // TODO Auto-generated destructor stub
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Space* ConcretePlanSpace::copy (bool share) {
+</I>&gt;<i>        return new ConcretePlanSpace(share, *this);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> CompletePlanVar&amp; ConcretePlanSpace::getPlan() {
+</I>&gt;<i>        return myPlan;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Mikael
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On Wed, Jan 21, 2009 at 7:21 AM, Malcolm Ryan &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">malcolmr at cse.unsw.edu.au</A>
+</I>&gt;&gt;<i> &gt; wrote:
+</I>&gt;&gt;&gt;<i> I've written a custom branching and I am trying to write some unit
+</I>&gt;&gt;&gt;<i> tests to make sure it is working properly. As such, I am doing the
+</I>&gt;&gt;&gt;<i> branching and propagation process step-by-step, but there is
+</I>&gt;&gt;&gt;<i> something
+</I>&gt;&gt;&gt;<i> wrong with my code. I have:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       ConcretePlanSpace *space = new ConcretePlanSpace(graph, 1, 10);
+</I>&gt;&gt;&gt;<i>       ConcretePlanBranching *branching = new (space)
+</I>&gt;&gt;&gt;<i> ConcretePlanBranching(space);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       assert(space-&gt;status() == SS_BRANCH);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       const BranchingDesc* desc = space-&gt;description();
+</I>&gt;&gt;&gt;<i>       space-&gt;commit(desc, 0);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       assert(space-&gt;status() == SS_BRANCH);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> That much of the code works fine, but I want to create a clone of the
+</I>&gt;&gt;&gt;<i> space to test out different alternatives:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       Space* copy = space-&gt;clone(false);
+</I>&gt;&gt;&gt;<i>       desc = copy-&gt;description();
+</I>&gt;&gt;&gt;<i>       copy-&gt;commit(desc, 0);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> When it gets to commit() the code fails. GDB shows:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Program received signal EXC_BAD_ACCESS, Could not access memory.
+</I>&gt;&gt;&gt;<i> Reason: KERN_PROTECTION_FAILURE at address: 0x0000000b
+</I>&gt;&gt;&gt;<i> 0x001d1e0b in Gecode::Space::commit (this=0xf17460, d=0x7, a=0) at
+</I>&gt;&gt;&gt;<i> gecode/kernel/core.cc:330
+</I>&gt;&gt;&gt;<i> 330         while ((b_commit != Branching::cast(&amp;a_actors)) &amp;&amp;
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Any ideas what I am doing wrong?
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thanks,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Malcolm
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002170.html">[gecode-users] Debugging branching
+</A></li>
+	<LI>Next message: <A HREF="002173.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2171">[ date ]</a>
+              <a href="thread.html#2171">[ thread ]</a>
+              <a href="subject.html#2171">[ subject ]</a>
+              <a href="author.html#2171">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

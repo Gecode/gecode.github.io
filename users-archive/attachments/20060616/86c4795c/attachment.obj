@@ -1,0 +1,81 @@
+#include "sudoku-set.h"
+
+SudokuSet::SudokuSet(std::string tira)
+: x(this,n*n,IntSet::empty,1,n*n*n*n,9,9) {
+
+	const int nn = n*n;
+
+	IntSet row[9];
+	IntSet col[9];
+	IntSet block[9];
+
+	// Set up the row and column set constants
+	for (int i=0; i<9; i++) {
+		IntSet dsr((i*nn)+1, (i*nn)+9);
+		row[i] = dsr;
+
+		int dsc_arr[9] = { 1+i, 10+i, 19+i, 28+i, 37+i, 46+i, 55+i, 64+i, 73+i };
+		IntSet dsc(dsc_arr, 9);
+
+		col[i] = dsc;
+	}
+
+	// Set up the block set constants
+	for (int i=0; i<3; i++)
+		for (int j=0; j<3; j++) {
+			int dsb_arr[9] = {
+				(j*27)+(i*3)+1, (j*27)+(i*3)+2, (j*27)+(i*3)+3,
+				(j*27)+(i*3)+10, (j*27)+(i*3)+11, (j*27)+(i*3)+12,
+				(j*27)+(i*3)+19, (j*27)+(i*3)+20, (j*27)+(i*3)+21
+			};
+			IntSet dsb(dsb_arr, 9);
+			block[i*3+j]=dsb;
+		}
+
+	// All x must be pairwise disjoint
+	for (int i=0; i<nn-1; i++)
+		for (int j=i+1; j<nn; j++)
+			rel(this, x[i], SRT_DISJ, x[j]);
+	distinct(this, x, nn);
+
+	// The x must intersect in exactly one element with each
+	// row, column, and block
+	for (int i=0; i<nn; i++)
+		for (int j=0; j<nn; j++) {
+			SetVar inter_row(this, IntSet::empty, 1, 9*9, 1, 1);
+			rel(this, x[i], SOT_INTER, row[j], SRT_EQ, inter_row);
+			SetVar inter_col(this, IntSet::empty, 1, 9*9, 1, 1);
+			rel(this, x[i], SOT_INTER, col[j], SRT_EQ, inter_col);
+			SetVar inter_block(this, IntSet::empty, 1, 9*9, 1, 1);
+			rel(this, x[i], SOT_INTER, block[j], SRT_EQ, inter_block);
+		}
+
+	// Fill-in predefined fields
+	for (int i=0; i<nn*nn; i++)
+	{
+		short tmp = tira[i];
+		if (tmp != 48)
+		{
+			int idx = tmp - 49;
+			//dom( this, x[idx], SRT_SUP, ((i/nn)+1)+((i%nn)*nn) );
+			dom( this, x[idx], SRT_SUP, ((i%nn)+1)+((i/nn)*nn) );
+		}
+
+	}
+	
+	branch(this, x, SETBVAR_NONE, SETBVAL_MIN);
+}
+  
+int
+main(int argc, char** argv) {
+	std::string a ("002000040010008003780060000000420070900070001070095000000010067200500030090000800");
+	SudokuSet* s;
+	while(true)
+	{
+	s = new SudokuSet(a);
+	//SudokuSet* s = new SudokuSet();
+	delete s;
+	//std::cout << SudokuSet::solve(s) << "\n";
+	}
+	return -1;
+}

@@ -1,0 +1,485 @@
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+
+#include <list>
+#include <conio.h>
+
+using namespace Gecode;
+
+// Structure of data
+
+// Section
+struct SectionBlock
+{
+	int id;
+	char *name;
+	bool yard;
+
+	SectionBlock(int id, char *name, bool yard)
+	{
+		this->id = id;
+		this->name = name;
+		this->yard = yard;
+	}
+};
+
+// Train
+struct Train
+{
+	int id;
+	char *prefix;
+	int departure;
+	SectionBlock *origin;
+	SectionBlock *destination;
+
+	Train(int id, char *prefix, int departure, SectionBlock *origin, SectionBlock *destination)
+	{
+		this->id = id;
+		this->prefix = prefix;
+		this->departure = departure;
+		this->origin = origin;
+		this->destination = destination;
+	}
+};
+
+// Activities
+struct RouteActivity
+{
+	int id;
+	Train *train;
+	int transitTime;
+	int transitTimeReleasing;
+	SectionBlock *sectionBlock;
+
+	RouteActivity(int id, Train *train, int transitTime, int transitTimeReleasing, SectionBlock *sectionBlock)
+	{
+		this->id = id;
+		this->train = train;
+		this->transitTime = transitTime;
+		this->transitTimeReleasing = transitTimeReleasing;
+		this->sectionBlock = sectionBlock;
+	}
+};
+
+/****************************************************
+* Train scheduling
+*****************************************************/
+class Scheduling : public MinimizeScript
+{
+private:
+	
+	// Intervals
+	IntVarArray *start_times;
+	IntVarArray *end_times;
+	IntVarArray *start_times_releasing;
+	IntVarArray *end_times_releasing;
+	IntVarArray *duration;
+	IntVarArray *duration_releasing;
+	IntVarArray totalCost;
+	IntVar totalFinal;
+
+	int maxDomain;
+
+	// Input data
+	std::list<Train*> _trains;
+	std::list<SectionBlock*> _sectionBlocks;
+	std::list<RouteActivity*> _activities;
+	std::list<RouteActivity*> *_activitiesByTrain;
+
+public:
+
+	// search engines
+	enum
+	{
+		SEARCH_DFS,
+		SEARCH_BAB,
+		SEARCH_RESTART
+	};
+
+	// Droping data
+	~Scheduling()
+	{
+		/*
+		for (int i = 0; i < _trains.size(); i++)
+		{
+			_activitiesByTrain[i].clear();
+		}
+
+		for (std::list<RouteActivity*>::iterator i = _activities.begin(); i != _activities.end(); ++i)
+		{
+			delete (*i);
+		}
+
+		for (std::list<Train*>::iterator i = _trains.begin(); i != _trains.end(); ++i)
+		{
+			delete (*i);
+		}
+
+		for (std::list<SectionBlock*>::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)
+		{
+			delete (*i);
+		}
+		
+		_activities.clear();
+		_trains.clear();
+		_sectionBlocks.clear();
+		*/
+	}
+
+	// Actual model
+	Scheduling(const SizeOptions& opt)
+		: totalFinal(*this, 0, Int::Limits::max)
+	{
+		maxDomain = 1000;
+
+		run(opt);
+	}
+
+	// Constructor for cloning s
+	Scheduling(bool share, Scheduling& s) : MinimizeScript(share, s) 
+	{
+		copypreprocess(share, s);
+
+		const int totalTrains = _trains.size();
+
+		maxDomain = s.maxDomain;
+
+		// Domain definition
+		start_times = new IntVarArray[totalTrains];
+		end_times = new IntVarArray[totalTrains];
+
+		start_times_releasing = new IntVarArray[totalTrains];
+		end_times_releasing = new IntVarArray[totalTrains];
+
+		duration = new IntVarArray[totalTrains];
+		duration_releasing = new IntVarArray[totalTrains];
+
+		totalFinal.update(*this, share, s.totalFinal);
+
+		totalCost = IntVarArray(*this, totalTrains, 0, Int::Limits::max);
+
+		for (int t = 0; t < totalTrains; t++)
+		{
+			int totalActivities = _activitiesByTrain[t].size();
+
+			totalCost[t].update(*this, share, s.totalCost[t]);
+
+			start_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			start_times[t].update(*this, share, s.start_times[t]);
+
+			end_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			end_times[t].update(*this, share, s.end_times[t]);
+
+			start_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			start_times_releasing[t].update(*this, share, s.start_times_releasing[t]);
+
+			end_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			end_times_releasing[t].update(*this, share, s.end_times_releasing[t]);
+
+			duration[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			duration[t].update(*this, share, s.duration[t]);
+
+			duration_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			duration_releasing[t].update(*this, share, s.duration_releasing[t]);
+		}
+	}
+
+	// Copy during cloning
+	virtual Space *copy(bool share) 
+	{
+		return new Scheduling(share, *this);
+	}
+
+	// Run method
+	virtual void run(const SizeOptions& opt)
+	{
+		preprocess();
+
+		const int totalTrains = _trains.size();
+		const int totalSBs = 5;
+
+		// Domain intervals
+		start_times = new IntVarArray[totalTrains];
+		end_times = new IntVarArray[totalTrains];
+		duration = new IntVarArray[totalTrains];
+
+		start_times_releasing = new IntVarArray[totalTrains];
+		end_times_releasing = new IntVarArray[totalTrains];
+		duration_releasing = new IntVarArray[totalTrains];
+
+		totalCost = IntVarArray(*this, totalTrains, 0, Int::Limits::max);
+
+		IntVarArgs sb_start_resource[totalSBs];
+		IntVarArgs sb_end_resource[totalSBs];
+		IntVarArgs sb_duration[totalSBs];
+
+		// Domain definition
+		for (int t = 0; t < _trains.size(); t++)
+		{
+			int totalActivities = _activitiesByTrain[t].size();
+
+			start_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			end_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			duration[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+
+			start_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			end_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			duration_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+
+			// Grouping activities by SB
+			int s = 0;
+			for (std::list<RouteActivity*>::iterator j = _activitiesByTrain[t].begin(); j != _activitiesByTrain[t].end(); ++j)
+			{
+				int sb = (*j)->sectionBlock->id;
+
+				sb_start_resource[sb] << start_times[t][s];
+				sb_start_resource[sb] << start_times_releasing[t][s];
+
+				sb_duration[sb] << duration[t][s];
+				sb_duration[sb] << duration_releasing[t][s];
+
+				sb_end_resource[sb] << end_times[t][s];
+				sb_end_resource[sb] << end_times_releasing[t][s];
+
+				s++;
+			}
+		}
+
+		// Starting activities
+		int x = 0;
+		for (std::list<Train*>::iterator i = _trains.begin(); i != _trains.end(); ++i)
+		{
+			rel(*this, start_times[x][0], IRT_EQ, (*i)->departure, opt.icl());
+			x++;
+		}
+
+		int k = 0;
+		for (std::list<Train*>::iterator i = _trains.begin(); i != _trains.end(); ++i)
+		{
+			// Start and end of activities
+			int sb = 0;
+			for (std::list<RouteActivity*>::iterator j = _activitiesByTrain[k].begin(); j != _activitiesByTrain[k].end(); )
+			{
+				RouteActivity *atual = (*j);
+
+				j++;
+
+				// Travel duration
+				rel(*this, end_times[k][sb] >= start_times[k][sb] + atual->transitTime, opt.icl());
+				
+				// Duration var
+				rel(*this, duration[k][sb] == end_times[k][sb] - start_times[k][sb], opt.icl());
+				
+				// Releasing start
+				rel(*this, start_times_releasing[k][sb], IRT_EQ, end_times[k][sb], opt.icl());
+
+				// Releasing duration
+				rel(*this, end_times_releasing[k][sb] == start_times_releasing[k][sb] + atual->transitTimeReleasing, opt.icl());
+				
+				// Release Duration var
+				rel(*this, duration_releasing[k][sb] == end_times_releasing[k][sb] - start_times_releasing[k][sb], opt.icl());
+
+				// Precedence of activities (ignore last)
+				if (j != _activitiesByTrain[k].end())
+				{
+					// Precendences
+					rel(*this, start_times[k][sb + 1], IRT_EQ, end_times[k][sb], opt.icl());
+				}
+
+				sb++;
+			}
+
+			linear(*this, duration[k], IRT_EQ, totalCost[k]);
+
+			k++;
+		}
+
+		linear(*this, totalCost, IRT_EQ, totalFinal);
+
+		IntVarArgs SY[totalSBs];
+		IntVarArgs EY[totalSBs];
+		IntVarArgs DY[totalSBs];
+		
+		// Disjuntive data
+		for (std::list<SectionBlock*>::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)
+		{
+			int total = 0;
+
+			SectionBlock *atual = (*i);
+
+			for (std::list<RouteActivity*>::iterator j = _activities.begin(); j != _activities.end(); ++j)
+			{
+				RouteActivity *activity = (*j);
+
+				if (activity->sectionBlock->id == atual->id)
+				{
+					// Activity + Releasing
+					total += 2;
+				}
+			}
+			
+			SY[atual->id] = IntVarArgs(*this, total, 0, 0);
+			EY[atual->id] = IntVarArgs(*this, total, 1, 1);
+			DY[atual->id] = IntVarArgs(*this, total, 1, 1);
+		}
+
+		// Disjuntive restriction
+		for (std::list<SectionBlock*>::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)
+		{
+			SectionBlock *atual = (*i);
+			
+			if (atual->yard || sb_start_resource[atual->id].size() <= 0)
+			{
+				continue;
+			}
+
+			nooverlap(*this, sb_start_resource[atual->id], sb_duration[atual->id], sb_end_resource[atual->id], SY[atual->id], DY[atual->id], EY[atual->id], opt.icl());
+		}
+
+		// Branching
+		for (int t = 0; t < _trains.size(); t++)
+		{
+			branch(*this, start_times[t], INT_VAR_SIZE_MIN, INT_VAL_MIN);
+			branch(*this, end_times[t], INT_VAR_SIZE_MIN, INT_VAL_MIN);
+		}
+	}
+
+	// Print solution
+	virtual void print(std::ostream& os) const 
+	{
+		int t = 0;
+		for (std::list<Train*>::const_iterator i = _trains.begin(); i != _trains.end(); ++i)
+		{
+			os << "train : " << (*i)->prefix << " (" << (*i)->origin->name << " - " << (*i)->destination->name << ") " << std::endl;
+			os << "start_times    : " << start_times[t] << std::endl;
+			os << "end_times      : " << end_times[t] << std::endl;
+
+			os << "releasing start: " << start_times_releasing[t] << std::endl;
+			os << "releasing end  : " << end_times_releasing[t] << std::endl;
+			os << "duration       : " << totalCost[t] << std::endl;
+
+			os << std::endl;
+
+			t++;
+		}
+
+		os << "objective      : " << totalFinal << std::endl;
+	}
+
+	virtual IntVar cost() const
+	{
+		return totalFinal;
+	}
+
+	void copypreprocess(bool share, Scheduling &s)
+	{
+		if (share)
+		{
+			_sectionBlocks = s._sectionBlocks;
+			_activities = s._activities;
+			_trains = s._trains;
+			_activitiesByTrain = s._activitiesByTrain;
+		}
+		else
+		{
+			preprocess();
+		}
+	}
+
+	void preprocess()
+	{
+		// Sample data
+		SectionBlock *_lpg = new SectionBlock(0, "LPG", false);
+		_sectionBlocks.push_back(_lpg);
+
+		SectionBlock *_lic = new SectionBlock(1, "LIC", false);
+		_sectionBlocks.push_back(_lic);
+
+		SectionBlock *_lus = new SectionBlock(2, "LUS", false);
+		_sectionBlocks.push_back(_lus);
+
+		SectionBlock *_lap = new SectionBlock(3, "LAP", false);
+		_sectionBlocks.push_back(_lap);
+		
+		SectionBlock *_lmg = new SectionBlock(4, "LMG", true);
+		_sectionBlocks.push_back(_lmg);
+
+		// Trains
+		Train *_x01 = new Train(11, "X01", 0, _lmg, _lpg);
+		_trains.push_back(_x01);
+
+		Train *_x02 = new Train(12, "X02", 0, _lpg, _lmg);
+		_trains.push_back(_x02);
+
+		// Activities for train x01
+		_activities.push_back(new RouteActivity(21, _x01, 10, 1, _lmg));
+		_activities.push_back(new RouteActivity(22, _x01, 10, 1, _lap));
+		_activities.push_back(new RouteActivity(23, _x01, 10, 1, _lus));
+		_activities.push_back(new RouteActivity(24, _x01, 10, 1, _lic));
+		_activities.push_back(new RouteActivity(25, _x01, 10, 1, _lpg));
+
+		// Activities for train x02
+		_activities.push_back(new RouteActivity(21, _x02, 10, 1, _lpg));
+		_activities.push_back(new RouteActivity(22, _x02, 10, 1, _lic));
+		_activities.push_back(new RouteActivity(23, _x02, 10, 1, _lus));
+		_activities.push_back(new RouteActivity(24, _x02, 10, 1, _lap));
+		_activities.push_back(new RouteActivity(25, _x02, 10, 1, _lmg));
+
+		_activitiesByTrain = new std::list<RouteActivity*>[_trains.size()];
+
+		int t = 0;
+		for (std::list<Train*>::iterator i = _trains.begin(); i != _trains.end(); ++i)
+		{
+			// calculate the end times
+			for (std::list<RouteActivity*>::iterator j = _activities.begin(); j != _activities.end(); ++j)
+			{
+				if ((*i)->id == (*j)->train->id)
+				{
+					_activitiesByTrain[t].push_back(*j);
+				}
+			}
+
+			t++;
+		}
+	}
+};
+
+/** 
+ *  main
+ */
+int main(int argc, char* argv[]) 
+{
+	SizeOptions opt("Train Scheduling");
+	opt.solutions(0);
+	opt.time(30000);
+
+	opt.search(Scheduling::SEARCH_BAB);
+	opt.search(Scheduling::SEARCH_DFS, "dfs");
+	opt.search(Scheduling::SEARCH_BAB, "bab");
+	opt.search(Scheduling::SEARCH_RESTART, "restart");
+
+	if (!opt.size()) 
+	{
+		opt.size(4);
+	}
+
+	opt.parse(argc,argv);
+
+	if (opt.search() == Scheduling::SEARCH_DFS) 
+	{
+		MinimizeScript::run<Scheduling, DFS, SizeOptions>(opt);
+	} 
+	else if (opt.search() == Scheduling::SEARCH_RESTART) 
+	{
+		MinimizeScript::run<Scheduling, Restart, SizeOptions>(opt);
+	}
+	else 
+	{
+		MinimizeScript::run<Scheduling, BAB, SizeOptions>(opt);
+	}
+
+	getch();
+
+	return 0;
+}

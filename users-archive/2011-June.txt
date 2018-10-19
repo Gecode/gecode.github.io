@@ -1,0 +1,1841 @@
+From sascha.vancauwelaert at gmail.com  Fri Jun  3 14:37:58 2011
+From: sascha.vancauwelaert at gmail.com (Sascha Van Cauwelaert)
+Date: Fri, 3 Jun 2011 14:37:58 +0200
+Subject: [gecode-users] Linear expressions in Gecode
+Message-ID: <4B4EAAB8-F721-4FF9-988E-EF6F04A159DB@gmail.com>
+
+Hello,
+
+currently, I am working on my master thesis using Gecode. I have a question about how linear expressions are
+managed in Gecode : 
+
+for instance, in the n-queen problem, when q[i]+i is passed as a parameter
+of the distinct propagator, is internally another intvar array created and
+some channelling is done then ? If not, could you explain me how it is done
+or tell me where I could find the information please ?
+
+In advance, I thank you for your help.
+
+Best regards,
+
+Sascha Van Cauwelaert
+
+From cschulte at kth.se  Fri Jun  3 16:51:13 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 3 Jun 2011 16:51:13 +0200
+Subject: [gecode-users] Linear expressions in Gecode
+In-Reply-To: <4B4EAAB8-F721-4FF9-988E-EF6F04A159DB@gmail.com>
+References: <4B4EAAB8-F721-4FF9-988E-EF6F04A159DB@gmail.com>
+Message-ID: <00af01cc21fd$af6d2530$0e476f90$@kth.se>
+
+Well, in this particular case a new IntVar is created which is then
+constrained with a linear constraint.
+
+Please read the relevant sections in MPG, they also refer to the reference
+documentation which in turn refers to the implementation.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Sascha Van Cauwelaert
+Sent: Friday, June 03, 2011 2:38 PM
+To: users at gecode.org
+Subject: [gecode-users] Linear expressions in Gecode
+
+Hello,
+
+currently, I am working on my master thesis using Gecode. I have a question
+about how linear expressions are managed in Gecode : 
+
+for instance, in the n-queen problem, when q[i]+i is passed as a parameter
+of the distinct propagator, is internally another intvar array created and
+some channelling is done then ? If not, could you explain me how it is done
+or tell me where I could find the information please ?
+
+In advance, I thank you for your help.
+
+Best regards,
+
+Sascha Van Cauwelaert
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ChaosAngel at gmx.de  Fri Jun 10 10:41:36 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Fri, 10 Jun 2011 10:41:36 +0200
+Subject: [gecode-users] How to estimate the range of a (linear) function
+Message-ID: <20110610084136.9140@gmx.net>
+
+Hello everybody,
+
+as i'm developing an SMT-like solver, i have a special syntax for the constraints of Gecode and i also have to handle things.
+
+b(1..3).
+$count[a(X) $== c+5*7-b : b(X)] $> 0.
+
+
+This shall represent an count constraint constraint.
+count(x,y,>,0) where x is a set of variables (a(1),a(2),a(3)) and y is a single variable y=c+5*7-b.
+The domains of the variables a,b,c are known (usually an IntSet).
+I created a variable for "c+5*7-b" using the domain (Limits::min,Limits::max).
+I found out that this is not the best way to do it, as Gecode does not seem to automatically shrink the domain of y :-)
+
+
+Is there some functionality in Gecode for automatically/manually estimate the range of a function. (So if i add a and b, can't i just "add" the domain of them using the IntVarRanges?).
+And the same for multiplication etc...
+
+Thanks in advance,
+
+Max
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From cschulte at kth.se  Fri Jun 10 11:06:08 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 10 Jun 2011 11:06:08 +0200
+Subject: [gecode-users] How to estimate the range of a (linear) function
+In-Reply-To: <20110610084136.9140@gmx.net>
+References: <20110610084136.9140@gmx.net>
+Message-ID: <006201cc274d$a34ab8d0$e9e02a70$@kth.se>
+
+The simplest option is to use the minimodel support for writing linear
+expressions, so in your case: instead of creating a variable y yourself,
+just set y to the variable that is returned by the expr function, that is,
+something like:
+	IntVar y = expr(home, c+5*7-b);
+The expr function actually does infer tight bounds for the variables it
+returns (based on the domains of c and b in this example). If that does not
+fit your bill you might want to check how expr does it. Not that difficult,
+in fact.
+
+The problem is that one should always keep in mind that the basic
+abstraction in CP are relations (constraints). Anything that involves
+expressions requires additional effort. That is one reason why the basic
+layer in Gecode talks about constraints only and has an additional layer of
+abstraction (minimodel) to deal with expressions.
+
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max Ostrowski
+Sent: Friday, June 10, 2011 10:42 AM
+To: users at gecode.org
+Subject: [gecode-users] How to estimate the range of a (linear) function
+
+Hello everybody,
+
+as i'm developing an SMT-like solver, i have a special syntax for the
+constraints of Gecode and i also have to handle things.
+
+b(1..3).
+$count[a(X) $== c+5*7-b : b(X)] $> 0.
+
+
+This shall represent an count constraint constraint.
+count(x,y,>,0) where x is a set of variables (a(1),a(2),a(3)) and y is a
+single variable y=c+5*7-b.
+The domains of the variables a,b,c are known (usually an IntSet).
+I created a variable for "c+5*7-b" using the domain
+(Limits::min,Limits::max).
+I found out that this is not the best way to do it, as Gecode does not seem
+to automatically shrink the domain of y :-)
+
+
+Is there some functionality in Gecode for automatically/manually estimate
+the range of a function. (So if i add a and b, can't i just "add" the domain
+of them using the IntVarRanges?).
+And the same for multiplication etc...
+
+Thanks in advance,
+
+Max
+--
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir belohnen Sie mit
+bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ChaosAngel at gmx.de  Fri Jun 10 12:56:47 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Fri, 10 Jun 2011 12:56:47 +0200
+Subject: [gecode-users] How to estimate the range of a (linear) function
+In-Reply-To: <006201cc274d$a34ab8d0$e9e02a70$@kth.se>
+References: <20110610084136.9140@gmx.net>
+	<006201cc274d$a34ab8d0$e9e02a70$@kth.se>
+Message-ID: <20110610105647.28160@gmx.net>
+
+
+Thanks a lot, it works wonderful now.
+
+
+
+> The simplest option is to use the minimodel support for writing linear
+> expressions, so in your case: instead of creating a variable y yourself,
+> just set y to the variable that is returned by the expr function, that is,
+> something like:
+> 	IntVar y = expr(home, c+5*7-b);
+> The expr function actually does infer tight bounds for the variables it
+> returns (based on the domains of c and b in this example). If that does
+> not
+> fit your bill you might want to check how expr does it. Not that
+> difficult,
+> in fact.
+> 
+> The problem is that one should always keep in mind that the basic
+> abstraction in CP are relations (constraints). Anything that involves
+> expressions requires additional effort. That is one reason why the basic
+> layer in Gecode talks about constraints only and has an additional layer
+> of
+> abstraction (minimodel) to deal with expressions.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, KTH, web.it.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Max Ostrowski
+> Sent: Friday, June 10, 2011 10:42 AM
+> To: users at gecode.org
+> Subject: [gecode-users] How to estimate the range of a (linear) function
+> 
+> Hello everybody,
+> 
+> as i'm developing an SMT-like solver, i have a special syntax for the
+> constraints of Gecode and i also have to handle things.
+> 
+> b(1..3).
+> $count[a(X) $== c+5*7-b : b(X)] $> 0.
+> 
+> 
+> This shall represent an count constraint constraint.
+> count(x,y,>,0) where x is a set of variables (a(1),a(2),a(3)) and y is a
+> single variable y=c+5*7-b.
+> The domains of the variables a,b,c are known (usually an IntSet).
+> I created a variable for "c+5*7-b" using the domain
+> (Limits::min,Limits::max).
+> I found out that this is not the best way to do it, as Gecode does not
+> seem
+> to automatically shrink the domain of y :-)
+> 
+> 
+> Is there some functionality in Gecode for automatically/manually estimate
+> the range of a function. (So if i add a and b, can't i just "add" the
+> domain
+> of them using the IntVarRanges?).
+> And the same for multiplication etc...
+> 
+> Thanks in advance,
+> 
+> Max
+> --
+> Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir belohnen Sie
+> mit
+> bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From ChaosAngel at gmx.de  Tue Jun 14 10:36:38 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Tue, 14 Jun 2011 10:36:38 +0200
+Subject: [gecode-users] Branching on temporary variables
+Message-ID: <20110614083638.186300@gmx.net>
+
+Hello everybody,
+
+i have some expressions (linear and non-linear) stored in a "Gecode::LinExpr" object.
+
+Know i want to post a global constraint on them.
+
+So, expressions for example:
+//pseudocode
+LinExpr var1 = a+b*c;
+LinExpr var2 = 4-7
+
+and i want the results of them to be allDifferent (distinct)
+
+ IntVarArray z(home,2);
+ z[0] = var1.post(home);
+ z[1] = var2.post(home);
+
+ distinct(home,z);
+
+
+1: Is this the right way to do this?
+2: I do branching on the variables a,b,c.
+   2.1: Can it happen that some of the temporary variables z[i] stay unassigned (regarding any linear or non-linear expression)?
+   2.2: Does it make an advantage to branch on {a,b,c,z[1..n]} instead of {a,b,c} ? Can this decrease complexity, as it is the case with conjunctions in SAT.
+
+3: If i post the constraint a*b==0 a\in{0..2} and b\in{0..2} and i do branch on  {a}, do i get 3 or 6 solutions. (So, are my solutions really projected on the branching variables?)
+
+
+Thanks a lot in advance,
+
+Max
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From cschulte at kth.se  Tue Jun 14 15:12:48 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jun 2011 15:12:48 +0200
+Subject: [gecode-users] Branching on temporary variables
+In-Reply-To: <20110614083638.186300@gmx.net>
+References: <20110614083638.186300@gmx.net>
+Message-ID: <008d01cc2a94$c2d1fd90$4875f8b0$@se>
+
+Hi,
+
+1) Not quite. Instead of var1.post(...) use expr(home, var1) (that is, the
+documented interface not its implementation)
+
+2)
+2.1) In principle, of course! However, for all expressions available through
+expr() you can be sure that the resulting variables are assigned if all
+variables in the expressions are assigned.
+2.2) As said, you have to in general.
+
+3) Do not understand the question but you get 6 solutions as there are six
+solutions!
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, June 14, 2011 10:37 AM
+To: users at gecode.org
+Subject: [gecode-users] Branching on temporary variables
+
+Hello everybody,
+
+i have some expressions (linear and non-linear) stored in a
+"Gecode::LinExpr" object.
+
+Know i want to post a global constraint on them.
+
+So, expressions for example:
+//pseudocode
+LinExpr var1 = a+b*c;
+LinExpr var2 = 4-7
+
+and i want the results of them to be allDifferent (distinct)
+
+ IntVarArray z(home,2);
+ z[0] = var1.post(home);
+ z[1] = var2.post(home);
+
+ distinct(home,z);
+
+
+1: Is this the right way to do this?
+2: I do branching on the variables a,b,c.
+   2.1: Can it happen that some of the temporary variables z[i] stay
+unassigned (regarding any linear or non-linear expression)?
+   2.2: Does it make an advantage to branch on {a,b,c,z[1..n]} instead of
+{a,b,c} ? Can this decrease complexity, as it is the case with conjunctions
+in SAT.
+
+3: If i post the constraint a*b==0 a\in{0..2} and b\in{0..2} and i do branch
+on  {a}, do i get 3 or 6 solutions. (So, are my solutions really projected
+on the branching variables?)
+
+
+Thanks a lot in advance,
+
+Max
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ChaosAngel at gmx.de  Tue Jun 14 15:49:48 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Tue, 14 Jun 2011 15:49:48 +0200
+Subject: [gecode-users] Branching on temporary variables
+In-Reply-To: <008d01cc2a94$c2d1fd90$4875f8b0$@se>
+References: <20110614083638.186300@gmx.net>
+	<008d01cc2a94$c2d1fd90$4875f8b0$@se>
+Message-ID: <20110614134948.186320@gmx.net>
+
+Thank you for your quick response.
+Just to clarify for me 2.2, if i only use expr(), and the resulting variables in global constraints, then i do not need to branch on any temporary variables to be "complete". Right?
+
+If so, does it give me any improvements?
+for example:
+ IntVarArray temp(2);
+ temp[0] = expr(a+b);
+ temp[1] = expr(c+d);
+ distinct(temp2).
+
+If i now branch on {a,b,c,d} i will find all solutions.
+But i could also branch on {a,b,c,d,temp[0],temp[1]} to find all solutions.
+Can this be considered "better" in terms of possible complexity, or is there any "experience" from your side that you would recommend to branch on as much or few variables as possible? (while still enumerating all models)
+
+3:
+I tried my little experiment now (sorry, i just was too lazy before)
+a*b==0 where a\in{0..2} and b\in{0..2} and i do
+branch on {a} only.
+So i will only get 3 (partial) Solutions:
+Answer: 1
+a=0 b=[0..2] 
+Answer: 2
+a=1 b=0 
+Answer: 3
+a=2 b=0
+So i projected on {a}. But as i now see, i can not be sure if these (partial) solutions can be extended to a complete solution, right ?
+(maybe there is no complete solution a=0, i will not know yet)
+
+
+
+Best,
+Max
+
+
+-------- Original-Nachricht --------
+> Datum: Tue, 14 Jun 2011 15:12:48 +0200
+> Von: "Christian Schulte" <cschulte at kth.se>
+> An: "\'Max Ostrowski\'" <ChaosAngel at gmx.de>, users at gecode.org
+> Betreff: RE: [gecode-users] Branching on temporary variables
+
+> Hi,
+> 
+> 1) Not quite. Instead of var1.post(...) use expr(home, var1) (that is, the
+> documented interface not its implementation)
+> 
+> 2)
+> 2.1) In principle, of course! However, for all expressions available
+> through
+> expr() you can be sure that the resulting variables are assigned if all
+> variables in the expressions are assigned.
+> 2.2) As said, you have to in general.
+> 
+> 3) Do not understand the question but you get 6 solutions as there are six
+> solutions!
+> 
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Max Ostrowski
+> Sent: Tuesday, June 14, 2011 10:37 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Branching on temporary variables
+> 
+> Hello everybody,
+> 
+> i have some expressions (linear and non-linear) stored in a
+> "Gecode::LinExpr" object.
+> 
+> Know i want to post a global constraint on them.
+> 
+> So, expressions for example:
+> //pseudocode
+> LinExpr var1 = a+b*c;
+> LinExpr var2 = 4-7
+> 
+> and i want the results of them to be allDifferent (distinct)
+> 
+>  IntVarArray z(home,2);
+>  z[0] = var1.post(home);
+>  z[1] = var2.post(home);
+> 
+>  distinct(home,z);
+> 
+> 
+> 1: Is this the right way to do this?
+> 2: I do branching on the variables a,b,c.
+>    2.1: Can it happen that some of the temporary variables z[i] stay
+> unassigned (regarding any linear or non-linear expression)?
+>    2.2: Does it make an advantage to branch on {a,b,c,z[1..n]} instead of
+> {a,b,c} ? Can this decrease complexity, as it is the case with
+> conjunctions
+> in SAT.
+> 
+> 3: If i post the constraint a*b==0 a\in{0..2} and b\in{0..2} and i do
+> branch
+> on  {a}, do i get 3 or 6 solutions. (So, are my solutions really projected
+> on the branching variables?)
+> 
+> 
+> Thanks a lot in advance,
+> 
+> Max
+> 
+> -- 
+> NEU: FreePhone - kostenlos mobil telefonieren!			
+> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From cschulte at kth.se  Tue Jun 14 16:36:10 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jun 2011 16:36:10 +0200
+Subject: [gecode-users] Branching on temporary variables
+In-Reply-To: <20110614134948.186320@gmx.net>
+References: <20110614083638.186300@gmx.net>
+	<008d01cc2a94$c2d1fd90$4875f8b0$@se>
+	<20110614134948.186320@gmx.net>
+Message-ID: <00ac01cc2aa0$67e5a920$37b0fb60$@se>
+
+2.2 Yes, for expr() it works. There is normally no benefit in adding more variables to branching. In certain cases it can be beneficial if the variables are interesting for a branching heuristic. 
+
+3. Yes exactly, as constraint propagation is incomplete you always have to branch until all variables are assigned. Otherwise you do not know in general that you have reached a solution.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Max Ostrowski [mailto:ChaosAngel at gmx.de] 
+Sent: Tuesday, June 14, 2011 3:50 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: RE: [gecode-users] Branching on temporary variables
+
+Thank you for your quick response.
+Just to clarify for me 2.2, if i only use expr(), and the resulting variables in global constraints, then i do not need to branch on any temporary variables to be "complete". Right?
+
+If so, does it give me any improvements?
+for example:
+ IntVarArray temp(2);
+ temp[0] = expr(a+b);
+ temp[1] = expr(c+d);
+ distinct(temp2).
+
+If i now branch on {a,b,c,d} i will find all solutions.
+But i could also branch on {a,b,c,d,temp[0],temp[1]} to find all solutions.
+Can this be considered "better" in terms of possible complexity, or is there any "experience" from your side that you would recommend to branch on as much or few variables as possible? (while still enumerating all models)
+
+3:
+I tried my little experiment now (sorry, i just was too lazy before)
+a*b==0 where a\in{0..2} and b\in{0..2} and i do
+branch on {a} only.
+So i will only get 3 (partial) Solutions:
+Answer: 1
+a=0 b=[0..2] 
+Answer: 2
+a=1 b=0 
+Answer: 3
+a=2 b=0
+So i projected on {a}. But as i now see, i can not be sure if these (partial) solutions can be extended to a complete solution, right ?
+(maybe there is no complete solution a=0, i will not know yet)
+
+
+
+Best,
+Max
+
+
+-------- Original-Nachricht --------
+> Datum: Tue, 14 Jun 2011 15:12:48 +0200
+> Von: "Christian Schulte" <cschulte at kth.se>
+> An: "\'Max Ostrowski\'" <ChaosAngel at gmx.de>, users at gecode.org
+> Betreff: RE: [gecode-users] Branching on temporary variables
+
+> Hi,
+> 
+> 1) Not quite. Instead of var1.post(...) use expr(home, var1) (that is, the
+> documented interface not its implementation)
+> 
+> 2)
+> 2.1) In principle, of course! However, for all expressions available
+> through
+> expr() you can be sure that the resulting variables are assigned if all
+> variables in the expressions are assigned.
+> 2.2) As said, you have to in general.
+> 
+> 3) Do not understand the question but you get 6 solutions as there are six
+> solutions!
+> 
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Max Ostrowski
+> Sent: Tuesday, June 14, 2011 10:37 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Branching on temporary variables
+> 
+> Hello everybody,
+> 
+> i have some expressions (linear and non-linear) stored in a
+> "Gecode::LinExpr" object.
+> 
+> Know i want to post a global constraint on them.
+> 
+> So, expressions for example:
+> //pseudocode
+> LinExpr var1 = a+b*c;
+> LinExpr var2 = 4-7
+> 
+> and i want the results of them to be allDifferent (distinct)
+> 
+>  IntVarArray z(home,2);
+>  z[0] = var1.post(home);
+>  z[1] = var2.post(home);
+> 
+>  distinct(home,z);
+> 
+> 
+> 1: Is this the right way to do this?
+> 2: I do branching on the variables a,b,c.
+>    2.1: Can it happen that some of the temporary variables z[i] stay
+> unassigned (regarding any linear or non-linear expression)?
+>    2.2: Does it make an advantage to branch on {a,b,c,z[1..n]} instead of
+> {a,b,c} ? Can this decrease complexity, as it is the case with
+> conjunctions
+> in SAT.
+> 
+> 3: If i post the constraint a*b==0 a\in{0..2} and b\in{0..2} and i do
+> branch
+> on  {a}, do i get 3 or 6 solutions. (So, are my solutions really projected
+> on the branching variables?)
+> 
+> 
+> Thanks a lot in advance,
+> 
+> Max
+> 
+> -- 
+> NEU: FreePhone - kostenlos mobil telefonieren!			
+> Jetzt informieren: http://www.gmx.net/de/go/freephone
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+
+From caj21 at st-andrews.ac.uk  Tue Jun 14 17:14:51 2011
+From: caj21 at st-andrews.ac.uk (Christopher Jefferson)
+Date: Tue, 14 Jun 2011 15:14:51 +0000
+Subject: [gecode-users] Branching on temporary variables
+In-Reply-To: <20110614134948.186320@gmx.net>
+References: <20110614083638.186300@gmx.net>
+	<008d01cc2a94$c2d1fd90$4875f8b0$@se> <20110614134948.186320@gmx.net>
+Message-ID: <8225DC25-39B9-4C6A-A6AE-6B67C9181CFF@st-andrews.ac.uk>
+
+
+On 14 Jun 2011, at 14:49, Max Ostrowski wrote:
+
+> Thank you for your quick response.
+> Just to clarify for me 2.2, if i only use expr(), and the resulting variables in global constraints, then i do not need to branch on any temporary variables to be "complete". Right?
+> 
+> If so, does it give me any improvements?
+> for example:
+> IntVarArray temp(2);
+> temp[0] = expr(a+b);
+> temp[1] = expr(c+d);
+> distinct(temp2).
+> 
+> If i now branch on {a,b,c,d} i will find all solutions.
+> But i could also branch on {a,b,c,d,temp[0],temp[1]} to find all solutions.
+> Can this be considered "better" in terms of possible complexity, or is there any "experience" from your side that you would recommend to branch on as much or few variables as possible? (while still enumerating all models)
+
+You should always branch on all variables. There is a good chance you will find the variables of 'temp' are already assigned, in which case the cost of checking is extremely small.
+
+Several times I have seen people believe they don't have to branch on all variables, and they are almost always wrong.
+
+Chris
+
+From ashis.k.maity at lmco.com  Tue Jun 14 23:59:25 2011
+From: ashis.k.maity at lmco.com (Maity, Ashis K)
+Date: Tue, 14 Jun 2011 17:59:25 -0400
+Subject: [gecode-users] Heap memory free error
+In-Reply-To: <00ac01cc2aa0$67e5a920$37b0fb60$@se>
+References: <20110614083638.186300@gmx.net>
+	<008d01cc2a94$c2d1fd90$4875f8b0$@se>
+	<20110614134948.186320@gmx.net>
+	<00ac01cc2aa0$67e5a920$37b0fb60$@se>
+Message-ID: <67B0B414F1419D49837D1FCA9B51825A8DDC5568@HVXMSPB.us.lmco.com>
+
+Hello,
+
+Recently I upgraded my Gecode from 3.4.2 to 3.5.0. I have been running my old problems to do sanity check. While many of the old problems do run fine in newer version, I am getting this strange error on some problems and can't figure out the reason. These problems still run fine when I use a server that is running old version of the Gecode. I tried cleaning, rebuilding, restarting, reloading etc. Any help is appreciated.
+--------------------------
+HEAP[AutomatedScheduler++.exe]: Invalid Address specified to RtlFreeHeap( 00B90000, 015059B0 )
+Windows has triggered a breakpoint in AutomatedScheduler++.exe.
+
+This may be due to a corruption of the heap, which indicates a bug in AutomatedScheduler++.exe or any of the DLLs it has loaded.
+
+This may also be due to the user pressing F12 while AutomatedScheduler++.exe has focus.
+
+The output window may have more diagnostic information.
+
+
+
+--- Here is the stack trace ---
+	ntdll.dll!7c90120e() 	
+ 	[Frames below may be incorrect and/or missing, no symbols loaded for ntdll.dll]	
+ 	ntdll.dll!7c96ee31() 	
+ 	ntdll.dll!7c96f26e() 	
+ 	ntdll.dll!7c970456() 	
+ 	ntdll.dll!7c94bafc() 	
+ 	ntdll.dll!7c91a1ba() 	
+ 	ntdll.dll!7c91a351() 	
+ 	msvcr90.dll!78583c1b() 	
+>	AutomatedScheduler++.exe!Gecode::Heap::rfree(void * p=0x015795e0)  Line 332 + 0xc bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar * b=0x015795e0, unsigned long n=18)  Line 385	C++
+ 	AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar * b=0x015795e0, int n=18)  Line 402	C++
+ 	AutomatedScheduler++.exe!Gecode::ArgArrayBase<Gecode::IntVar>::~ArgArrayBase<Gecode::IntVar>()  Line 1579	C++
+ 	AutomatedScheduler++.exe!Gecode::VarArgArray<Gecode::IntVar>::~VarArgArray<Gecode::IntVar>()  + 0x58 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::IntVarArgs::~IntVarArgs()  + 0x58 bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::postResourcePick()  Line 213 + 0x5a bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::afterResourcePick(Gecode::Space & home={...})  Line 108	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::FunctionBranch::commit()  + 0xf bytes	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::Space::_commit()  + 0xf1 bytes	C++
+ 	GecodeSearch-3-5-0-r-x86.dll!Gecode::Search::WorkerToEngine<Gecode::Search::Sequential::BAB>::next()  + 0x149 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::BAB<Scheduler>::next()  Line 57 + 0x20 bytes	C++
+ 	AutomatedScheduler++.exe!threadFunction(void * a=0x00b965a8)  Line 231 + 0xb bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void *>::Execute()  Line 321 + 0x18 bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void *>::ThreadRoutingFunction(void * pParam=0x00b96558)  Line 274	C++
+ 	msvcr90.dll!78543433() 	
+ 	msvcr90.dll!785434c7() 	
+ 	kernel32.dll!7c80b729() 
+
+----------------
+Thanks,
+
+Ashis	
+
+
+From cschulte at kth.se  Wed Jun 15 14:54:00 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 15 Jun 2011 14:54:00 +0200
+Subject: [gecode-users] Heap memory free error
+In-Reply-To: <67B0B414F1419D49837D1FCA9B51825A8DDC5568@HVXMSPB.us.lmco.com>
+References: <20110614083638.186300@gmx.net>	<008d01cc2a94$c2d1fd90$4875f8b0$@se>	<20110614134948.186320@gmx.net>	<00ac01cc2aa0$67e5a920$37b0fb60$@se>
+	<67B0B414F1419D49837D1FCA9B51825A8DDC5568@HVXMSPB.us.lmco.com>
+Message-ID: <006201cc2b5b$4da810a0$e8f831e0$@se>
+
+Hi,
+
+I went through the changelog to get an idea what might have happened and I
+have a theory: 3.5.0 fixes a memory-management related bug in parallel
+search (which you seem to use, right?). And you seem to use Windows, which
+compiler, ...
+
+What is a likely explanation is that this fixes triggers a potential bug in
+your code. Let me guess some more: you have implemented your own brancher.
+Does this brancher use some data structures (such as sharedarray etc?). Does
+the copy() function of the brancher take the Boolean share flag into account
+during cloning? If it is false the brancher must create an independent copy
+even for a shared data structure as it is going to be used in a different
+thread. Check also MPG about this.
+
+Could that be related?
+
+Otherwise, there is no change in memory management in Gecode. Another
+possible explanation might be that some allocation/deallocation is no
+happening in different DLLs which is not allowed on Windows (that's a well
+known bug in Windows). Could you test on Linux whether this happens on Linux
+as well? I could see that if you send me the brancher code.
+
+Cheers
+Christian 
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Maity, Ashis K
+Sent: Tuesday, June 14, 2011 11:59 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: [gecode-users] Heap memory free error
+
+Hello,
+
+Recently I upgraded my Gecode from 3.4.2 to 3.5.0. I have been running my
+old problems to do sanity check. While many of the old problems do run fine
+in newer version, I am getting this strange error on some problems and can't
+figure out the reason. These problems still run fine when I use a server
+that is running old version of the Gecode. I tried cleaning, rebuilding,
+restarting, reloading etc. Any help is appreciated.
+--------------------------
+HEAP[AutomatedScheduler++.exe]: Invalid Address specified to RtlFreeHeap(
+00B90000, 015059B0 )
+Windows has triggered a breakpoint in AutomatedScheduler++.exe.
+
+This may be due to a corruption of the heap, which indicates a bug in
+AutomatedScheduler++.exe or any of the DLLs it has loaded.
+
+This may also be due to the user pressing F12 while AutomatedScheduler++.exe
+has focus.
+
+The output window may have more diagnostic information.
+
+
+
+--- Here is the stack trace ---
+	ntdll.dll!7c90120e() 	
+ 	[Frames below may be incorrect and/or missing, no symbols loaded for
+ntdll.dll]	
+ 	ntdll.dll!7c96ee31() 	
+ 	ntdll.dll!7c96f26e() 	
+ 	ntdll.dll!7c970456() 	
+ 	ntdll.dll!7c94bafc() 	
+ 	ntdll.dll!7c91a1ba() 	
+ 	ntdll.dll!7c91a351() 	
+ 	msvcr90.dll!78583c1b() 	
+>	AutomatedScheduler++.exe!Gecode::Heap::rfree(void * p=0x015795e0)
+Line 332 + 0xc bytes	C++
+ 
+AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar *
+b=0x015795e0, unsigned long n=18)  Line 385	C++
+ 
+AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar *
+b=0x015795e0, int n=18)  Line 402	C++
+ 
+AutomatedScheduler++.exe!Gecode::ArgArrayBase<Gecode::IntVar>::~ArgArrayBase
+<Gecode::IntVar>()  Line 1579	C++
+ 
+AutomatedScheduler++.exe!Gecode::VarArgArray<Gecode::IntVar>::~VarArgArray<G
+ecode::IntVar>()  + 0x58 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::IntVarArgs::~IntVarArgs()  + 0x58
+bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::postResourcePick()  Line 213 +
+0x5a bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::afterResourcePick(Gecode::Space
+& home={...})  Line 108	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::FunctionBranch::commit()  + 0xf
+bytes	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::Space::_commit()  + 0xf1 bytes
+C++
+ 
+GecodeSearch-3-5-0-r-x86.dll!Gecode::Search::WorkerToEngine<Gecode::Search::
+Sequential::BAB>::next()  + 0x149 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::BAB<Scheduler>::next()  Line 57 +
+0x20 bytes	C++
+ 	AutomatedScheduler++.exe!threadFunction(void * a=0x00b965a8)  Line
+231 + 0xb bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void *>::Execute()  Line 321
++ 0x18 bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void
+*>::ThreadRoutingFunction(void * pParam=0x00b96558)  Line 274	C++
+ 	msvcr90.dll!78543433() 	
+ 	msvcr90.dll!785434c7() 	
+ 	kernel32.dll!7c80b729() 
+
+----------------
+Thanks,
+
+Ashis	
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kelbelj at fel.cvut.cz  Wed Jun 15 17:33:03 2011
+From: kelbelj at fel.cvut.cz (Jan Kelbel)
+Date: Wed, 15 Jun 2011 17:33:03 +0200
+Subject: [gecode-users] Memory issues with repeated execution of the script
+Message-ID: <4DF8D0AF.2040800@fel.cvut.cz>
+
+Hi,
+
+I found the following strange behavior of Gecode 3.5.0 when using 32bit 
+windows binaries in Win XP and MS Visual Studio 2008:
+
+When the problem is infeasible and the total number of used nodes is 0, 
+some memory is not released, and when the script is executed repeatedly, 
+the consumed memory increases.
+See the attached file, which is queens.cpp from the examples, where are 
+two added lines denoted by comment //JK: ...
+
+When nodes > 0
+for example, use constraint
+   rel(*this,q[0] ==q[1]);
+instead of
+   rel(*this,q[0] > n);
+then the memory consumption is not increasing.
+
+Am I using Gecode in a wrong way?
+
+Cheers, Jan
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: queens.cpp
+URL: <http://www.gecode.org/pipermail/users/attachments/20110615/f5433e73/attachment.ksh>
+
+From ashis.k.maity at lmco.com  Wed Jun 15 22:57:49 2011
+From: ashis.k.maity at lmco.com (Maity, Ashis K)
+Date: Wed, 15 Jun 2011 16:57:49 -0400
+Subject: [gecode-users] Heap memory free error
+In-Reply-To: <006201cc2b5b$4da810a0$e8f831e0$@se>
+References: <20110614083638.186300@gmx.net>
+	<008d01cc2a94$c2d1fd90$4875f8b0$@se>
+	<20110614134948.186320@gmx.net>
+	<00ac01cc2aa0$67e5a920$37b0fb60$@se>
+	<67B0B414F1419D49837D1FCA9B51825A8DDC5568@HVXMSPB.us.lmco.com>
+	<006201cc2b5b$4da810a0$e8f831e0$@se>
+Message-ID: <67B0B414F1419D49837D1FCA9B51825A8DDC633B@HVXMSPB.us.lmco.com>
+
+Hi Christian,
+
+Thanks for your response. My problem solved! Turned out to be I installed Binary packages for 2010 Microsoft Visual Version while I am using 2008 Visual studio. After I reinstalled the correct package, the Heap Memory problem appeared to go away. Only thing it took me a day to figure out :( while I was playing with my code and reverting recent changes and stuff.
+
+Thanks again,
+
+Ashis
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Wednesday, June 15, 2011 8:54 AM
+To: Maity, Ashis K; users at gecode.org
+Subject: EXTERNAL: RE: [gecode-users] Heap memory free error
+
+Hi,
+
+I went through the changelog to get an idea what might have happened and I
+have a theory: 3.5.0 fixes a memory-management related bug in parallel
+search (which you seem to use, right?). And you seem to use Windows, which
+compiler, ...
+
+What is a likely explanation is that this fixes triggers a potential bug in
+your code. Let me guess some more: you have implemented your own brancher.
+Does this brancher use some data structures (such as sharedarray etc?). Does
+the copy() function of the brancher take the Boolean share flag into account
+during cloning? If it is false the brancher must create an independent copy
+even for a shared data structure as it is going to be used in a different
+thread. Check also MPG about this.
+
+Could that be related?
+
+Otherwise, there is no change in memory management in Gecode. Another
+possible explanation might be that some allocation/deallocation is no
+happening in different DLLs which is not allowed on Windows (that's a well
+known bug in Windows). Could you test on Linux whether this happens on Linux
+as well? I could see that if you send me the brancher code.
+
+Cheers
+Christian 
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Maity, Ashis K
+Sent: Tuesday, June 14, 2011 11:59 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: [gecode-users] Heap memory free error
+
+Hello,
+
+Recently I upgraded my Gecode from 3.4.2 to 3.5.0. I have been running my
+old problems to do sanity check. While many of the old problems do run fine
+in newer version, I am getting this strange error on some problems and can't
+figure out the reason. These problems still run fine when I use a server
+that is running old version of the Gecode. I tried cleaning, rebuilding,
+restarting, reloading etc. Any help is appreciated.
+--------------------------
+HEAP[AutomatedScheduler++.exe]: Invalid Address specified to RtlFreeHeap(
+00B90000, 015059B0 )
+Windows has triggered a breakpoint in AutomatedScheduler++.exe.
+
+This may be due to a corruption of the heap, which indicates a bug in
+AutomatedScheduler++.exe or any of the DLLs it has loaded.
+
+This may also be due to the user pressing F12 while AutomatedScheduler++.exe
+has focus.
+
+The output window may have more diagnostic information.
+
+
+
+--- Here is the stack trace ---
+	ntdll.dll!7c90120e() 	
+ 	[Frames below may be incorrect and/or missing, no symbols loaded for
+ntdll.dll]	
+ 	ntdll.dll!7c96ee31() 	
+ 	ntdll.dll!7c96f26e() 	
+ 	ntdll.dll!7c970456() 	
+ 	ntdll.dll!7c94bafc() 	
+ 	ntdll.dll!7c91a1ba() 	
+ 	ntdll.dll!7c91a351() 	
+ 	msvcr90.dll!78583c1b() 	
+>	AutomatedScheduler++.exe!Gecode::Heap::rfree(void * p=0x015795e0)
+Line 332 + 0xc bytes	C++
+ 
+AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar *
+b=0x015795e0, unsigned long n=18)  Line 385	C++
+ 
+AutomatedScheduler++.exe!Gecode::Heap::free<Gecode::IntVar>(Gecode::IntVar *
+b=0x015795e0, int n=18)  Line 402	C++
+ 
+AutomatedScheduler++.exe!Gecode::ArgArrayBase<Gecode::IntVar>::~ArgArrayBase
+<Gecode::IntVar>()  Line 1579	C++
+ 
+AutomatedScheduler++.exe!Gecode::VarArgArray<Gecode::IntVar>::~VarArgArray<G
+ecode::IntVar>()  + 0x58 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::IntVarArgs::~IntVarArgs()  + 0x58
+bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::postResourcePick()  Line 213 +
+0x5a bytes	C++
+ 	AutomatedScheduler++.exe!Scheduler::afterResourcePick(Gecode::Space
+& home={...})  Line 108	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::FunctionBranch::commit()  + 0xf
+bytes	C++
+ 	GecodeKernel-3-5-0-r-x86.dll!Gecode::Space::_commit()  + 0xf1 bytes
+C++
+ 
+GecodeSearch-3-5-0-r-x86.dll!Gecode::Search::WorkerToEngine<Gecode::Search::
+Sequential::BAB>::next()  + 0x149 bytes	C++
+ 	AutomatedScheduler++.exe!Gecode::BAB<Scheduler>::next()  Line 57 +
+0x20 bytes	C++
+ 	AutomatedScheduler++.exe!threadFunction(void * a=0x00b965a8)  Line
+231 + 0xb bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void *>::Execute()  Line 321
++ 0x18 bytes	C++
+ 	AutomatedScheduler++.exe!ThreadWrapper<void
+*>::ThreadRoutingFunction(void * pParam=0x00b96558)  Line 274	C++
+ 	msvcr90.dll!78543433() 	
+ 	msvcr90.dll!785434c7() 	
+ 	kernel32.dll!7c80b729() 
+
+----------------
+Thanks,
+
+Ashis	
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Thu Jun 16 10:31:19 2011
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 16 Jun 2011 10:31:19 +0200
+Subject: [gecode-users] Memory issues with repeated execution of the
+	script
+In-Reply-To: <4DF8D0AF.2040800@fel.cvut.cz>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+Message-ID: <EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+
+On 15 Jun 2011, at 17:33, Jan Kelbel wrote:
+
+> Hi,
+> 
+> I found the following strange behavior of Gecode 3.5.0 when using 32bit windows binaries in Win XP and MS Visual Studio 2008:
+> 
+> When the problem is infeasible and the total number of used nodes is 0, some memory is not released, and when the script is executed repeatedly, the consumed memory increases.
+
+There are two memory leaks in the Driver module of Gecode 3.5.0 that become noticeable when searching a failed problem repeatedly . The first one was already fixed in the svn trunk (and was responsible for most of the leaked memory you saw), and I found a second small leak just now and also fixed it.  Thanks for the report!
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From kelbelj at fel.cvut.cz  Thu Jun 16 18:49:40 2011
+From: kelbelj at fel.cvut.cz (Jan Kelbel)
+Date: Thu, 16 Jun 2011 18:49:40 +0200
+Subject: [gecode-users] Memory issues with repeated execution of the
+	script
+In-Reply-To: <EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+Message-ID: <4DFA3424.8080606@fel.cvut.cz>
+
+
+Dne 16.6.2011 10:31, Guido Tack napsal(a):
+> On 15 Jun 2011, at 17:33, Jan Kelbel wrote:
+>
+>> Hi,
+>>
+>> I found the following strange behavior of Gecode 3.5.0 when using 32bit windows binaries in Win XP and MS Visual Studio 2008:
+>>
+>> When the problem is infeasible and the total number of used nodes is 0, some memory is not released, and when the script is executed repeatedly, the consumed memory increases.
+>
+> There are two memory leaks in the Driver module of Gecode 3.5.0 that become noticeable when searching a failed problem repeatedly . The first one was already fixed in the svn trunk (and was responsible for most of the leaked memory you saw), and I found a second small leak just now and also fixed it.  Thanks for the report!
+>
+> Cheers,
+> 	Guido
+>
+
+Thank you for quick response and for the fix.
+
+Cheers, Jan
+
+
+From ChaosAngel at gmx.de  Mon Jun 20 10:05:12 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 20 Jun 2011 10:05:12 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <4DFA3424.8080606@fel.cvut.cz>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz>
+Message-ID: <20110620080512.48410@gmx.net>
+
+Sorry for reposting, i already asked this question 2 years ago, but now i managed to read more of the manual and my questions will be more refined.
+
+For each constraint that i post, i want to find out which variables are propagated by the corresponding propagator.
+Also the ordering would be interesting. I need this to build an SMT like System, to generate a "reason" why a certain reified constraint became true/false.
+
+So can i somehow "watch" the propagate function, testing if the subscribed variables are pruned?
+
+I first thought of "copying" the post functions of Gecode and implementing a "wrapper" propagator that wraps around the functions.
+But i think this will not do the work, as propagators can be disposed and replaced at runtime, right ?
+
+
+Do you have any other idea how i can find out which constraint is responsible for pruning the search space?
+I want to avoid to modify Gecode, as i want to stay up to date.
+This is also the reason why i do not simply want to copy all propagators to implement BookKeeping myself.
+
+Best,
+Max
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From tack at gecode.org  Mon Jun 20 10:40:32 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 20 Jun 2011 10:40:32 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <20110620080512.48410@gmx.net>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz> <20110620080512.48410@gmx.net>
+Message-ID: <0F37BEFD-1DA1-40D2-91E0-DD4D685A1632@gecode.org>
+
+Hi Max,
+
+there's no way to implement what you want without modifying either the Gecode kernel or all the propagators that are supposed to record that information.  In order to watch propagation, you'd have to modify the Space::status function (the main propagation loop), or each individual propagate function (because only the individual propagators actually have access to their variables, the Gecode kernel doesn't really know about them).
+Because of rewriting (replacing propagators at runtime), this is a pretty intrusive change, but not impossible to do.
+
+The second complication, as far as I can see, is that the order in which variables are modified can be quite important.  In a trailing-based system, this order is recorded automatically on the trail.  In a copying system such as Gecode, you'd have to record the order yourself, essentially implementing an additional trail.  This is why it probably makes much more sense to start from a trailing system in the first place.
+
+Cheers,
+	Guido
+
+On 20 Jun 2011, at 10:05, Max Ostrowski wrote:
+
+> Sorry for reposting, i already asked this question 2 years ago, but now i managed to read more of the manual and my questions will be more refined.
+> 
+> For each constraint that i post, i want to find out which variables are propagated by the corresponding propagator.
+> Also the ordering would be interesting. I need this to build an SMT like System, to generate a "reason" why a certain reified constraint became true/false.
+> 
+> So can i somehow "watch" the propagate function, testing if the subscribed variables are pruned?
+> 
+> I first thought of "copying" the post functions of Gecode and implementing a "wrapper" propagator that wraps around the functions.
+> But i think this will not do the work, as propagators can be disposed and replaced at runtime, right ?
+> 
+> 
+> Do you have any other idea how i can find out which constraint is responsible for pruning the search space?
+> I want to avoid to modify Gecode, as i want to stay up to date.
+> This is also the reason why i do not simply want to copy all propagators to implement BookKeeping myself.
+> 
+> Best,
+> Max
+> -- 
+> Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+> belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+
+From zayenz at gmail.com  Mon Jun 20 10:43:36 2011
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 20 Jun 2011 10:43:36 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <20110620080512.48410@gmx.net>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz> <20110620080512.48410@gmx.net>
+Message-ID: <BANLkTik9g3eyAcBDk7ebULupm3hsSuBviQ@mail.gmail.com>
+
+First of all, just as was the case two years ago, nobody knows how to do
+explanations for general propagators. The most interesting system for doing
+explanations in a CP-like system at the moment is the lazy clause generation
+research being done in the G12 project, where propagation is represented as
+a SAT problem. This requires a completely different system and propagator
+implementation though.
+
+Remember, propagators in a CP system contain advanced algorithms that come
+from many different fields of computer science (graph algorithms, numerics,
+scheduling algorithms, ...), operating on variables that may have billions
+of values. This is in contrast with SAT solving, where there is just a
+single propagation rule over the simplest possible variable that needs to be
+explained, and the propagation rule is in itself very simple.
+
+What one could do without re-implementing all propagators is to simply
+record all variables state before and after a propagator runs, and use that
+as an explanation. Such a recording would in most cases be huge (making
+anything but the simplest possible problem infeasible), and also would most
+likely not be very useful. It simply doesn't say anything useful: it is very
+common for many propagators to cover a large portion of the variables, and
+many times not all the variables are relevant to the results. Also, it would
+not suffice to just look at the most recently modified variables when a
+propagator is run, the propagation performed might depend on all the
+variables.
+
+As a practical note, adding the kind of bookkeeping that you describe would
+add quite a lot of overhead in many cases. As a comparison, simple
+propagators for constraints such as <, !=, and so on take on the order of
+ten to twenty machine instructions to execute in Gecode last time I
+checked.
+
+What is not clear to me is how you would like to use a hypothetical reason
+that you would like to extract. Maybe there is something simpler that could
+be used?
+
+Cheers,
+Mikael
+
+On Mon, Jun 20, 2011 at 10:05 AM, Max Ostrowski <ChaosAngel at gmx.de> wrote:
+
+> Sorry for reposting, i already asked this question 2 years ago, but now i
+> managed to read more of the manual and my questions will be more refined.
+>
+> For each constraint that i post, i want to find out which variables are
+> propagated by the corresponding propagator.
+> Also the ordering would be interesting. I need this to build an SMT like
+> System, to generate a "reason" why a certain reified constraint became
+> true/false.
+>
+> So can i somehow "watch" the propagate function, testing if the subscribed
+> variables are pruned?
+>
+> I first thought of "copying" the post functions of Gecode and implementing
+> a "wrapper" propagator that wraps around the functions.
+> But i think this will not do the work, as propagators can be disposed and
+> replaced at runtime, right ?
+>
+>
+> Do you have any other idea how i can find out which constraint is
+> responsible for pruning the search space?
+> I want to avoid to modify Gecode, as i want to stay up to date.
+> This is also the reason why i do not simply want to copy all propagators to
+> implement BookKeeping myself.
+>
+> Best,
+> Max
+> --
+> Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+> belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110620/2dc954c1/attachment.htm>
+
+From ChaosAngel at gmx.de  Mon Jun 20 12:04:44 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 20 Jun 2011 12:04:44 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <BANLkTik9g3eyAcBDk7ebULupm3hsSuBviQ@mail.gmail.com>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz> <20110620080512.48410@gmx.net>
+	<BANLkTik9g3eyAcBDk7ebULupm3hsSuBviQ@mail.gmail.com>
+Message-ID: <20110620100444.48430@gmx.net>
+
+At first, thanks for the answer.
+
+> First of all, just as was the case two years ago, nobody knows how to do
+> explanations for general propagators. The most interesting system for
+> doing
+> explanations in a CP-like system at the moment is the lazy clause
+> generation
+> research being done in the G12 project, where propagation is represented
+> as
+> a SAT problem. This requires a completely different system and propagator
+> implementation though.
+This shouldn't be a problem as it is an SMT system and therefore i will do lazy-clause generation. So i just need the reason for the whole (reified) constraint, not the single csp variables.
+
+
+> Remember, propagators in a CP system contain advanced algorithms that come
+> from many different fields of computer science (graph algorithms,
+> numerics,
+> scheduling algorithms, ...), operating on variables that may have billions
+> of values. This is in contrast with SAT solving, where there is just a
+> single propagation rule over the simplest possible variable that needs to
+> be
+> explained, and the propagation rule is in itself very simple.
+> 
+> What one could do without re-implementing all propagators is to simply
+> record all variables state before and after a propagator runs, and use
+> that
+> as an explanation. Such a recording would in most cases be huge (making
+> anything but the simplest possible problem infeasible), and also would
+> most
+> likely not be very useful.
+The size in terms of memory isn't that big problem, but the size of the reason (as you have to add all constraints to the reason that have a pruned variable in it).
+This is why i wanted to add the ordering, which means that a reified constraint that becomes true/false only depends on the changed constraints that propagated before.
+
+ It simply doesn't say anything useful: it is
+> very
+> common for many propagators to cover a large portion of the variables, and
+> many times not all the variables are relevant to the results. Also, it
+> would
+> not suffice to just look at the most recently modified variables when a
+> propagator is run, the propagation performed might depend on all the
+> variables.
+That's right.
+
+> 
+> As a practical note, adding the kind of bookkeeping that you describe
+> would
+> add quite a lot of overhead in many cases. As a comparison, simple
+> propagators for constraints such as <, !=, and so on take on the order of
+> ten to twenty machine instructions to execute in Gecode last time I
+> checked.
+> 
+> What is not clear to me is how you would like to use a hypothetical reason
+> that you would like to extract. Maybe there is something simpler that
+> could
+> be used?
+
+I'm building a SMT like system (with ASP instead of SAT, but just consider it to be a SAT system).
+So i have proposition variables for the reified constraints. Each constraint is either true or false.
+This is why i would like to add a reason, why a constraint became false.
+With this reason i can add a new Boolean constraint to my SAT solver which then saves propagation in gecode, as it can already decide whether a certain constraint is true/false.
+I think there was once a work implementing learning in Gecode, i will contact the author to find out what he did. (But i suppose that he extended Gecode or did wrote own propagators, which i want to avoid).
+
+Best,
+Max
+
+
+> 
+> Cheers,
+> Mikael
+> 
+> On Mon, Jun 20, 2011 at 10:05 AM, Max Ostrowski <ChaosAngel at gmx.de> wrote:
+> 
+> > Sorry for reposting, i already asked this question 2 years ago, but now
+> i
+> > managed to read more of the manual and my questions will be more
+> refined.
+> >
+> > For each constraint that i post, i want to find out which variables are
+> > propagated by the corresponding propagator.
+> > Also the ordering would be interesting. I need this to build an SMT like
+> > System, to generate a "reason" why a certain reified constraint became
+> > true/false.
+> >
+> > So can i somehow "watch" the propagate function, testing if the
+> subscribed
+> > variables are pruned?
+> >
+> > I first thought of "copying" the post functions of Gecode and
+> implementing
+> > a "wrapper" propagator that wraps around the functions.
+> > But i think this will not do the work, as propagators can be disposed
+> and
+> > replaced at runtime, right ?
+> >
+> >
+> > Do you have any other idea how i can find out which constraint is
+> > responsible for pruning the search space?
+> > I want to avoid to modify Gecode, as i want to stay up to date.
+> > This is also the reason why i do not simply want to copy all propagators
+> to
+> > implement BookKeeping myself.
+> >
+> > Best,
+> > Max
+> > --
+> > Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+> > belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+> 
+> 
+> 
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+-- 
+NEU: FreePhone - kostenlos mobil telefonieren!			
+Jetzt informieren: http://www.gmx.net/de/go/freephone
+
+
+From tack at gecode.org  Mon Jun 20 13:31:53 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 20 Jun 2011 13:31:53 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <20110620100444.48430@gmx.net>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz> <20110620080512.48410@gmx.net>
+	<BANLkTik9g3eyAcBDk7ebULupm3hsSuBviQ@mail.gmail.com>
+	<20110620100444.48430@gmx.net>
+Message-ID: <06FCFCD9-1E04-4E57-A33F-38AE67F2D8E0@gecode.org>
+
+On 20 Jun 2011, at 12:04, Max Ostrowski wrote:
+
+> I think there was once a work implementing learning in Gecode, i will contact the author to find out what he did. (But i suppose that he extended Gecode or did wrote own propagators, which i want to avoid).
+
+Raphael Reischuk and I worked on SAT-style conflict clause learning in Gecode for Raphael's Bachelor thesis:
+http://www.infsec.cs.uni-saarland.de/~reischuk/publications/pdfs/Reischuk08-Reconciling.pdf
+
+But this involved quite some modifications of the Gecode kernel.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From ChaosAngel at gmx.de  Mon Jun 20 16:11:44 2011
+From: ChaosAngel at gmx.de (Max Ostrowski)
+Date: Mon, 20 Jun 2011 16:11:44 +0200
+Subject: [gecode-users] Watching Propagators
+In-Reply-To: <06FCFCD9-1E04-4E57-A33F-38AE67F2D8E0@gecode.org>
+References: <4DF8D0AF.2040800@fel.cvut.cz>
+	<EE33CAE2-C3F5-44D4-81F9-D2CE006751E9@gecode.org>
+	<4DFA3424.8080606@fel.cvut.cz> <20110620080512.48410@gmx.net>
+	<BANLkTik9g3eyAcBDk7ebULupm3hsSuBviQ@mail.gmail.com>
+	<20110620100444.48430@gmx.net>
+	<06FCFCD9-1E04-4E57-A33F-38AE67F2D8E0@gecode.org>
+Message-ID: <20110620141144.48420@gmx.net>
+
+Thanks a lot for the paper.
+I was not used to think in "non-trailing" systems, as i use a SAT-like solver.
+But different to the approach from the paper i do not want to optimize search in Gecode.
+So it would be enough to restrict myself to the propagation phase (Space->status()).
+
+In my SAT system i added the CSP propagation to my unit-propagation.
+So i do not do search (not here) with Gecode.
+In my old implementation i checked which variables have changed after calling status(). All constraints that have these variables involved might have propagated something. The problem is, that i do not know the order of propagation.
+Given that i decided (in my SAT solver) a reified constraint "A" is true and afterwards i call Gecode propagation. Another reified constraint "B" is made false by Gecode (just through propagation).
+The reason for this might be "A", but also all other constraints that might got involved and whose domains have changed.
+Given the order of propagation i could simply reduce the number of constraints that are the reason for constraint "B".
+
+So, the problem doesn't consider search in Gecode, as i only start to search after i have a full propositional assignment.
+
+Thanks a lot,
+Max Ostrowski
+
+
+-------- Original-Nachricht --------
+> Datum: Mon, 20 Jun 2011 13:31:53 +0200
+> Von: Guido Tack <tack at gecode.org>
+> An: Max Ostrowski <ChaosAngel at gmx.de>
+> CC: Mikael Zayenz Lagerkvist <zayenz at gmail.com>, users at gecode.org
+> Betreff: Re: [gecode-users] Watching Propagators
+
+> On 20 Jun 2011, at 12:04, Max Ostrowski wrote:
+> 
+> > I think there was once a work implementing learning in Gecode, i will
+> contact the author to find out what he did. (But i suppose that he extended
+> Gecode or did wrote own propagators, which i want to avoid).
+> 
+> Raphael Reischuk and I worked on SAT-style conflict clause learning in
+> Gecode for Raphael's Bachelor thesis:
+> http://www.infsec.cs.uni-saarland.de/~reischuk/publications/pdfs/Reischuk08-Reconciling.pdf
+> 
+> But this involved quite some modifications of the Gecode kernel.
+> 
+> Cheers,
+> Guido
+> 
+> -- 
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+> 
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Empfehlen Sie GMX DSL Ihren Freunden und Bekannten und wir
+belohnen Sie mit bis zu 50,- Euro! https://freundschaftswerbung.gmx.de
+
+
+From infuehr at ads.tuwien.ac.at  Tue Jun 21 13:51:41 2011
+From: infuehr at ads.tuwien.ac.at (=?ISO-8859-1?Q?Johannes_Inf=FChr?=)
+Date: Tue, 21 Jun 2011 13:51:41 +0200
+Subject: [gecode-users] Channeling between SetVarArrays
+Message-ID: <4E0085CD.2050305@ads.tuwien.ac.at>
+
+Hi!
+
+Is it possible in Gecode to channel two SetVarArrays A and B, so that 
+when A[3] contains 5, B[5] contains 3?
+
+Kind regards
+
+
+From tack at gecode.org  Tue Jun 21 14:19:14 2011
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 21 Jun 2011 14:19:14 +0200
+Subject: [gecode-users] Channeling between SetVarArrays
+In-Reply-To: <4E0085CD.2050305@ads.tuwien.ac.at>
+References: <4E0085CD.2050305@ads.tuwien.ac.at>
+Message-ID: <871AADD1-95DD-40F5-8DA6-BFEEBEA10837@gecode.org>
+
+On 21 Jun 2011, at 13:51, Johannes Inf?hr wrote:
+> Is it possible in Gecode to channel two SetVarArrays A and B, so that when A[3] contains 5, B[5] contains 3?
+
+There is no specialized propagator for this, but you can implement a decomposition using element intersection constraints:
+
+    for (int i=0; i<A.size(); i++) {
+      SetVar z0(*this, i,i, Set::Limits::min, Set::Limits::max);
+      element(*this, SOT_INTER, B, A[i], z0);
+    }
+
+This propagates that the intersection of all B[j] for j in A[i] is z0, which contains at least i.
+
+Note that the reverse implication is not propagated: if A[3] does not contain 5, then B[5] can still contain 3.  You can add
+      SetVar z1(*this, i,i, Set::Limits::min, Set::Limits::max);
+      element(*this, SOT_INTER, A, B[i], z1);
+inside the loop to get both directions.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From aribi_noureddine at yahoo.fr  Mon Jun 27 12:45:00 2011
+From: aribi_noureddine at yahoo.fr (Aribi Noureddine)
+Date: Mon, 27 Jun 2011 11:45:00 +0100 (BST)
+Subject: [gecode-users] recognize regular subexpressions
+Message-ID: <1309171500.27768.YahooMailNeo@web29502.mail.ird.yahoo.com>
+
+Hi,
+Can someone tell me
+how to?recognize regular sub expressions? (using regular constraint)
+For example, searching for a*b in?a*bc*
+Thank you in advance,
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110627/b31eacac/attachment.htm>
+
+From cschulte at kth.se  Mon Jun 27 13:11:48 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 27 Jun 2011 13:11:48 +0200
+Subject: [gecode-users] recognize regular subexpressions
+In-Reply-To: <1309171500.27768.YahooMailNeo@web29502.mail.ird.yahoo.com>
+References: <1309171500.27768.YahooMailNeo@web29502.mail.ird.yahoo.com>
+Message-ID: <001b01cc34bb$03560700$0a021500$@kth.se>
+
+Hi,
+
+ 
+
+Sorry but I do not understand the question. Could you please elaborate?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Aribi Noureddine
+Sent: Monday, June 27, 2011 12:45 PM
+To: users at gecode.org
+Subject: [gecode-users] recognize regular subexpressions
+
+ 
+
+Hi,
+
+Can someone tell me how to recognize regular sub expressions? (using regular
+constraint)
+
+For example, searching for a*b in a*bc*
+
+Thank you in advance,
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110627/4fc64462/attachment.htm>
+
+From cschulte at kth.se  Mon Jun 27 13:58:28 2011
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 27 Jun 2011 13:58:28 +0200
+Subject: [gecode-users] recognize regular subexpressions
+In-Reply-To: <1309175166.73366.YahooMailNeo@web29505.mail.ird.yahoo.com>
+References: <1309171500.27768.YahooMailNeo@web29502.mail.ird.yahoo.com>
+	<001b01cc34bb$03560700$0a021500$@kth.se>
+	<1309175166.73366.YahooMailNeo@web29505.mail.ird.yahoo.com>
+Message-ID: <004a01cc34c1$8840eab0$98c2c010$@kth.se>
+
+This has nothing to do with the regular constraint.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: Aribi Noureddine [mailto:aribi_noureddine at yahoo.fr] 
+Sent: Monday, June 27, 2011 1:46 PM
+To: cschulte at kth.se
+Subject: Re : [gecode-users] recognize regular subexpressions
+
+ 
+
+Well,
+
+Suppose that we have some words to recognize: {aaabcc,aaab,aaabc,aaabb,...}.
+So, what I am searching for is a DFA that can recognize the sub expression
+"aaab" and "ignores" the remaining letters.
+
+Thank you.
+
+ 
+
+ 
+
+  _____  
+
+De : Christian Schulte <cschulte at kth.se>
+? : 'Aribi Noureddine' <aribi_noureddine at yahoo.fr>; users at gecode.org
+Envoy? le : Lundi 27 Juin 2011 13h11
+Objet : RE: [gecode-users] recognize regular subexpressions
+
+Hi,
+
+ 
+
+Sorry but I do not understand the question. Could you please elaborate?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Aribi Noureddine
+Sent: Monday, June 27, 2011 12:45 PM
+To: users at gecode.org
+Subject: [gecode-users] recognize regular subexpressions
+
+ 
+
+Hi,
+
+Can someone tell me how to recognize regular sub expressions? (using regular
+constraint)
+
+For example, searching for a*b in a*bc*
+
+Thank you in advance,
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110627/88ade144/attachment.htm>
+
+From sarevokcc at gmail.com  Mon Jun 27 15:41:15 2011
+From: sarevokcc at gmail.com (Dongrui She)
+Date: Mon, 27 Jun 2011 15:41:15 +0200
+Subject: [gecode-users] How to specify a constraint of weighted sum of bool
+	variable array
+Message-ID: <BANLkTin92aWSxayGK2PSJC9eHKGxFiMKHw@mail.gmail.com>
+
+Hi All,
+
+I am new to gecode and I have a question about how to model a constraint:
+sum{a_i*b_i}
+
+where a is an integer variable array and b is a bool variable array.
+Basically I want to constrain the sum of some elements in a.
+
+It seems that I cannot directly specify such constraint. Right now what I
+can
+think of is to use channel constraint to create an integer array with the
+same
+value as b and use it to specify the constraint I want.
+
+Is this the right way to go?
+
+Thanks~
+-- 
+Regards,
+Dongrui
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20110627/785d83f8/attachment-0001.htm>
+
+From tack at gecode.org  Mon Jun 27 18:32:57 2011
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 27 Jun 2011 18:32:57 +0200
+Subject: [gecode-users] How to specify a constraint of weighted sum of
+	bool variable array
+In-Reply-To: <BANLkTin92aWSxayGK2PSJC9eHKGxFiMKHw@mail.gmail.com>
+References: <BANLkTin92aWSxayGK2PSJC9eHKGxFiMKHw@mail.gmail.com>
+Message-ID: <67084532-8800-4D9C-9A0E-D6705D9DD424@gecode.org>
+
+On 27 Jun 2011, at 15:41, Dongrui She wrote:
+
+> Hi All,
+> 
+> I am new to gecode and I have a question about how to model a constraint:
+> sum{a_i*b_i}
+> 
+> where a is an integer variable array and b is a bool variable array.
+> Basically I want to constrain the sum of some elements in a.
+> 
+> It seems that I cannot directly specify such constraint. Right now what I can
+> think of is to use channel constraint to create an integer array with the same
+> value as b and use it to specify the constraint I want.
+> 
+> Is this the right way to go?
+
+You could do that, but I suspect it would be more efficient to introduce temporary integer variables c_i such that
+b -> c_i = a_i
+and
+!b -> c_i = 0
+
+and then use the sum of the c_i.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+

@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Global cardinality slow
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Global%20cardinality%20slow&In-Reply-To=%3CA309EA82-FDE9-4D59-A17B-ED8AF65322B2%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004684.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Global cardinality slow</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Global%20cardinality%20slow&In-Reply-To=%3CA309EA82-FDE9-4D59-A17B-ED8AF65322B2%40gecode.org%3E"
+       TITLE="[gecode-users] Global cardinality slow">tack at gecode.org
+       </A><BR>
+    <I>Thu May 28 11:20:47 CEST 2015</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004684.html">[gecode-users] Global cardinality slow
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4685">[ date ]</a>
+              <a href="thread.html#4685">[ thread ]</a>
+              <a href="subject.html#4685">[ subject ]</a>
+              <a href="author.html#4685">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Pete,
+
+actually we&#8217;re running over 200 propagators in this case, because the domain consistent gcc with occurrence variables requires no variables being shared, and the sharing in magic sequence is removed by introducing auxiliary variables and posting equality propagators between them&#8230; So magic sequence is really the worst case :-(   But at least it explain the millions of propagations.
+
+The better solution is actually to use the bounds consistent propagator, which should be the default for gcc in FlatZinc (and I&#8217;ve committed a change to the svn to make it the default).  That one easily solves the problem in under 10 seconds, even on my laptop.
+
+I&#8217;ll really have to look into the domain consistent propagator at some point, it seems to have a few serious issues.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+&gt;<i> On 27 May 2015, at 11:24 pm, Peter Nightingale &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">pwn1 at st-andrews.ac.uk</A>&gt; wrote:
+</I>&gt;<i> 
+</I>&gt;<i> Hi Guido,
+</I>&gt;<i> 
+</I>&gt;<i> 1.5 million propagations to reach a fixpoint is a bit odd,  there are only 40 000 domain values and two constraints so I would have guessedthat more than 80000 propagations would be impossible
+</I>&gt;<i> 
+</I>&gt;<i> By the way I have changed Savile Row to produce ::domain annotations for alldiff and gcc by default. At least then Gecode and Minion will be doing roughly the same thing -- even if it's not a very smart thing. 
+</I>&gt;<i> 
+</I>&gt;<i> Thanks
+</I>&gt;<i> Peter
+</I>&gt;<i> 
+</I>&gt;<i> On 27/05/15 12:26, Guido Tack wrote:
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> thanks for the report, I&#8217;ve had a quick look and there seem to be some problems in the algorithm, the 10th fixpoint alone does 1.5 million propagations (so it looks like severely slow convergence), and then later every 6th fixpoint is really slow.  I&#8217;ll have to look into this some more but it does look like a bug.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> -- 
+</I>&gt;&gt;<i> Guido Tack
+</I>&gt;&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> On 26 May 2015, at 7:39 am, Peter Nightingale &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">pwn1 at st-andrews.ac.uk</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">pwn1 at st-andrews.ac.uk</A>&gt;&gt; wrote:
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Hi,
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> I'll point this out, it's not really a bug but it's something you might want to look at. The attached flatzinc solves very slowly.
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> At first I had no annotation on the global_cardinality constraint and Gecode took a very long time -- I did not run to completion. I added ::domain to that constraint and it solves in 109 seconds, 981 nodes -- so the time to reach a fixed point at each node is about 1/10th second. Minion solves the equivalent model in 492 left (assignment) branches (I guess the same node count as gecode) and just over 10 seconds -- so I  guess reaching a fixed point in 1/100 s.
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Does gecode partition the gcc constraint or just remove assigned variables? That might explain the difference with domain consistency
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Also, did the default propagation level change on gcc? I don't remember this test causing a problem previously.
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Before you tell me -- I know magic sequence is a stupid benchmark!
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;<i> Pete
+</I>&gt;&gt;&gt;<i> &lt;magicSequence.eprime.param.fzn.test0&gt;_______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A> &lt;<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>&gt;
+</I>&gt;&gt;<i> 
+</I>&gt;<i> 
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20150528/3d1c3a05/attachment.html">http://www.gecode.org/pipermail/users/attachments/20150528/3d1c3a05/attachment.html</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004684.html">[gecode-users] Global cardinality slow
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4685">[ date ]</a>
+              <a href="thread.html#4685">[ thread ]</a>
+              <a href="subject.html#4685">[ subject ]</a>
+              <a href="author.html#4685">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

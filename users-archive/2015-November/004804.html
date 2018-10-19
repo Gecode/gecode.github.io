@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Path constraint
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Path%20constraint&In-Reply-To=%3Cloom.20151125T214918-485%40post.gmane.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004803.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Path constraint</H1>
+    <B>Philippe</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Path%20constraint&In-Reply-To=%3Cloom.20151125T214918-485%40post.gmane.org%3E"
+       TITLE="[gecode-users] Path constraint">aqwzsxaqwzsx at orange.fr
+       </A><BR>
+    <I>Wed Nov 25 21:53:45 CET 2015</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004803.html">[gecode-users] Path constraint
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4804">[ date ]</a>
+              <a href="thread.html#4804">[ thread ]</a>
+              <a href="subject.html#4804">[ subject ]</a>
+              <a href="author.html#4804">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+
+This mail refers to the previous post :
+(<A HREF="http://permalink.gmane.org/gmane.comp.lib.gecode.user/4754">http://permalink.gmane.org/gmane.comp.lib.gecode.user/4754</A>) 
+Unfortunately, I can't reply to it (when i click on &quot;reply&quot; 
+I get a html page with the text &quot;No such file&quot; in it).
+
+Here is the problem : I have a adjacency matrix in which there are cycles.
+These cycles prevent the existence of a path between a start node and end
+node. (This happens for instance with the code below.) Is there a way to 
+solve this problem without the existence of the subpath constraint (since 
+not all nodes has to be visited) ? 
+
+I know the paper &quot;Explaining circuit propagation&quot; but I have neither the 
+time nor (probably) the level to code the &quot;subpath&quot; myself. 
+The problem I am facing is severe since a lot of work has already be 
+done and a milestones is now rapidly coming.
+
+
+Any help will be greatly appreciated,
+Thanks
+Philippe
+
+
+class TestPath : public Gecode::Space {
+ 
+public:
+
+      TestPath():
+        _nb_nodes(4), 
+        _end(_nb_nodes),                          // end mark
+      _Flow(*this, _nb_nodes * _nb_nodes, 0, 1),  // Square matrix
+      _s(*this, 0, _nb_nodes),                    // Domain = [0, nb_nodes]
+      _e(*this, 0, _nb_nodes)                     //
+   { 
+        int index_end   = (_nb_nodes - 2);
+        int index_start = (_nb_nodes - 1);
+        Matrix&lt;IntVarArray&gt; flow(_Flow, _nb_nodes, _nb_nodes);
+
+        // Start has necessary a successor
+       rel(*this, sum(flow.col(index_start)) == 1);
+
+        // Start has no predecessor
+       rel(*this, sum(flow.row(index_start)) == 0);
+
+        // End has no successor
+       rel(*this, sum(flow.col(index_end)) == 0);
+
+        for (int i = 0 ; i &lt; _nb_nodes ; ++i)
+        {
+            IntVar in = expr(*this, sum(flow.row(i)));
+            IntVar out = expr(*this, sum(flow.col(i)));
+
+            rel(*this, in &lt;= 1);
+            rel(*this, out &lt;= 1);
+
+              // No trivial cycle
+              rel(*this, flow(i, i) == 0);
+
+              if (i != index_end &amp;&amp; i != index_start)
+              {
+                  // Flow conservation
+                  IntVar in = expr(*this, sum(flow.row(i)));
+                  IntVar out = expr(*this, sum(flow.col(i)));
+                  rel(*this, in == out);
+              }
+        }
+        // ------------------------------------------------------------
+        // Then, some other constraints  
+        // will set the flow(i,j) to 0
+        // ------------------------------------------------------------
+
+        // ------------------------------------------------------------
+        // Anyway, that is not sufficent since we have cycle (or invalid 
+        // path),
+        // for instance
+        // Start-&gt;End  Node1&lt;-&gt;Node2
+        // -------------------------------------------------------------
+        // what we want is a path that goes from Start to End but not 
+        // necessary passing through all nodes. Is a flow sufficent ?
+        // ------------------------------------------------------------
+      branch(*this, _Flow, INT_VAR_SIZE_MIN(), INT_VAL_MAX());
+   }
+
+};
+
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004803.html">[gecode-users] Path constraint
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4804">[ date ]</a>
+              <a href="thread.html#4804">[ thread ]</a>
+              <a href="subject.html#4804">[ subject ]</a>
+              <a href="author.html#4804">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

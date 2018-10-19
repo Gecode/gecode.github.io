@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Memory problem
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Memory%20problem&In-Reply-To=%3C000301c908d8%24503860c0%24f0a92240%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001840.html">
+   <LINK REL="Next"  HREF="001841.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Memory problem</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Memory%20problem&In-Reply-To=%3C000301c908d8%24503860c0%24f0a92240%24%40se%3E"
+       TITLE="[gecode-users] Memory problem">cschulte at kth.se
+       </A><BR>
+    <I>Thu Aug 28 08:35:49 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001840.html">[gecode-users] Memory problem
+</A></li>
+        <LI>Next message: <A HREF="001841.html">[gecode-users] Memory problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1833">[ date ]</a>
+              <a href="thread.html#1833">[ thread ]</a>
+              <a href="subject.html#1833">[ subject ]</a>
+              <a href="author.html#1833">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>What is Mozart using these days (yes, ignorance is bliss)? Is it still using mmap? Maybe that could be the interaction. But as Guido said, we just use malloc and free and by replacing three lines all of Gecode will be using a different allocator. Maybe you could try to use Mozart&#8217;s allocator for Gecode as well.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Gustavo Gutierrez
+Sent: Thursday, August 28, 2008 7:44 AM
+To: Christian Schulte
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+Subject: Re: [gecode-users] Memory problem
+
+ 
+
+ 
+
+On Wed, Aug 27, 2008 at 11:10 AM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+ 
+
+ 
+
+While I fail to see the practical relevance of your example 
+
+It is not relevant as that, but it shows a problem that happens in our development of the next mozart release. As you may know we are interested in having a mozart gecode integration. Well, by doing some benchmarks we realize that memory consumption is to high for medium size problems. The idea is simple: we have a linked list of gecode spaces and the garbage collector needs to traverse it  to see which of them needs to be removed. Also, after space propagation we check whether the gecode space has resulted failed to remove it in eagerly (i.e., do not wait for a grabage collector run). 
+ 
+
+there is an experiment what you could do: you allocate the spaces in the same order as you deallocate them. Try and see what happens if you deallocate the spaces in inverse order. That is, run the deallocation loop backwards so that the space allocated last gets deleted first.
+
+ 
+
+
+After trying the same problem occurs. Is there a way to instrument gecode to use a different allocator for memory?, i mean, something similar to STL in which many of the data structures provided take an optional allocator template parameter.
+ 
+Regards,
+Gustavo
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Gustavo Gutierrez
+Sent: Wednesday, August 27, 2008 10:56 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+Subject: [gecode-users] Memory problem
+
+ 
+
+Hi All,
+
+Some time ago someone reported an strange memory behavior in mac os x on the gecode list. I do not know whether it was fixed but i think it still remains in the current implementation. The problem apparently happens only in mac os x. You can get it by replacing the main function of the queens example to this one:
+
+int
+main(int argc, char* argv[]) {
+  
+  SizeOptions opt(&quot;Queens&quot;);
+  opt.iterations(500);
+  opt.size(100);
+  opt.propagation(Queens::PROP_
+
+DISTINCT);
+  opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+                      &quot;only binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+                      &quot;single distinct and binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+                      &quot;three distinct constraints&quot;);
+  opt.parse(argc,argv);
+  /*
+  Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+  */
+  std::vector&lt;Queens*&gt; q;
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    q.push_back(new Queens(opt));
+  }
+  std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    Queens *tmp = q[i];
+    delete tmp;
+    q.pop_back();
+  }
+  std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+
+  int a;
+  std::cin &gt;&gt; a;
+  return 0;
+}
+
+The idea is to create a lot of spaces and to keep pointer to them in an array. After the creation all spaces are deleted. The expected behavior is to release all the memory allocated in the first loop and to have it available by the operating system. I tried in a mac os x running leopard and the memory seems to be still used by the process (according to Activity Monitor). In a linux machine the memory seems to be released according to top.
+
+Another thing is that when using the gecode trunk to try the same problem, the de-allocation behaves better, that is, half of the memory is released but still some memory is kept by the process.
+
+Do you have any suggestion on how to work around this?
+
+
+Regards,
+-- 
+Gustavo Gutierrez
+
+
+
+
+-- 
+Gustavo Gutierrez
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/7d4e7edb/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/7d4e7edb/attachment.htm</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001840.html">[gecode-users] Memory problem
+</A></li>
+	<LI>Next message: <A HREF="001841.html">[gecode-users] Memory problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1833">[ date ]</a>
+              <a href="thread.html#1833">[ thread ]</a>
+              <a href="subject.html#1833">[ subject ]</a>
+              <a href="author.html#1833">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

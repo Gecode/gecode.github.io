@@ -1,0 +1,325 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Remapping of BoolVar propagation conditions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Remapping%20of%20BoolVar%20propagation%20conditions&In-Reply-To=%3CB8B85CA0-D2B4-45A2-A34D-A9E81BB37D24%40univ-angers.fr%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002749.html">
+   <LINK REL="Next"  HREF="002751.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Remapping of BoolVar propagation conditions</H1>
+    <B>Vincent Barichard</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Remapping%20of%20BoolVar%20propagation%20conditions&In-Reply-To=%3CB8B85CA0-D2B4-45A2-A34D-A9E81BB37D24%40univ-angers.fr%3E"
+       TITLE="[gecode-users] Remapping of BoolVar propagation conditions">Vincent.Barichard at univ-angers.fr
+       </A><BR>
+    <I>Wed Dec  2 14:45:08 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002749.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+        <LI>Next message: <A HREF="002751.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2750">[ date ]</a>
+              <a href="thread.html#2750">[ thread ]</a>
+              <a href="subject.html#2750">[ subject ]</a>
+              <a href="author.html#2750">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Ok, if I understood all answers, the remapping is only meaningful for  
+propagators which use boolean variables and integer variables. As they  
+can't distinguish boolean variables from integer ones, the propagation  
+conditions are remapped in the first case.
+
+If the propagators might distinguish boolean variables from integer  
+variables, and use the correct propagation condition in each case, the  
+remapped will be useless.
+
+If I modify the ViewVarImpTraits and the constructors of propagators  
+in the following way, will all existing propagators of Gecode work as  
+usual ? In that case I will be able to add a new PC_BOOL_SAME  
+condition without breaking anything.
+
+In gecode/int/view.hpp, I change all ViewVarImpTraits classes:
+
+Those which are over booleans,
+
+   template&lt;&gt;
+   class ViewVarImpTraits&lt;Int::IntView&gt; {
+   public:
+     /// The variable type of an IntView
+     typedef Int::IntVarImp VarImp;
+     static const bool isBool = false;
+   };
+
+Those which deal with booleans,
+
+   template&lt;&gt;
+   class ViewVarImpTraits&lt;Int::BoolView&gt; {
+   public:
+     /// The variable type of a BoolView
+     typedef Int::BoolVarImp VarImp;
+     static const bool isBool = true;
+   };
+
+
+and in propagator constructors (for example in gecode/int/element/ 
+int.hpp) replace calls to :
+
+x0.subscribe(home,*this,PC_INT_DOM);
+
+by
+
+x0.subscribe(home,*this,(Gecode::ViewVarImpTraits&lt;V0&gt;::isBool)? 
+PC_BOOL_VAL:PC_INT_DOM);
+
+After, in the file gecode/int/var-imp/bool.hpp :
+
+   forceinline void
+   BoolVarImp::subscribe(Space&amp; home, Propagator&amp; p, PropCond,
+                         bool process) {
+     // Subscription can be used with integer propagation conditions,
+     // which must be remapped to the single Boolean propagation  
+condition.
+     BoolVarImpBase::subscribe(home,p,PC_BOOL_VAL,assigned(),process);
+   }
+
+can be replaced by
+
+   forceinline void
+   BoolVarImp::subscribe(Space&amp; home, Propagator&amp; p, PropCond pc,
+                         bool process) {
+     BoolVarImpBase::subscribe(home,p,pc,assigned(),process);
+   }
+
+(the same for the cancel member function)
+
+and everything should work as usual.
+Am I right ?
+
+Cheers,
+Vincent
+
+
+Le 1 d&#233;c. 09 &#224; 19:26, Christian Schulte a &#233;crit :
+
+&gt;<i> Actually, what Guido and me tried to say is the following:  
+</I>&gt;<i> conceptually,
+</I>&gt;<i> Gecode should have two Boolean views, say BoolView and  
+</I>&gt;<i> BoolAsAnIntView. The
+</I>&gt;<i> former does not need rewriting and most propagators using Boolean  
+</I>&gt;<i> views
+</I>&gt;<i> should use this one. The latter must use rewriting to map integer
+</I>&gt;<i> propagation conditions to the single supported Boolean propagation
+</I>&gt;<i> condition.
+</I>&gt;<i>
+</I>&gt;<i> Then there are integer propagators which we also want to use on  
+</I>&gt;<i> Boolean
+</I>&gt;<i> views (these are few: the extensional ones, including element and  
+</I>&gt;<i> sequence).
+</I>&gt;<i> These propagators should use BoolAsAnIntView including rewriting.  
+</I>&gt;<i> All other
+</I>&gt;<i> - true Boolean propagators should use the real BoolView.
+</I>&gt;<i>
+</I>&gt;<i> So what you might want to do is to have these two different views,  
+</I>&gt;<i> one with
+</I>&gt;<i> and one without rewriting! Everything will work just fine.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Vincent Barichard [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">Vincent.Barichard at univ-angers.fr</A>]
+</I>&gt;<i> Sent: Tuesday, December 01, 2009 6:22 PM
+</I>&gt;<i> To: Guido Tack
+</I>&gt;<i> Cc: Christian Schulte; 'gecode list'
+</I>&gt;<i> Subject: Re: [gecode-users] Remapping of BoolVar propagation  
+</I>&gt;<i> conditions
+</I>&gt;<i>
+</I>&gt;<i> Hi Guido,
+</I>&gt;<i>
+</I>&gt;<i> That was my first thought. But I didn't understand why this remapping
+</I>&gt;<i> was there. Christian said in a previous mail that removing the mapping
+</I>&gt;<i> will break all propagators that are used for integer as well as for
+</I>&gt;<i> boolean variables! If I pass the pc unchanged, will it break something
+</I>&gt;<i> in Gecode ? I don't want to break something, I would like to add
+</I>&gt;<i> safely my piece of code.
+</I>&gt;<i>
+</I>&gt;<i> If removing it doesn't break anything, will this mapping be still
+</I>&gt;<i> there in the future versions ?
+</I>&gt;<i>
+</I>&gt;<i> Thank you again, I really appreciate the time you spent to answer my
+</I>&gt;<i> questions :)
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Vincent
+</I>&gt;<i>
+</I>&gt;<i> Le 1 d&#233;c. 09 &#224; 16:30, Guido Tack a &#233;crit :
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi Vincent,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> the rewriting is currently done in int/var-imp/bool.hpp.  Just
+</I>&gt;&gt;<i> remove the rewriting there and pass the pc unchanged, add rewriting
+</I>&gt;&gt;<i> to all the normal Gecode BoolView classes, and then add your own
+</I>&gt;&gt;<i> BoolView class that doesn't rewrite.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> 	Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Vincent Barichard wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Dear Christian,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thank you very much for your mail. I'm sorry, I don't understand
+</I>&gt;&gt;&gt;<i> your answer. Why having other BoolView classes will
+</I>&gt;&gt;&gt;<i> help me ? I added member functions in the BoolViews classes. I
+</I>&gt;&gt;&gt;<i> didn't change the existing ones,
+</I>&gt;&gt;&gt;<i> I only added member functions which notify the ME_BOOL_SAME event.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> In my own propagator (let's call it M) I call the recently added
+</I>&gt;&gt;&gt;<i> functions in the BoolViews. So the ME_BOOL_SAME
+</I>&gt;&gt;&gt;<i> event is sent.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I also modified one propagator of Gecode (let's call it P') and
+</I>&gt;&gt;&gt;<i> make it subscribe to the PC_BOOL_SAME propagation condition (I only
+</I>&gt;&gt;&gt;<i> added &quot;x1.subscribe(home, *this, PC_BOOL_SAME)&quot; in constructor).
+</I>&gt;&gt;&gt;<i> In the &quot;propagate&quot; function of P' I added instructions which are
+</I>&gt;&gt;&gt;<i> only relevant if a ME_BOOL_SAME event has been sent before.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> So when M is woke up (because it subscribe to PC_BOOL_VAL
+</I>&gt;&gt;&gt;<i> propagation condition) it may call the new member functions in the
+</I>&gt;&gt;&gt;<i> BoolViews classes which sent the ME_BOOL_SAME event. I would like
+</I>&gt;&gt;&gt;<i> that propagators which subscribe to the PC_BOOL_SAME propagation
+</I>&gt;&gt;&gt;<i> condition and only these ones, be scheduled to wake up (for example
+</I>&gt;&gt;&gt;<i> P' will be scheduled if it shares a variable with M). As no
+</I>&gt;&gt;&gt;<i> assignment has been made by the M propagator, I don't want that
+</I>&gt;&gt;&gt;<i> other propagators wake up except if a ME_BOOL_VAL event has been
+</I>&gt;&gt;&gt;<i> sent from elsewhere.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Unfortunately, as all propagation condition subscribings for
+</I>&gt;&gt;&gt;<i> Boleans variables are remapped to PC_BOOL_VAL, P' will not awake if
+</I>&gt;&gt;&gt;<i> a ME_BOOL_SAME event is sent.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> May have I another choice but to use the ME_BOOL_VAL event instead
+</I>&gt;&gt;&gt;<i> of ME_BOOL_SAME in my new member functions of the BoolView
+</I>&gt;&gt;&gt;<i> classes ? As a result, all propagators will be awaken even if they
+</I>&gt;&gt;&gt;<i> can't propagate removal, indeed no assignment has been made.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Don't hesitate to ask me if I'm not clear enough.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;<i> Vincent
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Le 30 nov. 09 &#224; 16:35, Christian Schulte a &#233;crit :
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Actually what you have to do is the following: you define two
+</I>&gt;&gt;&gt;&gt;<i> classes for
+</I>&gt;&gt;&gt;&gt;<i> Boolean views, one that rewrites its propagation conditions and
+</I>&gt;&gt;&gt;&gt;<i> the other
+</I>&gt;&gt;&gt;&gt;<i> one that does not. Then your propagators can use the views without
+</I>&gt;&gt;&gt;&gt;<i> rewriting
+</I>&gt;&gt;&gt;&gt;<i> while the other propagators can use the variables with rewriting.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Christian
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]
+</I>&gt;&gt;&gt;&gt;<i> On Behalf
+</I>&gt;&gt;&gt;&gt;<i> Of Vincent Barichard
+</I>&gt;&gt;&gt;&gt;<i> Sent: Monday, November 30, 2009 9:33 AM
+</I>&gt;&gt;&gt;&gt;<i> To: Christian Schulte
+</I>&gt;&gt;&gt;&gt;<i> Cc: 'Guido Tack'; 'gecode list'
+</I>&gt;&gt;&gt;&gt;<i> Subject: Re: [gecode-users] Remapping of BoolVar propagation
+</I>&gt;&gt;&gt;&gt;<i> conditions
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hi,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Thank you both for your answers. As I don't want to break all
+</I>&gt;&gt;&gt;&gt;<i> propagators
+</I>&gt;&gt;&gt;&gt;<i> that are used for integer as well as boolean variables, I see no
+</I>&gt;&gt;&gt;&gt;<i> choice but
+</I>&gt;&gt;&gt;&gt;<i> to use PC_BOOL_VAL.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Maybe one of you may see another way ? I make new functions on
+</I>&gt;&gt;&gt;&gt;<i> Boolean
+</I>&gt;&gt;&gt;&gt;<i> variables (and associated views) which don't set domain to 1 or 0
+</I>&gt;&gt;&gt;&gt;<i> (I copied
+</I>&gt;&gt;&gt;&gt;<i> &quot;ModEvent  BoolVarImp::one_none(Space&amp; home)&quot; and removed the
+</I>&gt;&gt;&gt;&gt;<i> unwanted
+</I>&gt;&gt;&gt;&gt;<i> instructions). These functions notify new events (called
+</I>&gt;&gt;&gt;&gt;<i> ME_BOOL_SAME in
+</I>&gt;&gt;&gt;&gt;<i> bool.vis file (see attached file)). I mapped this new event to the
+</I>&gt;&gt;&gt;&gt;<i> PC_BOOL_SAME propagation condition.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Now I change an existing propagator (like the &quot;Or&quot; propagator),
+</I>&gt;&gt;&gt;&gt;<i> and I want
+</I>&gt;&gt;&gt;&gt;<i> it to be awaken when ME_BOOL_SAME is emitted. As the variable is
+</I>&gt;&gt;&gt;&gt;<i> not yet
+</I>&gt;&gt;&gt;&gt;<i> assigned, I didn't want to emit the ME_BOOL_VAL event because I
+</I>&gt;&gt;&gt;&gt;<i> didn't want
+</I>&gt;&gt;&gt;&gt;<i> to wake up propagators which only subscribed to the PC_BOOL_VAL
+</I>&gt;&gt;&gt;&gt;<i> condition.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> So during propagation, I call my new functions on Boolean
+</I>&gt;&gt;&gt;&gt;<i> variables, the
+</I>&gt;&gt;&gt;&gt;<i> ME_BOOL_SAME event is sent and propagators which subscribe to the
+</I>&gt;&gt;&gt;&gt;<i> PC_BOOL_SAME condition are wake up. Other propagators are not
+</I>&gt;&gt;&gt;&gt;<i> awaken (except
+</I>&gt;&gt;&gt;&gt;<i> if a ME_BOOL_VAL event has also been sent). Is it possible ?
+</I>&gt;&gt;&gt;&gt;<i> Should I use ME_BOOL_VAL ? If I use ME_BOOL_VAL other propagators
+</I>&gt;&gt;&gt;&gt;<i> will be
+</I>&gt;&gt;&gt;&gt;<i> awaken for nothing.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Thanks for your help.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;&gt;<i> Vincent
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Vincent Barichard         Universit&#233; d'Angers (LERIA)
+</I>&gt;&gt;&gt;<i> Tel: 02 41 73 52 06      D&#233;partement Informatique
+</I>&gt;&gt;&gt;<i> Fax: 02 41 73 50 73     H203
+</I>&gt;&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Vincent Barichard         Universit&#233; d'Angers (LERIA)
+</I>&gt;<i> Tel: 02 41 73 52 06      D&#233;partement Informatique
+</I>&gt;<i> Fax: 02 41 73 50 73     H203
+</I>&gt;<i>
+</I>
+Vincent Barichard         Universit&#233; d'Angers (LERIA)
+Tel: 02 41 73 52 06      D&#233;partement Informatique
+Fax: 02 41 73 50 73     H203
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002749.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+	<LI>Next message: <A HREF="002751.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2750">[ date ]</a>
+              <a href="thread.html#2750">[ thread ]</a>
+              <a href="subject.html#2750">[ subject ]</a>
+              <a href="author.html#2750">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

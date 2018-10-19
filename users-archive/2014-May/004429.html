@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Gecode terminates on incomplete solution
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20terminates%20on%20incomplete%20solution&In-Reply-To=%3CF4D15DDB-EFF6-4136-BD4B-20A9190731E6%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004428.html">
+   <LINK REL="Next"  HREF="004430.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Gecode terminates on incomplete solution</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20terminates%20on%20incomplete%20solution&In-Reply-To=%3CF4D15DDB-EFF6-4136-BD4B-20A9190731E6%40gecode.org%3E"
+       TITLE="[gecode-users] Gecode terminates on incomplete solution">tack at gecode.org
+       </A><BR>
+    <I>Sun May 18 18:45:47 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004428.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+        <LI>Next message: <A HREF="004430.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4429">[ date ]</a>
+              <a href="thread.html#4429">[ thread ]</a>
+              <a href="subject.html#4429">[ subject ]</a>
+              <a href="author.html#4429">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+you get unassigned variables in the output because you don't copy them properly in the copy constructor.  Please read the corresponding section in MPG (or look at the examples): you need to store your variables in a BoolVarArray and then use its update method in the copy constructor.
+
+Regarding the more general problem, the search heuristic may have a huge impact on whether Gecode (or any solver) can find a solution quickly or not at all.  You could analyse the search tree for a long running instance using Gist.  That way you can see why the search fails often, and whether perhaps adding redundant constraints would add enough propagation to speed up the search.
+
+The linear constraints on BoolVars are quite specialised so using them should be fine.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+On 18 May 2014, at 5:38 pm, Philipp Keck &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">philipp.keck at gmx.de</A>&gt; wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> I am new to Gecode and also to Constraint Programming. While my first problem may be a general CP question (so off-topic here? In that case ignore it please.), my second problem is Gecode-specific.
+</I>&gt;<i> 
+</I>&gt;<i> My first problem is that Gecode either finds a solution immediately (&lt;1ms) and without any backtracking (peak-depth equals explored nodes-1), or takes longer than I want to wait (at least 2 hours). This problem might be related to my problem instances, because or-tools shows exactly the same behaviour. My problem instances have 1,000 to 10,000 boolean variables and 400 to 2,500 constraints. There are both large and small instances that can be solved within milliseconds, and both large and small instances that take a long time. For those that take more than 2 hours, I still am sure that there is a solution, because Gurobi finds one when I formulate the same problem as an LP.
+</I>&gt;<i> How could I improve the running time of Gecode here? Does adding more constraints make finding (any feasible) solution faster (because the search space is more restricted and therefore the search tree is smaller) or slower (because there are simply less solutions)? Should I add redundant constraints?
+</I>&gt;<i> 
+</I>&gt;<i> For a set of boolean variables, if I want at most one of them to be 1, is it better to add &quot;a+b+c+... &lt;= 1&quot; using a linear-Constraint, or should I use &quot;a!=b&quot;, &quot;a!=c&quot;, &quot;b!=c&quot;, ... instead? Unfortunately I have difficulties finding out the answers by experimenting because Gecode runs for such long times. Is there a way to get some output during the computation?
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> My second problem is a weird behaviour of Gecode terminating with some variables remaining unassigned:
+</I>&gt;<i> My models have the following structure: I have boolean variables only and two kinds of constraints. The first kind of constraints requires exactly c variables out of a certain subset to be 1, e.g. &quot;a+c+d+x+y = 3&quot; or &quot;a+b = 1&quot;. The second kind allows at most one variable to be 1, e.g. &quot;a+b+r &lt;= 1&quot;. That's all.
+</I>&gt;<i> As mentioned above, Gecode either terminates immediately, or takes a very long time. However, I have a particular problem instances that makes Gecode terminate and report &quot;solutions: 1&quot; without having all the variables set. So there are variables that still have [0..1] instead of a specific value and val() throws ValOfUnassignedVar. Why does Gecode terminate before it has a solution?
+</I>&gt;<i> I call it like this:
+</I>&gt;<i> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN());
+</I>&gt;<i> Using this call on the other hand makes Gecode compute forever (i.e. more than 2 hours):
+</I>&gt;<i> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd), INT_VAL_RND(someOtherRnd));
+</I>&gt;<i> 
+</I>&gt;<i> The problem might be related to how I implemented the copy function. I have my variables inside a std::map&lt;std::string, BoolVar&gt; *and* inside a BoolVarArgs and clone them like this:
+</I>&gt;<i> variablesMap = s.variablesMap;
+</I>&gt;<i> allVariablesArgs = BoolVarArgs(s.allVariablesArgs);
+</I>&gt;<i> I don't know if that's the correct way to go. In particular, my copy implementation never uses the share-parameter.
+</I>&gt;<i> After reading the thread &quot;Integer Variable Randomization&quot; on this mailing list, I also tried setting -c-d and -a-d to high values, but still the copy-method was called many times.
+</I>&gt;<i> 
+</I>&gt;<i> Thank you for any help!
+</I>&gt;<i> Philipp
+</I>&gt;<i> 
+</I>&gt;<i> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140518/6cdd8265/attachment.html">http://www.gecode.org/pipermail/users/attachments/20140518/6cdd8265/attachment.html</A>&gt;
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004428.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+	<LI>Next message: <A HREF="004430.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4429">[ date ]</a>
+              <a href="thread.html#4429">[ thread ]</a>
+              <a href="subject.html#4429">[ subject ]</a>
+              <a href="author.html#4429">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

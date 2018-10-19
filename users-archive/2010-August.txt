@@ -1,0 +1,2898 @@
+From gutierrez.gustavo at uclouvain.be  Mon Aug  2 17:21:11 2010
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Mon, 2 Aug 2010 17:21:11 +0200
+Subject: [gecode-users] IntSet question
+Message-ID: <AANLkTimRfTei+K95MonwG+eZXAS-QHydTYXvObKK7r3X@mail.gmail.com>
+
+Hello,
+
+Probably what I am going to ask is not useful or is just to much particular
+to my case that does not worth have it, however, I wouldn't hesitate to ask
+:).
+
+While writing a propagator I realized that keeping some state in it will
+lower the complexity. This propagator is on a finite set variable and what I
+does is to track "the new elements in the glb" and propagate according with
+its semantics. At the beginning to I was using an std::set to keep the "old
+values" and using it to compute the new elements:
+
+new elements = current glb \  old values
+
+The propagator was performing well but the memory consumption and the time
+to compute the intersection was quite high. After realizing that I start
+using an IntSet instead of a std::set to keep the data. The advantage is
+that the IntSet stores ranges and then is *hopefully* less memory hungry.
+There is also something nice, you can use all the iterators with them (range
+iterators). The only problem is that they are intended to be used only to
+represent variable domains in initializations or when posting constraints
+and this is reflected in the fact that they lack of "modification
+operations" in the API.
+
+In my case I have to copy construct all the time and this is of course time
+consuming but far better than my previous implementation. Now my question,
+sounds it very crazy or stupid to use the IntSet in this way?, if it does
+not, then it would be nice to provide an specialization (via inheritance,
+for instance) that allows this kind of use.  What do you think?
+
+Best regards,
+-- 
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100802/7284b112/attachment.htm>
+
+From tack at gecode.org  Mon Aug  2 17:31:46 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 2 Aug 2010 17:31:46 +0200
+Subject: [gecode-users] IntSet question
+In-Reply-To: <AANLkTimRfTei+K95MonwG+eZXAS-QHydTYXvObKK7r3X@mail.gmail.com>
+References: <AANLkTimRfTei+K95MonwG+eZXAS-QHydTYXvObKK7r3X@mail.gmail.com>
+Message-ID: <C04D875F-9961-4310-9FAB-EAFE26A3D39C@gecode.org>
+
+Gustavo Gutierrez wrote:
+> Probably what I am going to ask is not useful or is just to much particular to my case that does not worth have it, however, I wouldn't hesitate to ask :).
+> 
+> While writing a propagator I realized that keeping some state in it will lower the complexity. This propagator is on a finite set variable and what I does is to track "the new elements in the glb" and propagate according with its semantics. At the beginning to I was using an std::set to keep the "old values" and using it to compute the new elements:
+>  
+> new elements = current glb \  old values
+>  
+> The propagator was performing well but the memory consumption and the time to compute the intersection was quite high. After realizing that I start using an IntSet instead of a std::set to keep the data. The advantage is that the IntSet stores ranges and then is *hopefully* less memory hungry. There is also something nice, you can use all the iterators with them (range iterators). The only problem is that they are intended to be used only to represent variable domains in initializations or when posting constraints and this is reflected in the fact that they lack of "modification operations" in the API.
+>  
+> In my case I have to copy construct all the time and this is of course time consuming but far better than my previous implementation. Now my question, sounds it very crazy or stupid to use the IntSet in this way?, if it does not, then it would be nice to provide an specialization (via inheritance, for instance) that allows this kind of use.  What do you think?
+
+Yes, that is very crazy :-)  However, there's a different data structure you can use in exactly the way you describe.  It's actually two data structures, LUBndSet and GLBndSet.  The difference is in the available operations: LUBndSet has intersectI and excludeI operations (i.e., it can shrink), and GLBndSet has an includeI operation (i.e., it can grow). These sets are used internally for implementing set variables. In your case, you'd use a GLBndSet (and includeI the current lower bound after each propagation).  There's an iterator called BndSetRanges that you can use on these sets.
+You should have a look at the IntersectionN propagator, it uses a LUBndSet to remember the intersection of all assigned variables it has seen so far (it will show you how to initialize and copy these sets).
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From gutierrez.gustavo at uclouvain.be  Mon Aug  2 18:12:33 2010
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Mon, 2 Aug 2010 18:12:33 +0200
+Subject: [gecode-users] IntSet question
+In-Reply-To: <C04D875F-9961-4310-9FAB-EAFE26A3D39C@gecode.org>
+References: <AANLkTimRfTei+K95MonwG+eZXAS-QHydTYXvObKK7r3X@mail.gmail.com>
+	<C04D875F-9961-4310-9FAB-EAFE26A3D39C@gecode.org>
+Message-ID: <AANLkTinekFeNDLD_=LgUivJox0Esj_PgD6JSu+cxpiKy@mail.gmail.com>
+
+Thank you very much Guido! just what I needed :) .
+
+2010/8/2 Guido Tack <tack at gecode.org>
+
+> Gustavo Gutierrez wrote:
+> > Probably what I am going to ask is not useful or is just to much
+> particular to my case that does not worth have it, however, I wouldn't
+> hesitate to ask :).
+> >
+> > While writing a propagator I realized that keeping some state in it will
+> lower the complexity. This propagator is on a finite set variable and what I
+> does is to track "the new elements in the glb" and propagate according with
+> its semantics. At the beginning to I was using an std::set to keep the "old
+> values" and using it to compute the new elements:
+> >
+> > new elements = current glb \  old values
+> >
+> > The propagator was performing well but the memory consumption and the
+> time to compute the intersection was quite high. After realizing that I
+> start using an IntSet instead of a std::set to keep the data. The advantage
+> is that the IntSet stores ranges and then is *hopefully* less memory hungry.
+> There is also something nice, you can use all the iterators with them (range
+> iterators). The only problem is that they are intended to be used only to
+> represent variable domains in initializations or when posting constraints
+> and this is reflected in the fact that they lack of "modification
+> operations" in the API.
+> >
+> > In my case I have to copy construct all the time and this is of course
+> time consuming but far better than my previous implementation. Now my
+> question, sounds it very crazy or stupid to use the IntSet in this way?, if
+> it does not, then it would be nice to provide an specialization (via
+> inheritance, for instance) that allows this kind of use.  What do you think?
+>
+> Yes, that is very crazy :-)  However, there's a different data structure
+> you can use in exactly the way you describe.  It's actually two data
+> structures, LUBndSet and GLBndSet.  The difference is in the available
+> operations: LUBndSet has intersectI and excludeI operations (i.e., it can
+> shrink), and GLBndSet has an includeI operation (i.e., it can grow). These
+> sets are used internally for implementing set variables. In your case, you'd
+> use a GLBndSet (and includeI the current lower bound after each
+> propagation).  There's an iterator called BndSetRanges that you can use on
+> these sets.
+> You should have a look at the IntersectionN propagator, it uses a LUBndSet
+> to remember the intersection of all assigned variables it has seen so far
+> (it will show you how to initialize and copy these sets).
+>
+> Cheers,
+>        Guido
+>
+> --
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100802/9c54cc44/attachment.htm>
+
+From cschulte at kth.se  Tue Aug  3 13:54:57 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 3 Aug 2010 13:54:57 +0200
+Subject: [gecode-users] exact behaviour of different IntValBranch
+In-Reply-To: <4C533B86.8090504@cisco.com>
+References: <4C531E43.8040001@cisco.com> <001101cb3020$25fdd530$71f97f90$@se>
+	<4C533B86.8090504@cisco.com>
+Message-ID: <000f01cb3302$b222d710$16688530$@se>
+
+Hi, I'll explain that some time.
+
+The additional cost for recomputation is not that high. If you do some
+serious constraint propagation in your problem you will not be able to see
+any difference, I'd say.
+
+Best
+Christian
+
+--
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: Kish Shen [mailto:kisshen at cisco.com] 
+Sent: Friday, July 30, 2010 10:52 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] exact behaviour of different IntValBranch
+
+Christian Schulte wrote:
+
+> Let's take INT_VAR_SIZE_MIN and INT_VAL_MIN as an example and suppose that
+> you have selected the variable x with 
+> the smallest domain that is first in the array you branch on and that the
+> min of x is n. That means you create a choice (x = n) v (x != n). After
+> exploring either of the choices and doing propagation the brancher is run
+> again: it will find the first variable with smallest domain. That might be
+> or might not be the same variable as x. 
+
+Ah, this is the part I did not know (that you might not be using the 
+same variable). This is indeed different from what ECLiPSe (and most 
+likely other backtracking constraint solver) does.
+
+> This gives better choices wrt the heuristic than sticking to the original
+x.
+> Suppose you do it the Eclipse way and have selected a variable x with
+values
+> {n_0, ..., n_k}. Then you try in turn that x=n_0, x=n_1, ... That might be
+> bad. Look at the second alternative x=n_1. What Gecode does is that it
+> propagates first that x != n_0 and then it chooses a variable again: this
+> choice is likely to be better as the additional information from
+propagating
+> x != n_0 is available.
+
+However, propagation of x != n_0 can also occur with ECLiPSe -- it does 
+not affect your selection of variable (i.e. you will still label x),
+but it may reduce the domain of x and other variables. On the other 
+hand, you perform additional propagations that might not pay off. Both 
+of these value choices strategy are available in the search/6 predicate 
+of the ic library.
+
+I was first made aware of this difference in discussion with Helmut 
+Simonis (who also introduced search/6 to ECLiPSe), and he said that it 
+is not always clear which strategy is better, and depends on the problem 
+  being solved, which is why both are provided in search/6.
+
+
+
+> Let's take INT_VALUES_MIN as an example with x as selected variable with
+> values {n_0, ..., n_k}. Then a choice (x = n_0) v ... v (x = n_k) is
+> created. So, that's in fact the Eclipse style.
+> 
+
+I assume you don't do any propagations here; as already discussed, it is 
+not the only possibility.
+
+I think it is also worth noting that INT_VALUES_MIN strategy is more 
+expensive in a recomputation based system than a backtracking system, 
+because in a recomputation system you need to remember all the choices, 
+rather than just the value selected.
+
+> I hope that helps. 
+> 
+> Do you think it's worth explaining that in MPG?
+>
+
+Yes, I think it is worth explaining. I had very great problems 
+understanding the search chapter in the MPG (actually the MG then :-)),
+until I had my discussion with Helmut. It was not obvious to me
+that you had binary choices at each choicepoint until that discussion.
+This was when I first started implementing the Gecode interface more 
+than a year ago. However, the fact that you perform variable selection 
+again was not known to me until your message today, so I think it is 
+worth discussing both points.
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+
+From kisshen at cisco.com  Tue Aug  3 18:51:51 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Tue, 03 Aug 2010 17:51:51 +0100
+Subject: [gecode-users] Problems using Stop object with search engines
+Message-ID: <4C584927.5090303@cisco.com>
+
+Hi,
+
+I am trying to use a Stop object with my existing search engine code, 
+but the program seem to crash when I try to run the code.
+
+The code that set up the search engine is as follows:
+
+Search::TimeStop timeout(500);
+o.stop = &timeout;
+
+DFS<GecodeSpace>* sengine = new DFS<GecodeSpace>(solver, o);
+
+later on (but certainly much less than 500ms of the timeout), in a
+different C++ procedure (these are called from ECLiPSe, so I first set 
+up the search engine, return to ECLiPSe, and then call the C++ procedure 
+to do the search), I get the search engine, and call the next() method:
+
+     DFS<GecodeSpace*> sengine;
+     < get the sengine >
+     *solverp = sengine->next();
+
+as far as I can tell, the program crashes when next() is called above.
+
+The main change from the existing code (which does not crash) is the 
+addition of the option when sengine is created, i.e.
+
+instead of new DFS<GecodeSpace>(solver, o); the old code was new 
+DFS<GeCodeSpace>(solver);
+
+when I changed the code back to this version without passing o (but 
+still with o declared), the code worked as before (i.e. without timing out).
+
+I am using Gecode 3.0.2 on Linux, if that is a factor.
+
+Is this because the Stop Object was destroyed when I returned from the 
+procedure that created it? I thought everything is copied in Gecode?
+
+The Stop object is passed via the stop member of search options. Does 
+this mean that only one stop object can be passed to the search engine?
+Is it possible to set more than one limit (e.g. for both node and time)?
+
+Thanks in advance for any help!
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From tack at gecode.org  Tue Aug  3 18:57:17 2010
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 3 Aug 2010 18:57:17 +0200
+Subject: [gecode-users] Problems using Stop object with search engines
+In-Reply-To: <4C584927.5090303@cisco.com>
+References: <4C584927.5090303@cisco.com>
+Message-ID: <C7133ADD-8DDE-478D-B2F1-824069BBDEB3@gecode.org>
+
+Kish Shen wrote:
+> I am trying to use a Stop object with my existing search engine code, but the program seem to crash when I try to run the code.
+
+[...]
+
+> Is this because the Stop Object was destroyed when I returned from the procedure that created it? I thought everything is copied in Gecode?
+
+Yes. Only the data structures that live in spaces are copied, everything else is just an ordinary C++ data structure.  You'll have to create the Stop object on the heap using new and keep track of it yourself.
+
+> The Stop object is passed via the stop member of search options. Does this mean that only one stop object can be passed to the search engine?
+> Is it possible to set more than one limit (e.g. for both node and time)?
+
+Yes, you'll have to create a stop object that encapsulates several other stop objects.  For an example, see the Cutoff class in gecode/driver/script.hh.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From denys.duchier at univ-orleans.fr  Wed Aug  4 15:47:34 2010
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Wed, 04 Aug 2010 15:47:34 +0200
+Subject: [gecode-users] missing doc for element constraint
+Message-ID: <87mxt2ij61.fsf@tiny.univ-orleans.fr>
+
+Using finite domain integers > Element constraints
+
+As far as I can tell, the h parameter in the last 4 element constraints
+is not documented.  What is it for?
+
+Cheers,
+
+--Denys
+
+
+From tack at gecode.org  Wed Aug  4 15:50:40 2010
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 4 Aug 2010 15:50:40 +0200
+Subject: [gecode-users] missing doc for element constraint
+In-Reply-To: <87mxt2ij61.fsf@tiny.univ-orleans.fr>
+References: <87mxt2ij61.fsf@tiny.univ-orleans.fr>
+Message-ID: <AE78B9AF-4C72-41FF-A173-900E104C0546@gecode.org>
+
+Denys Duchier wrote:
+
+> Using finite domain integers > Element constraints
+> 
+> As far as I can tell, the h parameter in the last 4 element constraints
+> is not documented.  What is it for?
+
+It is documented:
+Throws an exception of type Int::ArgumentSizeMismatch, if w*h != |a|
+
+These element constraints are for 2d matrices of width w and height h encoded in the IntVarArgs a.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From kisshen at cisco.com  Wed Aug  4 18:58:39 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 04 Aug 2010 17:58:39 +0100
+Subject: [gecode-users] API compatibility of gecode 3.4.0 with older
+	versions?
+Message-ID: <4C599C3F.9010802@cisco.com>
+
+Hi,
+
+I just tried to compile my existing code (working with gecode 3.0.2) 
+with gecode 3.4.0, and I was somewhat surprised by a lot of errors,
+which seems to indicate that there are major changes in the API.
+
+I know that significant functionality have been added in 3.4, but I had 
+sort of expected that the old API will still be supported, and I don't 
+remember any mention of API incompatibility. It looks like even some 
+rather simple things (which I would not expect to change), like the init 
+method for IntVar, is not in 3.4's API.
+
+Am I doing something wrong, or has the API really changed significantly?
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From denys.duchier at univ-orleans.fr  Wed Aug  4 22:34:36 2010
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Wed, 04 Aug 2010 22:34:36 +0200
+Subject: [gecode-users] missing doc for element constraint
+In-Reply-To: <AE78B9AF-4C72-41FF-A173-900E104C0546@gecode.org> (Guido Tack's
+	message of "Wed, 4 Aug 2010 15:50:40 +0200")
+References: <87mxt2ij61.fsf@tiny.univ-orleans.fr>
+	<AE78B9AF-4C72-41FF-A173-900E104C0546@gecode.org>
+Message-ID: <87bp9ii0bn.fsf@tiny.univ-orleans.fr>
+
+Guido Tack <tack at gecode.org> writes:
+
+> These element constraints are for 2d matrices of width w and height h encoded in the IntVarArgs a.
+
+that's the missing information. the constraint is then actually:
+	a(x,y) = z
+or is it:
+	a(y,x) = z
+for a matrix a or width w and height h.  It would be really nice to make
+this clear.
+
+Cheers,
+
+--Denys
+
+
+From zayenz at gmail.com  Thu Aug  5 08:36:35 2010
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 5 Aug 2010 08:36:35 +0200
+Subject: [gecode-users] API compatibility of gecode 3.4.0 with older
+	versions?
+In-Reply-To: <4C599C3F.9010802@cisco.com>
+References: <4C599C3F.9010802@cisco.com>
+Message-ID: <AANLkTin55AhWbbf9AJxud3hTD3jKdThQ2pcAktk5mm6e@mail.gmail.com>
+
+Hi Kish,
+
+Yes, the API has changed significantly between 3.0.2 and 3.4.0. The 3.4.0
+release in particular has had a lot of changes in conjunction with writing
+Modeling and Programming with Gecode to make the interfaces consistent and
+easier to explain. Our version-number strategy is documented here:
+http://www.gecode.org/changes.html All relevant API-changes are documented
+in the changelog for the version they are introduced for.
+
+As for the init function, it was removed since it is not needed. If you
+wrote
+ a.init(*this, 0, 10);
+with a an IntVar, you can replace it with
+ a = IntVar(*this, 0, 10);
+
+Cheers,
+Mikael
+
+On Wed, Aug 4, 2010 at 6:58 PM, Kish Shen <kisshen at cisco.com> wrote:
+
+> Hi,
+>
+> I just tried to compile my existing code (working with gecode 3.0.2) with
+> gecode 3.4.0, and I was somewhat surprised by a lot of errors,
+> which seems to indicate that there are major changes in the API.
+>
+> I know that significant functionality have been added in 3.4, but I had
+> sort of expected that the old API will still be supported, and I don't
+> remember any mention of API incompatibility. It looks like even some rather
+> simple things (which I would not expect to change), like the init method for
+> IntVar, is not in 3.4's API.
+>
+> Am I doing something wrong, or has the API really changed significantly?
+>
+> Cheers,
+>
+> Kish
+>
+> --
+> This e-mail may contain confidential and privileged material for the
+> sole use of the intended recipient. Any review, use, distribution or
+> disclosure by others is strictly prohibited. If you are not the intended
+> recipient (or authorized to receive for the recipient), please contact
+> the sender by reply e-mail and delete all copies of this message.
+> Cisco Systems Limited (Company Number: 02558939), is registered in
+> England and Wales with its registered office at 1 Callaghan Square,
+> Cardiff, South Glamorgan CF10 5BT.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100805/06af3f0d/attachment.htm>
+
+From tack at gecode.org  Thu Aug  5 10:56:46 2010
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 5 Aug 2010 10:56:46 +0200
+Subject: [gecode-users] missing doc for element constraint
+In-Reply-To: <87bp9ii0bn.fsf@tiny.univ-orleans.fr>
+References: <87mxt2ij61.fsf@tiny.univ-orleans.fr>
+	<AE78B9AF-4C72-41FF-A173-900E104C0546@gecode.org>
+	<87bp9ii0bn.fsf@tiny.univ-orleans.fr>
+Message-ID: <DB019300-368B-4F10-B76E-FFF203BA01C8@gecode.org>
+
+Denys Duchier wrote:
+
+> Guido Tack <tack at gecode.org> writes:
+> 
+>> These element constraints are for 2d matrices of width w and height h encoded in the IntVarArgs a.
+> 
+> that's the missing information. the constraint is then actually:
+> 	a(x,y) = z
+> or is it:
+> 	a(y,x) = z
+> for a matrix a or width w and height h.  It would be really nice to make
+> this clear.
+
+The constraint is a[x+w*y] = z, and w*h must be a.size(), just as the documentation says.
+
+I don't want to discuss whether that's a(x,y) or a(y,x) because there's been enough confusion about the Matrix class already... In programming terms (as opposed to mathematics), a is a 2d array in row-major order, and z is constrained to be the element in row y and column x.  I'll add that to the documentation.
+
+The minimodel library contains element constraints on Matrix objects, which of course internally use these post functions.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From David.Rijsman at quintiq.com  Tue Aug 10 11:00:25 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Tue, 10 Aug 2010 11:00:25 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+Message-ID: <4C61314902000085000104BA@mail.quintiq.nl>
+
+Hi,
+
+First of all compliments for another very nice version. I am looking at the new scheduling constraints introduced in version 4.3.0, and I trying to understand why you have decided the following for some of the new cumulative and unary constraints:
+
+"The propagator does not enforce s = p + e, this constraint has to be posted in addition to ensure consistency of the task bounds."
+
+I can not figure out what a use case would be where you do not want s = p + e enforced. If there are use cases why is it enforced in some of the constraints? 
+
+David
+
+
+
+
+From tack at gecode.org  Tue Aug 10 11:07:00 2010
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 10 Aug 2010 11:07:00 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+In-Reply-To: <4C61314902000085000104BA@mail.quintiq.nl>
+References: <4C61314902000085000104BA@mail.quintiq.nl>
+Message-ID: <76A3F17B-58CA-47CA-827A-FA823BCB95EC@gecode.org>
+
+David Rijsman wrote:
+
+> Hi,
+> 
+> First of all compliments for another very nice version. I am looking at the new scheduling constraints introduced in version 4.3.0, and I trying to understand why you have decided the following for some of the new cumulative and unary constraints:
+> 
+> "The propagator does not enforce s = p + e, this constraint has to be posted in addition to ensure consistency of the task bounds."
+> 
+> I can not figure out what a use case would be where you do not want s = p + e enforced. If there are use cases why is it enforced in some of the constraints? 
+
+The reason is that you can have the same task on several resources at once, which would cause an overhead if each resource constraint in addition propagated s=p+e.  Currently, the interface is a bit inconsistent, as the cumulatives constraint does propagate s=p+e.
+
+We plan to add modeling support for scheduling constraints in the future (I'm working on it), where you would declare task variables that encapsulate the s=p+e propagation.  In fact, there would be one propagator for all the simple temporal constraints (such as task A is before task B, which translates to e(A) <= s(B) ), which gives strictly stronger propagation than the individual constraints.
+The resource constraints can then be posted in terms of these task variables.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From David.Rijsman at quintiq.com  Tue Aug 10 11:44:23 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Tue, 10 Aug 2010 11:44:23 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+In-Reply-To: <76A3F17B-58CA-47CA-827A-FA823BCB95EC@gecode.org>
+References: <4C61314902000085000104BA@mail.quintiq.nl>
+	<76A3F17B-58CA-47CA-827A-FA823BCB95EC@gecode.org>
+Message-ID: <4C613B9702000085000104C2@mail.quintiq.nl>
+
+Hi Guido,
+
+would it make more sense to always propagate when mandatory argument is not part of the argument list. When we allow a task not to be mandatory only enforce s = p + e when mandatory becomes true and make mandatory false when s = p + e can no longer be enforced (reify s = p + e on mandatory)? 
+
+This way we can model a task which can require one or more resources using the sum of the mandatory variables for the different constraints as the minimum and maximum constraints without having to worry about the temporal constraints within a task?
+
+David
+
+>>> 
+From: 	Guido Tack <tack at gecode.org>
+To:	David Rijsman <David.Rijsman at quintiq.com>
+CC:	<users at gecode.org>
+Date: 	8/10/2010 11:07 AM
+Subject: 	Re: [gecode-users] Unary and Cumulative constraints
+
+David Rijsman wrote:
+
+> Hi,
+> 
+> First of all compliments for another very nice version. I am looking at the new scheduling constraints introduced in version 4.3.0, and I trying to understand why you have decided the following for some of the new cumulative and unary constraints:
+> 
+> "The propagator does not enforce s = p + e, this constraint has to be posted in addition to ensure consistency of the task bounds."
+> 
+> I can not figure out what a use case would be where you do not want s = p + e enforced. If there are use cases why is it enforced in some of the constraints? 
+
+The reason is that you can have the same task on several resources at once, which would cause an overhead if each resource constraint in addition propagated s=p+e.  Currently, the interface is a bit inconsistent, as the cumulatives constraint does propagate s=p+e.
+
+We plan to add modeling support for scheduling constraints in the future (I'm working on it), where you would declare task variables that encapsulate the s=p+e propagation.  In fact, there would be one propagator for all the simple temporal constraints (such as task A is before task B, which translates to e(A) <= s(B) ), which gives strictly stronger propagation than the individual constraints.
+The resource constraints can then be posted in terms of these task variables.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/ 
+
+
+
+
+
+
+From tack at gecode.org  Tue Aug 10 14:15:06 2010
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 10 Aug 2010 14:15:06 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+In-Reply-To: <4C613B9702000085000104C2@mail.quintiq.nl>
+References: <4C61314902000085000104BA@mail.quintiq.nl>
+	<76A3F17B-58CA-47CA-827A-FA823BCB95EC@gecode.org>
+	<4C613B9702000085000104C2@mail.quintiq.nl>
+Message-ID: <99C8C17F-2224-41CB-BC7B-BD8FC9746ED7@gecode.org>
+
+David Rijsman wrote:
+> would it make more sense to always propagate when mandatory argument is not part of the argument list. When we allow a task not to be mandatory only enforce s = p + e when mandatory becomes true and make mandatory false when s = p + e can no longer be enforced (reify s = p + e on mandatory)? 
+
+The algorithms already perform the latter reasoning, i.e., if a propagation on the start or end time of an optional task would result in failure, the task is excluded.
+
+I think one would have to use "implied reification", i.e., m -> s+p=e, where m is the mandatory flag (you don't want s+p!=e for an excluded task).  And there is potential for more propagation.  In [1], the temporal constraints can be propagated even for optional tasks. E.g., if two tasks A and B are optional, and A is present if and only if B is present, and if A and B are present, then A is before B, we can always propagate e(A)<=s(B), even before it is determined if A and B are actually present.  We cannot repeat this kind of reasoning for every resource.  Instead, we need a centralized data structure that stores the temporal information, and a propagator for the global temporal constraint.
+
+> This way we can model a task which can require one or more resources using the sum of the mandatory variables for the different constraints as the minimum and maximum constraints without having to worry about the temporal constraints within a task?
+
+I don't think this solves the problem.  Assume a mandatory task that requires a certain tool, of which we have two, as well as a skilled worker.  Then that task would be on a cumulative constraint with capacity 2 for the tool, and on a unary constraint for the worker (assuming he's not a great multi-tasker).  If both propagators propagated s+p=e, there would be an unnecessary overhead.
+
+The s+p=e propagation is a matter of having a nice modeling API (which we will provide, eventually).  The current interface is designed to include no "magic", so that the modeler has full control over which propagators actually get posted.
+
+Cheers,
+	Guido
+
+[1] P. Laborie and J. Rogerie. Reasoning with conditional time-intervals. In D. Wilson and H. C. Lane, editors, FLAIRS Conference, pages 555?560. AAAI Press, 2008.
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From David.Rijsman at quintiq.com  Fri Aug 13 08:36:11 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Fri, 13 Aug 2010 08:36:11 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+Message-ID: <4C650401020000850001061B@mail.quintiq.nl>
+
+Hi Guido,
+
+you are right, it should be 'implied reification' and yes it is unnecessary overhead to post e = p + s for each propagator but it would also give you some more control on scheduling or not scheduling the propagator on deltas on e,p or s.  Perhaps not much to gain. 
+
+I read you are working on a temporal propagator (STN?) and on a nice modeling API? Are you going to put this in the mini model part or are you building a complete new scheduling layer? Any pointers on what kind of construct are going to expose and if you are planning any new scheduling constraints?
+
+David
+
+
+>>> Guido Tack <tack at gecode.org> 08/10/10 2:15 PM >>>
+David Rijsman wrote:
+> would it make more sense to always propagate when mandatory argument is not part of the argument list. When we allow a task not to be mandatory only enforce s = p + e when mandatory becomes true and make mandatory false when s = p + e can no longer be enforced (reify s = p + e on mandatory)? 
+
+The algorithms already perform the latter reasoning, i.e., if a propagation on the start or end time of an optional task would result in failure, the task is excluded.
+
+I think one would have to use "implied reification", i.e., m -> s+p=e, where m is the mandatory flag (you don't want s+p!=e for an excluded task).  And there is potential for more propagation.  In [1], the temporal constraints can be propagated even for optional tasks. E.g., if two tasks A and B are optional, and A is present if and only if B is present, and if A and B are present, then A is before B, we can always propagate e(A)<=s(B), even before it is determined if A and B are actually present.  We cannot repeat this kind of reasoning for every resource.  Instead, we need a centralized data structure that stores the temporal information, and a propagator for the global temporal constraint.
+
+> This way we can model a task which can require one or more resources using the sum of the mandatory variables for the different constraints as the minimum and maximum constraints without having to worry about the temporal constraints within a task?
+
+I don't think this solves the problem.  Assume a mandatory task that requires a certain tool, of which we have two, as well as a skilled worker.  Then that task would be on a cumulative constraint with capacity 2 for the tool, and on a unary constraint for the worker (assuming he's not a great multi-tasker).  If both propagators propagated s+p=e, there would be an unnecessary overhead.
+
+The s+p=e propagation is a matter of having a nice modeling API (which we will provide, eventually).  The current interface is designed to include no "magic", so that the modeler has full control over which propagators actually get posted.
+
+Cheers,
+    Guido
+
+[1] P. Laborie and J. Rogerie. Reasoning with conditional time-intervals. In D. Wilson and H. C. Lane, editors, FLAIRS Conference, pages 555?560. AAAI Press, 2008.
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From tack at gecode.org  Fri Aug 13 09:46:00 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 13 Aug 2010 09:46:00 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+In-Reply-To: <4C650401020000850001061B@mail.quintiq.nl>
+References: <4C650401020000850001061B@mail.quintiq.nl>
+Message-ID: <1B308649-06F4-4F02-BBE2-B052A95C946C@gecode.org>
+
+David Rijsman wrote:
+> you are right, it should be 'implied reification' and yes it is unnecessary overhead to post e = p + s for each propagator but it would also give you some more control on scheduling or not scheduling the propagator on deltas on e,p or s.  Perhaps not much to gain. 
+
+When you have hundreds of tasks, propagator scheduling might actually become important.  But I think I'll start with the simple version, and then see if there is a problem.
+
+> I read you are working on a temporal propagator (STN?) and on a nice modeling API? Are you going to put this in the mini model part or are you building a complete new scheduling layer? Any pointers on what kind of construct are going to expose and if you are planning any new scheduling constraints?
+
+There would be an STN-like propagator, which is exposed on the same level as the current scheduling constraints (i.e., variables and integers).  On top of that, in the minimodel layer, there would be abstractions for tasks, resources and the like.  I don't have plans to add any other scheduling constraints at the moment (anything in particular you'd be interested in?).
+
+I haven't decided on the actual interface for the modeling layer yet.  It could be something like cumulative functions in ILOG CP Optimizer, or a more classical model with resources etc.
+
+The current state is that I have an STN propagator for mandatory tasks with fixed durations, so I have to put some work into generalizing it for optional tasks and flexible durations.  The main thing that is currently missing are specialized branchings that order tasks on resources.  I'll build them on top of the STN, because they require information about the partial order of the tasks.
+
+I can't say yet when these things will be available, though.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From zayenz at gmail.com  Fri Aug 13 10:40:27 2010
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 13 Aug 2010 10:40:27 +0200
+Subject: [gecode-users] Unary and Cumulative constraints
+In-Reply-To: <1B308649-06F4-4F02-BBE2-B052A95C946C@gecode.org>
+References: <4C650401020000850001061B@mail.quintiq.nl>
+	<1B308649-06F4-4F02-BBE2-B052A95C946C@gecode.org>
+Message-ID: <AANLkTiniUjc9X1MymxttC4UZiRQgjRYcZ_yWXvKidKyH@mail.gmail.com>
+
+On Fri, Aug 13, 2010 at 9:46 AM, Guido Tack <tack at gecode.org> wrote:
+>> you are right, it should be 'implied reification' and yes it is unnecessary
+>> overhead to post e = p + s for each propagator but it would also give
+>> you some more control on scheduling or not scheduling the propagator
+>> on deltas on e,p or s. ?Perhaps not much to gain.
+
+Scheduling and executing a propagator for e=p+s is actually very very
+cheap. I would expect that trying to use deltas to control scheduling
+is not worth it at all, doing the check would almost equal all the job
+anyway.
+
+> When you have hundreds of tasks, propagator scheduling might actually
+> become important. ?But I think I'll start with the simple version, and then
+> see if there is a problem.
+
+Just to expand on what Guido is saying, the issues one might encounter
+for a large set of propagators that have variables in common, is that
+one might get a bad order for the propagator executions. Lets take a
+worst-case example from [1] as an illustration. Given a sequence of
+propagators
+ x1 < x2 < x3 < ... < xn
+for variables with domains {1..n}, most systems will require O(n?)
+propagation steps to find infeasibility. Using the best propagation
+order, it only takes O(n). Such pure cases of degenerate behavior are
+fortunately not very common.
+
+Cheers,
+Mikael
+
+[1] Propagator Groups, Mikael Z. Lagerkvist and Christian Schulte. CP
+2010. http://www.ict.kth.se/~zayenz/papers/LagerkvistSchulte_CP_2009.pdf
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+From gutierrez.gustavo at uclouvain.be  Mon Aug 16 11:41:05 2010
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Mon, 16 Aug 2010 11:41:05 +0200
+Subject: [gecode-users] Advisor return values
+Message-ID: <AANLkTikShagqfJLaNWAyq0M8NwL1r02g=-5ZwJp5k0Z0@mail.gmail.com>
+
+Dear all,
+
+I have a question (probably very naive!) about the use of advisor return
+values. From MPG, an advisor could: schedule the associated propagator
+(ES_NOFIX), avoid its execution (ES_FIX) or fail the propagator in advance
+(ES_FAILURE). My question comes out when using multiple advisors in the same
+propagator. Let suppose the propagator is posted on a variable and an array
+of variables (in my case both are sets). Now let us suppose that one of the
+advisors (say a_i) on the array is executed (i.e. the advise method of the
+propagator is called with it as argument). I would like to have clear what
+will happen to the other advisors executed after it depending on it return
+value.
+
+
+1) a_i returns ES_FAILURE. My guess is that the propagator wont be run, as
+the entire space will become failed. Am I right?
+
+2) a_i returns ES_NOFIX. My guess here is that the propagator will  be
+scheduled, how ever what happen if after this advisor, the advisor a_i+1
+returns ES_FIX?. IMO the right thing to schedule the propagator, but is this
+done by gecode automatically?
+
+In general, my question is how gecode handles incremental information got
+from the execution of advisors?. I am asking that because I have some
+changes in the search tree between using advised vs. nod-advised propagation
+and favoring unadvised propagation. This is a bit strange to me since in the
+past I have been used advisors and they greatly outperform non advised
+propagation. Of course it can be a bug in my problem (the most probable
+case!).
+
+Regards,
+-- 
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100816/b086597f/attachment.htm>
+
+From zayenz at gmail.com  Mon Aug 16 11:59:40 2010
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 16 Aug 2010 11:59:40 +0200
+Subject: [gecode-users] Advisor return values
+In-Reply-To: <AANLkTikShagqfJLaNWAyq0M8NwL1r02g=-5ZwJp5k0Z0@mail.gmail.com>
+References: <AANLkTikShagqfJLaNWAyq0M8NwL1r02g=-5ZwJp5k0Z0@mail.gmail.com>
+Message-ID: <AANLkTim=Lk813P47y=L=B+a-Z3b-yKcpKxNCPPhmc_me@mail.gmail.com>
+
+2010/8/16 Gustavo Gutierrez <gutierrez.gustavo at uclouvain.be>
+
+> 1) a_i returns ES_FAILURE. My guess is that the propagator wont be run, as
+> the entire space will become failed. Am I right?
+>
+
+When an advisor returns ES_FAILURE, the current tell will report failure.
+The propagator that made the tell will then see that and report failure back
+to the kernel, and propagation will be aborted.
+
+
+2) a_i returns ES_NOFIX. My guess here is that the propagator will  be
+> scheduled, how ever what happen if after this advisor, the advisor a_i+1
+> returns ES_FIX?. IMO the right thing to schedule the propagator, but is this
+> done by gecode automatically?
+>
+
+If a propagator has been scheduled for execution, it will be executed when
+the propagation queue reaches it. Returning ES_FIX will not affect the
+scheduled status of the advisors propagator in any way.
+
+
+In general, my question is how gecode handles incremental information got
+> from the execution of advisors?. I am asking that because I have some
+> changes in the search tree between using advised vs. nod-advised propagation
+> and favoring unadvised propagation. This is a bit strange to me since in the
+> past I have been used advisors and they greatly outperform non advised
+> propagation. Of course it can be a bug in my problem (the most probable
+> case!).
+>
+
+One issue that could lead to different search-spaces is non-monotonic
+propagation. If your propagator is monotonic, and both versions are supposed
+to perform the same amount of propagation, then it sounds like a bug. What
+kind of propagator is it, and how do you use advisors?
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100816/067306a3/attachment.htm>
+
+From kisshen at cisco.com  Tue Aug 17 18:38:18 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Tue, 17 Aug 2010 17:38:18 +0100
+Subject: [gecode-users] algorithm used in sequence constraint
+Message-ID: <4C6ABAFA.1020507@cisco.com>
+
+Hi,
+
+In the MPG, it is stated that the sequence constraint is implemented 
+using the domain consistent algorithm described in the paper by van 
+Hoeve and others.
+
+Last year, Helmut Simonis contributed the sequence constraint for 
+ECLiPSe, and he used the (also domain consistent) algorithm described in 
+the paper by Maher and others in CP 2008. As fat as I can tell from 
+checking the two papers, Maher's algorithm was developed after the one 
+proposed by van Hoeve, and may be more efficient.
+
+Was the reason for implementing van Hoeve's algorithm in gecode simply 
+because it was made before Maher's was published, or is there some other 
+reason for picking it?
+
+Thanks and cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From David.Rijsman at quintiq.com  Wed Aug 18 09:19:37 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 18 Aug 2010 09:19:37 +0200
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6ABAFA.1020507@cisco.com>
+References: <4C6ABAFA.1020507@cisco.com>
+Message-ID: <4C6BA5A90200008500010758@mail.quintiq.nl>
+
+Hi Kish,
+
+I implemented the algorithm and it is the simple reason you mention. Perhaps we can port the Eclipse version into Gecode?
+
+David
+
+
+
+>>> 
+From: 	Kish Shen <kisshen at cisco.com>
+To:	<users at gecode.org>
+Date: 	8/17/2010 6:38 PM
+Subject: 	[gecode-users] algorithm used in sequence constraint
+
+Hi,
+
+In the MPG, it is stated that the sequence constraint is implemented 
+using the domain consistent algorithm described in the paper by van 
+Hoeve and others.
+
+Last year, Helmut Simonis contributed the sequence constraint for 
+ECLiPSe, and he used the (also domain consistent) algorithm described in 
+the paper by Maher and others in CP 2008. As fat as I can tell from 
+checking the two papers, Maher's algorithm was developed after the one 
+proposed by van Hoeve, and may be more efficient.
+
+Was the reason for implementing van Hoeve's algorithm in gecode simply 
+because it was made before Maher's was published, or is there some other 
+reason for picking it?
+
+Thanks and cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kisshen at cisco.com  Wed Aug 18 14:31:38 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 18 Aug 2010 13:31:38 +0100
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6BA5A90200008500010758@mail.quintiq.nl>
+References: <4C6ABAFA.1020507@cisco.com>
+	<4C6BA5A90200008500010758@mail.quintiq.nl>
+Message-ID: <4C6BD2AA.6040105@cisco.com>
+
+David Rijsman wrote:
+> Hi Kish,
+> 
+> I implemented the algorithm and it is the simple reason you mention. Perhaps we can port the Eclipse version into Gecode?
+> 
+> David
+
+Hi David,
+
+I should say first that I am not very familiar with the implementation 
+of sequence done by Helmut.
+
+It probably doesn't make too much sense to port the ECLiPSe code -- it 
+is written entirely in ECLiPSe (i.e. basically Prolog), and the code has 
+to work round the restriction of no multiple edges between two nodes in 
+the maximum flow code used.
+
+However, I suspect a lot of the infra-structure needed is already in 
+gecode -- I assume there is already some implementation of the maximum 
+flow algorithm, needed for implementing other constraints, such as 
+global cardinality.
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From kisshen at cisco.com  Wed Aug 18 22:22:44 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 18 Aug 2010 21:22:44 +0100
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6BA5A90200008500010758@mail.quintiq.nl>
+References: <4C6ABAFA.1020507@cisco.com>
+	<4C6BA5A90200008500010758@mail.quintiq.nl>
+Message-ID: <4C6C4114.2050707@cisco.com>
+
+Hi,
+
+This is actually a new question about the sequence constraint: there 
+seem to be two versions  of the constraint, one for IntVars, and one for 
+BoolVars, but the other arguments are the same. Specifically, the 
+BoolVar version has the IntSet s of values that each sequence of 
+variables should take. I don't understand how this works for BoolVars, 
+since they can only take 0 or 1 as values. What exactly is the semantics 
+for the BoolVar version?
+
+In the ECLiPSe versions of the constraint, there is also a version that 
+has boolean variables. In this version, there is no equivalent to the 
+IntSet s, so it has one less argument than the IntVar version. Each 
+sequence of q variables must have between l and u variables with the 
+value 1. Is this the semantics for the gecode version as well?
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From kisshen at cisco.com  Thu Aug 19 02:03:12 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Thu, 19 Aug 2010 01:03:12 +0100
+Subject: [gecode-users] sequence constraint: variable occurring multiply
+Message-ID: <4C6C74C0.1000105@cisco.com>
+
+Hi,
+
+I have another question about the sequence constraint: exception 
+ArumentSame is thrown if a variable occurs more than once. Should this 
+exception be thrown? I can see that it does not make sense for a 
+variable to occur in a subsequence of q variables, but if the 'distance' 
+between the same variable > q, i.e. it cannot occur multiply in the same 
+subsequence, should this be allowed? Can the implemented algorithm deal 
+with this?
+
+There are useful cases for variables to occur multiply, the simplest is 
+a cycle, e.g. say for the following variables
+
+x1,x2,x3,x4,x5
+
+and a cycle would be
+
+x1,x2,x3,x4,x5,x1,x2,....
+
+such cycle could be used for a schedule that repeats.
+
+Cheers,
+
+Kish
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From David.Rijsman at quintiq.com  Thu Aug 19 08:35:14 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 19 Aug 2010 08:35:14 +0200
+Subject: [gecode-users] sequence constraint: variable occurring	 multiply
+In-Reply-To: <4C6C74C0.1000105@cisco.com>
+References: <4C6C74C0.1000105@cisco.com>
+Message-ID: <4C6CECC202000085000107E6@mail.quintiq.nl>
+
+Hi Kish,
+
+you are absolutely right, this extension is very useful for cyclical rosters. Should not be very hard to enable in the current implementation, basically changing the check at posting the constraint. I see if I can do this and see if this gets accepted?
+
+David 
+
+>>> 
+From: 	Kish Shen <kisshen at cisco.com>
+To:	<users at gecode.org>
+Date: 	8/19/2010 2:03 AM
+Subject: 	[gecode-users] sequence constraint: variable occurring multiply
+
+Hi,
+
+I have another question about the sequence constraint: exception 
+ArumentSame is thrown if a variable occurs more than once. Should this 
+exception be thrown? I can see that it does not make sense for a 
+variable to occur in a subsequence of q variables, but if the 'distance' 
+between the same variable > q, i.e. it cannot occur multiply in the same 
+subsequence, should this be allowed? Can the implemented algorithm deal 
+with this?
+
+There are useful cases for variables to occur multiply, the simplest is 
+a cycle, e.g. say for the following variables
+
+x1,x2,x3,x4,x5
+
+and a cycle would be
+
+x1,x2,x3,x4,x5,x1,x2,....
+
+such cycle could be used for a schedule that repeats.
+
+Cheers,
+
+Kish
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From David.Rijsman at quintiq.com  Thu Aug 19 08:52:39 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 19 Aug 2010 08:52:39 +0200
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6C4114.2050707@cisco.com>
+References: <4C6ABAFA.1020507@cisco.com>
+	<4C6BA5A90200008500010758@mail.quintiq.nl> <4C6C4114.2050707@cisco.com>
+Message-ID: <4C6CF0D702000085000107EB@mail.quintiq.nl>
+
+Hi Kish,
+
+it is indeed possible to remove the IntSet s argument in the sequence constraint for boolean variables but we choose to explicitly state what value we are counting and use the IntSet for the following reason, I quote from Christian:
+
+"we never use the C++ type bool for Boolean values as Boolean variables also take integer values. And also  choosing a set makes it easier to interface and just forget about the fact whether one is using IntVar or BoolVar."
+
+David
+
+>>> 
+From: 	Kish Shen <kisshen at cisco.com>
+To:	David Rijsman <David.Rijsman at quintiq.com>
+CC:	<users at gecode.org>
+Date: 	8/18/2010 10:23 PM
+Subject: 	Re: [gecode-users] algorithm used in sequence constraint
+
+Hi,
+
+This is actually a new question about the sequence constraint: there 
+seem to be two versions  of the constraint, one for IntVars, and one for 
+BoolVars, but the other arguments are the same. Specifically, the 
+BoolVar version has the IntSet s of values that each sequence of 
+variables should take. I don't understand how this works for BoolVars, 
+since they can only take 0 or 1 as values. What exactly is the semantics 
+for the BoolVar version?
+
+In the ECLiPSe versions of the constraint, there is also a version that 
+has boolean variables. In this version, there is no equivalent to the 
+IntSet s, so it has one less argument than the IntVar version. Each 
+sequence of q variables must have between l and u variables with the 
+value 1. Is this the semantics for the gecode version as well?
+
+Cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Thu Aug 19 09:10:13 2010
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 19 Aug 2010 09:10:13 +0200
+Subject: [gecode-users] sequence constraint: variable occurring	 multiply
+In-Reply-To: <4C6CECC202000085000107E6@mail.quintiq.nl>
+References: <4C6C74C0.1000105@cisco.com>
+	<4C6CECC202000085000107E6@mail.quintiq.nl>
+Message-ID: <5A488C61-94DE-41D4-AABF-BE53B09DE97B@gecode.org>
+
+Hi,
+
+David Rijsman wrote:
+> you are absolutely right, this extension is very useful for cyclical rosters. Should not be very hard to enable in the current implementation, basically changing the check at posting the constraint. I see if I can do this and see if this gets accepted?
+
+The question is whether the algorithm is still correctly reporting fixpoints when the variable array contains variables more than once.   I don't know the algorithm well enough to tell from just a quick glance.  Usually, the test suite is pretty good at detecting these cases, so you could simply remove the check in the post function and write a test to see if anything goes wrong.
+If shared variables are indeed a problem for the algorithm, you can use unshare to replace all shared variables with fresh variables (linked to the originals by equality constraints).
+
+Cheers,
+	Guido
+
+> 
+> David 
+> 
+>>>> 
+> From: 	Kish Shen <kisshen at cisco.com>
+> To:	<users at gecode.org>
+> Date: 	8/19/2010 2:03 AM
+> Subject: 	[gecode-users] sequence constraint: variable occurring multiply
+> 
+> Hi,
+> 
+> I have another question about the sequence constraint: exception 
+> ArumentSame is thrown if a variable occurs more than once. Should this 
+> exception be thrown? I can see that it does not make sense for a 
+> variable to occur in a subsequence of q variables, but if the 'distance' 
+> between the same variable > q, i.e. it cannot occur multiply in the same 
+> subsequence, should this be allowed? Can the implemented algorithm deal 
+> with this?
+> 
+> There are useful cases for variables to occur multiply, the simplest is 
+> a cycle, e.g. say for the following variables
+> 
+> x1,x2,x3,x4,x5
+> 
+> and a cycle would be
+> 
+> x1,x2,x3,x4,x5,x1,x2,....
+> 
+> such cycle could be used for a schedule that repeats.
+> 
+> Cheers,
+> 
+> Kish
+> -- 
+> This e-mail may contain confidential and privileged material for the
+> sole use of the intended recipient. Any review, use, distribution or
+> disclosure by others is strictly prohibited. If you are not the intended
+> recipient (or authorized to receive for the recipient), please contact
+> the sender by reply e-mail and delete all copies of this message.
+> Cisco Systems Limited (Company Number: 02558939), is registered in
+> England and Wales with its registered office at 1 Callaghan Square,
+> Cardiff, South Glamorgan CF10 5BT.
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org 
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From kisshen at cisco.com  Thu Aug 19 15:21:15 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Thu, 19 Aug 2010 14:21:15 +0100
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6CF0D702000085000107EB@mail.quintiq.nl>
+References: <4C6ABAFA.1020507@cisco.com>
+	<4C6BA5A90200008500010758@mail.quintiq.nl>
+	<4C6C4114.2050707@cisco.com>
+	<4C6CF0D702000085000107EB@mail.quintiq.nl>
+Message-ID: <4C6D2FCB.3090901@cisco.com>
+
+David Rijsman wrote:
+> Hi Kish,
+> 
+> it is indeed possible to remove the IntSet s argument in the sequence constraint for boolean variables but we choose to explicitly state what value we are counting and use the IntSet for the following reason, I quote from Christian:
+> 
+> "we never use the C++ type bool for Boolean values as Boolean variables also take integer values. And also  choosing a set makes it easier to interface and just forget about the fact whether one is using IntVar or BoolVar."
+> 
+> David
+> 
+Hi David,
+
+So I assume the IntSet s can only take the values 0 and 1 for the 
+BoolVar case, and is really only useful if it has either 1 or 0 only? 
+[If it has both 0 and 1, then all variables must take those values]
+
+In the ECLiPSe version, there seems to be a more fundamental reason why 
+the 0/1 (ECLiPSe 'boolean' version) version counts 1 -- the algorithm is 
+implemented using this version, i.e. the more general version is 
+actually mapped onto the 0/1 version. Is this also the case in your 
+version?
+
+Thanks and cheers,
+
+Kish
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From David.Rijsman at quintiq.com  Thu Aug 19 15:53:12 2010
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 19 Aug 2010 15:53:12 +0200
+Subject: [gecode-users] algorithm used in sequence constraint
+In-Reply-To: <4C6D2FCB.3090901@cisco.com>
+References: <4C6ABAFA.1020507@cisco.com>
+	<4C6BA5A90200008500010758@mail.quintiq.nl> <4C6C4114.2050707@cisco.com>
+	<4C6CF0D702000085000107EB@mail.quintiq.nl> <4C6D2FCB.3090901@cisco.com>
+Message-ID: <4C6D5368020000850001083C@mail.quintiq.nl>
+
+Hi Kish,
+
+IntSet can only take values 0 and 1 otherwise a NotZeroOne exception will be thrown (actually undocumented I see now) . If both values are in IntSet nothing needs to be done if l equals 0 and u is greater or equal to q, if this is not the case the constraint can not be true. I don't map the more integer version onto 1 (boolean version)  but the boolean version on the integer version, basically one implementation independent of (bool or integer) view and type of variable. 
+
+hope this helps,
+
+David
+
+>>> 
+From: 	Kish Shen <kisshen at cisco.com>
+To:	David Rijsman <David.Rijsman at quintiq.com>
+CC:	<users at gecode.org>
+Date: 	8/19/2010 3:21 PM
+Subject: 	Re: [gecode-users] algorithm used in sequence constraint
+
+David Rijsman wrote:
+> Hi Kish,
+> 
+> it is indeed possible to remove the IntSet s argument in the sequence constraint for boolean variables but we choose to explicitly state what value we are counting and use the IntSet for the following reason, I quote from Christian:
+> 
+> "we never use the C++ type bool for Boolean values as Boolean variables also take integer values. And also  choosing a set makes it easier to interface and just forget about the fact whether one is using IntVar or BoolVar."
+> 
+> David
+> 
+Hi David,
+
+So I assume the IntSet s can only take the values 0 and 1 for the 
+BoolVar case, and is really only useful if it has either 1 or 0 only? 
+[If it has both 0 and 1, then all variables must take those values]
+
+In the ECLiPSe version, there seems to be a more fundamental reason why 
+the 0/1 (ECLiPSe 'boolean' version) version counts 1 -- the algorithm is 
+implemented using this version, i.e. the more general version is 
+actually mapped onto the 0/1 version. Is this also the case in your 
+version?
+
+Thanks and cheers,
+
+Kish
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+
+From sagrath23 at gmail.com  Thu Aug 19 22:19:59 2010
+From: sagrath23 at gmail.com (Steven Villegas)
+Date: Thu, 19 Aug 2010 15:19:59 -0500
+Subject: [gecode-users] Installation problems on Cygwin
+Message-ID: <000001cb3fdb$e9594300$bc0bc900$@gmail.com>
+
+Hello
+
+ 
+
+I'm trying to compile Gecode 3.4.0 in Windows 7 with Cygwin. I followed the
+instructions in "Modeling and Programming with Gecode"  in order to
+configure Cygwin with Microsoft Visual C++ 2010 express. When I run make
+command, I get the error: 
+
+ 
+
+Tools/flatzinc/fz.exe.manifest : general error c10100070:  Failed to load
+and parse the manifest. System cannot find the specified file.
+
+make[1]: *** [tools/flatzinc/fz.exe] Error 31
+
+make: *** [compilelib] Error 2
+
+ 
+
+that show the image.
+
+ 
+
+Any hints??
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100819/1e4ea9ee/attachment-0001.htm>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: error.jpg
+Type: image/jpeg
+Size: 67188 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20100819/1e4ea9ee/attachment-0001.jpg>
+
+From tack at gecode.org  Fri Aug 20 08:56:22 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 20 Aug 2010 08:56:22 +0200
+Subject: [gecode-users] Installation problems on Cygwin
+In-Reply-To: <000001cb3fdb$e9594300$bc0bc900$@gmail.com>
+References: <000001cb3fdb$e9594300$bc0bc900$@gmail.com>
+Message-ID: <1283CA08-4753-4991-B303-BD59C61C8CD7@gecode.org>
+
+Steven Villegas wrote:
+> I'm trying to compile Gecode 3.4.0 in Windows 7 with Cygwin. I followed the instructions in ?Modeling and Programming with Gecode?  in order to configureCygwin with Microsoft Visual C++ 2010 express. When I run make command, I get the error:
+>  
+> Tools/flatzinc/fz.exe.manifest : general error c10100070:  Failed to load and parse the manifest. System cannot find the specified file.
+> make[1]: *** [tools/flatzinc/fz.exe] Error 31
+> make: *** [compilelib] Error 2
+>  
+> that show the image.
+>  
+> Any hints??
+
+The problem ist that with Visual C++ 2010 we shouldn't use the manifest tool any longer. We try to detect that when we run configure, but in your case, that test seems to have gone wrong.
+Could you please send me the output of running cl.exe on the command line without any arguments?
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From libicocco at gmail.com  Fri Aug 20 14:45:01 2010
+From: libicocco at gmail.com (Javier Romero)
+Date: Fri, 20 Aug 2010 14:45:01 +0200
+Subject: [gecode-users] Limits on nonlinear constraints
+Message-ID: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+
+Hi,
+I'm a newbie in Gecode, but in the first stages of trying it i've found
+something that puzzles me. After writing a program with a set of highly
+nonlinear constraints which includes the following constraint (apart from
+others)
+
+    IntVar k = expr(*this, 2*x0*x1*x2);
+    IntVar kc01= (*this,x2*(sqr(x0)+sqr(x1)-sqr(d01min)));
+    IntVar kc02= (*this,x1*(sqr(x0)+sqr(x2)-sqr(d02min)));
+    IntVar kc12= (*this,x0*(sqr(x2)+sqr(x1)-sqr(d12min)));
+    rel(*this,k*(sqr(kc01)+sqr(kc02)+sqr(kc12)) < (k*k*k+2*kc01*kc02*kc12));
+
+ i get an output like this:
+
+Initial
+        propagators: 0
+        branchers:   0
+
+Summary
+        runtime:      0.000 (0.174000 ms)
+        solutions:    0
+        propagations: 0
+        nodes:        0
+        failures:     1
+        peak depth:   0
+        peak memory:  18 KB
+That is, it returns inmediately with no solution. However, the problem has a
+solution, and actually it finds it by commenting the last lined of the code
+posted above (by chance; the constraint is actually necessary). This is how
+the output looks when the solution is found:
+Initial
+        propagators: 82
+        branchers:   1
+
+Summary
+        runtime:      54.402 (54402.259000 ms)
+        solutions:    1
+        propagations: 638013328
+        nodes:        1237660
+        failures:     618828
+        peak depth:   414
+        peak memory:  122 KB
+
+I tested manually (and with a python script) that the solution obtained is
+compliant with the constraint that was removed. So i wonder if there is a
+limitation on the level of the nonlinearities in Gecode (i think it's
+unlikely), in the number of constraints (also unlikely) or what else could
+have happened. The code is basically an adaptation of SMM example to my
+arithmetic constraints. I can post it if necessary.
+
+Best regards,
+-- Javier Romero --
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100820/e0f691b7/attachment.htm>
+
+From mmacvicar at gmail.com  Fri Aug 20 14:55:32 2010
+From: mmacvicar at gmail.com (Michael Mac-Vicar)
+Date: Fri, 20 Aug 2010 08:55:32 -0400
+Subject: [gecode-users] Limits on nonlinear constraints
+In-Reply-To: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+References: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+Message-ID: <AANLkTimBdtGPH6JYpsqzH9dffXv5hmd_wh8xmtXEms5e@mail.gmail.com>
+
+Javier,
+
+I didn't try but I'd check the operators used in the last constraint.
+
+Best,
+Michael Mac-Vicar
+
+On Aug 20, 2010 8:45 AM, "Javier Romero" <libicocco at gmail.com> wrote:
+> Hi,
+> I'm a newbie in Gecode, but in the first stages of trying it i've found
+> something that puzzles me. After writing a program with a set of highly
+> nonlinear constraints which includes the following constraint (apart from
+> others)
+>
+> IntVar k = expr(*this, 2*x0*x1*x2);
+> IntVar kc01= (*this,x2*(sqr(x0)+sqr(x1)-sqr(d01min)));
+> IntVar kc02= (*this,x1*(sqr(x0)+sqr(x2)-sqr(d02min)));
+> IntVar kc12= (*this,x0*(sqr(x2)+sqr(x1)-sqr(d12min)));
+> rel(*this,k*(sqr(kc01)+sqr(kc02)+sqr(kc12)) < (k*k*k+2*kc01*kc02*kc12));
+>
+> i get an output like this:
+>
+> Initial
+> propagators: 0
+> branchers: 0
+>
+> Summary
+> runtime: 0.000 (0.174000 ms)
+> solutions: 0
+> propagations: 0
+> nodes: 0
+> failures: 1
+> peak depth: 0
+> peak memory: 18 KB
+> That is, it returns inmediately with no solution. However, the problem has
+a
+> solution, and actually it finds it by commenting the last lined of the
+code
+> posted above (by chance; the constraint is actually necessary). This is
+how
+> the output looks when the solution is found:
+> Initial
+> propagators: 82
+> branchers: 1
+>
+> Summary
+> runtime: 54.402 (54402.259000 ms)
+> solutions: 1
+> propagations: 638013328
+> nodes: 1237660
+> failures: 618828
+> peak depth: 414
+> peak memory: 122 KB
+>
+> I tested manually (and with a python script) that the solution obtained is
+> compliant with the constraint that was removed. So i wonder if there is a
+> limitation on the level of the nonlinearities in Gecode (i think it's
+> unlikely), in the number of constraints (also unlikely) or what else could
+> have happened. The code is basically an adaptation of SMM example to my
+> arithmetic constraints. I can post it if necessary.
+>
+> Best regards,
+> -- Javier Romero --
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100820/9adbb915/attachment.htm>
+
+From tack at gecode.org  Fri Aug 20 14:58:55 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 20 Aug 2010 14:58:55 +0200
+Subject: [gecode-users] Limits on nonlinear constraints
+In-Reply-To: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+References: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+Message-ID: <FDE8C768-1C50-4848-9589-85518594FAE5@gecode.org>
+
+Javier Romero wrote:
+
+> Hi,
+> I'm a newbie in Gecode, but in the first stages of trying it i've found something that puzzles me. After writing a program with a set of highly nonlinear constraints which includes the following constraint (apart from others)
+> 
+>     IntVar k = expr(*this, 2*x0*x1*x2);
+>     IntVar kc01= (*this,x2*(sqr(x0)+sqr(x1)-sqr(d01min)));
+>     IntVar kc02= (*this,x1*(sqr(x0)+sqr(x2)-sqr(d02min)));
+>     IntVar kc12= (*this,x0*(sqr(x2)+sqr(x1)-sqr(d12min)));
+>     rel(*this,k*(sqr(kc01)+sqr(kc02)+sqr(kc12)) < (k*k*k+2*kc01*kc02*kc12));
+> 
+>  i get an output like this:
+[...]
+> That is, it returns inmediately with no solution. However, the problem has a solution, and actually it finds it by commenting the last lined of the code posted above (by chance; the constraint is actually necessary). This is how the output looks when the solution is found:
+[...]
+> I tested manually (and with a python script) that the solution obtained is compliant with the constraint that was removed. So i wonder if there is a limitation on the level of the nonlinearities in Gecode (i think it's unlikely), in the number of constraints (also unlikely) or what else could have happened. The code is basically an adaptation of SMM example to my arithmetic constraints. I can post it if necessary.
+
+If you could give me a small example that I can compile and run, I can have a look.  The code for posting non-linear expressions is relatively new, and there may be bugs that our test suite has not found.
+
+One thing you could try is to decompose the constraints (in particular the last line) manually, i.e. not use anything from minimodel.hh, but declare temporary IntVars and then only use the mult, linear, and sqr functions from int.hh.  If that works, then it's definitely a problem in how minimodel decomposes the constraint.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From libicocco at gmail.com  Fri Aug 20 17:24:31 2010
+From: libicocco at gmail.com (Javier Romero)
+Date: Fri, 20 Aug 2010 17:24:31 +0200
+Subject: [gecode-users] Limits on nonlinear constraints
+In-Reply-To: <FDE8C768-1C50-4848-9589-85518594FAE5@gecode.org>
+References: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+	<FDE8C768-1C50-4848-9589-85518594FAE5@gecode.org>
+Message-ID: <AANLkTi=dxY4+ggKS3X5fv5EUCZ3AuZWY0e=rGFtNUYSZ@mail.gmail.com>
+
+Thanks for the fast answer. I tried decomposing the last constraint into
+mul, sqr and linear rules, but i got the same result. I attached the code. I
+compiled it by doing
+g++ parallelepiped.cpp -lgecodeminimodel -lgecodeint -lgecodesearch
+-lgecodegist -lgecodedriver -o parallelepiped
+-- Javier Romero --
+
+
+On Fri, Aug 20, 2010 at 2:58 PM, Guido Tack <tack at gecode.org> wrote:
+
+> Javier Romero wrote:
+>
+> > Hi,
+> > I'm a newbie in Gecode, but in the first stages of trying it i've found
+> something that puzzles me. After writing a program with a set of highly
+> nonlinear constraints which includes the following constraint (apart from
+> others)
+> >
+> >     IntVar k = expr(*this, 2*x0*x1*x2);
+> >     IntVar kc01= (*this,x2*(sqr(x0)+sqr(x1)-sqr(d01min)));
+> >     IntVar kc02= (*this,x1*(sqr(x0)+sqr(x2)-sqr(d02min)));
+> >     IntVar kc12= (*this,x0*(sqr(x2)+sqr(x1)-sqr(d12min)));
+> >     rel(*this,k*(sqr(kc01)+sqr(kc02)+sqr(kc12)) <
+> (k*k*k+2*kc01*kc02*kc12));
+> >
+> >  i get an output like this:
+> [...]
+> > That is, it returns inmediately with no solution. However, the problem
+> has a solution, and actually it finds it by commenting the last lined of the
+> code posted above (by chance; the constraint is actually necessary). This is
+> how the output looks when the solution is found:
+> [...]
+> > I tested manually (and with a python script) that the solution obtained
+> is compliant with the constraint that was removed. So i wonder if there is a
+> limitation on the level of the nonlinearities in Gecode (i think it's
+> unlikely), in the number of constraints (also unlikely) or what else could
+> have happened. The code is basically an adaptation of SMM example to my
+> arithmetic constraints. I can post it if necessary.
+>
+> If you could give me a small example that I can compile and run, I can have
+> a look.  The code for posting non-linear expressions is relatively new, and
+> there may be bugs that our test suite has not found.
+>
+> One thing you could try is to decompose the constraints (in particular the
+> last line) manually, i.e. not use anything from minimodel.hh, but declare
+> temporary IntVars and then only use the mult, linear, and sqr functions from
+> int.hh.  If that works, then it's definitely a problem in how minimodel
+> decomposes the constraint.
+>
+> Cheers,
+>        Guido
+>
+> --
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100820/5ebaf6fb/attachment-0001.htm>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: parallelepiped.cpp
+Type: text/x-c++src
+Size: 5791 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20100820/5ebaf6fb/attachment-0001.cpp>
+
+From tack at gecode.org  Fri Aug 20 17:49:42 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 20 Aug 2010 17:49:42 +0200
+Subject: [gecode-users] Limits on nonlinear constraints
+In-Reply-To: <AANLkTi=dxY4+ggKS3X5fv5EUCZ3AuZWY0e=rGFtNUYSZ@mail.gmail.com>
+References: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+	<FDE8C768-1C50-4848-9589-85518594FAE5@gecode.org>
+	<AANLkTi=dxY4+ggKS3X5fv5EUCZ3AuZWY0e=rGFtNUYSZ@mail.gmail.com>
+Message-ID: <D8775ED9-1C0B-4F3B-B03D-EB6AFBE1EC3A@gecode.org>
+
+Javier Romero wrote:
+
+> Thanks for the fast answer. I tried decomposing the last constraint into mul, sqr and linear rules, but i got the same result. I attached the code. I compiled it by doing 
+> g++ parallelepiped.cpp -lgecodeminimodel -lgecodeint -lgecodesearch -lgecodegist -lgecodedriver -o parallelepiped
+
+Ok, now it's easier to see what's going wrong.  The problem is that the equation may hold, but it cannot be expressed using IntVars because of the limited domains.  In your decomposition, the first constraint that exposes the problem is 
+
+            sqr(*this,k,kk);
+
+At this point, k is already at least 2000000, but kk was initialized as an IntVar with domain Int::Limits::min..Int::Limits::max. Therefore, the problem has no solution, as 2000000*2000000 > Int::Limits::max.  This is expected and correct behavior.
+Unfortunately, the minimodel layer lets you express constraints that are (semantically) satisfiable, but the introduction of intermediate IntVars makes them unsatisfiable.
+For your actual problem, there's no way around this limitation except implementing IntVars with arbitrary precision (using e.g. the gmp library).  This would be possible, but it's not something we're planning to do anytime soon.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From libicocco at gmail.com  Fri Aug 20 17:57:47 2010
+From: libicocco at gmail.com (Javier Romero)
+Date: Fri, 20 Aug 2010 17:57:47 +0200
+Subject: [gecode-users] Limits on nonlinear constraints
+In-Reply-To: <D8775ED9-1C0B-4F3B-B03D-EB6AFBE1EC3A@gecode.org>
+References: <AANLkTimwwtE3yWYHoXf_t--Zs04yPkUtVKOGfaNV1YGe@mail.gmail.com>
+	<FDE8C768-1C50-4848-9589-85518594FAE5@gecode.org>
+	<AANLkTi=dxY4+ggKS3X5fv5EUCZ3AuZWY0e=rGFtNUYSZ@mail.gmail.com>
+	<D8775ED9-1C0B-4F3B-B03D-EB6AFBE1EC3A@gecode.org>
+Message-ID: <AANLkTiny-Ho_cBhCkWn35mYL46Tb+fnug36A6t6d7TD8@mail.gmail.com>
+
+True, that makes total sense. This formulation of the problem is actually an
+adaptation from floating point constraints to integer constraints; so
+another way of solving it would be implementing something like FloatVar. But
+i couldn't find anything about that either.
+
+Thanks anyway for the great work you are doing with Gecode!
+-- Javier Romero --
+
+
+On Fri, Aug 20, 2010 at 5:49 PM, Guido Tack <tack at gecode.org> wrote:
+
+> Javier Romero wrote:
+>
+> > Thanks for the fast answer. I tried decomposing the last constraint into
+> mul, sqr and linear rules, but i got the same result. I attached the code. I
+> compiled it by doing
+> > g++ parallelepiped.cpp -lgecodeminimodel -lgecodeint -lgecodesearch
+> -lgecodegist -lgecodedriver -o parallelepiped
+>
+> Ok, now it's easier to see what's going wrong.  The problem is that the
+> equation may hold, but it cannot be expressed using IntVars because of the
+> limited domains.  In your decomposition, the first constraint that exposes
+> the problem is
+>
+>            sqr(*this,k,kk);
+>
+> At this point, k is already at least 2000000, but kk was initialized as an
+> IntVar with domain Int::Limits::min..Int::Limits::max. Therefore, the
+> problem has no solution, as 2000000*2000000 > Int::Limits::max.  This is
+> expected and correct behavior.
+> Unfortunately, the minimodel layer lets you express constraints that are
+> (semantically) satisfiable, but the introduction of intermediate IntVars
+> makes them unsatisfiable.
+> For your actual problem, there's no way around this limitation except
+> implementing IntVars with arbitrary precision (using e.g. the gmp library).
+>  This would be possible, but it's not something we're planning to do anytime
+> soon.
+>
+> Cheers,
+>        Guido
+>
+> --
+> Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100820/e9caf5d8/attachment.htm>
+
+From tack at gecode.org  Fri Aug 20 19:42:20 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 20 Aug 2010 19:42:20 +0200
+Subject: [gecode-users] Installation problems on Cygwin
+In-Reply-To: <AANLkTi=5542YZk3Dr1Ec7_ZpaiWHa3jr7SMt-h6a8fhJ@mail.gmail.com>
+References: <000001cb3fdb$e9594300$bc0bc900$@gmail.com>
+	<1283CA08-4753-4991-B303-BD59C61C8CD7@gecode.org>
+	<AANLkTi=5542YZk3Dr1Ec7_ZpaiWHa3jr7SMt-h6a8fhJ@mail.gmail.com>
+Message-ID: <D42D2C8F-A81B-4C8E-BE45-7AD30F3B83AC@gecode.org>
+
+Steven Villegas wrote:
+> the picture show the output of cl (sorry, the output is in spanish).
+
+That's exactly the problem: We're looking for the string "Version 16", not "versi?n 16" ;-)  I'll have to think of something better than that. then.  For the time being, you can search for "Version 16" in gecode.m4, replace it with "versi?n 16", run autoconf, and then configure again.  Hopefully, that fixes the issue for the time being.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From sagrath23 at gmail.com  Sat Aug 21 19:52:20 2010
+From: sagrath23 at gmail.com (Steven Villegas)
+Date: Sat, 21 Aug 2010 12:52:20 -0500
+Subject: [gecode-users] Linking problems in Visual Studio
+Message-ID: <AANLkTinwj4OvMhi+mWeAO817yHWU9M2bh-hmAcrCmVMw@mail.gmail.com>
+
+Hi,
+
+Finally i compile succesfully GECODE on Windows 7 using cl and cygwing.
+now, i try to link my solution with GECODE, following these steps
+http://www.gecode.org/doc-latest/reference/PageUsage.html
+when i build my solution, i get this output:
+
+1>------ Build started: Project: GECODE, Configuration: Release Win32 ------
+1>  money.cpp
+1>D:\app\Cygwin\usr\local\include\gecode/support/exception.hpp(46):
+warning C4275: non dll-interface class 'std::exception' used as base
+for dll-interface class 'Gecode::Exception'
+1>          D:\app\Microsoft Visual Studio
+10.0\VC\include\exception(94) : see declaration of 'std::exception'
+1>          D:\app\Cygwin\usr\local\include\gecode/support/exception.hpp(46)
+: see declaration of 'Gecode::Exception'
+1>D:\app\Cygwin\usr\local\include\gecode/driver/options.hpp(319):
+warning C4800: 'int' : forcing value to bool 'true' or 'false'
+(performance warning)
+1>money.cpp(66): warning C4355: 'this' : used in base member initializer list
+1>D:\app\Cygwin\usr\local\include\gecode/support/heap.hpp(351):
+warning C4345: behavior change: an object of POD type constructed with
+an initializer of the form () will be default-initialized
+1>          D:\app\Cygwin\usr\local\include\gecode/support/heap.hpp(369)
+: see reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(unsigned long)' being
+compiled
+1>          with
+1>          [
+1>              T=Gecode::DFA::Transition
+1>          ]
+1>          D:\app\Cygwin\usr\local\include\gecode/int/extensional/dfa.hpp(87)
+: see reference to function template instantiation 'T
+*Gecode::Heap::alloc<Gecode::DFA::Transition>(int)' being compiled
+1>          with
+1>          [
+1>              T=Gecode::DFA::Transition
+1>          ]
+1>LIBCMT.lib(wincrt0.obj) : error LNK2001: unresolved external symbol
+_WinMain at 16
+1>C:\Users\Steven Augusto\Documents\Visual Studio
+2010\Projects\GECODE\Release\GECODE.exe : fatal error LNK1120: 1
+unresolved externals
+========== Build: 0 succeeded, 1 failed, 0 up-to-date, 0 skipped ==========
+
+any hints about the problem??
+
+
+From tack at gecode.org  Sun Aug 22 13:40:12 2010
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 22 Aug 2010 13:40:12 +0200
+Subject: [gecode-users] Linking problems in Visual Studio
+In-Reply-To: <AANLkTinwj4OvMhi+mWeAO817yHWU9M2bh-hmAcrCmVMw@mail.gmail.com>
+References: <AANLkTinwj4OvMhi+mWeAO817yHWU9M2bh-hmAcrCmVMw@mail.gmail.com>
+Message-ID: <E27F45AE-75CB-4B7E-954B-BC15AB45F495@gecode.org>
+
+Steven Villegas wrote:
+> 1>LIBCMT.lib(wincrt0.obj) : error LNK2001: unresolved external symbol
+> _WinMain at 16
+> 1>C:\Users\Steven Augusto\Documents\Visual Studio
+> 2010\Projects\GECODE\Release\GECODE.exe : fatal error LNK1120: 1
+> unresolved externals
+> ========== Build: 0 succeeded, 1 failed, 0 up-to-date, 0 skipped ==========
+> 
+> any hints about the problem??
+
+That's not a Gecode problem, you're trying to create a Windows Application (as opposed to a Windows Console Application), where the main function must be called WinMain or wWinMain.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From kisshen at cisco.com  Mon Aug 23 02:36:00 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Mon, 23 Aug 2010 01:36:00 +0100
+Subject: [gecode-users] odering information for unary scheduling constraints
+Message-ID: <4C71C270.2020101@cisco.com>
+
+Hi,
+
+I am looking at the unary scheduling constraints, as I have just added 
+them to the ECLiPSe gecode interface. ECLiPSe has both unary and 
+cumulative constraints, which were added some time ago (more than 10 
+years ago now, I think), and for the unary constraint, there is a 
+version with ordering booleans, where each pair of task has a 0/1 domain 
+variable (BoolVar for gecode) associated with it, which specify the 
+order of the pair of task (if i is before j or j before i for pair i,j).
+This seems to be very useful, because it can used to specify ordering if 
+required, or be used in search to try the different orderings.
+
+I guess for gecode, you would need to post extra reified constraints 
+specifying the ordering? Does it make sense to move this into the unary 
+constraint?
+
+I was also looking at the global constraint catalog, to see if they have 
+a unary constraint with ordering. I found disj, which specify ordering 
+in a different way: for each task, there is a set variable that 
+gives/specify the tasks that happen earlier, and a variable position 
+that gives the absolute order of the task. The description then mention 
+that the algorithm for shaving the position attribute is implemented in 
+gecode. Is this in the unary constraint? Is it used internally? I can't 
+see any ordering information that can be accessed from the outside in 
+the description of the unary constraint, or have I missed something?
+
+Thanks and cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From tack at gecode.org  Mon Aug 23 09:41:04 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Aug 2010 09:41:04 +0200
+Subject: [gecode-users] odering information for unary scheduling
+	constraints
+In-Reply-To: <4C71C270.2020101@cisco.com>
+References: <4C71C270.2020101@cisco.com>
+Message-ID: <A965DB7E-70F9-45B1-AB89-EC3B99CC873D@gecode.org>
+
+Kish Shen wrote:
+> I am looking at the unary scheduling constraints, as I have just added them to the ECLiPSe gecode interface. ECLiPSe has both unary and cumulative constraints, which were added some time ago (more than 10 years ago now, I think), and for the unary constraint, there is a version with ordering booleans, where each pair of task has a 0/1 domain variable (BoolVar for gecode) associated with it, which specify the order of the pair of task (if i is before j or j before i for pair i,j).
+> This seems to be very useful, because it can used to specify ordering if required, or be used in search to try the different orderings.
+> 
+> I guess for gecode, you would need to post extra reified constraints specifying the ordering? Does it make sense to move this into the unary constraint?
+
+It's the same information that is expressed in an STN (Simple Temporal Network), and I'm currently implementing that.  It won't be part of the unary constraint, because it's really not tied to any particular resource, but it's shared between all resources (tasks can be on more than one resource, but there's only one order among all tasks).
+
+> I was also looking at the global constraint catalog, to see if they have a unary constraint with ordering. I found disj, which specify ordering in a different way: for each task, there is a set variable that gives/specify the tasks that happen earlier, and a variable position that gives the absolute order of the task. The description then mention that the algorithm for shaving the position attribute is implemented in gecode. Is this in the unary constraint? Is it used internally? I can't see any ordering information that can be accessed from the outside in the description of the unary constraint, or have I missed something?
+
+The information in the global constraint catalog is not correct.  Gecode has disjunctive, but not disj.  I'll let them know.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From kisshen at cisco.com  Mon Aug 23 17:56:55 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Mon, 23 Aug 2010 16:56:55 +0100
+Subject: [gecode-users] odering information for unary scheduling
+	constraints
+In-Reply-To: <A965DB7E-70F9-45B1-AB89-EC3B99CC873D@gecode.org>
+References: <4C71C270.2020101@cisco.com>
+	<A965DB7E-70F9-45B1-AB89-EC3B99CC873D@gecode.org>
+Message-ID: <4C729A47.5040709@cisco.com>
+
+Hi Guido,
+
+Thanks for your reply.
+
+Guido Tack wrote:
+
+> It's the same information that is expressed in an STN (Simple Temporal Network), and I'm currently implementing that.  It won't be part of the unary constraint, because it's really not tied to any particular resource, but it's shared between all resources (tasks can be on more than one resource, but there's only one order among all tasks).
+
+Is this information tied into gecode's search engines? That is, would 
+the booleans be available for explicit labelling by the programmer? I 
+ask this because the ECLiPSe gecode interface allows the search to be 
+done from ECLiPSe.
+
+Cheers,
+
+Kish
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From tack at gecode.org  Mon Aug 23 18:10:50 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Aug 2010 18:10:50 +0200
+Subject: [gecode-users] odering information for unary
+	scheduling	constraints
+In-Reply-To: <4C729A47.5040709@cisco.com>
+References: <4C71C270.2020101@cisco.com>
+	<A965DB7E-70F9-45B1-AB89-EC3B99CC873D@gecode.org>
+	<4C729A47.5040709@cisco.com>
+Message-ID: <261915FE-0BAE-43D0-B675-D0EDEFA0CE50@gecode.org>
+
+Kish Shen wrote:
+
+> Hi Guido,
+> 
+> Thanks for your reply.
+> 
+> Guido Tack wrote:
+> 
+>> It's the same information that is expressed in an STN (Simple Temporal Network), and I'm currently implementing that.  It won't be part of the unary constraint, because it's really not tied to any particular resource, but it's shared between all resources (tasks can be on more than one resource, but there's only one order among all tasks).
+> 
+> Is this information tied into gecode's search engines? That is, would the booleans be available for explicit labelling by the programmer? I ask this because the ECLiPSe gecode interface allows the search to be done from ECLiPSe.
+
+The STN will be available to the programmer, so the ECLiPSe search engine could query the existing partial order as well as post new ordering constraints.  The interface will not use BoolVars but a direct representation of tasks.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From kisshen at cisco.com  Mon Aug 23 18:30:02 2010
+From: kisshen at cisco.com (Kish Shen)
+Date: Mon, 23 Aug 2010 17:30:02 +0100
+Subject: [gecode-users] reified domain constraints failing for empty domains
+Message-ID: <4C72A20A.9060704@cisco.com>
+
+Hi,
+
+I have noticed that the reified version of the dom constraint seems to 
+fail when the domain is empty (min > max):
+
+dom(*solver, x, min, max, reif)
+
+solver->failed() seems to return true if min > max, even if reif is not 
+set, or 0.
+
+To me, it seems more correct for dom to succeed if reif is 0, and to not 
+fail if reif is not yet set to 0 or 1. Is it possible to do this?
+
+Thanks and cheers,
+
+Kish
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+From tack at gecode.org  Mon Aug 23 18:53:35 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 23 Aug 2010 18:53:35 +0200
+Subject: [gecode-users] reified domain constraints failing for empty
+	domains
+In-Reply-To: <4C72A20A.9060704@cisco.com>
+References: <4C72A20A.9060704@cisco.com>
+Message-ID: <0512D07E-5531-4499-98A4-1FCF0193FD01@gecode.org>
+
+Kish Shen wrote:
+> I have noticed that the reified version of the dom constraint seems to fail when the domain is empty (min > max):
+> 
+> dom(*solver, x, min, max, reif)
+> 
+> solver->failed() seems to return true if min > max, even if reif is not set, or 0.
+> 
+> To me, it seems more correct for dom to succeed if reif is 0, and to not fail if reif is not yet set to 0 or 1. Is it possible to do this?
+
+That's a bug, thanks for reporting it!  I fixed it in the svn.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+From david.zaremby at lmco.com  Wed Aug 25 15:28:08 2010
+From: david.zaremby at lmco.com (Zaremby, David)
+Date: Wed, 25 Aug 2010 09:28:08 -0400
+Subject: [gecode-users] Branching allowing values back in the domain
+Message-ID: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+
+Gecoders,
+
+
+I have a problem where I am doing scheduling of tasks. We need to be able to create conditional gaps between types of tasks. To do this "better" we have a custom propagator that will create gaps between events. When I implement this using relational operations everything seems to work fine however when I use my propagator I am getting some odd behavior with respect to the start time branching.  Here are the details.
+
+When I run using the built in relational operations for my constraint like the one below everything works fine. The first tree that I navigate down leads me to a valid solution without any start time branching because of failures. I verified this in gist as well. I would expect this because propagation should occur and not allow an invalid start time to be in the domain when picking start time. I do have my computation distances very large so it should be doing full recomputation. I am using this brancher for start times: branch(*this, starts, INT_VAR_MIN_MIN, INT_VAL_MIN);
+
+Constraint:          rel(scheduler, ((sameResource >> ((start1 + offset1 <= start2) || (start2 + offset2 <= start1)))));
+
+opt.c_d(1000000);// computation distance
+opt.a_d(1000000); // adaptive computation distance
+
+
+Run using the built in relations:
+
+task 1: res[ru: 34 ru: 2 s[105262]]
+task 2: res[ru: 29 ru: 5 s[105292]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+Now when I run my custom propagator I get into this situation where I have domains in my start times (s[...])that should have values removed because of propagation but at the next choice those values that were previously removed seem to be back in the domain. This is down the left side of the tree and thus isn't an alternate. Here is the output from the two nodes.
+
+This is the node before the failed node in question. Notice that task 1 does not have 105256 in its domain.
+
+Run using custom propagators:
+
+task 1: res[ru: 34 ru: 2 s[{105262,105268,105292]]
+task 2: res[ru: 29 ru: 5 s[{105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+This is the failed node to the left side of the node above. Notice that somehow it found 105256 to choose for task 1 and this wasn't in the domain. How did it get there?  Since this invalid value was chosen the constraint fails.
+
+task 1: res[ru: 34 ru: 2 s[105256]]
+task 2: res[ru: 29 ru: 5 s[{105256,105262,105268,105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+I checked the custom propagator for obvious errors such as using invalid ranges for inter and such. I don't see anything obvious. Anyone have any clue? I have posted the propagator portion of my code just in case anyone can see something I don't. I realize that this may not have the most optimal algorithm for reducing the domain as early as possible but I don't think it should cause this behavior.
+
+class MinGapProp :
+      public BinaryPropagator<Int::IntView, Int::PC_INT_BND> {
+
+public:
+      int offset0;
+      int offset1;
+      Task task1;
+      Task task2;
+      string id;
+
+      MinGapProp(Home home, Int::IntView x0, Int::IntView x1)
+            : BinaryPropagator<Int::IntView,Int::PC_INT_BND>(home, x0, x1) {}
+
+      static ExecStatus post(Home home, string id,
+            Int::IntView x0, Int::IntView x1, int offset0, int offset1, Task &task1, Task &task2)
+      {
+            MinGapProp *minGapProp = new (home) MinGapProp(home,x0,x1);
+            minGapProp->task1 = task1;
+            minGapProp->task2 = task2;
+            minGapProp->offset0 = offset0;
+            minGapProp->offset1 = offset1;
+            minGapProp->id = id;
+            if (x1.max() - x0.min() < offset1)
+            {
+                  Iter::Ranges::Singleton r0(x0.min(), x1.min() + offset1 - 1);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r0, false));
+            }
+            if (x0.max() - x1.min() < offset0)
+            {
+                  Iter::Ranges::Singleton r1(x1.min(), x0.min() + offset0 - 1);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r1, false));
+            }
+            return ES_OK;
+      }
+
+      MinGapProp(Space& home, bool share, MinGapProp& p)
+            : BinaryPropagator<Int::IntView,Int::PC_INT_BND>(home,share,p), offset0(p.offset0),
+                  offset1(p.offset1), id(p.id), task1(p.task1), task2(p.task2) {}
+
+      virtual Propagator* copy(Space& home, bool share)
+      {
+            return new (home) MinGapProp(home,share,*this);
+      }
+
+      virtual PropCost cost(const Space&, const ModEventDelta&) const {
+            return PropCost::unary(PropCost::LO);
+      }
+
+      virtual ExecStatus propagate(Space& home, const ModEventDelta& med)
+      {
+
+            if (x0.assigned())
+            {
+                  int min = x0.val() - offset1 + 1 >= 0 ? x0.val() - offset1 + 1 : 0;
+                  int max = x0.val() + offset0 - 1;
+                  Iter::Ranges::Singleton r0(min, max);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r0, false));
+            }
+            else if (x1.assigned())
+            {
+                  int min = x1.val() - offset0 + 1 >= 0 ? x1.val() - offset0 + 1 : 0;
+                  int max = x1.val() + offset1 - 1;
+                  Iter::Ranges::Singleton r1(min, max);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r1, false));
+            }
+
+            if (x0.max() + offset0 <= x1.min() || x1.max() + offset1 <= x0.min())
+                  return home.ES_SUBSUMED(*this);
+            else
+                  return ES_FIX;
+      }
+};
+
+David Zaremby
+Senior Software Engineer
+LSS / Strategic Products
+
+Lockheed Martin Global Training and Logistics
+12506 Lake Underhill Road, MP-823
+Orlando, FL 32825
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100825/adab4664/attachment-0001.htm>
+
+From david.zaremby at lmco.com  Wed Aug 25 15:49:03 2010
+From: david.zaremby at lmco.com (Zaremby, David)
+Date: Wed, 25 Aug 2010 09:49:03 -0400
+Subject: [gecode-users] Branching allowing values back in the domain
+In-Reply-To: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+References: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+Message-ID: <B0DBAEBD2F00B6409AA88CA457FBBE824808811020@HVXMSP1.us.lmco.com>
+
+I mentioned recomputation on a whim but it prompted me to think maybe I should try messing with it. I tried (1,1) and then low and behold the parent node did have 105256. I'm pretty sure that value should have been propagated out. I guess I have to investigate what that means. In any case why does gist show differences based on recomputation.  Maybe understanding that would lead me to an answer of what is wrong with my propagator.
+David Zaremby
+Senior Software Engineer
+LSS / Strategic Products
+
+Lockheed Martin Global Training and Logistics
+12506 Lake Underhill Road, MP-823
+Orlando, FL 32825
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Zaremby, David
+Sent: Wednesday, August 25, 2010 9:28 AM
+To: users at gecode.org
+Subject: EXTERNAL: [gecode-users] Branching allowing values back in the domain
+
+Gecoders,
+
+
+I have a problem where I am doing scheduling of tasks. We need to be able to create conditional gaps between types of tasks. To do this "better" we have a custom propagator that will create gaps between events. When I implement this using relational operations everything seems to work fine however when I use my propagator I am getting some odd behavior with respect to the start time branching.  Here are the details.
+
+When I run using the built in relational operations for my constraint like the one below everything works fine. The first tree that I navigate down leads me to a valid solution without any start time branching because of failures. I verified this in gist as well. I would expect this because propagation should occur and not allow an invalid start time to be in the domain when picking start time. I do have my computation distances very large so it should be doing full recomputation. I am using this brancher for start times: branch(*this, starts, INT_VAR_MIN_MIN, INT_VAL_MIN);
+
+Constraint:          rel(scheduler, ((sameResource >> ((start1 + offset1 <= start2) || (start2 + offset2 <= start1)))));
+
+opt.c_d(1000000);// computation distance
+opt.a_d(1000000); // adaptive computation distance
+
+
+Run using the built in relations:
+
+task 1: res[ru: 34 ru: 2 s[105262]]
+task 2: res[ru: 29 ru: 5 s[105292]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+Now when I run my custom propagator I get into this situation where I have domains in my start times (s[...])that should have values removed because of propagation but at the next choice those values that were previously removed seem to be back in the domain. This is down the left side of the tree and thus isn't an alternate. Here is the output from the two nodes.
+
+This is the node before the failed node in question. Notice that task 1 does not have 105256 in its domain.
+
+Run using custom propagators:
+
+task 1: res[ru: 34 ru: 2 s[{105262,105268,105292]]
+task 2: res[ru: 29 ru: 5 s[{105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+This is the failed node to the left side of the node above. Notice that somehow it found 105256 to choose for task 1 and this wasn't in the domain. How did it get there?  Since this invalid value was chosen the constraint fails.
+
+task 1: res[ru: 34 ru: 2 s[105256]]
+task 2: res[ru: 29 ru: 5 s[{105256,105262,105268,105292,105298,105304,105508]]
+task 3: res[ru: 26 ru: 1 s[105256]]
+task 4: res[ru: 33 ru: 39 s[105256]]
+task 5: res[ru: 25 ru: 38 s[105256]]
+task 6: res[ru: 30 ru: 37 s[105256]]
+task 7: res[ru: 32 ru: 40 s[105245]]
+task 8: res[ru: 18 ru: 41 s[105245]]
+task 9: res[ru: 19 ru: 42 s[105256]]
+
+I checked the custom propagator for obvious errors such as using invalid ranges for inter and such. I don't see anything obvious. Anyone have any clue? I have posted the propagator portion of my code just in case anyone can see something I don't. I realize that this may not have the most optimal algorithm for reducing the domain as early as possible but I don't think it should cause this behavior.
+
+class MinGapProp :
+      public BinaryPropagator<Int::IntView, Int::PC_INT_BND> {
+
+public:
+      int offset0;
+      int offset1;
+      Task task1;
+      Task task2;
+      string id;
+
+      MinGapProp(Home home, Int::IntView x0, Int::IntView x1)
+            : BinaryPropagator<Int::IntView,Int::PC_INT_BND>(home, x0, x1) {}
+
+      static ExecStatus post(Home home, string id,
+            Int::IntView x0, Int::IntView x1, int offset0, int offset1, Task &task1, Task &task2)
+      {
+            MinGapProp *minGapProp = new (home) MinGapProp(home,x0,x1);
+            minGapProp->task1 = task1;
+            minGapProp->task2 = task2;
+            minGapProp->offset0 = offset0;
+            minGapProp->offset1 = offset1;
+            minGapProp->id = id;
+            if (x1.max() - x0.min() < offset1)
+            {
+                  Iter::Ranges::Singleton r0(x0.min(), x1.min() + offset1 - 1);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r0, false));
+            }
+            if (x0.max() - x1.min() < offset0)
+            {
+                  Iter::Ranges::Singleton r1(x1.min(), x0.min() + offset0 - 1);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r1, false));
+            }
+            return ES_OK;
+      }
+
+      MinGapProp(Space& home, bool share, MinGapProp& p)
+            : BinaryPropagator<Int::IntView,Int::PC_INT_BND>(home,share,p), offset0(p.offset0),
+                  offset1(p.offset1), id(p.id), task1(p.task1), task2(p.task2) {}
+
+      virtual Propagator* copy(Space& home, bool share)
+      {
+            return new (home) MinGapProp(home,share,*this);
+      }
+
+      virtual PropCost cost(const Space&, const ModEventDelta&) const {
+            return PropCost::unary(PropCost::LO);
+      }
+
+      virtual ExecStatus propagate(Space& home, const ModEventDelta& med)
+      {
+
+            if (x0.assigned())
+            {
+                  int min = x0.val() - offset1 + 1 >= 0 ? x0.val() - offset1 + 1 : 0;
+                  int max = x0.val() + offset0 - 1;
+                  Iter::Ranges::Singleton r0(min, max);
+                  SCHED_ME_CHECK(home, id, x1.minus_r(home, r0, false));
+            }
+            else if (x1.assigned())
+            {
+                  int min = x1.val() - offset0 + 1 >= 0 ? x1.val() - offset0 + 1 : 0;
+                  int max = x1.val() + offset1 - 1;
+                  Iter::Ranges::Singleton r1(min, max);
+                  SCHED_ME_CHECK(home, id, x0.minus_r(home, r1, false));
+            }
+
+            if (x0.max() + offset0 <= x1.min() || x1.max() + offset1 <= x0.min())
+                  return home.ES_SUBSUMED(*this);
+            else
+                  return ES_FIX;
+      }
+};
+
+David Zaremby
+Senior Software Engineer
+LSS / Strategic Products
+
+Lockheed Martin Global Training and Logistics
+12506 Lake Underhill Road, MP-823
+Orlando, FL 32825
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100825/136957cc/attachment-0001.htm>
+
+From tack at gecode.org  Wed Aug 25 21:33:24 2010
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 25 Aug 2010 21:33:24 +0200
+Subject: [gecode-users] Branching allowing values back in the domain
+In-Reply-To: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+References: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+Message-ID: <B35544A7-D2EC-478F-A8F7-4AA73281F79A@gecode.org>
+
+Hi David,
+
+I think the problem with your propagator might be the PC_INT_BND propagation condition in combination with your domain pruning (using the minus_r operations).  The thing is that your propagator won't be scheduled when an inner value is removed from one of its variables' domains, but it could actually perform propagation (given that the other variable is assigned).  I'm not 100% sure (I haven't tried to understand the subsumption logic in detail), but try using PC_INT_DOM and see if that solves the problem.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From zayenz at gmail.com  Thu Aug 26 07:44:33 2010
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 26 Aug 2010 07:44:33 +0200
+Subject: [gecode-users] Branching allowing values back in the domain
+In-Reply-To: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+References: <B0DBAEBD2F00B6409AA88CA457FBBE8248087B7E30@HVXMSP1.us.lmco.com>
+Message-ID: <AANLkTimKjtG7oVVmw6+tHA1PdNL9v6fiHRGqpF-OBjc_@mail.gmail.com>
+
+2010/8/25 Zaremby, David <david.zaremby at lmco.com>
+
+> This is the node before the failed node in question. Notice that task 1
+> does not have 105256 in its domain.
+>
+>
+>
+> Run using custom propagators:
+>
+>
+>
+> task 1: res[ru: 34 ru: 2 s[{105262,105268,105292]]
+>
+> task 2: res[ru: 29 ru: 5 s[{105292,105298,105304,105508]]
+>
+> task 3: res[ru: 26 ru: 1 s[105256]]
+>
+> task 4: res[ru: 33 ru: 39 s[105256]]
+>
+> task 5: res[ru: 25 ru: 38 s[105256]]
+>
+> task 6: res[ru: 30 ru: 37 s[105256]]
+>
+> task 7: res[ru: 32 ru: 40 s[105245]]
+>
+> task 8: res[ru: 18 ru: 41 s[105245]]
+>
+> task 9: res[ru: 19 ru: 42 s[105256]]
+>
+>
+>
+> This is the failed node to the left side of the node above. Notice that
+> somehow it found 105256 to choose for task 1 and this wasn?t in the domain.
+> How did it get there?  Since this invalid value was chosen the constraint
+> fails.
+>
+>
+>
+> task 1: res[ru: 34 ru: 2 s[105256]]
+>
+> task 2: res[ru: 29 ru: 5
+> s[{105256,105262,105268,105292,105298,105304,105508]]
+>
+> task 3: res[ru: 26 ru: 1 s[105256]]
+>
+> task 4: res[ru: 33 ru: 39 s[105256]]
+>
+> task 5: res[ru: 25 ru: 38 s[105256]]
+>
+> task 6: res[ru: 30 ru: 37 s[105256]]
+>
+> task 7: res[ru: 32 ru: 40 s[105245]]
+>
+> task 8: res[ru: 18 ru: 41 s[105245]]
+>
+> task 9: res[ru: 19 ru: 42 s[105256]]
+>
+
+Inspecting a failed node might give odd results, a tell that fails might
+have been in the process of modifying a variable. If you want to know what
+has been changed by a branching, you can use the Gist feature "Inspect
+before fixpoint".
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100826/d42eea9e/attachment.htm>
+
+From gecode at felixbrandt.de  Sat Aug 28 09:52:11 2010
+From: gecode at felixbrandt.de (Felix Brandt)
+Date: Sat, 28 Aug 2010 09:52:11 +0200
+Subject: [gecode-users] Idea for extending ViewBrancher
+Message-ID: <4C78C02B.9070905@felixbrandt.de>
+
+Hi,
+
+for a recent project I wrote a custom brancher (similar to the
+ViewBrancher) that only branches variables within a certain interval.
+The variables, which do not intersect the interval, are considered as if
+they are already assigned.
+
+In my case I wasn't interested in the values if they did not match the
+given interval, but also did not want to add auxiliary variables and
+constraints to be able to use standard branchers. Furthermore, I could
+not just assign border values without breaking constraints. I assume
+that such a brancher can also be advantageous in other setups, where one
+wants to apply varying branching strategies to different parts of the
+variable domains.
+
+If this idea is of interest for the project, I could try to extend the
+current ViewValueBrancher. Right now, I'm not sure where to start.
+Probably adapting ViewBrancher<ViewSel>::status(const Space&) is a good
+starting point, but it's quite deep in the object hierarchy so I assume
+it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+to produce a lot of duplicated code (for brancher assembly and strategy
+selection). Any suggestions?
+
+Regards,
+Felix
+
+PS: If I miss something obvious or this feature is already present, I
+would appreciate any hint :-)
+
+
+
+From tack at gecode.org  Mon Aug 30 16:20:16 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 30 Aug 2010 16:20:16 +0200
+Subject: [gecode-users] Idea for extending ViewBrancher
+In-Reply-To: <4C78C02B.9070905@felixbrandt.de>
+References: <4C78C02B.9070905@felixbrandt.de>
+Message-ID: <6F976A8D-E30D-47CE-A709-D879B401147A@gecode.org>
+
+Hi Felix,
+
+I think your special branchers could be implemented quite easily by instantiating the existing branchers with new views.  The views would store the interval you're interested in and reimplement the assigned() function, so that it returns true if the domain does not intersect the given interval.  That way, the brancher will ignore all views that are assigned in this sense.
+
+You will still have to duplicate some code, but half of it is generated anyway.  Have a look at post-view-int.bs, which is used to generate post-view-int.cpp.  I think you would only need to replace IntView by your "IgnoreIntervalView".  Then duplicate post-val-int.hpp, where you'll also have to replace the views accordingly (you will need something like a "MinusIgnoreIntervalView").
+
+Cheers,
+	Guido
+
+Felix Brandt wrote:
+
+> Hi,
+> 
+> for a recent project I wrote a custom brancher (similar to the
+> ViewBrancher) that only branches variables within a certain interval.
+> The variables, which do not intersect the interval, are considered as if
+> they are already assigned.
+> 
+> In my case I wasn't interested in the values if they did not match the
+> given interval, but also did not want to add auxiliary variables and
+> constraints to be able to use standard branchers. Furthermore, I could
+> not just assign border values without breaking constraints. I assume
+> that such a brancher can also be advantageous in other setups, where one
+> wants to apply varying branching strategies to different parts of the
+> variable domains.
+> 
+> If this idea is of interest for the project, I could try to extend the
+> current ViewValueBrancher. Right now, I'm not sure where to start.
+> Probably adapting ViewBrancher<ViewSel>::status(const Space&) is a good
+> starting point, but it's quite deep in the object hierarchy so I assume
+> it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+> to produce a lot of duplicated code (for brancher assembly and strategy
+> selection). Any suggestions?
+> 
+> Regards,
+> Felix
+> 
+> PS: If I miss something obvious or this feature is already present, I
+> would appreciate any hint :-)
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+From cschulte at kth.se  Tue Aug 31 10:17:44 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 31 Aug 2010 10:17:44 +0200
+Subject: [gecode-users] Idea for extending ViewBrancher
+In-Reply-To: <4C78C02B.9070905@felixbrandt.de>
+References: <4C78C02B.9070905@felixbrandt.de>
+Message-ID: <000901cb48e4$fe636020$fb2a2060$@se>
+
+Hi Felix,
+
+I have been thinking about your idea and I very much like it. 
+
+How about the following generalization: one can pass to a brancher a filter
+function (that is, a member function of the space). If a filter function is
+passed it is used for selecting variables for branching: only if the filter
+function returns true for a variable, the variable is considered for normal
+selection. The function can be passed through the normal options for
+branching (VarBranch) that is also used for tie breaking and randomized
+selection. 
+
+Would that make sense? It is less general than what Guido proposed but
+easily available to the average modeler. I thought about it a little and I
+know how to efficiently implement it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Felix Brandt
+Sent: Saturday, August 28, 2010 9:52 AM
+To: users at gecode.org
+Subject: [gecode-users] Idea for extending ViewBrancher
+
+Hi,
+
+for a recent project I wrote a custom brancher (similar to the
+ViewBrancher) that only branches variables within a certain interval.
+The variables, which do not intersect the interval, are considered as if
+they are already assigned.
+
+In my case I wasn't interested in the values if they did not match the
+given interval, but also did not want to add auxiliary variables and
+constraints to be able to use standard branchers. Furthermore, I could
+not just assign border values without breaking constraints. I assume
+that such a brancher can also be advantageous in other setups, where one
+wants to apply varying branching strategies to different parts of the
+variable domains.
+
+If this idea is of interest for the project, I could try to extend the
+current ViewValueBrancher. Right now, I'm not sure where to start.
+Probably adapting ViewBrancher<ViewSel>::status(const Space&) is a good
+starting point, but it's quite deep in the object hierarchy so I assume
+it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+to produce a lot of duplicated code (for brancher assembly and strategy
+selection). Any suggestions?
+
+Regards,
+Felix
+
+PS: If I miss something obvious or this feature is already present, I
+would appreciate any hint :-)
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From gutierrez.gustavo at uclouvain.be  Tue Aug 31 10:35:57 2010
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Tue, 31 Aug 2010 10:35:57 +0200
+Subject: [gecode-users] Idea for extending ViewBrancher
+In-Reply-To: <000901cb48e4$fe636020$fb2a2060$@se>
+References: <4C78C02B.9070905@felixbrandt.de>
+	<000901cb48e4$fe636020$fb2a2060$@se>
+Message-ID: <AANLkTimjeX=08ugOXvEM4MPzsMZcV6gD5nx0DZL_YYPV@mail.gmail.com>
+
+2010/8/31 Christian Schulte <cschulte at kth.se>
+
+> lecting variables for branching: only if the filter
+> function returns true for a variable, the variable is considered for normal
+> selection. The function can be passed through the normal options for
+> branching (VarBranch) that is also used fo
+>
+
+I'd really like to have this functionality, and this is because in the
+solver that I am working on I had to implement exactly that, of course, the
+implementation duplicates a lot of code from the existing ViewValBracher and
+it is just to not take into account only the return value of assigned() but
+to add an extra condition.
+
+Regards,
+Gustavo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100831/7e529a4d/attachment.htm>
+
+From rcas at kth.se  Tue Aug 31 11:29:55 2010
+From: rcas at kth.se (=?iso-8859-1?Q?Roberto_Casta=F1eda?=)
+Date: Tue, 31 Aug 2010 09:29:55 +0000
+Subject: [gecode-users] Support for Gecode scheduling constraints in MiniZinc
+Message-ID: <A249023ECA4AD740919D9F3CED8EFC8D0ADB6879@EXDB4.ug.kth.se>
+
+Hi,
+
+I am working on a MiniZinc model and I would like to access some of the Gecode
+scheduling constraints, such as the cumulative version with optional tasks.
+Currently, I just see a couple of versions of the unary constraint and
+the basic cumulatives are declared.  
+
+As far as I understand, one can add support for those constraints simply by
+declaring them in a .mzn file and adding the corresponding code to 
+flatzinc/registry.cpp (I have actually done that to solve my problem). Unless 
+there is some reason not to do it, I could add all versions listed in 
+http://www.gecode.org/doc-latest/reference/scheduling_8hh.html and submit a
+patch.
+
+Cheers,
+
+Roberto
+
+
+From tack at gecode.org  Tue Aug 31 11:37:27 2010
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 31 Aug 2010 11:37:27 +0200
+Subject: [gecode-users] Support for Gecode scheduling constraints in
+	MiniZinc
+In-Reply-To: <A249023ECA4AD740919D9F3CED8EFC8D0ADB6879@EXDB4.ug.kth.se>
+References: <A249023ECA4AD740919D9F3CED8EFC8D0ADB6879@EXDB4.ug.kth.se>
+Message-ID: <57B37841-34F2-416F-A4F3-376A45224F3D@gecode.org>
+
+Hi Roberto,
+
+Roberto Casta?eda wrote:
+> I am working on a MiniZinc model and I would like to access some of the Gecode
+> scheduling constraints, such as the cumulative version with optional tasks.
+> Currently, I just see a couple of versions of the unary constraint and
+> the basic cumulatives are declared.
+
+The cumulatives constraint checks for the special cases that correspond to unary and cumulative, so all constraints with mandatory tasks are actually available through cumulatives.  In the future, we will move the handling of the special cases into the Gecode post function for cumulatives.
+
+> As far as I understand, one can add support for those constraints simply by
+> declaring them in a .mzn file and adding the corresponding code to 
+> flatzinc/registry.cpp (I have actually done that to solve my problem). Unless 
+> there is some reason not to do it, I could add all versions listed in 
+> http://www.gecode.org/doc-latest/reference/scheduling_8hh.html and submit a
+> patch.
+
+That's right, we can easily add support for those constraints.  What we should really do is add a definition of cumulatives with optional tasks, and then have one post function in the registry that does the specialization.  If you're willing to do that, I'll be happy to include your code.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+
+
+
+
+From tack at gecode.org  Tue Aug 31 13:33:35 2010
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 31 Aug 2010 13:33:35 +0200
+Subject: [gecode-users] Idea for extending ViewBrancher
+In-Reply-To: <000901cb48e4$fe636020$fb2a2060$@se>
+References: <4C78C02B.9070905@felixbrandt.de>
+	<000901cb48e4$fe636020$fb2a2060$@se>
+Message-ID: <E5DB87E2-51B2-42EE-8ACD-3010917F216F@gecode.org>
+
+Christian Schulte wrote:
+> How about the following generalization: one can pass to a brancher a filter
+> function (that is, a member function of the space). If a filter function is
+> passed it is used for selecting variables for branching: only if the filter
+> function returns true for a variable, the variable is considered for normal
+> selection. The function can be passed through the normal options for
+> branching (VarBranch) that is also used for tie breaking and randomized
+> selection. 
+> 
+> Would that make sense? It is less general than what Guido proposed but
+> easily available to the average modeler. I thought about it a little and I
+> know how to efficiently implement it.
+
+The filter function could get the index of the variable in addition to the variable itself. That would make it just as general as my approach, I think (you could use a different interval for each variable without having to go through the whole array to find out which variable you are dealing with).
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack, http://people.cs.kuleuven.be/~guido.tack/
+
+
+

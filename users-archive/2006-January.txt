@@ -1,0 +1,1392 @@
+From ottenl at student.chalmers.se  Mon Jan 16 00:22:47 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Sun, 15 Jan 2006 23:22:47 +0000
+Subject: [gecode-users] ViewArray <-> VarArgArray
+Message-ID: <43CAD947.6050904@student.chalmers.se>
+
+Hello everyone,
+
+I am currently trying to extend Gecode with some custom propagators as
+preparation for my thesis project, and although it's not always been easy
+I've managed to implement a few things already.
+
+Currently I'm working on a propagator for a constraint that relates three
+arrays of variables. Among other things, at some point during propagation, I
+need to post some other constraints, like Gecode::eq(Space*, IntVar, IntVar).
+
+The propagator class has three fields of type ViewArray<IntView>, say x0,
+x1, and x2. Now, when posting the additional equality constraints mentioned
+above I've just called e.g.
+	Gecode::eq(this,x0[i],x1[j]);
+and things went smoothly, although, technically, x0[i] is of type IntView
+and not IntVar -- but this fit my understanding of IntView as some sort of
+wrapper for an IntVar.
+
+Now I also need to post a propagator Gecode::element(Space*, IntVarArgs&,
+IntVar, IntVar). Intuitively I tried calling
+	Gecode::element(this, x0, x1[i], x2[j]);
+In this case, however, using the array of views as second argument won't
+work as the compiler doesn't find a matching function, apparently IntVarArgs
+and ViewArray<IntView> are not 'compatible' in this respect.
+
+I've already searched the reference documentation for quite a while, but
+haven't found anything that helped me here. My assumption is that I need to
+'convert' the ViewArray<IntView> into something of type IntVarArgs (i.e.
+VarArgArray<IntVar>), but maybe I'm wrong...? Is there any straightforward
+way to do this that I've been missing so far?
+
+Thanks in advance,
+/Lars
+
+
+
+From tack at ps.uni-sb.de  Mon Jan 16 09:47:00 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 16 Jan 2006 09:47:00 +0100
+Subject: [gecode-users] ViewArray <-> VarArgArray
+In-Reply-To: <43CAD947.6050904@student.chalmers.se>
+References: <43CAD947.6050904@student.chalmers.se>
+Message-ID: <200601160947.00405.tack@ps.uni-sb.de>
+
+Hi!
+
+Lars Otten wrote:
+> Hello everyone,
+>
+> I am currently trying to extend Gecode with some custom propagators as
+> preparation for my thesis project, and although it's not always been easy
+> I've managed to implement a few things already.
+
+Great. Please keep us informed of your progress!
+
+> Currently I'm working on a propagator for a constraint that relates three
+> arrays of variables. Among other things, at some point during propagation,
+> I need to post some other constraints, like Gecode::eq(Space*, IntVar,
+> IntVar).
+>
+> The propagator class has three fields of type ViewArray<IntView>, say x0,
+> x1, and x2. Now, when posting the additional equality constraints mentioned
+> above I've just called e.g.
+> 	Gecode::eq(this,x0[i],x1[j]);
+
+To create a new propagator during propagation, you need to call the 
+propagator's post method instead of posting it through the modelling 
+interface as you do now.
+
+You find an example for posting new propagators e.g. in the file 
+int/distinct/dom.icc, where an Nq propagator is created. The propagator post 
+methods take Views and ViewArrays as arguments, so this will solve your 
+problem. The only thing you need to take care of is the return value of the 
+post method: you must check whether it returned failure with the 
+GECODE_ES_CHECK macro.
+
+> and things went smoothly, although, technically, x0[i] is of type IntView
+> and not IntVar -- but this fit my understanding of IntView as some sort of
+> wrapper for an IntVar.
+
+Actually, it is not a wrapper for an IntVar, but both are wrappers for an 
+IntVarImp. The vars provide the "read-only" interface you need for modelling, 
+and the views export an interface that includes the tell operations for the 
+propagators.
+
+> [...]
+> I've already searched the reference documentation for quite a while, but
+> haven't found anything that helped me here. My assumption is that I need to
+> 'convert' the ViewArray<IntView> into something of type IntVarArgs (i.e.
+> VarArgArray<IntVar>), but maybe I'm wrong...? Is there any straightforward
+> way to do this that I've been missing so far?
+
+This is not mentioned anywhere in the reference documentation, so you couldn't 
+find it. It will be part of the Gecode tutorial that we are writing.
+
+> Thanks in advance,
+
+You're welcome!
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr?cken
+http://www.ps.uni-sb.de/~tack
+
+
+
+From ottenl at student.chalmers.se  Mon Jan 16 17:30:10 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Mon, 16 Jan 2006 16:30:10 +0000
+Subject: [gecode-users] ViewArray <-> VarArgArray
+In-Reply-To: <200601160947.00405.tack@ps.uni-sb.de>
+References: <43CAD947.6050904@student.chalmers.se>
+	<200601160947.00405.tack@ps.uni-sb.de>
+Message-ID: <43CBCA12.8080502@student.chalmers.se>
+
+Hi,
+
+first of all thank you very much for the quick reply.
+
+On 01/16/06 08:47, Guido Tack wrote:
+> Great. Please keep us informed of your progress!
+
+I guess it's only a matter of time until I'll have some more issues /
+questions to post here, so by that you'll be kept up to date. ;)
+
+> To create a new propagator during propagation, you need to call the 
+> propagator's post method instead of posting it through the modelling 
+> interface as you do now.
+
+OK, for the equality propagator that was an easy change.
+
+For the element propagator, however, it is not that simple. While my class
+currently has fields of type ViewArray<IntView>, something of type
+IdxView<IntView>* is required for the array argument of
+Element::ViewDom<IntView,IntView>::post(...).
+
+My first idea was to introduce a new field in my propagator of just that
+type -- but then I'd have two views for the same variable array, which seems
+somehow redundant to me. So I decided to replace the respective field of
+type ViewArray<IntView> with the IdxView<IntView>* thing, which entailed
+several other changes.
+
+Doing this I ran into several problems, both at compile time and
+subsequently at runtime. I will continue to look into this, though...
+
+Again, thank you very much so far.
+
+/Lars
+
+
+
+From tack at ps.uni-sb.de  Mon Jan 16 16:53:23 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 16 Jan 2006 16:53:23 +0100
+Subject: [gecode-users] ViewArray <-> VarArgArray
+In-Reply-To: <43CBCA12.8080502@student.chalmers.se>
+References: <43CAD947.6050904@student.chalmers.se>
+	<200601160947.00405.tack@ps.uni-sb.de>
+	<43CBCA12.8080502@student.chalmers.se>
+Message-ID: <200601161653.23890.tack@ps.uni-sb.de>
+
+> For the element propagator, however, it is not that simple. While my class
+> currently has fields of type ViewArray<IntView>, something of type
+> IdxView<IntView>* is required for the array argument of
+> Element::ViewDom<IntView,IntView>::post(...).
+>
+> My first idea was to introduce a new field in my propagator of just that
+> type -- but then I'd have two views for the same variable array, which
+> seems somehow redundant to me. So I decided to replace the respective field
+> of type ViewArray<IntView> with the IdxView<IntView>* thing, which entailed
+> several other changes.
+
+Ok, I see. There indeed seems to be an inconsistency in the library. Normally, 
+you should simply create a new IdxView<IntView>* thing, just like in 
+element.cc. You don't have to use that as your own view array, just create it 
+when you want to post the element propagator. Now creating an 
+IdxView<IntView>* currently is only possible using IntVarArgs (that's the 
+small inconsistency). However, you can easily create your own IntVarArgs. 
+Suppose x is an IntView array:
+
+IntVarArgs xa(size);
+for (int i=size; i--; ) {
+   IntVar v(x[i]);
+   xa[i] = v;
+}
+
+Hope this helps,
+
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr?cken
+http://www.ps.uni-sb.de/~tack
+
+
+
+From ottenl at student.chalmers.se  Wed Jan 18 02:41:24 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Wed, 18 Jan 2006 01:41:24 +0000
+Subject: [gecode-users] ViewArray <-> VarArgArray
+In-Reply-To: <200601161653.23890.tack@ps.uni-sb.de>
+References: <43CAD947.6050904@student.chalmers.se>	<200601160947.00405.tack@ps.uni-sb.de>	<43CBCA12.8080502@student.chalmers.se>
+	<200601161653.23890.tack@ps.uni-sb.de>
+Message-ID: <43CD9CC4.3020705@student.chalmers.se>
+
+On 01/16/06 15:53, Guido Tack wrote:
+> However, you can easily create your own IntVarArgs. 
+> Suppose x is an IntView array:
+> 
+> IntVarArgs xa(size);
+> for (int i=size; i--; ) {
+>    IntVar v(x[i]);
+>    xa[i] = v;
+> }
+
+Just a minor point: Is there any reason why you did not just write
+  xa[i] = x[i];
+as the body of the for loop, but instead took the 'detour' via the explicit
+IntVar?
+
+Am I right in assuming that for every element propagator instance I want to
+post I have to create a distinct IdxView<View,View>* instance? I tried using
+the same instance for two propagator instances but then it segfaulted on me...
+
+Also, is there a theoretical bound on the number of propagators one can post
+/ that can be present in a computation space at any given time (not
+considering the limitedness of the computer's memory)? If yes, can one
+predict what happens if this bound is exceeded?
+
+Enough for today, it's really time to go to bed I guess... ;)
+
+Cheers,
+/Lars
+
+
+
+From schulte at imit.kth.se  Wed Jan 18 10:39:06 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 18 Jan 2006 10:39:06 +0100
+Subject: [gecode-users] ViewArray <-> VarArgArray
+In-Reply-To: <43CD9CC4.3020705@student.chalmers.se>
+Message-ID: <00bd01c61c13$06323d70$acd4ed82@beule>
+
+The detour is due to coercion: there might not be an automatic coercion but
+only a copy constructor declared "explicit".
+
+Yes, always take fresh instances: this is also done when a propagator using
+a view array is posted as a new copy of the array is created. The reason is
+that the propagators actually change their data structures while
+propagating.
+
+No bounds, just limited by memory. This is tru for everything. The only
+limit is min/max of variable domains.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Lars Otten
+Sent: Wednesday, January 18, 2006 2:41 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] ViewArray <-> VarArgArray
+
+
+On 01/16/06 15:53, Guido Tack wrote:
+> However, you can easily create your own IntVarArgs.
+> Suppose x is an IntView array:
+> 
+> IntVarArgs xa(size);
+> for (int i=size; i--; ) {
+>    IntVar v(x[i]);
+>    xa[i] = v;
+> }
+
+Just a minor point: Is there any reason why you did not just write
+  xa[i] = x[i];
+as the body of the for loop, but instead took the 'detour' via the explicit
+IntVar?
+
+Am I right in assuming that for every element propagator instance I want to
+post I have to create a distinct IdxView<View,View>* instance? I tried using
+the same instance for two propagator instances but then it segfaulted on
+me...
+
+Also, is there a theoretical bound on the number of propagators one can post
+/ that can be present in a computation space at any given time (not
+considering the limitedness of the computer's memory)? If yes, can one
+predict what happens if this bound is exceeded?
+
+Enough for today, it's really time to go to bed I guess... ;)
+
+Cheers,
+/Lars
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From tack at ps.uni-sb.de  Wed Jan 18 15:36:29 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 18 Jan 2006 15:36:29 +0100
+Subject: [gecode-users] Gecode 1.0.0 released
+Message-ID: <200601181536.30140.tack@ps.uni-sb.de>
+
+[Sorry for multiple copies.]
+
+We would like to announce the release of
+	
+		Gecode 1.0.0
+	   http://www.gecode.org/
+
+Gecode is an open, free, portable, accessible, and efficient
+environment for developing constraint-based systems and
+applications:
+  
+open
+   Gecode is radically open for programming: it can be easily
+   interfaced to other systems. It supports the programming of
+   new propagators (as implementations of constraints), branching
+   strategies, and search engines. New variable domains can be
+   programmed with the same efficiency as the finite domain and
+   integer set variables that come predefined with Gecode.
+
+free
+   Gecode is distributed under a BSD-style license. All of its
+   parts including documentation, implementations of global
+   constraints, and examples are available as source code.
+
+portable
+   Gecode is implemented in C++ that carefully follows the C++
+   standard. It can be compiled with modern C++ compilers and
+   runs on a wide range of machines (including 64bit machines).
+
+accessible
+   Gecode comes with extensive reference documentation that allows
+   to focus on different programming tasks like modelling, 
+   implementing propagators, and implementing variable domains.
+
+efficient
+   Gecode offers competitive performance with respect to both
+   runtime and memory usage.
+
+allows contributions
+   Gecode is designed to facilitate contributions on top of
+   it. CP(Graph) and CP(Map) providing graph and map variables for
+   constraint programming is available as a first contribution
+   built on top of Gecode.
+
+
+Gecode and contributions built on top of it are available from
+	http://www.gecode.org/
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr?cken
+http://www.ps.uni-sb.de/~tack
+
+
+
+From tack at ps.uni-sb.de  Thu Jan 19 10:44:31 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 19 Jan 2006 10:44:31 +0100
+Subject: [gecode-users] Debian packages for Gecode
+Message-ID: <200601191044.32473.tack@ps.uni-sb.de>
+
+Hi!
+
+We just noticed that Gecode has already appeared in Debian testing. That's 
+great! Thanks so much for putting the packages together and uploading them to 
+Debian!
+
+One thing that I would be extremely interested in is whether the test suite 
+actually passes on the more exotic platforms, like alpha, arm, ia64, sparc, 
+etc. It would be really cool if you could add a make test and executing 
+test/test to the build process. This will slow down the build a lot, but I 
+think it might be a good idea anyway.
+
+I'll put a note on our download pages that Debian packages are available.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr?cken
+http://www.ps.uni-sb.de/~tack
+
+
+
+From filip.konvicka at logis.cz  Thu Jan 19 12:08:36 2006
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Thu, 19 Jan 2006 12:08:36 +0100
+Subject: [gecode-users] MSVC project files? [WAS: Debian packages for Gecode]
+In-Reply-To: <200601191044.32473.tack@ps.uni-sb.de>
+References: <200601191044.32473.tack@ps.uni-sb.de>
+Message-ID: <43CF7334.9030608@logis.cz>
+
+
+> One thing that I would be extremely interested in is whether the test suite 
+> actually passes on the more exotic platforms, like alpha, arm, ia64, sparc, 
+> etc. It would be really cool if you could add a make test and executing 
+> test/test to the build process. This will slow down the build a lot, but I 
+> think it might be a good idea anyway.
+>   
+Have you tried compiling/running gecode on Windows under MSVC? I did not 
+notice any MSVC project files or makefiles when I looked on the sources, 
+although there seem to be some _MSC_VER macros used...
+
+Thanks,
+Filip
+
+
+
+
+From schulte at imit.kth.se  Thu Jan 19 13:06:52 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 19 Jan 2006 13:06:52 +0100
+Subject: [gecode-users] MSVC project files? [WAS: Debian packages for
+	Gecode]
+In-Reply-To: <43CF7334.9030608@logis.cz>
+Message-ID: <011501c61cf0$d5adbe20$acd4ed82@beule>
+
+Please read the docs about how to build Gecode. 
+
+We currently don't have MSVC project files (we would like to generate
+some... we intend to have them at some point in tim) but you can build with
+MSVC when you also have Cygwin installed (actually, I use MSVC for
+development myself). As said, check the docs.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, January 19, 2006 12:09 PM
+To: users at gecode.org
+Subject: [gecode-users] MSVC project files? [WAS: Debian packages for
+Gecode]
+
+
+
+> One thing that I would be extremely interested in is whether the test 
+> suite
+> actually passes on the more exotic platforms, like alpha, arm, ia64,
+sparc, 
+> etc. It would be really cool if you could add a make test and executing 
+> test/test to the build process. This will slow down the build a lot, but I
+
+> think it might be a good idea anyway.
+>   
+Have you tried compiling/running gecode on Windows under MSVC? I did not 
+notice any MSVC project files or makefiles when I looked on the sources, 
+although there seem to be some _MSC_VER macros used...
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From tack at ps.uni-sb.de  Thu Jan 19 13:08:19 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 19 Jan 2006 13:08:19 +0100
+Subject: [gecode-users] MSVC project files? [WAS: Debian packages for
+	Gecode]
+In-Reply-To: <43CF7334.9030608@logis.cz>
+References: <200601191044.32473.tack@ps.uni-sb.de> <43CF7334.9030608@logis.cz>
+Message-ID: <200601191308.19345.tack@ps.uni-sb.de>
+
+Filip Konvi?ka wrote:
+> Have you tried compiling/running gecode on Windows under MSVC? I did not
+> notice any MSVC project files or makefiles when I looked on the sources,
+> although there seem to be some _MSC_VER macros used...
+
+Gecode can be compiled using MSVC, but currently only using GNU make from the 
+command line. For more information, please see
+http://www.gecode.org/gecode-doc-latest/PageComp.html
+
+We may try to add Visual Studio project files later. If anyone has 
+successfully built Gecode using Visual Studio, please let us know. We will be 
+happy to include the project files in our distribution.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr?cken
+http://www.ps.uni-sb.de/~tack
+
+
+
+From schulte at imit.kth.se  Thu Jan 19 15:16:47 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 19 Jan 2006 15:16:47 +0100
+Subject: [gecode-users] CP 2006: Call for papers
+Message-ID: <012501c61d02$fba32130$acd4ed82@beule>
+
+[Sorry for multiple copies]
+
+                         Call for Papers
+
+                            CP 2006
+              Twelfth International Conference on
+       Principles and Practice of Constraint Programming
+
+
+                    September 25 - 29, 2006
+                         Nantes, France
+
+            http://www.sciences.univ-nantes.fr/cp06/
+
+
+The CP conference is the annual international conference on constraint
+programming and related areas. It is concerned with all aspects of
+computing with constraints, including: theory, algorithms,
+applications, environments, languages, models and systems. CP 2006
+includes a technical programme, where presentations of theoretical and
+application papers, as well as invited talks, tutorials, posters and
+system demos aim at describing the best results and techniques in the
+state-of-the-art of constraint programming. Moreover, CP 2006
+continues the tradition of the CP doctoral programme, in which PhD
+students can present their work, listen to tutorials on career and
+ethical issues, and discuss their work with senior researchers via a
+mentoring scheme. Finally, there will also be a number of workshops,
+where researchers will be able to meet in an informal setting and
+discuss their most recent ideas with their peers.
+
+Papers are solicited from all disciplines concerned with constraints
+and any application domain using constraints. Example topics include
+problem modelling, problem solving, efficiency and usability. Papers
+which report on successful applications of constraint technology are
+also solicited.
+
+Submitted papers must be original and must not be simultaneously
+submitted for publication in a journal or another conference. Authors
+are required to prepare their papers by following the Springer
+instructions found at: http://www.springer.de/comp/lncs/authors.html.
+
+A page limit of 15 will be strictly enforced. The proceedings will be
+published by Springer Verlag, in the Lecture Notes in Computer Science
+series.
+
+
+IMPORTANT DATES
+
+  * April 21, 2006: Deadline for submissions
+  *  June 14, 2006: Notifications
+  *  July  5, 2006: Camera-ready copy
+
+
+ORGANIZATION
+
+Conference Chairs
+Fr?d?ric Benhamou, U of Nantes, France
+Narendra Jussien, EMN, France
+
+Program Chair
+Fr?d?ric Benhamou, U of Nantes, France
+
+Doctoral Program Chairs
+Zeynep Kiziltan, U of Bologna, Italy
+Brahim Hnich, 4C, Ireland
+
+Workshop/Tutorial Chair
+Barry O'Sullivan, 4C, Ireland
+
+Poster/Demo Chair
+Laurent Michel, U of Connecticut, USA
+
+Publicity Chairs
+Christian Schulte, KTH, Sweden
+Mikael Lagerkvist, KTH, Sweden
+
+
+Program Committee
+
+Pedro Barahona, New U of Lisbon, Portugal
+Nicolas Beldiceanu, EMN, France
+Christian Bessiere, LIRMM-CNRS, France
+David Cohen, Royal Holloway, UK
+Andrew Davenport, IBM, USA
+Boi Faltings, EPFL, Switzerland
+Carla Gomes, Cornell, USA
+Laurent Granvilliers, U Nantes, France
+John Hooker, CMU, USA
+Peter Jonsson, Link?ping U, Sweden
+Irit Katriel, U of Aarhus, Denmark
+Zeynep Kiziltan, U of Bologna, Italy
+Luc Jaulin, ENSIETA Brest, France
+Jimmy Lee, CUHK, Hong Kong
+Michael Maher, NICTA, Australia
+Pedro Meseguer, IIIA-CSIC, Spain
+Laurent Michel, U of Connecticut, USA
+Michela Milano, U of Bologna, Italy
+Barry O'Sullivan, 4C, Ireland
+Gilles Pesant, Polytech Montr?al, Canada
+Jean-Fran?ois Puget, ILOG, France
+Jean-Charles R?gin, ILOG, France
+Francesca Rossi, U of Padova, Italy
+Louis-Martin Rousseau, Polytech Montr?al, Canada
+Michel Rueher, U of Nice, France
+Thomas Schiex, INRA Toulouse, France
+Christian Schulte, KTH, Sweden
+Helmut Simonis, CrossCore Optimization, UK
+Barbara Smith, 4C, Ireland
+Peter Stuckey, U of Melbourne, Australia
+Peter van Beek, U Waterloo, Canada
+Pascal Van Hentenryck, Brown U, USA
+Mark Wallace, Monash U, Australia
+Toby Walsh, NICTA and UNSW, Australia
+Roland Yap, NUS, Singapore
+Makoto Yokoo, Kyushu U, Japan
+Weixiong Zhang, Washington U, USA
+
+
+
+
+From luque at info.ucl.ac.be  Thu Jan 19 23:43:23 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Thu, 19 Jan 2006 23:43:23 +0100
+Subject: [gecode-users] (adaptative) Incremental search
+Message-ID: <43D0160B.6000603@info.ucl.ac.be>
+
+Dear all,
+
+We want to implement an (adaptative) incremental search: we want to find 
+one solution, then depending on the solution found and on the 
+interactions with the user re-define the order constraint on the fly, 
+and then ask the search engine to find the next one and so on.
+
+We think we can do this by using 
+http://www.gecode.org/gecode-doc-latest/classGecode_1_1Restart.html. 
+However, we don't know how to re-define the order constraint on the fly...
+
+Another thing that we need to do is to define our own labeling strategy. 
+We think the idea is to use:
+
+http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewValBranching.html
+
+However, we wonder whether you could provide us with a simple example 
+that lets us get started.
+
+Thanks in advance for your help,
+
+Luis
+
+
+
+From schulte at imit.kth.se  Fri Jan 20 09:50:03 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 20 Jan 2006 09:50:03 +0100
+Subject: [gecode-users] (adaptative) Incremental search
+In-Reply-To: <43D0160B.6000603@info.ucl.ac.be>
+Message-ID: <016901c61d9e$8157a1c0$acd4ed82@beule>
+
+Hi,
+
+please use the DFS engine and program a restart engine from that allowing to
+change the order. That should be quite easy.
+
+As it comes to examples for branching. Gecode contains some 20 examples:
+check how the integer and set branchings are obtained from the class you
+mention! Straightforward.
+
+Cheers and good luck!
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Luis Quesada
+Sent: Thursday, January 19, 2006 11:43 PM
+To: users at gecode.org
+Subject: [gecode-users] (adaptative) Incremental search
+
+
+Dear all,
+
+We want to implement an (adaptative) incremental search: we want to find 
+one solution, then depending on the solution found and on the 
+interactions with the user re-define the order constraint on the fly, 
+and then ask the search engine to find the next one and so on.
+
+We think we can do this by using 
+http://www.gecode.org/gecode-doc-latest/classGecode_1_1Restart.html. 
+However, we don't know how to re-define the order constraint on the fly...
+
+Another thing that we need to do is to define our own labeling strategy. 
+We think the idea is to use:
+
+http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewValBranching.html
+
+However, we wonder whether you could provide us with a simple example 
+that lets us get started.
+
+Thanks in advance for your help,
+
+Luis
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ottenl at student.chalmers.se  Mon Jan 23 00:02:30 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Sun, 22 Jan 2006 23:02:30 +0000
+Subject: [gecode-users] Unexpected propagation/search behaviour
+Message-ID: <43D40F06.4090601@student.chalmers.se>
+
+Hello again,
+
+I've completed the propagator implementation mentioned in my previous mails,
+thank you for your help. To recall, the propagator, called 'tunneling',
+relates three arrays of variables and upon propagation posts several new
+constraints like equality, inequality and element restrictions.
+
+With regard to the latter I've made some (for me) strange observations. What
+my propagator does is basically check which of the variables in the arrays
+have been fixed/assigned, posting a collection of the above mentioned
+propagators for each of these variables respectively.
+
+Now, if I keep track of the variables that have been 'treated' this way
+(i.e. that had the respective collection of propagators posted on it) I can
+make sure that this posting only happens once for each variable, thus
+avoiding unnecessary redundancy (or so I think).
+
+If, however, I do not keep track of this and just post the collection of new
+propagators for each assigned variable (these propagators are always the
+same for one variable) each time my tunneling propagator's propagate method
+is called, I would expect identical search behaviour (maybe a little longer
+running time due to duplicate propagators).
+
+What happens, though, is quite the opposite: the latter version (potentially
+posting the same propagators over and over again) yields a solution after a
+few seconds. The first version, however, posting the propagators (at most)
+once for each variable, ran for several minutes without finding a solution
+until I aborted.
+
+Here's a mixture of C++ and pseudo-code describing the stripped-down
+critical part, assuming the three ViewArray<intView> instances are called x,
+y, and z, all of length n:
+
+propagate(Space* home) {
+  for (int i=0; i<n; ++i) {
+    //... do stuff for x and y
+    if (z[i].assigned() && <z[i] not yet treated> ) {
+      //... some preparations, like creating IdxView instances
+      Element::ViewDom<IntView,IntView>::post(home,z,z.size(),x[i],z[i]);
+      Element::ViewDom<IntView,IntView>::post(home,z,z.size(),y[i],z[i]);
+    }
+  }
+  //...
+}
+
+[in the 'real' call of the post methods, z would have to be replaced by
+IdxView instances]
+
+A few words about the overall setting: I'm employing DFS search (DFS-copy,
+to be exact) and apart from my tunneling propagator some other constraints
+(e.g. distinct on several subsets of variables) are involved -- but those
+are the same for both scenarios described above. The only difference is
+really one line of code, enabling or disabling the above-mentioned
+track-keeping mechanism (by removing the <z[i] not yet treated> part).
+
+I've narrowed it down to the element constraints posted wrt. assigned
+variables withing the 'tunneling' propagator (see the code above). Hence I
+wonder: Why is there a difference between posting the same element
+constraints once and posting them several times throughout the search
+process? Is it possible to give a conceptual explanation for this, without
+requiring more of the actual code?
+
+Thank you very much in advance (once more),
+
+/Lars Otten
+
+
+
+From zayenz at kth.se  Mon Jan 23 07:35:13 2006
+From: zayenz at kth.se (Mikael 'Zayenz' Lagerkvist)
+Date: Mon, 23 Jan 2006 07:35:13 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <43D40F06.4090601@student.chalmers.se>
+References: <43D40F06.4090601@student.chalmers.se>
+Message-ID: <63b5c8b00601222235s3f18cd1s30f69c7d09b38cc7@mail.gmail.com>
+
+Hi,
+
+On 1/23/06, Lars Otten <ottenl at student.chalmers.se> wrote:
+> propagate(Space* home) {
+>   for (int i=0; i<n; ++i) {
+>     //... do stuff for x and y
+>     if (z[i].assigned() && <z[i] not yet treated> ) {
+>       //... some preparations, like creating IdxView instances
+>       Element::ViewDom<IntView,IntView>::post(home,z,z.size(),x[i],z[i]);
+>       Element::ViewDom<IntView,IntView>::post(home,z,z.size(),y[i],z[i]);
+>     }
+>   }
+>   //...
+> }
+
+I have one comment on the above code. When calling the post-methods,
+it is very important to always check the return-value for possible
+failure. The code should look something like the following.
+
+   if (z[i].assigned() && <z[i] not yet treated> ) {
+     //... some preparations, like creating IdxView instances
+     if(Element::ViewDom<IntView,IntView>::post(home,z,z.size(),x[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+     if(Element::ViewDom<IntView,IntView>::post(home,z,z.size(),y[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+   }
+
+When a failure is detected, the space may no longer be in a consistent
+state. Therefore it is important to stop computing with it.
+
+Cheers,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, http://www.imit.kth.se/~zayenz/
+
+
+
+From schulte at imit.kth.se  Mon Jan 23 10:40:57 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 23 Jan 2006 10:40:57 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <63b5c8b00601222235s3f18cd1s30f69c7d09b38cc7@mail.gmail.com>
+Message-ID: <01a201c62001$1ce71440$acd4ed82@beule>
+
+This will actually be most likely the cause for ypur problems. Not only is
+it dangerous to not check for the status but actually in your case the very
+fact that failure has been dected gets lost!
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mikael 'Zayenz' Lagerkvist
+Sent: Monday, January 23, 2006 7:35 AM
+To: Lars Otten
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Hi,
+
+On 1/23/06, Lars Otten <ottenl at student.chalmers.se> wrote:
+> propagate(Space* home) {
+>   for (int i=0; i<n; ++i) {
+>     //... do stuff for x and y
+>     if (z[i].assigned() && <z[i] not yet treated> ) {
+>       //... some preparations, like creating IdxView instances
+>       Element::ViewDom<IntView,IntView>::post(home,z,z.size(),x[i],z[i]);
+>       Element::ViewDom<IntView,IntView>::post(home,z,z.size(),y[i],z[i]);
+>     }
+>   }
+>   //...
+> }
+
+I have one comment on the above code. When calling the post-methods, it is
+very important to always check the return-value for possible failure. The
+code should look something like the following.
+
+   if (z[i].assigned() && <z[i] not yet treated> ) {
+     //... some preparations, like creating IdxView instances
+     if(Element::ViewDom<IntView,IntView>::post(home,z,z.size(),x[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+     if(Element::ViewDom<IntView,IntView>::post(home,z,z.size(),y[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+   }
+
+When a failure is detected, the space may no longer be in a consistent
+state. Therefore it is important to stop computing with it.
+
+Cheers,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, http://www.imit.kth.se/~zayenz/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ottenl at student.chalmers.se  Mon Jan 23 14:48:11 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Mon, 23 Jan 2006 13:48:11 +0000
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <01a201c62001$1ce71440$acd4ed82@beule>
+References: <01a201c62001$1ce71440$acd4ed82@beule>
+Message-ID: <43D4DE9B.7060802@student.chalmers.se>
+
+Hello and thanks for the answers,
+
+in fact I do perform that check in my propagator, I just cut it from my
+pseudo code in the mail. My bad, sorry.
+
+Anyway, the problem can't be due to that then, any other ideas?
+
+/Lars
+
+On 01/23/06 09:40, Christian Schulte wrote:
+> This will actually be most likely the cause for ypur problems. Not only is
+> it dangerous to not check for the status but actually in your case the very
+> fact that failure has been dected gets lost!
+> 
+> Christian
+
+
+
+
+From schulte at imit.kth.se  Mon Jan 23 14:21:54 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 23 Jan 2006 14:21:54 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <43D4DE9B.7060802@student.chalmers.se>
+Message-ID: <01b701c6201f$fab579b0$acd4ed82@beule>
+
+Hmmm, another thing: how do you store the info that a variable is already
+done? Do you copy that properly?
+
+Otherwise, no real idea yet. Maybe send the real code.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Lars Otten
+Sent: Monday, January 23, 2006 2:48 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Hello and thanks for the answers,
+
+in fact I do perform that check in my propagator, I just cut it from my
+pseudo code in the mail. My bad, sorry.
+
+Anyway, the problem can't be due to that then, any other ideas?
+
+/Lars
+
+On 01/23/06 09:40, Christian Schulte wrote:
+> This will actually be most likely the cause for ypur problems. Not 
+> only is it dangerous to not check for the status but actually in your 
+> case the very fact that failure has been dected gets lost!
+> 
+> Christian
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From ottenl at student.chalmers.se  Mon Jan 23 15:46:44 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Mon, 23 Jan 2006 14:46:44 +0000
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <01b701c6201f$fab579b0$acd4ed82@beule>
+References: <01b701c6201f$fab579b0$acd4ed82@beule>
+Message-ID: <43D4EC54.7000703@student.chalmers.se>
+
+The propagator has three fields, one for each array, of type set<int> (from
+the STL), where I store the indices of the variables that have been
+processed already. When the propagator is cloned copies of these fields are
+made for the new propagagor instance, so that should be OK?
+
+I'll see if I can send some code later...
+
+/Lars
+
+On 01/23/06 13:21, Christian Schulte wrote:
+> Hmmm, another thing: how do you store the info that a variable is already
+> done? Do you copy that properly?
+> 
+> Otherwise, no real idea yet. Maybe send the real code.
+> 
+> Christian
+
+
+
+
+From schulte at imit.kth.se  Mon Jan 23 15:07:01 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 23 Jan 2006 15:07:01 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <43D4EC54.7000703@student.chalmers.se>
+Message-ID: <01c001c62026$47c72f40$acd4ed82@beule>
+
+Hmm, sounds reasonable. No other idea so far...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Lars Otten [mailto:ottenl at student.chalmers.se] 
+Sent: Monday, January 23, 2006 3:47 PM
+To: schulte at imit.kth.se; users at gecode.org
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+The propagator has three fields, one for each array, of type set<int> (from
+the STL), where I store the indices of the variables that have been
+processed already. When the propagator is cloned copies of these fields are
+made for the new propagagor instance, so that should be OK?
+
+I'll see if I can send some code later...
+
+/Lars
+
+On 01/23/06 13:21, Christian Schulte wrote:
+> Hmmm, another thing: how do you store the info that a variable is 
+> already done? Do you copy that properly?
+> 
+> Otherwise, no real idea yet. Maybe send the real code.
+> 
+> Christian
+
+
+
+
+
+From ottenl at student.chalmers.se  Mon Jan 23 17:07:21 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Mon, 23 Jan 2006 16:07:21 +0000
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <01c001c62026$47c72f40$acd4ed82@beule>
+References: <01c001c62026$47c72f40$acd4ed82@beule>
+Message-ID: <43D4FF39.2070305@student.chalmers.se>
+
+Attached you find all code related to my propagator, below are the essential
+parts of the main program. I hope that is sufficient...
+
+Any ideas will be greatly appreciated!
+
+/Lars
+
+
+/*
+ * tailassi.cc (excerpts)
+ */
+
+using namespace std;
+
+class Activity;
+vector<Activity> activities;
+
+class Tail : public Example {
+protected:
+  // predecessor, successor and vehicle variables
+  IntVarArray suc, pre, veh;
+public:
+
+  using Space::nextRand; // int (*nextRand) (const int&)
+
+  /// Actual model
+  Tail(const Options& opt);
+
+  /// Constructor for cloning \a s
+  Tail(bool share, Tail& s) : Example(share,s) {
+    nextRand = s.nextRand;
+    pre.update(this, share, s.pre);
+    suc.update(this, share, s.suc);
+    veh.update(this, share, s.veh);
+  }
+
+  /// Print solution
+  virtual void print(void);
+
+  /// Copy during cloning
+  virtual Space* copy(bool share) {
+    return new Tail(share,*this);
+  }
+};
+
+int nextRandom(const int& max);
+
+int main(int argc, char** argv) {
+  Options opt("Tail assignment");
+  opt.iterations = 20000;
+  opt.parse(argc,argv);
+  parseData(opt.file); // parses the datafile
+
+  opt.fptr = &nextRandom;
+  srand(opt.seed);
+
+  Example::run<Tail,DFS>(opt);
+
+  return 0;
+}
+
+
+Tail::Tail(const Options& opt) :
+  suc(this,noOfAct),
+  pre(this,noOfAct),
+  veh(this,noOfAct)
+{
+
+//... Variable initialisation
+
+  distinct(this,suc);
+
+  // check for overlaps in case of restricted acitivities
+  for (int i=0; i<noOfAct; ++i) {
+    if (activities[i].restricted) {
+      const set<int>& s = activities[i].overlappingActs;
+      if (s.size() != 0) {
+        IntVarArray arr(this,s.size() + 1);
+        int j=0;
+        for (set<int>::iterator it = s.begin(); it != s.end(); ++it) {
+          arr[j++] = veh[*it];
+        }
+        arr[j] = veh[i]; // add current act. no to set
+        distinct(this,arr);
+      }
+    }
+  }
+
+  inverse(this,suc,pre);
+  tunneling(this,suc,pre,veh, &fwOverlap);
+
+  branch(this, suc, BVAR_DEGREE_MIN, BVAL_MAX);
+
+}
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 425 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.cc>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.hh
+Type: text/x-c++hdr
+Size: 1419 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.hh>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 1755 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment-0001.cc>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: tunneling.icc
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.asc>
+
+From schulte at imit.kth.se  Wed Jan 25 11:59:15 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 25 Jan 2006 11:59:15 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <43D4FF39.2070305@student.chalmers.se>
+Message-ID: <002501c6219e$61bd8ec0$acd4ed82@beule>
+
+Hi Lars,
+
+even after looking more carefully to your code I can't see the reason.
+Please try to simplify. I would assume that Gecode is not guilty ;-) 
+
+Also, which version of Gecode do you use? (I saw that you hacked it somehow
+with a rand function?)
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Lars Otten
+Sent: Monday, January 23, 2006 5:07 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Attached you find all code related to my propagator, below are the essential
+parts of the main program. I hope that is sufficient...
+
+Any ideas will be greatly appreciated!
+
+/Lars
+
+
+/*
+ * tailassi.cc (excerpts)
+ */
+
+using namespace std;
+
+class Activity;
+vector<Activity> activities;
+
+class Tail : public Example {
+protected:
+  // predecessor, successor and vehicle variables
+  IntVarArray suc, pre, veh;
+public:
+
+  using Space::nextRand; // int (*nextRand) (const int&)
+
+  /// Actual model
+  Tail(const Options& opt);
+
+  /// Constructor for cloning \a s
+  Tail(bool share, Tail& s) : Example(share,s) {
+    nextRand = s.nextRand;
+    pre.update(this, share, s.pre);
+    suc.update(this, share, s.suc);
+    veh.update(this, share, s.veh);
+  }
+
+  /// Print solution
+  virtual void print(void);
+
+  /// Copy during cloning
+  virtual Space* copy(bool share) {
+    return new Tail(share,*this);
+  }
+};
+
+int nextRandom(const int& max);
+
+int main(int argc, char** argv) {
+  Options opt("Tail assignment");
+  opt.iterations = 20000;
+  opt.parse(argc,argv);
+  parseData(opt.file); // parses the datafile
+
+  opt.fptr = &nextRandom;
+  srand(opt.seed);
+
+  Example::run<Tail,DFS>(opt);
+
+  return 0;
+}
+
+
+Tail::Tail(const Options& opt) :
+  suc(this,noOfAct),
+  pre(this,noOfAct),
+  veh(this,noOfAct)
+{
+
+//... Variable initialisation
+
+  distinct(this,suc);
+
+  // check for overlaps in case of restricted acitivities
+  for (int i=0; i<noOfAct; ++i) {
+    if (activities[i].restricted) {
+      const set<int>& s = activities[i].overlappingActs;
+      if (s.size() != 0) {
+        IntVarArray arr(this,s.size() + 1);
+        int j=0;
+        for (set<int>::iterator it = s.begin(); it != s.end(); ++it) {
+          arr[j++] = veh[*it];
+        }
+        arr[j] = veh[i]; // add current act. no to set
+        distinct(this,arr);
+      }
+    }
+  }
+
+  inverse(this,suc,pre);
+  tunneling(this,suc,pre,veh, &fwOverlap);
+
+  branch(this, suc, BVAR_DEGREE_MIN, BVAL_MAX);
+
+}
+
+
+
+
+From schulte at imit.kth.se  Wed Jan 25 14:36:52 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 25 Jan 2006 14:36:52 +0100
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <43D78C9A.8090903@student.chalmers.se>
+Message-ID: <000d01c621b4$66ec9b50$0401a8c0@tiny>
+
+I meant to simplify your program to find the fault. Maybe try to
+incrementally go for the solution you want to obtain in the end (just
+remebering for some propagators but not for all, maybe exclude element?).
+
+Christian
+
+
+
+
+
+
+From ottenl at student.chalmers.se  Wed Jan 25 15:35:06 2006
+From: ottenl at student.chalmers.se (Lars Otten)
+Date: Wed, 25 Jan 2006 14:35:06 +0000
+Subject: [gecode-users] Unexpected propagation/search behaviour
+In-Reply-To: <002501c6219e$61bd8ec0$acd4ed82@beule>
+References: <002501c6219e$61bd8ec0$acd4ed82@beule>
+Message-ID: <43D78C9A.8090903@student.chalmers.se>
+
+Hi Christian,
+
+thank you very much for your efforts!
+
+On 01/25/06 10:59, Christian Schulte wrote:
+> even after looking more carefully to your code I can't see the reason.
+> Please try to simplify.
+
+Do you mean simplifying the propagator algorithm? Or simplifying the code
+and descriptions I sent to the mailing list?
+
+> I would assume that Gecode is not guilty ;-) 
+
+That is of course my assumption as well, still the observed behaviour is
+somewhat peculiar...
+
+> Also, which version of Gecode do you use? (I saw that you hacked it somehow
+> with a rand function?)
+
+I'm using version 1.0.0.
+
+And as my final goal is to add randomization to the search algorithm, I will
+need to 'hack' it with such elements -- in fact, as you noticed, I have
+already commenced some things in this respect.
+
+But so far none of these are really used anywhere; what you are probably
+refering to is just a field I added to the Space class pointing to a
+'centralized' function for random numbers (which I have removed again
+meanwhile).
+
+I am going on an extended weekend trip tomorrow, so I will probably look
+into the whole issue some more next week.
+
+Thank you so far,
+
+/Lars
+
+
+

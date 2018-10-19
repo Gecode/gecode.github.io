@@ -1,0 +1,104 @@
+diff -c -b -r -x '*~' -x '*config*' -x '*.so' -x '*.o' /tmp/gecode-1.3.0/gecode/kernel/branching.icc gecode-1.3.0/gecode/kernel/branching.icc
+*** /tmp/gecode-1.3.0/gecode/kernel/branching.icc	2006-09-19 10:40:18.000000000 -0400
+--- gecode-1.3.0/gecode/kernel/branching.icc	2006-10-23 15:11:02.000000000 -0300
+***************
+*** 95,107 ****
+    protected:
+      const int _pos;
+      const Val _val;
+    public:
+      /// Initialize description for branching \a b, position \a p and value \a n
+!     PosValDesc(const Branching* b, const int p, const Val& n);
+      /// Return position in array
+      int pos(void) const;
+      /// Return value to branch with
+      Val val(void) const;
+      /// Report size occupied
+      virtual size_t size(void) const;
+    };
+--- 95,110 ----
+    protected:
+      const int _pos;
+      const Val _val;
++     const int _start;
+    public:
+      /// Initialize description for branching \a b, position \a p and value \a n
+!     PosValDesc(const Branching* b, const int p, const Val& n, const int s);
+      /// Return position in array
+      int pos(void) const;
+      /// Return value to branch with
+      Val val(void) const;
++     /// Return start
++     int start(void) const;
+      /// Report size occupied
+      virtual size_t size(void) const;
+    };
+***************
+*** 120,127 ****
+  
+    template <class Val>
+    forceinline
+!   PosValDesc<Val>::PosValDesc(const Branching* b, const int p, const Val& n)
+!     : BranchingDesc(b,2), _pos(p), _val(n) {}
+  
+    template <class Val>
+    forceinline int
+--- 123,130 ----
+  
+    template <class Val>
+    forceinline
+!   PosValDesc<Val>::PosValDesc(const Branching* b, const int p, const Val& n, const int s)
+!     : BranchingDesc(b,2), _pos(p), _val(n) , _start(s) {}
+  
+    template <class Val>
+    forceinline int
+***************
+*** 136,141 ****
+--- 139,150 ----
+    }
+  
+    template <class Val>
++   forceinline int
++   PosValDesc<Val>::start(void) const{
++     return _start;
++   }
++ 
++   template <class Val>
+    size_t
+    PosValDesc<Val>::size(void) const {
+      return sizeof(PosValDesc<Val>);
+***************
+*** 200,215 ****
+  	  default:         GECODE_NEVER;
+  	  }
+    create:
+!     return new PosValDesc<Val>(this,b+offset,vl.val(home,x[b]));
+    }
+  
+    template <class View, class Val, class ViewSel, class ValSel>
+    ExecStatus
+    ViewValBranching<View,Val,ViewSel,ValSel>
+    ::commit(Space* home, const BranchingDesc* d, unsigned int a) {
+-     // Eliminate views from x[0] ... x[start-1]
+-     x.drop_fst(start); offset += start; start = 0;
+      const PosValDesc<Val>* pvd = static_cast<const PosValDesc<Val>*>(d);
+      ValSel vs;
+      return me_failed(vs.tell(home,a,x[pvd->pos()-offset],pvd->val()))
+        ? ES_FAILED : ES_OK;
+--- 209,224 ----
+  	  default:         GECODE_NEVER;
+  	  }
+    create:
+!     return new PosValDesc<Val>(this,b+offset,vl.val(home,x[b]),start);
+    }
+  
+    template <class View, class Val, class ViewSel, class ValSel>
+    ExecStatus
+    ViewValBranching<View,Val,ViewSel,ValSel>
+    ::commit(Space* home, const BranchingDesc* d, unsigned int a) {
+      const PosValDesc<Val>* pvd = static_cast<const PosValDesc<Val>*>(d);
++     // Eliminate views from x[0] ... x[start-1]
++     x.drop_fst(pvd->start()); offset += pvd->start(); start = 0;
+      ValSel vs;
+      return me_failed(vs.tell(home,a,x[pvd->pos()-offset],pvd->val()))
+        ? ES_FAILED : ES_OK;

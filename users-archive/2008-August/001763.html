@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Problem with constraint
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20with%20constraint&In-Reply-To=%3CDCC63351-500C-482E-ABEB-ED18B11277B5%40hszk.bme.hu%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001762.html">
+   <LINK REL="Next"  HREF="001764.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Problem with constraint</H1>
+    <B>Ujhelyi Zoltan</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20with%20constraint&In-Reply-To=%3CDCC63351-500C-482E-ABEB-ED18B11277B5%40hszk.bme.hu%3E"
+       TITLE="[gecode-users] Problem with constraint">uz602 at hszk.bme.hu
+       </A><BR>
+    <I>Sun Aug 10 23:21:22 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001762.html">[gecode-users] Problem with constraint
+</A></li>
+        <LI>Next message: <A HREF="001764.html">[gecode-users] Problem with constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1763">[ date ]</a>
+              <a href="thread.html#1763">[ thread ]</a>
+              <a href="subject.html#1763">[ subject ]</a>
+              <a href="author.html#1763">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello again,
+
+I have been experimenting with the questions raised in my previous mail.
+
+I created a small Gecode space to be able to test the problem in a  
+smaller scale, where I did use two variables (variable1, variable2,  
+both IntVars with the domain {0,5}) and three constraints: variable1  
+equals variable2, and variable2 cannot have the values 2 and 4.
+
+In all of my tests the latter two constraints are described like that:
+
+post(space, new BExpr(space.variable1, IRT_NQ, 2));
+post(space, new BExpr(space.variable1, IRT_NQ, 4));
+
+For the third constraint I had several tries. When I was using the  
+rel() clause to write the constraint, I got the expected result:
+
+Variable #1: {0..1,3,5}
+Variable #2: {0..1,3,5}
+
+But when using a similar construct I would like to use in the static  
+verifier, I got no result for the second variable, it can has all  
+values from it's domain.
+
+post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+
+Reading about different propagators, I have been able to get the  
+expected result with the use of the ICL_DOM propagator, but only if I  
+was posting the constraint directly, like that:
+
+post(space, new Expr(space.variable1), IRT_EQ, new  
+Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+
+But if I tried to translate the a BExprs to that form, I did not  
+succeed:
+
+	    Expr expression = new Expr(new  
+Expr(space.variable2).minus(space.variable1));
+	    post(space, new Expr(expression), IRT_EQ, 0,  
+org.gecode.GecodeEnumConstants.ICL_DOM);
+
+Can you tell me a way how to enable this strong ICL_DOM propagators  
+meanwhile using the BExpr form, if it is possible? It would help our  
+project a lot, it would simplify it's code.
+
+Thank you for your help,
+Zolt&#225;n Ujhelyi
+On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+
+&gt;<i> Hello all,
+</I>&gt;<i>
+</I>&gt;<i> we are currently trying to build a static checker system on top of
+</I>&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+</I>&gt;<i> interesting case.
+</I>&gt;<i>
+</I>&gt;<i> In order to allow us greater flexibility we try to use the Expression
+</I>&gt;<i> API (it allows us to build constraints in a hierarchical manner).
+</I>&gt;<i>
+</I>&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;<i> result: there were to IntVars, which were supposed to be the same, did
+</I>&gt;<i> not have the same final ranges: one of them had {2,4}, but the other
+</I>&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;<i> constraints were wrong or not, and found the following expression
+</I>&gt;<i> building term:
+</I>&gt;<i>
+</I>&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;<i> Expr(variable2));
+</I>&gt;<i>
+</I>&gt;<i> Tracing the variables variable1 was a new variable, it hadn't been
+</I>&gt;<i> constrained yet, while variable2's domain had been limited to the
+</I>&gt;<i> values 2 and 4 (and they were the variables mentioned before in this
+</I>&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;<i>
+</I>&gt;<i> I tried a post of the expression right after it's construction to see
+</I>&gt;<i> whether it helps or not:
+</I>&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;<i>
+</I>&gt;<i> It did not solve the problem, but when I replaced the post method to
+</I>&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;<i> expected it before.
+</I>&gt;<i>
+</I>&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;<i>
+</I>&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;<i> (maybe I do not understand something under the hood), or not. And if
+</I>&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;<i>
+</I>&gt;<i> Thank you very much in advance for your help,
+</I>&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001762.html">[gecode-users] Problem with constraint
+</A></li>
+	<LI>Next message: <A HREF="001764.html">[gecode-users] Problem with constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1763">[ date ]</a>
+              <a href="thread.html#1763">[ thread ]</a>
+              <a href="subject.html#1763">[ subject ]</a>
+              <a href="author.html#1763">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

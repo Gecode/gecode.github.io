@@ -1,0 +1,674 @@
+From medistif at hotmail.fr  Thu Mar 10 16:56:42 2016
+From: medistif at hotmail.fr (mehdi m)
+Date: Thu, 10 Mar 2016 15:56:42 +0000
+Subject: [gecode-users] propagation Algorithm
+Message-ID: <DUB119-W316E1071104339ECE7CABAB7B40@phx.gbl>
+
+Hi everyone,
+i'am wondering, about the propagation algorithm that Gecode is using, i think is AC3. but i'm not sure and didn't find clarification on mpg.
+Can you confirm for AC3 ? or another algorithm.
+Best------Maamar Mehdi 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160310/a5830b08/attachment.html>
+
+From cschulte at kth.se  Thu Mar 10 17:00:56 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 10 Mar 2016 17:00:56 +0100
+Subject: [gecode-users] propagation Algorithm
+In-Reply-To: <DUB119-W316E1071104339ECE7CABAB7B40@phx.gbl>
+References: <DUB119-W316E1071104339ECE7CABAB7B40@phx.gbl>
+Message-ID: <052e01d17ae6$084ce960$18e6bc20$@kth.se>
+
+No, it has nothing to do with AC3. Check the following papers:
+
+ 
+http://www.gecode.org/~schulte/paper.html?id=SchulteStuckey:TOPLAS:2008
+
+and
+
+ 
+http://www.gecode.org/~schulte/paper.html?id=LagerkvistSchulte:CP:2007
+
+They describe the algorithm used.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of mehdi m
+Sent: Thursday, March 10, 2016 04:57 PM
+To: users at gecode.org
+Subject: [gecode-users] propagation Algorithm
+
+ 
+
+Hi everyone,
+
+ 
+
+i'am wondering, about the propagation algorithm that Gecode is using, i
+think is AC3. but i'm not sure and didn't find clarification on mpg.
+
+ 
+
+Can you confirm for AC3 ? or another algorithm.
+
+ 
+
+Best
+
+------
+
+Maamar Mehdi
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160310/40842670/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20160310/40842670/attachment.bin>
+
+From yunusacikoz at gmail.com  Fri Mar 18 10:47:08 2016
+From: yunusacikoz at gmail.com (Yunus Acikoz)
+Date: Fri, 18 Mar 2016 11:47:08 +0200
+Subject: [gecode-users] Getting just assigned variable from ViewArray in a
+	propagator
+Message-ID: <CAGSNhTjN65wQUObqvgCo=gVrsauQTSSwvOxgP9Gd0hQ_wQOVWg@mail.gmail.com>
+
+Hi everyone,
+
+I have a tunneling constraint propagator that has 4 ViewArrays and
+scheduled to run on their assignment events:
+
+    Gecode::ViewArray<Gecode::Int::IntView> successors_;
+  Gecode::ViewArray<Gecode::Int::IntView> predecessors_;
+  Gecode::ViewArray<Gecode::Int::IntView> vehicles_;
+  Gecode::ViewArray<Gecode::Int::BoolView> cancels_;
+
+  successors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+  predecessors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+  vehicles_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+I want to post additional constraints whenever a value gets fixed over
+those arrays.
+
+for (int i = 0; i < successors_.size(); ++i) {
+    if (vehicles_[i].assigned()) {
+        int val = vehicles_[i].val();
+        // post constraint...
+        // eg.
+        Gecode::element(home, vehicles_, successors_[i], val);
+    }
+    if (successors_[i].assigned()) {
+        int val = successors_[i].val();
+        // post another constraint ...
+    }
+}
+
+For example assume that we first assign the vehicle[2] to some value and
+propagate accordingly.
+Then if we assign vehicle[7] how can we prevent doing same action for
+vehicle[2].
+
+Does it post the same constraints for all the previously assigned
+variables, again and again.... ?
+
+Is there a way to get the recently assigned variable that cause th?s
+propagator to run?
+
+Cheers,
+Yunus
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/6909f9b6/attachment.html>
+
+From cschulte at kth.se  Fri Mar 18 11:44:28 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 18 Mar 2016 11:44:28 +0100
+Subject: [gecode-users] Getting just assigned variable from ViewArray in
+	a	propagator
+In-Reply-To: <CAGSNhTjN65wQUObqvgCo=gVrsauQTSSwvOxgP9Gd0hQ_wQOVWg@mail.gmail.com>
+References: <CAGSNhTjN65wQUObqvgCo=gVrsauQTSSwvOxgP9Gd0hQ_wQOVWg@mail.gmail.com>
+Message-ID: <07c201d18103$25a9e030$70fda090$@kth.se>
+
+Hi Yunus,
+
+ 
+
+There are two options here:
+
+1.       You track inside your propagator for which assigned variable you have already created a propagator. One easy trick is (it depends on your propagator whether this is in fact possible) to remove assigned views from your array. Another option would be to use a bitset or something like that.
+
+2.       You can track which views get assigned by using advisors. Please check MPG for the details.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Yunus Acikoz
+Sent: Friday, March 18, 2016 10:47
+To: users at gecode.org
+Subject: [gecode-users] Getting just assigned variable from ViewArray in a propagator
+
+ 
+
+Hi everyone,
+
+ 
+
+I have a tunneling constraint propagator that has 4 ViewArrays and scheduled to run on their assignment events: 
+
+ 
+
+    Gecode::ViewArray<Gecode::Int::IntView> successors_;
+
+  Gecode::ViewArray<Gecode::Int::IntView> predecessors_;
+
+  Gecode::ViewArray<Gecode::Int::IntView> vehicles_;
+
+  Gecode::ViewArray<Gecode::Int::BoolView> cancels_;
+
+ 
+
+  successors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+  predecessors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+  vehicles_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+ 
+
+I want to post additional constraints whenever a value gets fixed over those arrays.
+
+ 
+
+for (int i = 0; i < successors_.size(); ++i) {
+
+    if (vehicles_[i].assigned()) {
+
+        int val = vehicles_[i].val();
+
+        // post constraint...
+
+        // eg.
+
+        Gecode::element(home, vehicles_, successors_[i], val);   
+
+    }
+
+    if (successors_[i].assigned()) {
+
+        int val = successors_[i].val();
+
+        // post another constraint ...       
+
+    }
+
+}
+
+ 
+
+For example assume that we first assign the vehicle[2] to some value and propagate accordingly.
+
+Then if we assign vehicle[7] how can we prevent doing same action for vehicle[2].
+
+ 
+
+Does it post the same constraints for all the previously assigned variables, again and again.... ?
+
+ 
+
+Is there a way to get the recently assigned variable that cause th?s propagator to run?
+
+Cheers,
+Yunus
+ 
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/3487bc6b/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/3487bc6b/attachment-0001.bin>
+
+From yunusacikoz at gmail.com  Fri Mar 18 12:20:37 2016
+From: yunusacikoz at gmail.com (Yunus Acikoz)
+Date: Fri, 18 Mar 2016 13:20:37 +0200
+Subject: [gecode-users] Getting just assigned variable from ViewArray in
+	a propagator
+In-Reply-To: <07c201d18103$25a9e030$70fda090$@kth.se>
+References: <CAGSNhTjN65wQUObqvgCo=gVrsauQTSSwvOxgP9Gd0hQ_wQOVWg@mail.gmail.com>
+	<07c201d18103$25a9e030$70fda090$@kth.se>
+Message-ID: <CAGSNhTib=Dma-7aXJ6x5=6oa6oXKOHHW3vGFFDjzFNn=o4CrYQ@mail.gmail.com>
+
+Hi Christian,
+
+Thanks for the quick reply.
+
+Bitset suggestion in the first option seems easier to implement.
+But considering that each ViewArray holds around 15000+ Views, would it be
+better to use Advisors performance wise?
+
+Best regards
+Yunus
+
+On Fri, Mar 18, 2016 at 12:44 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi Yunus,
+>
+>
+>
+> There are two options here:
+>
+> 1.       You track inside your propagator for which assigned variable you
+> have already created a propagator. One easy trick is (it depends on your
+> propagator whether this is in fact possible) to remove assigned views from
+> your array. Another option would be to use a bitset or something like that.
+>
+> 2.       You can track which views get assigned by using advisors. Please
+> check MPG for the details.
+>
+>
+>
+> Best
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Yunus Acikoz
+> *Sent:* Friday, March 18, 2016 10:47
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Getting just assigned variable from ViewArray
+> in a propagator
+>
+>
+>
+> Hi everyone,
+>
+>
+>
+> I have a tunneling constraint propagator that has 4 ViewArrays and
+> scheduled to run on their assignment events:
+>
+>
+>
+>     Gecode::ViewArray<Gecode::Int::IntView> successors_;
+>
+>   Gecode::ViewArray<Gecode::Int::IntView> predecessors_;
+>
+>   Gecode::ViewArray<Gecode::Int::IntView> vehicles_;
+>
+>   Gecode::ViewArray<Gecode::Int::BoolView> cancels_;
+>
+>
+>
+>   successors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+>
+>   predecessors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+>
+>   vehicles_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+>
+>
+>
+> I want to post additional constraints whenever a value gets fixed over
+> those arrays.
+>
+>
+>
+> for (int i = 0; i < successors_.size(); ++i) {
+>
+>     if (vehicles_[i].assigned()) {
+>
+>         int val = vehicles_[i].val();
+>
+>         // post constraint...
+>
+>         // eg.
+>
+>         Gecode::element(home, vehicles_, successors_[i], val);
+>
+>     }
+>
+>     if (successors_[i].assigned()) {
+>
+>         int val = successors_[i].val();
+>
+>         // post another constraint ...
+>
+>     }
+>
+> }
+>
+>
+>
+> For example assume that we first assign the vehicle[2] to some value and
+> propagate accordingly.
+>
+> Then if we assign vehicle[7] how can we prevent doing same action for
+> vehicle[2].
+>
+>
+>
+> Does it post the same constraints for all the previously assigned
+> variables, again and again.... ?
+>
+>
+>
+> Is there a way to get the recently assigned variable that cause th?s
+> propagator to run?
+>
+> Cheers,
+>
+> Yunus
+>
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/3e580997/attachment.html>
+
+From cschulte at kth.se  Fri Mar 18 14:53:44 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 18 Mar 2016 14:53:44 +0100
+Subject: [gecode-users] Getting just assigned variable from ViewArray in
+	a propagator
+In-Reply-To: <CAGSNhTib=Dma-7aXJ6x5=6oa6oXKOHHW3vGFFDjzFNn=o4CrYQ@mail.gmail.com>
+References: <CAGSNhTjN65wQUObqvgCo=gVrsauQTSSwvOxgP9Gd0hQ_wQOVWg@mail.gmail.com>	<07c201d18103$25a9e030$70fda090$@kth.se>
+	<CAGSNhTib=Dma-7aXJ6x5=6oa6oXKOHHW3vGFFDjzFNn=o4CrYQ@mail.gmail.com>
+Message-ID: <082f01d1811d$969f1de0$c3dd59a0$@kth.se>
+
+Hi, I would go for the advisors. It is reasonably straightforward and the most efficient.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: Yunus Acikoz [mailto:yunusacikoz at gmail.com] 
+Sent: Friday, March 18, 2016 12:21
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Getting just assigned variable from ViewArray in a propagator
+
+ 
+
+Hi Christian,
+
+ 
+
+Thanks for the quick reply.
+
+ 
+
+Bitset suggestion in the first option seems easier to implement.
+
+But considering that each ViewArray holds around 15000+ Views, would it be better to use Advisors performance wise?
+
+ 
+
+Best regards
+
+Yunus
+
+ 
+
+On Fri, Mar 18, 2016 at 12:44 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+Hi Yunus,
+
+ 
+
+There are two options here:
+
+1.       You track inside your propagator for which assigned variable you have already created a propagator. One easy trick is (it depends on your propagator whether this is in fact possible) to remove assigned views from your array. Another option would be to use a bitset or something like that.
+
+2.       You can track which views get assigned by using advisors. Please check MPG for the details.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Yunus Acikoz
+Sent: Friday, March 18, 2016 10:47
+To: users at gecode.org
+Subject: [gecode-users] Getting just assigned variable from ViewArray in a propagator
+
+ 
+
+Hi everyone,
+
+ 
+
+I have a tunneling constraint propagator that has 4 ViewArrays and scheduled to run on their assignment events: 
+
+ 
+
+    Gecode::ViewArray<Gecode::Int::IntView> successors_;
+
+  Gecode::ViewArray<Gecode::Int::IntView> predecessors_;
+
+  Gecode::ViewArray<Gecode::Int::IntView> vehicles_;
+
+  Gecode::ViewArray<Gecode::Int::BoolView> cancels_;
+
+ 
+
+  successors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+  predecessors_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+  vehicles_.subscribe(home, *this, Gecode::Int::PC_INT_VAL);
+
+ 
+
+I want to post additional constraints whenever a value gets fixed over those arrays.
+
+ 
+
+for (int i = 0; i < successors_.size(); ++i) {
+
+    if (vehicles_[i].assigned()) {
+
+        int val = vehicles_[i].val();
+
+        // post constraint...
+
+        // eg.
+
+        Gecode::element(home, vehicles_, successors_[i], val);   
+
+    }
+
+    if (successors_[i].assigned()) {
+
+        int val = successors_[i].val();
+
+        // post another constraint ...       
+
+    }
+
+}
+
+ 
+
+For example assume that we first assign the vehicle[2] to some value and propagate accordingly.
+
+Then if we assign vehicle[7] how can we prevent doing same action for vehicle[2].
+
+ 
+
+Does it post the same constraints for all the previously assigned variables, again and again.... ?
+
+ 
+
+Is there a way to get the recently assigned variable that cause th?s propagator to run?
+
+Cheers,
+Yunus
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/3aa794dd/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20160318/3aa794dd/attachment-0001.bin>
+
+From aqwzsxaqwzsx at orange.fr  Thu Mar 31 06:15:08 2016
+From: aqwzsxaqwzsx at orange.fr (Philippe)
+Date: Thu, 31 Mar 2016 04:15:08 +0000 (UTC)
+Subject: [gecode-users] B&B or DFS engine ?
+Message-ID: <loom.20160331T061039-928@post.gmane.org>
+
+Hello,
+
+I have a design problem when using a b&b engine. Here it is :
+When a solution S is found I have to confirm it using an external
+ algorithm. It's only if S is confirmed that the next solution S ' 
+must have a better cost than S.
+For now, i use a DFS engine and i reject or accept S' myself. 
+Is there a better solution (using constraint(S) for instance ?).
+
+Thanks,
+Philippe
+
+
+
+From cschulte at kth.se  Thu Mar 31 15:17:14 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 31 Mar 2016 15:17:14 +0200
+Subject: [gecode-users] B&B or DFS engine ?
+In-Reply-To: <loom.20160331T061039-928@post.gmane.org>
+References: <loom.20160331T061039-928@post.gmane.org>
+Message-ID: <129401d18b4f$a49f0fe0$eddd2fa0$@kth.se>
+
+Hi,
+
+Would use a BAB engine and add the external check by synchronized execution
+(when some variables have been assigned), please check Section 4.5 for the
+details. 
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Philippe
+Sent: Thursday, March 31, 2016 06:15
+To: users at gecode.org
+Subject: [gecode-users] B&B or DFS engine ?
+
+Hello,
+
+I have a design problem when using a b&b engine. Here it is :
+When a solution S is found I have to confirm it using an external
+algorithm. It's only if S is confirmed that the next solution S ' 
+must have a better cost than S.
+For now, i use a DFS engine and i reject or accept S' myself. 
+Is there a better solution (using constraint(S) for instance ?).
+
+Thanks,
+Philippe
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20160331/fae6b855/attachment.bin>
+

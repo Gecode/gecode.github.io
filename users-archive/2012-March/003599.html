@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] NaryUnion, infinite loop
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20NaryUnion%2C%20infinite%20loop&In-Reply-To=%3C008901cd0e71%247de40040%2479ac00c0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003597.html">
+   <LINK REL="Next"  HREF="003592.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] NaryUnion, infinite loop</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20NaryUnion%2C%20infinite%20loop&In-Reply-To=%3C008901cd0e71%247de40040%2479ac00c0%24%40kth.se%3E"
+       TITLE="[gecode-users] NaryUnion, infinite loop">cschulte at kth.se
+       </A><BR>
+    <I>Fri Mar 30 14:34:46 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003597.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+        <LI>Next message: <A HREF="003592.html">[gecode-users] copy variables in a stable space
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3599">[ date ]</a>
+              <a href="thread.html#3599">[ thread ]</a>
+              <a href="subject.html#3599">[ subject ]</a>
+              <a href="author.html#3599">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+The problem is really that both iterators must allocate from the same
+region. You should try to avoid the assignment operator for NaryUnion (I
+should have not implemented it in the first place, because I know it is
+troublesome). Normally there should be no reason to use an assignment
+operator, just initialize when you create or use the copy constructor.
+
+Sorry
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Jean-No&#235;l Monette
+</I>&gt;<i> Sent: Friday, March 30, 2012 9:49 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] NaryUnion, infinite loop
+</I>&gt;<i> 
+</I>&gt;<i> Hi Guido,
+</I>&gt;<i> 
+</I>&gt;<i> You are totally right and this is indeed a bug in my (real) code, and I
+</I>will change it
+&gt;<i> accordingly. However, in the small example, I get the same problem when u0
+</I>is
+&gt;<i> created using region1 instead of region2, i.e.
+</I>&gt;<i> 
+</I>&gt;<i> Region region1(home);
+</I>&gt;<i> Iter::Ranges::NaryUnion u0;
+</I>&gt;<i> {
+</I>&gt;<i>      Region region2(home);
+</I>&gt;<i>      u0 = Iter::Ranges::NaryUnion(region1,dom0); //region1 here }
+</I>&gt;<i> Iter::Ranges::NaryUnion u1(region1,u0,dom1);
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> In this case, as far as I understand, there should be no dangling pointer,
+</I>as u0 is
+&gt;<i> initialized with memory from region1. Or do the two regions share their
+</I>&gt;<i> memory, and the destruction of region2 affects the memory of region1?
+</I>&gt;<i> 
+</I>&gt;<i> Thank you for you answers, and sorry for the inconvenience.
+</I>&gt;<i> 
+</I>&gt;<i> Jean-No&#235;l
+</I>&gt;<i> 
+</I>&gt;<i> On 03/30/2012 12:41 AM, Guido Tack wrote:
+</I>&gt;<i> &gt; On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;&gt; Hello,
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; Here is a new problem I came across with NaryUnion. As suggested by
+</I>&gt;<i> Christian, I created a fresh region for every new NaryUnion, however I ran
+</I>into
+&gt;<i> an infinite loop. Below is a minimal example. I located the infinite loop
+</I>inside the
+&gt;<i> &quot;two(I&amp;  i, J&amp;  j)&quot; method of NaryUnion, and the reason seems to be that,
+</I>after
+&gt;<i> the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I
+</I>unfortunately cannot
+&gt;<i> give you line numbers as I messed around with print statements), &quot;i.c&quot; and
+</I>&quot;t&quot;
+&gt;<i> point to the very same RangeList (while they should not). I'm not expert
+</I>enough
+&gt;<i> to go deeper/further...
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; Notice that this appears only when region2 is created in a block (in
+</I>real code,
+&gt;<i> it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it
+</I>is actually
+&gt;<i> used or not.
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; I guess it is again related to the Region implementation that is going
+</I>to
+&gt;<i> change, but I think it is worth mentioning it anyway.
+</I>&gt;<i> &gt; Memory allocated from a region only lives as long as the region, and
+</I>&gt;<i> &gt; by passing u0 out of its region's scope, you get a dangling pointer.
+</I>&gt;<i> &gt; It's like writing
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; char* c;
+</I>&gt;<i> &gt; { string s = &quot;hello&quot;; c = s.c_str(); } string s = &quot;world&quot;;
+</I>&gt;<i> &gt; printf(&quot;%s&quot;,c);
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; which will probably print world rather than hello.  So I'd say this is a
+</I>bug in your
+&gt;<i> code (and we should improve the documentation to make this clear).
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Cheers,
+</I>&gt;<i> &gt; Guido
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003597.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+	<LI>Next message: <A HREF="003592.html">[gecode-users] copy variables in a stable space
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3599">[ date ]</a>
+              <a href="thread.html#3599">[ thread ]</a>
+              <a href="subject.html#3599">[ subject ]</a>
+              <a href="author.html#3599">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

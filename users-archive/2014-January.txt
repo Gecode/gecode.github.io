@@ -1,0 +1,3525 @@
+From lorenzo.gatti at gmail.com  Thu Jan  2 14:23:35 2014
+From: lorenzo.gatti at gmail.com (Lorenzo Gatti)
+Date: Thu, 2 Jan 2014 14:23:35 +0100
+Subject: [gecode-users] Avoid the appearance of several simultaneous
+	values
+In-Reply-To: <52C1E150.4010306@gmail.com>
+References: <52B9A149.4020701@gmail.com>
+	<004201cf03d3$cd7f2b80$687d8280$@kth.se>
+	<52C1E150.4010306@gmail.com>
+Message-ID: <CAG7X+jsnn+Ahti7q5TXeeDY6G8v16U1p33y01w77BVReKngBYg@mail.gmail.com>
+
+In C++, operator ^ is exclusive OR: 1^1 is 0. You are also not initializing
+bool1 and bool2 properly; maybe cardinality constraints would be simpler.
+
+
+On Mon, Dec 30, 2013 at 10:10 PM, inspecteur <inspecteur.rick at gmail.com>wrote:
+
+>  Hi
+>
+> I tried a track but that does not seem to work
+> I may be wrong on boolean
+> 1 && 1  =1
+> 1 && 0 = 0
+> 0 && 0 = 0
+>
+> 1 ^ 0 = 1
+> 0 ^ 0 = 0
+> 1 ^ 1 = 1
+>
+> Code :
+>
+> IntVarArgs d1(4);
+> BoolVar bool1(*this,0,1);
+> BoolVar bool2(*this,0,1);
+>
+>         for (int i = 0; i < n; i++) {
+>             for (int j = 0; j < 4; j++) {
+>                 d1[j]=tab(i,j);
+>             }
+>
+>     // I tested if the value 3 appears at least once
+>        for (int j = 0; j < 4; j++) {
+>              bool1 = expr(*this, (d1[j]==3) ^ (bool1==1));
+>             }
+>
+>     // I tested if the value 4 appears at least once
+>         for (int j = 0; j < 4; j++) {
+>              bool2 = expr(*this, (d1[j]==4) ^ (bool2==1));
+>             }
+>
+>       //I constrained that the two values 3 et 4 do not appear together
+>       rel(*this, (bool1 + bool2) != 1);
+>
+>
+>
+>
+> Le 28/12/2013 14:50, Christian Schulte a ?crit :
+>
+>  Hi,
+>
+>
+>
+> This is not really a Gecode-specific question but a general constraint
+> modeling question, so you might want to turn elsewhere for help.
+>
+>
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.ict.kth.se/~cschulte
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org<users-bounces at gecode.org>]
+> *On Behalf Of *inspecteur
+> *Sent:* Tuesday, December 24, 2013 03:59 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Avoid the appearance of several simultaneous
+> values
+>
+>
+>
+> Hi
+> Sorry for my english, I'm french and beginner on gecode.
+>
+> I want to create an array of integers (4 * 4) with the constraints:
+> 1) Possible values between 1 and 6
+> 2) no repeating values on lines
+> 3) The values 3 and 4 must not be on the same line
+> 4) No more than 2 times the same value on each column
+>
+> I stumble on the constraint number 3)
+>
+>   If someone could put me on the track
+>
+>
+>
+> Here is my code
+>
+> class CarreMagique : public Script {
+> private:
+>   const int n;
+>   IntVarArray carreMag;
+>
+>   public:
+>   CarreMagique(const SizeOptions& opt)
+>     : n(opt.size()), carreMag(*this,n*4,1,6) {
+>
+>     Matrix<IntVarArray> tab(carreMag, n, 4);
+>     IntVarArgs d1(4);
+>         for (int i = 0; i < n; i++) {
+>             for (int j = 0; j < 4; j++) {
+>                 d1[j]=tab(i,j);
+>             }
+>             distinct(*this, d1);
+>         }
+>
+>   IntVarArgs d2(n);
+>         for (int j = 0; j < 4; j++) {
+>             for (int i = 0; i < n; i++) {
+>                 d2[i]=tab(i,j);
+>             }
+>             count(*this, d2, IntSet(0,2), IntArgs::create(6,1,1));
+>         }
+>
+>     }
+>     branch(*this, carreMag, INT_VAR_NONE(), INT_VAL_SPLIT_MIN());
+>   }
+>
+>   CarreMagique(bool share, CarreMagique& s) : Script(share,s), n(s.n) {
+>     carreMag.update(*this, share, s.carreMag);
+>   }
+>
+>   virtual Space* copy(bool share) {
+>     return new CarreMagique(share,*this);
+>   }
+>
+>   virtual void print(std::ostream& os) const {
+>     // Pour acceder au tableau comme ? une matrice
+>     Matrix<IntVarArray> m(carreMag, n, 4);
+>     for (int i = 0; i < n; i++) {
+>       os << "\t";
+>       for (int j = 0; j < 4; j++) {
+>         os.width(2);
+>         os << m(i,j) << "  ";
+>       }
+>       os << std::endl;
+>     }
+>   }
+>
+> };
+>
+> int main(int argc, char* argv[]) {
+>   SizeOptions opt("CarreMagique");
+>   opt.size(4);
+>   Script::run<CarreMagique,DFS,SizeOptions>(opt);
+>   return 0;
+> }
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140102/c5b50deb/attachment.html>
+
+From medistif at hotmail.fr  Mon Jan  6 14:57:01 2014
+From: medistif at hotmail.fr (mehdi m)
+Date: Mon, 6 Jan 2014 13:57:01 +0000
+Subject: [gecode-users] errors-compilation-gecode examples
+Message-ID: <DUB119-W523685A41A9407EA1DC0E5B7B70@phx.gbl>
+
+I have installed gecode 4.0.0 on Ubuntu 12.04 from source.
+installation went ok.I copied the source of money.cpp and tried to compile it with this makefile;CC=g++CFLAGS=-W -Wall -ansi -pedantic -g  
+LDFLAGS=
+EXEC=Money
+SRC= $(wildcard *.cpp)
+OBJ= $(SRC:.cpp=.o)
+
+all: $(EXEC)
+
+Money: $(OBJ)
+	@$(CC) -L/usr/local/lib -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport -o $@ $^ $(LDFLAGS)
+
+%.o: %.cpp
+	$(CC) -I/usr/local/include -o $@ -c $< $(CFLAGS)
+
+.phony: clean mrproper 
+
+clean:
+	@rm -rf *.o
+
+mrproper: clean
+	@rm -rf $(EXEC)
+But I get a mass of linking errors;
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x10d8): undefined reference to `Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x10f1): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x113c): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x114b): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1169): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1178): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1187): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1196): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x11c2): undefined reference to `Gecode::operator*(int, Gecode::IntVar const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x11e2): undefined reference to `Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1202): undefined reference to `Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1222): undefined reference to `Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1242): undefined reference to `Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x125b): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12a6): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12b5): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12d3): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12e2): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12f1): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1300): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1331): undefined reference to `Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x134a): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1395): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x13a4): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1471): undefined reference to `Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&, Gecode::IntVar, int))'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x14cc): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x14f4): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1508): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x151c): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1530): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1544): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.o:Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1558): more undefined references to `Gecode::LinIntExpr::~LinIntExpr()' follow
+Money.o: In function `Money::Money(Gecode::Options const&)':
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x169b): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16c3): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16d7): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16eb): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1702): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x172a): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x173e): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1752): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1766): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x177d): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17a5): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17b9): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17cd): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17e1): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17f8): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1820): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1834): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1848): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x185c): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1870): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+Money.o: In function `Money::Money(bool, Money&)':
+Money.cpp:(.text._ZN5MoneyC2EbRS_[_ZN5MoneyC5EbRS_]+0x211): undefined reference to `Gecode::MemoryManager::alloc_refill(Gecode::SharedMemory*, unsigned long)'
+Money.cpp:(.text._ZN5MoneyC2EbRS_[_ZN5MoneyC5EbRS_]+0x411): undefined reference to `Gecode::Int::IntVarImp::perform_copy(Gecode::Space&, bool)'
+Money.o: In function `Gecode::Driver::DoubleOption::~DoubleOption()':
+Money.cpp:(.text._ZN6Gecode6Driver12DoubleOptionD2Ev[_ZN6Gecode6Driver12DoubleOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::DoubleOption'
+Money.cpp:(.text._ZN6Gecode6Driver12DoubleOptionD2Ev[_ZN6Gecode6Driver12DoubleOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+Money.o: In function `Gecode::Driver::UnsignedIntOption::~UnsignedIntOption()':
+Money.cpp:(.text._ZN6Gecode6Driver17UnsignedIntOptionD2Ev[_ZN6Gecode6Driver17UnsignedIntOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::UnsignedIntOption'
+Money.cpp:(.text._ZN6Gecode6Driver17UnsignedIntOptionD2Ev[_ZN6Gecode6Driver17UnsignedIntOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+Money.o: In function `Gecode::Driver::BoolOption::~BoolOption()':
+Money.cpp:(.text._ZN6Gecode6Driver10BoolOptionD2Ev[_ZN6Gecode6Driver10BoolOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::BoolOption'
+Money.cpp:(.text._ZN6Gecode6Driver10BoolOptionD2Ev[_ZN6Gecode6Driver10BoolOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+Money.o: In function `Gecode::Options::~Options()':
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x26): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x38): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x80): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0xc8): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x158): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x17c): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x18e): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.o:Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x1a0): more undefined references to `Gecode::Driver::StringOption::~StringOption()' follow
+Money.o: In function `Gecode::Options::~Options()':
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x1cc): undefined reference to `Gecode::BaseOptions::~BaseOptions()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x202): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x25e): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x2ba): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x372): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3a0): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3b7): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+Money.o:Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3ce): more undefined references to `Gecode::Driver::StringOption::~StringOption()' follow
+Money.o: In function `Gecode::Options::~Options()':
+Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x409): undefined reference to `Gecode::BaseOptions::~BaseOptions()'
+Money.o: In function `Gecode::VarArgArray<Gecode::IntVar>::VarArgArray(Gecode::VarArray<Gecode::IntVar> const&)':
+Money.cpp:(.text._ZN6Gecode11VarArgArrayINS_6IntVarEEC2ERKNS_8VarArrayIS1_EE[_ZN6Gecode11VarArgArrayINS_6IntVarEEC5ERKNS_8VarArrayIS1_EE]+0xa2): undefined reference to `Gecode::heap'
+Money.o: In function `Gecode::Driver::ScriptBase<Gecode::Space>::ScriptBase()':
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC2Ev[_ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC5Ev]+0x14): undefined reference to `Gecode::Space::Space()'
+Money.o: In function `Gecode::Driver::ScriptBase<Gecode::Space>::ScriptBase(bool, Gecode::Driver::ScriptBase<Gecode::Space>&)':
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC2EbRS3_[_ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC5EbRS3_]+0x27): undefined reference to `Gecode::Space::Space(bool, Gecode::Space&)'
+Money.o: In function `void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)':
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x1cd): undefined reference to `Gecode::Space::propagators() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x1e2): undefined reference to `Gecode::Space::branchers() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x374): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x479): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x762): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xa29): undefined reference to `Gecode::Space::propagators() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xa3e): undefined reference to `Gecode::Space::branchers() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xbae): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xce8): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x10ff): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x12f2): undefined reference to `Gecode::Driver::am(double*, int)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x131c): undefined reference to `Gecode::Driver::dev(double*, int)'
+Money.o: In function `void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)':
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1cd): undefined reference to `Gecode::Space::propagators() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1e2): undefined reference to `Gecode::Space::branchers() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x46d): undefined reference to `vtable for Gecode::Search::MetaStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x518): undefined reference to `vtable for Gecode::Search::FailStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x6df): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x75f): undefined reference to `Gecode::Space::Space()'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x799): undefined reference to `vtable for Gecode::Search::FailedSpace'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x7f9): undefined reference to `Gecode::Space::_clone(bool)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x832): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x85c): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x8db): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x9dc): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0xae1): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0xdca): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1091): undefined reference to `Gecode::Space::propagators() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x10a6): undefined reference to `Gecode::Space::branchers() const'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1331): undefined reference to `vtable for Gecode::Search::MetaStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x13dc): undefined reference to `vtable for Gecode::Search::FailStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x15a3): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1623): undefined reference to `Gecode::Space::Space()'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x165d): undefined reference to `vtable for Gecode::Search::FailedSpace'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x16bd): undefined reference to `Gecode::Space::_clone(bool)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x16f6): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1720): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x179f): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x187e): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x19b8): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1eea): undefined reference to `vtable for Gecode::Search::MetaStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1f95): undefined reference to `vtable for Gecode::Search::FailStop'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x215c): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x21dc): undefined reference to `Gecode::Space::Space()'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2216): undefined reference to `vtable for Gecode::Search::FailedSpace'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2276): undefined reference to `Gecode::Space::_clone(bool)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x22af): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x22d9): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2358): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2437): undefined reference to `typeinfo for Gecode::Space'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x262a): undefined reference to `Gecode::Driver::am(double*, int)'
+Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2654): undefined reference to `Gecode::Driver::dev(double*, int)'
+Money.o: In function `Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)':
+Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x49): undefined reference to `Gecode::Search::Cutoff::constant(unsigned long)'
+Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x61): undefined reference to `Gecode::Search::Cutoff::linear(unsigned long)'
+Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x79): undefined reference to `Gecode::Search::Cutoff::luby(unsigned long)'
+Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0xa7): undefined reference to `Gecode::Search::Cutoff::geometric(unsigned long, double)'
+Money.o: In function `Gecode::Driver::EngineToMeta<Gecode::DFS, Money>::EngineToMeta(Money*, Gecode::Search::Options const&)':
+Money.cpp:(.text._ZN6Gecode6Driver12EngineToMetaINS_3DFSE5MoneyEC2EPS3_RKNS_6Search7OptionsE[_ZN6Gecode6Driver12EngineToMetaINS_3DFSE5MoneyEC5EPS3_RKNS_6Search7OptionsE]+0x3d): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+Money.o:(.rodata._ZTV5Money[vtable for Money]+0x28): undefined reference to `Gecode::Space::constrain(Gecode::Space const&)'
+Money.o:(.rodata._ZTV5Money[vtable for Money]+0x30): undefined reference to `Gecode::Space::master(unsigned long, Gecode::Space const*)'
+Money.o:(.rodata._ZTV5Money[vtable for Money]+0x38): undefined reference to `Gecode::Space::slave(unsigned long, Gecode::Space const*)'
+Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x28): undefined reference to `Gecode::Space::constrain(Gecode::Space const&)'
+Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x30): undefined reference to `Gecode::Space::master(unsigned long, Gecode::Space const*)'
+Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x38): undefined reference to `Gecode::Space::slave(unsigned long, Gecode::Space const*)'
+Money.o:(.rodata._ZTVN6Gecode7OptionsE[vtable for Gecode::Options]+0x10): undefined reference to `Gecode::BaseOptions::help()'
+Money.o:(.rodata._ZTVN6Gecode6Search19UninitializedCutoffE[vtable for Gecode::Search::UninitializedCutoff]+0x20): undefined reference to `Gecode::Exception::what() const'
+Money.o:(.rodata._ZTVN6Gecode3DFA4DFAIE[vtable for Gecode::DFA::DFAI]+0x10): undefined reference to `Gecode::DFA::DFAI::copy() const'
+Money.o:(.rodata._ZTVN6Gecode3Rnd3IMPE[vtable for Gecode::Rnd::IMP]+0x10): undefined reference to `Gecode::Rnd::IMP::copy() const'
+Money.o:(.rodata._ZTVN6Gecode6ChoiceE[vtable for Gecode::Choice]+0x28): undefined reference to `Gecode::Choice::archive(Gecode::Archive&) const'
+Money.o:(.rodata._ZTVN6Gecode20OperatingSystemErrorE[vtable for Gecode::OperatingSystemError]+0x20): undefined reference to `Gecode::Exception::what() const'
+Money.o:(.rodata._ZTVN6Gecode15MemoryExhaustedE[vtable for Gecode::MemoryExhausted]+0x20): undefined reference to `Gecode::Exception::what() const'
+Money.o:(.rodata._ZTIN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[typeinfo for Gecode::Driver::ScriptBase<Gecode::Space>]+0x10): undefined reference to `typeinfo for Gecode::Space'
+Money.o:(.rodata._ZTIN6Gecode7OptionsE[typeinfo for Gecode::Options]+0x10): undefined reference to `typeinfo for Gecode::BaseOptions'
+Money.o:(.rodata._ZTIN6Gecode6Search19UninitializedCutoffE[typeinfo for Gecode::Search::UninitializedCutoff]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+Money.o:(.rodata._ZTIN6Gecode20OperatingSystemErrorE[typeinfo for Gecode::OperatingSystemError]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+Money.o:(.rodata._ZTIN6Gecode15MemoryExhaustedE[typeinfo for Gecode::MemoryExhausted]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+collect2: ld a retourn? 1 Any ideas on how to fix this?thank you.
+
+ 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140106/aa0199e3/attachment-0001.html>
+
+From tack at gecode.org  Tue Jan  7 01:48:19 2014
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 7 Jan 2014 11:48:19 +1100
+Subject: [gecode-users] errors-compilation-gecode examples
+In-Reply-To: <DUB119-W523685A41A9407EA1DC0E5B7B70@phx.gbl>
+References: <DUB119-W523685A41A9407EA1DC0E5B7B70@phx.gbl>
+Message-ID: <868BEB6B-091F-4A02-8982-E7386DC4364D@gecode.org>
+
+You may need to pass the objects to the linker before the libraries as follows (note that I moved the $^):
+
+Money: $(OBJ)
+	@$(CC) $(LDFLAGS) $^ -L/usr/local/lib -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport -o $@ 
+
+Cheers,
+Guido
+
+On 7 Jan 2014, at 12:57 am, mehdi m <medistif at hotmail.fr> wrote:
+
+> I have installed gecode 4.0.0 on Ubuntu 12.04 from source.
+> installation went ok.
+> I copied the source of money.cpp and tried to compile it with this makefile;
+> CC=g++
+> CFLAGS=-W -Wall -ansi -pedantic -g  
+> LDFLAGS=
+> EXEC=Money
+> SRC= $(wildcard *.cpp)
+> OBJ= $(SRC:.cpp=.o)
+> 
+> all: $(EXEC)
+> 
+> Money: $(OBJ)
+> 	@$(CC) -L/usr/local/lib -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport -o $@ $^ $(LDFLAGS)
+> 
+> %.o: %.cpp
+> 	$(CC) -I/usr/local/include -o $@ -c $< $(CFLAGS)
+> 
+> .phony: clean mrproper 
+> 
+> clean:
+> 	@rm -rf *.o
+> 
+> mrproper: clean
+> 	@rm -rf $(EXEC)
+> 
+> But I get a mass of linking errors;
+> 
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x10d8): undefined reference to `Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x10f1): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x113c): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x114b): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1169): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1178): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1187): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1196): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x11c2): undefined reference to `Gecode::operator*(int, Gecode::IntVar const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x11e2): undefined reference to `Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1202): undefined reference to `Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1222): undefined reference to `Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1242): undefined reference to `Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x125b): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12a6): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12b5): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12d3): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12e2): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x12f1): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1300): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1331): undefined reference to `Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x134a): undefined reference to `Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1395): undefined reference to `Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, Gecode::IntConLevel)'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x13a4): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1471): undefined reference to `Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&, Gecode::IntVar, int))'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x14cc): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x14f4): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1508): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x151c): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1530): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1544): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.o:Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1558): more undefined references to `Gecode::LinIntExpr::~LinIntExpr()' follow
+> Money.o: In function `Money::Money(Gecode::Options const&)':
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x169b): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16c3): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16d7): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x16eb): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1702): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x172a): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x173e): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1752): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1766): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x177d): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17a5): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17b9): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17cd): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17e1): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x17f8): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1820): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1834): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1848): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x185c): undefined reference to `Gecode::LinIntExpr::~LinIntExpr()'
+> Money.cpp:(.text._ZN5MoneyC2ERKN6Gecode7OptionsE[_ZN5MoneyC5ERKN6Gecode7OptionsE]+0x1870): undefined reference to `Gecode::BoolExpr::~BoolExpr()'
+> Money.o: In function `Money::Money(bool, Money&)':
+> Money.cpp:(.text._ZN5MoneyC2EbRS_[_ZN5MoneyC5EbRS_]+0x211): undefined reference to `Gecode::MemoryManager::alloc_refill(Gecode::SharedMemory*, unsigned long)'
+> Money.cpp:(.text._ZN5MoneyC2EbRS_[_ZN5MoneyC5EbRS_]+0x411): undefined reference to `Gecode::Int::IntVarImp::perform_copy(Gecode::Space&, bool)'
+> Money.o: In function `Gecode::Driver::DoubleOption::~DoubleOption()':
+> Money.cpp:(.text._ZN6Gecode6Driver12DoubleOptionD2Ev[_ZN6Gecode6Driver12DoubleOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::DoubleOption'
+> Money.cpp:(.text._ZN6Gecode6Driver12DoubleOptionD2Ev[_ZN6Gecode6Driver12DoubleOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+> Money.o: In function `Gecode::Driver::UnsignedIntOption::~UnsignedIntOption()':
+> Money.cpp:(.text._ZN6Gecode6Driver17UnsignedIntOptionD2Ev[_ZN6Gecode6Driver17UnsignedIntOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::UnsignedIntOption'
+> Money.cpp:(.text._ZN6Gecode6Driver17UnsignedIntOptionD2Ev[_ZN6Gecode6Driver17UnsignedIntOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+> Money.o: In function `Gecode::Driver::BoolOption::~BoolOption()':
+> Money.cpp:(.text._ZN6Gecode6Driver10BoolOptionD2Ev[_ZN6Gecode6Driver10BoolOptionD5Ev]+0x13): undefined reference to `vtable for Gecode::Driver::BoolOption'
+> Money.cpp:(.text._ZN6Gecode6Driver10BoolOptionD2Ev[_ZN6Gecode6Driver10BoolOptionD5Ev]+0x1f): undefined reference to `Gecode::Driver::BaseOption::~BaseOption()'
+> Money.o: In function `Gecode::Options::~Options()':
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x26): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x38): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x80): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0xc8): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x158): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x17c): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x18e): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.o:Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x1a0): more undefined references to `Gecode::Driver::StringOption::~StringOption()' follow
+> Money.o: In function `Gecode::Options::~Options()':
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x1cc): undefined reference to `Gecode::BaseOptions::~BaseOptions()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x202): undefined reference to `Gecode::Driver::StringValueOption::~StringValueOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x25e): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x2ba): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x372): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3a0): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3b7): undefined reference to `Gecode::Driver::StringOption::~StringOption()'
+> Money.o:Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x3ce): more undefined references to `Gecode::Driver::StringOption::~StringOption()' follow
+> Money.o: In function `Gecode::Options::~Options()':
+> Money.cpp:(.text._ZN6Gecode7OptionsD2Ev[_ZN6Gecode7OptionsD5Ev]+0x409): undefined reference to `Gecode::BaseOptions::~BaseOptions()'
+> Money.o: In function `Gecode::VarArgArray<Gecode::IntVar>::VarArgArray(Gecode::VarArray<Gecode::IntVar> const&)':
+> Money.cpp:(.text._ZN6Gecode11VarArgArrayINS_6IntVarEEC2ERKNS_8VarArrayIS1_EE[_ZN6Gecode11VarArgArrayINS_6IntVarEEC5ERKNS_8VarArrayIS1_EE]+0xa2): undefined reference to `Gecode::heap'
+> Money.o: In function `Gecode::Driver::ScriptBase<Gecode::Space>::ScriptBase()':
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC2Ev[_ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC5Ev]+0x14): undefined reference to `Gecode::Space::Space()'
+> Money.o: In function `Gecode::Driver::ScriptBase<Gecode::Space>::ScriptBase(bool, Gecode::Driver::ScriptBase<Gecode::Space>&)':
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC2EbRS3_[_ZN6Gecode6Driver10ScriptBaseINS_5SpaceEEC5EbRS3_]+0x27): undefined reference to `Gecode::Space::Space(bool, Gecode::Space&)'
+> Money.o: In function `void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)':
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x1cd): undefined reference to `Gecode::Space::propagators() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x1e2): undefined reference to `Gecode::Space::branchers() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x374): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x479): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x762): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xa29): undefined reference to `Gecode::Space::propagators() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xa3e): undefined reference to `Gecode::Space::branchers() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xbae): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0xce8): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x10ff): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x12f2): undefined reference to `Gecode::Driver::am(double*, int)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS0_12EngineToMetaEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*)]+0x131c): undefined reference to `Gecode::Driver::dev(double*, int)'
+> Money.o: In function `void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)':
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1cd): undefined reference to `Gecode::Space::propagators() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1e2): undefined reference to `Gecode::Space::branchers() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x46d): undefined reference to `vtable for Gecode::Search::MetaStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x518): undefined reference to `vtable for Gecode::Search::FailStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x6df): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x75f): undefined reference to `Gecode::Space::Space()'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x799): undefined reference to `vtable for Gecode::Search::FailedSpace'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x7f9): undefined reference to `Gecode::Space::_clone(bool)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x832): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x85c): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x8db): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x9dc): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0xae1): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0xdca): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1091): undefined reference to `Gecode::Space::propagators() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x10a6): undefined reference to `Gecode::Space::branchers() const'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1331): undefined reference to `vtable for Gecode::Search::MetaStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x13dc): undefined reference to `vtable for Gecode::Search::FailStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x15a3): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1623): undefined reference to `Gecode::Space::Space()'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x165d): undefined reference to `vtable for Gecode::Search::FailedSpace'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x16bd): undefined reference to `Gecode::Space::_clone(bool)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x16f6): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1720): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x179f): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x187e): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x19b8): undefined reference to `Gecode::Driver::stop(Gecode::Support::Timer&, std::basic_ostream<char, std::char_traits<char> >&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1eea): undefined reference to `vtable for Gecode::Search::MetaStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x1f95): undefined reference to `vtable for Gecode::Search::FailStop'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x215c): undefined reference to `Gecode::Space::status(Gecode::StatusStatistics&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x21dc): undefined reference to `Gecode::Space::Space()'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2216): undefined reference to `vtable for Gecode::Search::FailedSpace'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2276): undefined reference to `Gecode::Space::_clone(bool)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x22af): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x22d9): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2358): undefined reference to `Gecode::Search::rbs(Gecode::Space*, unsigned long, Gecode::Search::MetaStop*, Gecode::Search::Engine*, Gecode::Search::Options const&)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2437): undefined reference to `typeinfo for Gecode::Space'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x262a): undefined reference to `Gecode::Driver::am(double*, int)'
+> Money.cpp:(.text._ZN6Gecode6Driver10ScriptBaseINS_5SpaceEE7runMetaI5MoneyNS_3DFSENS_7OptionsENS_3RBSEEEvRKT1_PT_[void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)]+0x2654): undefined reference to `Gecode::Driver::dev(double*, int)'
+> Money.o: In function `Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)':
+> Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x49): undefined reference to `Gecode::Search::Cutoff::constant(unsigned long)'
+> Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x61): undefined reference to `Gecode::Search::Cutoff::linear(unsigned long)'
+> Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0x79): undefined reference to `Gecode::Search::Cutoff::luby(unsigned long)'
+> Money.cpp:(.text._ZN6Gecode6Driver12createCutoffINS_7OptionsEEEPNS_6Search6CutoffERKT_[Gecode::Search::Cutoff* Gecode::Driver::createCutoff<Gecode::Options>(Gecode::Options const&)]+0xa7): undefined reference to `Gecode::Search::Cutoff::geometric(unsigned long, double)'
+> Money.o: In function `Gecode::Driver::EngineToMeta<Gecode::DFS, Money>::EngineToMeta(Money*, Gecode::Search::Options const&)':
+> Money.cpp:(.text._ZN6Gecode6Driver12EngineToMetaINS_3DFSE5MoneyEC2EPS3_RKNS_6Search7OptionsE[_ZN6Gecode6Driver12EngineToMetaINS_3DFSE5MoneyEC5EPS3_RKNS_6Search7OptionsE]+0x3d): undefined reference to `Gecode::Search::dfs(Gecode::Space*, unsigned long, Gecode::Search::Options const&)'
+> Money.o:(.rodata._ZTV5Money[vtable for Money]+0x28): undefined reference to `Gecode::Space::constrain(Gecode::Space const&)'
+> Money.o:(.rodata._ZTV5Money[vtable for Money]+0x30): undefined reference to `Gecode::Space::master(unsigned long, Gecode::Space const*)'
+> Money.o:(.rodata._ZTV5Money[vtable for Money]+0x38): undefined reference to `Gecode::Space::slave(unsigned long, Gecode::Space const*)'
+> Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x28): undefined reference to `Gecode::Space::constrain(Gecode::Space const&)'
+> Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x30): undefined reference to `Gecode::Space::master(unsigned long, Gecode::Space const*)'
+> Money.o:(.rodata._ZTVN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[vtable for Gecode::Driver::ScriptBase<Gecode::Space>]+0x38): undefined reference to `Gecode::Space::slave(unsigned long, Gecode::Space const*)'
+> Money.o:(.rodata._ZTVN6Gecode7OptionsE[vtable for Gecode::Options]+0x10): undefined reference to `Gecode::BaseOptions::help()'
+> Money.o:(.rodata._ZTVN6Gecode6Search19UninitializedCutoffE[vtable for Gecode::Search::UninitializedCutoff]+0x20): undefined reference to `Gecode::Exception::what() const'
+> Money.o:(.rodata._ZTVN6Gecode3DFA4DFAIE[vtable for Gecode::DFA::DFAI]+0x10): undefined reference to `Gecode::DFA::DFAI::copy() const'
+> Money.o:(.rodata._ZTVN6Gecode3Rnd3IMPE[vtable for Gecode::Rnd::IMP]+0x10): undefined reference to `Gecode::Rnd::IMP::copy() const'
+> Money.o:(.rodata._ZTVN6Gecode6ChoiceE[vtable for Gecode::Choice]+0x28): undefined reference to `Gecode::Choice::archive(Gecode::Archive&) const'
+> Money.o:(.rodata._ZTVN6Gecode20OperatingSystemErrorE[vtable for Gecode::OperatingSystemError]+0x20): undefined reference to `Gecode::Exception::what() const'
+> Money.o:(.rodata._ZTVN6Gecode15MemoryExhaustedE[vtable for Gecode::MemoryExhausted]+0x20): undefined reference to `Gecode::Exception::what() const'
+> Money.o:(.rodata._ZTIN6Gecode6Driver10ScriptBaseINS_5SpaceEEE[typeinfo for Gecode::Driver::ScriptBase<Gecode::Space>]+0x10): undefined reference to `typeinfo for Gecode::Space'
+> Money.o:(.rodata._ZTIN6Gecode7OptionsE[typeinfo for Gecode::Options]+0x10): undefined reference to `typeinfo for Gecode::BaseOptions'
+> Money.o:(.rodata._ZTIN6Gecode6Search19UninitializedCutoffE[typeinfo for Gecode::Search::UninitializedCutoff]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+> Money.o:(.rodata._ZTIN6Gecode20OperatingSystemErrorE[typeinfo for Gecode::OperatingSystemError]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+> Money.o:(.rodata._ZTIN6Gecode15MemoryExhaustedE[typeinfo for Gecode::MemoryExhausted]+0x10): undefined reference to `typeinfo for Gecode::Exception'
+> collect2: ld a retourn? 1 
+> Any ideas on how to fix this?
+> thank you.
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140107/c92db145/attachment-0001.html>
+
+From askri.manel1 at gmail.com  Tue Jan  7 15:38:01 2014
+From: askri.manel1 at gmail.com (manel askri)
+Date: Tue, 7 Jan 2014 15:38:01 +0100
+Subject: [gecode-users] use of the folder Gecode.lib
+Message-ID: <CAKWqT4CYqUqZ2Ng8x-yA-hXrkHPRDdqnuu9WpNXYE647s+geFQ@mail.gmail.com>
+
+Hi all
+
+i implemented my project with gecode 4.0.0 on windows 7 32 bits with VS2010
+so when i tried to reuse my project on windows 7 64 bits ( i installed
+gecode 4.2.1 with VS2012) but i have got this error : can't open the file
+"GecodeSupport-4-2-1-D-x86.lib" ????????
+
+So can You help me please with that please
+
+Thank YOU verry much
+
+MANEL
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140107/80f628af/attachment.html>
+
+From cschulte at kth.se  Tue Jan  7 15:48:08 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 7 Jan 2014 15:48:08 +0100
+Subject: [gecode-users] use of the folder Gecode.lib
+In-Reply-To: <CAKWqT4CYqUqZ2Ng8x-yA-hXrkHPRDdqnuu9WpNXYE647s+geFQ@mail.gmail.com>
+References: <CAKWqT4CYqUqZ2Ng8x-yA-hXrkHPRDdqnuu9WpNXYE647s+geFQ@mail.gmail.com>
+Message-ID: <00be01cf0bb7$7abd49e0$7037dda0$@se>
+
+You have to recompile your project so that the Gecode version numbers match
+(this is as always) on both platforms.
+
+ 
+
+If you want to redistribute your project compiled in debug mode (which you
+tried to do but should not) then even the MSVC versions have to match on
+both platforms.
+
+ 
+
+Christian
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of manel askri
+Sent: Tuesday, January 07, 2014 3:38 PM
+To: users at gecode.org list
+Subject: [gecode-users] use of the folder Gecode.lib
+
+ 
+
+Hi all
+
+ 
+
+i implemented my project with gecode 4.0.0 on windows 7 32 bits with VS2010
+so when i tried to reuse my project on windows 7 64 bits ( i installed
+gecode 4.2.1 with VS2012) but i have got this error : can't open the file
+"GecodeSupport-4-2-1-D-x86.lib" ????????
+
+ 
+
+So can You help me please with that please 
+
+ 
+
+Thank YOU verry much 
+
+ 
+
+MANEL
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140107/2423aeeb/attachment.html>
+
+From askri.manel1 at gmail.com  Tue Jan  7 15:59:06 2014
+From: askri.manel1 at gmail.com (manel askri)
+Date: Tue, 7 Jan 2014 15:59:06 +0100
+Subject: [gecode-users] use of the folder Gecode.lib
+In-Reply-To: <00be01cf0bb7$7abd49e0$7037dda0$@se>
+References: <CAKWqT4CYqUqZ2Ng8x-yA-hXrkHPRDdqnuu9WpNXYE647s+geFQ@mail.gmail.com>
+	<00be01cf0bb7$7abd49e0$7037dda0$@se>
+Message-ID: <CAKWqT4DrSsE=EKzti4cP_dNKKp3ez9MNrPJdTg2yYYy+CcrXtA@mail.gmail.com>
+
+hi
+
+i don't get well what YOU are trying to tell me , but this is what i did
+
+first i tried the example exists in Your site " magic-sequence-gcc" but i
+have got the same error
+
+ i even tried to use VS2010 in windows 7 , 64 bits but i have the same
+error
+
+So can you explain to me how to fixe this error
+
+Thank You very much
+
+
+2014/1/7 Christian Schulte <cschulte at kth.se>
+
+> You have to recompile your project so that the Gecode version numbers
+> match (this is as always) on both platforms.
+>
+>
+>
+> If you want to redistribute your project compiled in debug mode (which you
+> tried to do but should not) then even the MSVC versions have to match on
+> both platforms.
+>
+>
+>
+> Christian
+>
+> --
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *manel askri
+> *Sent:* Tuesday, January 07, 2014 3:38 PM
+> *To:* users at gecode.org list
+> *Subject:* [gecode-users] use of the folder Gecode.lib
+>
+>
+>
+> Hi all
+>
+>
+>
+> i implemented my project with gecode 4.0.0 on windows 7 32 bits with
+> VS2010 so when i tried to reuse my project on windows 7 64 bits ( i
+> installed gecode 4.2.1 with VS2012) but i have got this error : can't open
+> the file "GecodeSupport-4-2-1-D-x86.lib" ????????
+>
+>
+>
+> So can You help me please with that please
+>
+>
+>
+> Thank YOU verry much
+>
+>
+>
+> MANEL
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140107/dd17bd3c/attachment.html>
+
+From askri.manel1 at gmail.com  Thu Jan  9 21:12:48 2014
+From: askri.manel1 at gmail.com (manel askri)
+Date: Thu, 9 Jan 2014 21:12:48 +0100
+Subject: [gecode-users] GecodeSupport-4-0-0-d-x86.lib
+Message-ID: <CAKWqT4BkQ8jm-Mg490HXggkbyfNsTuZrPrbU9HsFQHzOuotHmA@mail.gmail.com>
+
+HI all
+
+i have problem with compling a simple example like "magic-square" with my
+windows 64 bits , i installed gecode 4.2.1 with Visual Studio 2010C++
+
+I get this error whil compling :  can't open the file
+"GecodeSupport-4-2-1-D-x86.lib"
+
+is there any solution for this problem
+
+Thank You a lot for every thing
+
+Manel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140109/89cea2d1/attachment.html>
+
+From cschulte at kth.se  Thu Jan  9 21:32:34 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 9 Jan 2014 21:32:34 +0100
+Subject: [gecode-users] GecodeSupport-4-0-0-d-x86.lib
+In-Reply-To: <CAKWqT4BkQ8jm-Mg490HXggkbyfNsTuZrPrbU9HsFQHzOuotHmA@mail.gmail.com>
+References: <CAKWqT4BkQ8jm-Mg490HXggkbyfNsTuZrPrbU9HsFQHzOuotHmA@mail.gmail.com>
+Message-ID: <003e01cf0d79$ee2093b0$ca61bb10$@kth.se>
+
+As said before, please compile everything with the proper Gecode package
+(install Gecode for MSVC 2010) and make sure to recompile every binary from
+scratch (that is, delete all other binaries from before).  Read the tip in
+MPG about whether your compiler is for x86 or x64.
+
+ 
+
+If you do not understand what I am saying you will have to learn about the
+following concepts not related to Gecode: how to compile in debug or release
+mode, what is x86 versus x64, how to compile on x64 for either x86 or for
+x64.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of manel askri
+Sent: Thursday, January 9, 2014 09:13 PM
+To: users at gecode.org list
+Subject: [gecode-users] GecodeSupport-4-0-0-d-x86.lib
+
+ 
+
+HI all
+
+ 
+
+i have problem with compling a simple example like "magic-square" with my
+windows 64 bits , i installed gecode 4.2.1 with Visual Studio 2010C++ 
+
+ 
+
+I get this error whil compling :  can't open the file
+"GecodeSupport-4-2-1-D-x86.lib"
+
+ 
+
+is there any solution for this problem
+
+ 
+
+Thank You a lot for every thing 
+
+ 
+
+Manel 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140109/390186ec/attachment.html>
+
+From lists at pankrath.net  Fri Jan 10 10:35:41 2014
+From: lists at pankrath.net (Tobias Pankrath)
+Date: Fri, 10 Jan 2014 10:35:41 +0100
+Subject: [gecode-users] Reachability in a graph structure.
+Message-ID: <52CFBEED.5010002@pankrath.net>
+
+Hello,
+
+I'm quite new to constraint programming and gecode in particular and ran 
+into some issue
+
+I have to directed graphs G1=(V1,V1?V1), G2=(V2, V2?V2) and I am 
+searching for a mapping h: V1 ? V2, that mantains reachability. I.e. if 
+there is a path v1 -*> v2 (v1,v2 ? V1) than there must also be a path 
+h(v1) -*> h(v2).
+
+To model this using gecode, I am using 4 SetVarArrays:
+
+SetVarArray g1_edges; // y ? g1_edges[x]: there is an edge from v_x to 
+v_y in G1
+SetVarArray g2_edges; // like above for G2
+
+SetVarArray g1_reach; // y ? g1_reach[x]: there is a path from v_x to 
+v_y in G1
+SetVarArray g2_reach; // like above for G2.
+
+Now I want gecode to calculate the reachability of those graphs. Thus I 
+tried to fix the graph by the following domain constraints. A picture of 
+the desired graph is attached to this mail.
+
+  // define edges between nodes
+  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+  dom(*this, g1_edges[3],  SRT_EQ, 5);
+  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+
+Then I want to encode the following relations:
+	* y ? g1_reach[x], if y ? g1_edges[x] (direct neighbours)
+	* if y ? g1_reach[x] and z ? g1_reach[y] then z ? g1_reach[x] 
+(transitivity)
+
+Thus I do:
+for(int x = 0; x < 6; ++x)
+{
+	rel(*this, g1_reach[x] >= g1_edges[x]); // superset
+	element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+	// call to element taken from the manual, section 5.2.4
+	// is it correct?
+}
+
+Then I'll branch on g1_reach, like this:
+branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+
+However this gives me a >1000 solutions and all look like
+g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+g1_reach {}
+
+What is the correct way to model this?
+
+With my best regards,
+Tobias
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: main.cpp
+Type: text/x-c++src
+Size: 2278 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.cpp>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: t.dot.pdf
+Type: application/pdf
+Size: 11061 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.pdf>
+
+From jean-noel.monette at it.uu.se  Fri Jan 10 13:47:07 2014
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Fri, 10 Jan 2014 13:47:07 +0100
+Subject: [gecode-users] Reachability in a graph structure.
+In-Reply-To: <52CFBEED.5010002@pankrath.net>
+References: <52CFBEED.5010002@pankrath.net>
+Message-ID: <52CFEBCB.6040604@it.uu.se>
+
+Hi,
+
+I think that the element constraint does not exactly encode your 
+purpose. You write:
+
+y ? g1_reach[x] and z ? g1_reach[y] ==>  z ? g1_reach[x]
+
+while your element constraint represents something like (if I am correct)
+
+y ? g1_reach[x] and z ? g1_reach[y] <=> z ? g1_reach[x]
+
+i.e., this is an equivalence.
+
+I do not know why you would have thousands of solution, though. Neither 
+why they do not respect the "superset" constraint.
+
+Hope it helps anyway,
+
+JN Monette
+
+
+On 01/10/2014 10:35 AM, Tobias Pankrath wrote:
+> Hello,
+>
+> I'm quite new to constraint programming and gecode in particular and 
+> ran into some issue
+>
+> I have to directed graphs G1=(V1,V1?V1), G2=(V2, V2?V2) and I am 
+> searching for a mapping h: V1 ? V2, that mantains reachability. I.e. 
+> if there is a path v1 -*> v2 (v1,v2 ? V1) than there must also be a 
+> path h(v1) -*> h(v2).
+>
+> To model this using gecode, I am using 4 SetVarArrays:
+>
+> SetVarArray g1_edges; // y ? g1_edges[x]: there is an edge from v_x to 
+> v_y in G1
+> SetVarArray g2_edges; // like above for G2
+>
+> SetVarArray g1_reach; // y ? g1_reach[x]: there is a path from v_x to 
+> v_y in G1
+> SetVarArray g2_reach; // like above for G2.
+>
+> Now I want gecode to calculate the reachability of those graphs. Thus 
+> I tried to fix the graph by the following domain constraints. A 
+> picture of the desired graph is attached to this mail.
+>
+>  // define edges between nodes
+>  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+>  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+>  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+>  dom(*this, g1_edges[3],  SRT_EQ, 5);
+>  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+>  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+>
+> Then I want to encode the following relations:
+>     * y ? g1_reach[x], if y ? g1_edges[x] (direct neighbours)
+>     * if y ? g1_reach[x] and z ? g1_reach[y] then z ? g1_reach[x] 
+> (transitivity)
+>
+> Thus I do:
+> for(int x = 0; x < 6; ++x)
+> {
+>     rel(*this, g1_reach[x] >= g1_edges[x]); // superset
+>     element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+>     // call to element taken from the manual, section 5.2.4
+>     // is it correct?
+> }
+>
+> Then I'll branch on g1_reach, like this:
+> branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+>
+> However this gives me a >1000 solutions and all look like
+> g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+> g1_reach {}
+>
+> What is the correct way to model this?
+>
+> With my best regards,
+> Tobias
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140110/3256210c/attachment.html>
+
+From lists at pankrath.net  Fri Jan 10 14:39:36 2014
+From: lists at pankrath.net (Tobias Pankrath)
+Date: Fri, 10 Jan 2014 14:39:36 +0100
+Subject: [gecode-users] Reachability in a graph structure.
+In-Reply-To: <52CFBEED.5010002@pankrath.net>
+References: <52CFBEED.5010002@pankrath.net>
+Message-ID: <52CFF818.9030907@pankrath.net>
+
+One of my errors was that I forgot g1_reach in the copy constructor, 
+thus g1_reach showed up as the empty set in the output.
+
+Didn't get it to work, yet. The contstraints are not specific enough, so 
+I get reachable vertices that are not grounded in actual edges. Seems to 
+be this issue
+
+> I think that the element constraint does not exactly encode your purpose. You write:
+>
+> y ? g1_reach[x] and z ? g1_reach[y] ==>  z ? g1_reach[x]
+>
+> while your element constraint represents something like (if I am correct)
+>
+> y ? g1_reach[x] and z ? g1_reach[y] <=> z ? g1_reach[x]
+
+Is http://cpgraph.info.ucl.ac.be/ an option? Is is not contained in the 
+Contrib directory anymore.
+
+Tobias
+
+
+From cschulte at kth.se  Fri Jan 10 14:57:50 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 10 Jan 2014 14:57:50 +0100
+Subject: [gecode-users] Reachability in a graph structure.
+In-Reply-To: <52CFF818.9030907@pankrath.net>
+References: <52CFBEED.5010002@pankrath.net> <52CFF818.9030907@pankrath.net>
+Message-ID: <004c01cf0e0b$f3751740$da5f45c0$@se>
+
+> Is http://cpgraph.info.ucl.ac.be/ an option? Is is not contained in the
+Contrib directory anymore.
+
+No, unfortunately not, it is long dead...
+
+Christian
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From rdm at cfcl.com  Fri Jan 10 18:31:44 2014
+From: rdm at cfcl.com (Rich Morin)
+Date: Fri, 10 Jan 2014 09:31:44 -0800
+Subject: [gecode-users] newbie questions on a possible Gecode use case
+Message-ID: <EA734461-6402-462E-8624-7E223630D4BE@cfcl.com>
+
+I'm working with a modeling approach (Inductive Process Modeling) that
+composes sets of "model structures" from specifications of "entities"
+and "processes".  Some process combinations don't make sense, so we use
+sets of simple constraints in generating candidate model structures, eg:
+
+  ALWAYS-TOGETHER
+  These processes must always be used together.
+
+  ATMOST-ONE
+  At most one of these processes may be used.
+
+  EXACTLY-ONE
+  Exactly one of these processes must be used.
+
+  FORBIDDEN
+  This process must not be used.
+
+  NECESSARY
+  All of these processes must be used.
+
+Because the number of combinations could be very large, we generate
+pseudo-random subsets (of a specified size).  These are evaluated
+(eg, fitting parameters to match observed data) and the best results
+are presented to the user for inspection.
+
+
+Currently, these combinations are being produced by means of complex
+Lisp code that performs boolean satisfiability logic.  I'm wondering
+whether this task (along with possible follow-on extensions involving
+feedback from the evaluation task) might be a good use case for Gecode.
+(If this let me replace the code with a small set of constraints, I'd
+be a really happy camper. :-)
+
+I'm a complete newbie at Gecode, so I'm hoping for caveats, comments,
+suggestions, etc.  In addition, if any Gecoders out there are available
+for small consulting projects, I'd like to hear from them (off-list!).
+
+-r
+ 
+ -- 
+http://www.cfcl.com/rdm           Rich Morin           rdm at cfcl.com
+http://www.cfcl.com/rdm/resume    San Bruno, CA, USA   +1 650-873-7841
+
+Software system design, development, and documentation
+
+
+
+
+From navid at navid.ca  Tue Jan 14 17:03:54 2014
+From: navid at navid.ca (Navid Mohaghegh)
+Date: Tue, 14 Jan 2014 11:03:54 -0500
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+	Stalls
+Message-ID: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>
+
+Hi Everyone,
+
+My question:
+I am wondering what is happening in below and why Gecode stalls stall whenI increase the range of my IntegerVars (while its CPU utilization goes very high) despite the fact that our constraints are not changed?
+
+Background (http://navid.ca/gecode/test.cpp):
+We are trying to solve a space. We can easily solve the space when our variable ranges are small (e.g. 0 to 800). As soon as the range goes higher (e.g. 0-1535) Gecode will stall and can not produce a solution for the space with exactly the same constraints as before.
+
+We have 4 groups of integer_array variables. They are called vars_a, vars_b, vars_c and vars_d. And inside each of them, we have 15 integer variables.
+NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_, int vars_d_max_, int vcost_max_); 
+NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000); means:
+n = 15
+vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ = 800
+vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ = 500
+vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ = 410
+vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ = 60
+our cost variable can be have values from zero to vcost_max_ = 2,000,000,000
+As we have quadratic cost functions and values can easily grow.
+lift() method is where we add our constraints. 
+For demonstration purpose, we have a method that once used, Gecode can produce solution: it is called "void the_one_works()"
+And we have another one (called: void the_one_doesnot_work) that can not be solved using Gecode (it is perfectly solvable and we test our solution in verify_answer() method)
+The only difference between the_one_works() and the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+
+
+
+I have found a mailing list entry stating a possible bug:
+==========
+From: victor.zverovich at ... <victor.zverovich at ...>
+Subject: bug in INT_VALUES_MAX
+Newsgroups: gmane.comp.lib.gecode.user
+Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes ago)
+There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it.
+Victor
+==========
+
+Can someone have a look and let me know?
+We are using Gecode 4.2.1 on Linux
+GCC 4.7.2 and also latest 4.9
+Debian 64bit and CentOS 64bit  
+My code and how I compile and run is here: http://navid.ca/gecode/test.cpp
+
+Thank you,
+Navid
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140114/77a15401/attachment.html>
+
+From cschulte at kth.se  Tue Jan 14 17:18:51 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jan 2014 17:18:51 +0100
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and
+	Gecode	Stalls
+In-Reply-To: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>
+Message-ID: <001401cf1144$50964f30$f1c2ed90$@se>
+
+Did you try it in Gist to see how large the search trees get or whether
+Gecode just hangs?
+
+ 
+
+After all, you exponentially increase the search space!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Tuesday, January 14, 2014 5:04 PM
+To: users at gecode.org
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+Importance: High
+
+ 
+
+Hi Everyone,
+
+ 
+
+My question:
+
+I am wondering what is happening in below and why Gecode stalls stall whenI
+increase the range of my IntegerVars (while its CPU utilization goes very
+high) despite the fact that our constraints are not changed?
+
+ 
+
+Background (http://navid.ca/gecode/test.cpp):
+
+We are trying to solve a space. We can easily solve the space when our
+variable ranges are small (e.g. 0 to 800). As soon as the range goes higher
+(e.g. 0-1535) Gecode will stall and can not produce a solution for the space
+with exactly the same constraints as before.
+
+ 
+
+*	We have 4 groups of integer_array variables. They are called vars_a,
+vars_b, vars_c and vars_d. And inside each of them, we have 15 integer
+variables.
+
+*	NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_,
+int vars_d_max_, int vcost_max_); 
+*	NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000);
+means:
+
+*	n = 15
+*	vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ =
+800
+*	vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ =
+500
+*	vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ =
+410
+*	vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ =
+60
+*	our cost variable can be have values from zero to vcost_max_ =
+2,000,000,000
+
+*	As we have quadratic cost functions and values can easily grow.
+
+*	lift() method is where we add our constraints. 
+*	For demonstration purpose, we have a method that once used, Gecode
+can produce solution: it is called "void the_one_works()"
+
+*	And we have another one (called: void the_one_doesnot_work) that can
+not be solved using Gecode (it is perfectly solvable and we test our
+solution in verify_answer() method)
+*	The only difference between the_one_works() and
+the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+
+ 
+
+ 
+
+ 
+
+I have found a mailing list entry stating a possible bug:
+
+==========
+
+From: victor.zverovich at ...
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org>  <victor.zverovich at ...
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org> >
+Subject: bug in INT_VALUES_MAX
+<http://news.gmane.org/find-root.php?message_id=CANawtxb3jmzB754b7zWaZMuG76T
+7KJBwAj1PP%2bMmHgJL%3d0EKVQ%40mail.gmail.com> 
+Newsgroups: gmane.comp.lib.gecode.user
+<http://news.gmane.org/gmane.comp.lib.gecode.user> 
+Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes
+ago)
+
+There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used
+instead of SEL_VALUES_MAX. The attached patch fixes it.
+
+Victor
+
+==========
+
+ 
+
+Can someone have a look and let me know?
+
+*	We are using Gecode 4.2.1 on Linux
+*	GCC 4.7.2 and also latest 4.9
+*	Debian 64bit and CentOS 64bit  
+*	My code and how I compile and run is here:
+http://navid.ca/gecode/test.cpp
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140114/1ae21c00/attachment.html>
+
+From tommaso.urli at uniud.it  Tue Jan 14 17:29:16 2014
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Tue, 14 Jan 2014 17:29:16 +0100
+Subject: [gecode-users] Grey subtrees in Gist
+Message-ID: <52D565DC.4020403@uniud.it>
+
+Hi everyone,
+     today I was messing with a custom brancher for a model, and I got 
+these grey subtrees in Gist, however I can't find any documentation on 
+what exactly they are. Hint: running the same setup without Gist results 
+in the following error
+
+Exception: Space::commit: Attempt to commit with illegal alternative.
+Stopping...
+
+I therefore ask for your help :)
+
+Tommaso
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Screen Shot 2014-01-14 at 17.25.41.png
+Type: image/png
+Size: 20125 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140114/2d62fb0b/attachment-0001.png>
+
+From navid at navid.ca  Tue Jan 14 17:39:27 2014
+From: navid at navid.ca (Navid Mohaghegh)
+Date: Tue, 14 Jan 2014 11:39:27 -0500
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and
+	Gecode	Stalls
+In-Reply-To: <001401cf1144$50964f30$f1c2ed90$@se>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>
+	<001401cf1144$50964f30$f1c2ed90$@se>
+Message-ID: <78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+
+Hi Christian,
+
+Thank your for your reply. I didn't try Gist yet, I will go and look at sample code to learn Gist and I will give it a shot.
+
+Could you kindly have a look at this comment in mailing list: "There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it."
+I am asking this as mu space get solved by Gecode almost instantly (less than 1ms on a 128 GB ram, quad CPU, 64 cores workstation) for values like 1199. And the moment it goes to 1200 it will stalls. After all it should get slow (I agree with you), but not stall/freeze for 5 days. That is the main reason I suspect a tiny bug somewhere.  
+
+I will also look at Gist as well as you instructed.
+
+Thank you,
+Navid
+
+
+On Jan 14, 2014, at 11:18 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Did you try it in Gist to see how large the search trees get or whether Gecode just hangs?
+>  
+> After all, you exponentially increase the search space!
+>  
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Navid Mohaghegh
+> Sent: Tuesday, January 14, 2014 5:04 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+> Importance: High
+>  
+> Hi Everyone,
+>  
+> My question:
+> I am wondering what is happening in below and why Gecode stalls stall whenI increase the range of my IntegerVars (while its CPU utilization goes very high) despite the fact that our constraints are not changed?
+>  
+> Background (http://navid.ca/gecode/test.cpp):
+> We are trying to solve a space. We can easily solve the space when our variable ranges are small (e.g. 0 to 800). As soon as the range goes higher (e.g. 0-1535) Gecode will stall and can not produce a solution for the space with exactly the same constraints as before.
+>  
+> We have 4 groups of integer_array variables. They are called vars_a, vars_b, vars_c and vars_d. And inside each of them, we have 15 integer variables.
+> NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_, int vars_d_max_, int vcost_max_); 
+> NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000); means:
+> n = 15
+> vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ = 800
+> vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ = 500
+> vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ = 410
+> vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ = 60
+> our cost variable can be have values from zero to vcost_max_ = 2,000,000,000
+> As we have quadratic cost functions and values can easily grow.
+> lift() method is where we add our constraints. 
+> For demonstration purpose, we have a method that once used, Gecode can produce solution: it is called "void the_one_works()"
+> And we have another one (called: void the_one_doesnot_work) that can not be solved using Gecode (it is perfectly solvable and we test our solution in verify_answer() method)
+> The only difference between the_one_works() and the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+>  
+>  
+>  
+> I have found a mailing list entry stating a possible bug:
+> ==========
+> From: victor.zverovich at ... <victor.zverovich at ...>
+> Subject: bug in INT_VALUES_MAX
+> Newsgroups: gmane.comp.lib.gecode.user
+> Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes ago)
+> There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it.
+> Victor
+> ==========
+>  
+> Can someone have a look and let me know?
+> We are using Gecode 4.2.1 on Linux
+> GCC 4.7.2 and also latest 4.9
+> Debian 64bit and CentOS 64bit  
+> My code and how I compile and run is here: http://navid.ca/gecode/test.cpp
+>  
+> Thank you,
+> Navid
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140114/8dbafda1/attachment.html>
+
+From cschulte at kth.se  Tue Jan 14 17:42:00 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 14 Jan 2014 17:42:00 +0100
+Subject: [gecode-users] Possible Bug - Increase IntVars Range
+	and	Gecode	Stalls
+In-Reply-To: <78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>	<001401cf1144$50964f30$f1c2ed90$@se>
+	<78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+Message-ID: <002801cf1147$8ca35ba0$a5ea12e0$@se>
+
+The bug you refer to has been fixed. But try Gist, there you can see what
+happens.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Tuesday, January 14, 2014 5:39 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+
+ 
+
+Hi Christian,
+
+ 
+
+Thank your for your reply. I didn't try Gist yet, I will go and look at
+sample code to learn Gist and I will give it a shot.
+
+ 
+
+Could you kindly have a look at this comment in mailing list: "There seems
+to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of
+SEL_VALUES_MAX. The attached patch fixes it."
+
+I am asking this as mu space get solved by Gecode almost instantly (less
+than 1ms on a 128 GB ram, quad CPU, 64 cores workstation) for values like
+1199. And the moment it goes to 1200 it will stalls. After all it should get
+slow (I agree with you), but not stall/freeze for 5 days. That is the main
+reason I suspect a tiny bug somewhere.  
+
+ 
+
+I will also look at Gist as well as you instructed.
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+ 
+
+On Jan 14, 2014, at 11:18 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+
+
+
+
+Did you try it in Gist to see how large the search trees get or whether
+Gecode just hangs?
+
+ 
+
+After all, you exponentially increase the search space!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+<http://www.ict.kth.se/~cschulte/> www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Tuesday, January 14, 2014 5:04 PM
+To: users at gecode.org
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+Importance: High
+
+ 
+
+Hi Everyone,
+
+ 
+
+My question:
+
+I am wondering what is happening in below and why Gecode stalls stall whenI
+increase the range of my IntegerVars (while its CPU utilization goes very
+high) despite the fact that our constraints are not changed?
+
+ 
+
+Background ( <http://navid.ca/gecode/test.cpp>
+http://navid.ca/gecode/test.cpp):
+
+We are trying to solve a space. We can easily solve the space when our
+variable ranges are small (e.g. 0 to 800). As soon as the range goes higher
+(e.g. 0-1535) Gecode will stall and can not produce a solution for the space
+with exactly the same constraints as before.
+
+ 
+
+*	We have 4 groups of integer_array variables. They are called vars_a,
+vars_b, vars_c and vars_d. And inside each of them, we have 15 integer
+variables.
+
+*	NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_,
+int vars_d_max_, int vcost_max_); 
+*	NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000);
+means:
+
+*	n = 15
+*	vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ =
+800
+*	vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ =
+500
+*	vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ =
+410
+*	vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ =
+60
+*	our cost variable can be have values from zero to vcost_max_ =
+2,000,000,000
+
+*	As we have quadratic cost functions and values can easily grow.
+
+*	lift() method is where we add our constraints. 
+*	For demonstration purpose, we have a method that once used, Gecode
+can produce solution: it is called "void the_one_works()"
+
+*	And we have another one (called: void the_one_doesnot_work) that can
+not be solved using Gecode (it is perfectly solvable and we test our
+solution in verify_answer() method)
+*	The only difference between the_one_works() and
+the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+
+ 
+
+ 
+
+ 
+
+I have found a mailing list entry stating a possible bug:
+
+==========
+
+From:
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org> victor.zverovich at ... <
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org> victor.zverovich at ...>
+Subject:
+<http://news.gmane.org/find-root.php?message_id=CANawtxb3jmzB754b7zWaZMuG76T
+7KJBwAj1PP%2bMmHgJL%3d0EKVQ%40mail.gmail.com> bug in INT_VALUES_MAX
+Newsgroups:  <http://news.gmane.org/gmane.comp.lib.gecode.user>
+gmane.comp.lib.gecode.user
+Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes
+ago)
+
+There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used
+instead of SEL_VALUES_MAX. The attached patch fixes it.
+
+Victor
+
+==========
+
+ 
+
+Can someone have a look and let me know?
+
+*	We are using Gecode 4.2.1 on Linux
+*	GCC 4.7.2 and also latest 4.9
+*	Debian 64bit and CentOS 64bit  
+*	My code and how I compile and run is here:
+<http://navid.ca/gecode/test.cpp> http://navid.ca/gecode/test.cpp
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140114/a32778cd/attachment-0001.html>
+
+From cschulte at kth.se  Wed Jan 15 11:50:35 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 15 Jan 2014 11:50:35 +0100
+Subject: [gecode-users] Grey subtrees in Gist
+In-Reply-To: <52D565DC.4020403@uniud.it>
+References: <52D565DC.4020403@uniud.it>
+Message-ID: <007c01cf11df$9f2bf0f0$dd83d2d0$@se>
+
+Hi Tommaso,
+
+Your brancher has a bug ;-) It claims to have a certain number of
+alternatives (as defined by the alternatives() member function of the
+brancher's choice object class) but later alternatives are tried (via the
+commit() function) during search which have a number larger than what
+alternatives() reports.
+
+Maybe you do not properly initialize the number of alternatives in your
+choice class?
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Tommaso Urli
+Sent: Tuesday, January 14, 2014 5:29 PM
+To: users at gecode.org list
+Subject: [gecode-users] Grey subtrees in Gist
+
+Hi everyone,
+     today I was messing with a custom brancher for a model, and I got these
+grey subtrees in Gist, however I can't find any documentation on what
+exactly they are. Hint: running the same setup without Gist results in the
+following error
+
+Exception: Space::commit: Attempt to commit with illegal alternative.
+Stopping...
+
+I therefore ask for your help :)
+
+Tommaso
+
+
+
+From cschulte at kth.se  Wed Jan 15 11:54:30 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 15 Jan 2014 11:54:30 +0100
+Subject: [gecode-users] newbie questions on a possible Gecode use case
+In-Reply-To: <EA734461-6402-462E-8624-7E223630D4BE@cfcl.com>
+References: <EA734461-6402-462E-8624-7E223630D4BE@cfcl.com>
+Message-ID: <007f01cf11e0$2cfb7fe0$86f27fa0$@se>
+
+Dear Rich,
+
+Yes that sounds like a good application domain for constraint programming in
+general and Gecode in particular.
+
+One idea might be to first try to get a feel for how to model your problem.
+There you might want to not use Gecode directly but something that is more
+accessible, for example MiniZinc (www.minizinc.org) as a modeling language.
+After you have convinced yourself how to model your problem I would switch
+to Gecode and think about how to integrate it into your product/environment.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Rich Morin
+Sent: Friday, January 10, 2014 6:32 PM
+To: users at gecode.org
+Subject: [gecode-users] newbie questions on a possible Gecode use case
+
+I'm working with a modeling approach (Inductive Process Modeling) that
+composes sets of "model structures" from specifications of "entities"
+and "processes".  Some process combinations don't make sense, so we use sets
+of simple constraints in generating candidate model structures, eg:
+
+  ALWAYS-TOGETHER
+  These processes must always be used together.
+
+  ATMOST-ONE
+  At most one of these processes may be used.
+
+  EXACTLY-ONE
+  Exactly one of these processes must be used.
+
+  FORBIDDEN
+  This process must not be used.
+
+  NECESSARY
+  All of these processes must be used.
+
+Because the number of combinations could be very large, we generate
+pseudo-random subsets (of a specified size).  These are evaluated (eg,
+fitting parameters to match observed data) and the best results are
+presented to the user for inspection.
+
+
+Currently, these combinations are being produced by means of complex Lisp
+code that performs boolean satisfiability logic.  I'm wondering whether this
+task (along with possible follow-on extensions involving feedback from the
+evaluation task) might be a good use case for Gecode.
+(If this let me replace the code with a small set of constraints, I'd be a
+really happy camper. :-)
+
+I'm a complete newbie at Gecode, so I'm hoping for caveats, comments,
+suggestions, etc.  In addition, if any Gecoders out there are available for
+small consulting projects, I'd like to hear from them (off-list!).
+
+-r
+ 
+ -- 
+http://www.cfcl.com/rdm           Rich Morin           rdm at cfcl.com
+http://www.cfcl.com/rdm/resume    San Bruno, CA, USA   +1 650-873-7841
+
+Software system design, development, and documentation
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tommaso.urli at uniud.it  Wed Jan 15 11:57:45 2014
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Wed, 15 Jan 2014 11:57:45 +0100
+Subject: [gecode-users] Grey subtrees in Gist
+In-Reply-To: <007c01cf11df$9f2bf0f0$dd83d2d0$@se>
+References: <52D565DC.4020403@uniud.it> <007c01cf11df$9f2bf0f0$dd83d2d0$@se>
+Message-ID: <52D669A9.4080102@uniud.it>
+
+> Your brancher has a bug ;-)
+
+Guessed that! :P
+
+> It claims to have a certain number of
+> alternatives (as defined by the alternatives() member function of the
+> brancher's choice object class) but later alternatives are tried (via the
+> commit() function) during search which have a number larger than what
+> alternatives() reports.
+
+Ok, that provides an interesting insight. Thanks for the help.
+
+Tommaso
+
+
+From cschulte at kth.se  Thu Jan 16 16:34:57 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 16 Jan 2014 16:34:57 +0100
+Subject: [gecode-users] Possible Bug - Increase IntVars Range
+	and	Gecode	Stalls
+In-Reply-To: <D8A1F5E2-5885-4A49-851F-B32A3AFA9631@navid.ca>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>	<001401cf1144$50964f30$f1c2ed90$@se>
+	<78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+	<002801cf1147$8ca35ba0$a5ea12e0$@se>
+	<D8A1F5E2-5885-4A49-851F-B32A3AFA9631@navid.ca>
+Message-ID: <008f01cf12d0$8823f870$986be950$@se>
+
+Hi, Just a quick question: did you have a look at the nooverlap constraint
+in Gecode?
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140116/7c2506ce/attachment.html>
+
+From navid at navid.ca  Thu Jan 16 21:22:41 2014
+From: navid at navid.ca (Navid Mohaghegh)
+Date: Thu, 16 Jan 2014 15:22:41 -0500
+Subject: [gecode-users] Possible Bug - Increase IntVars Range
+	and	Gecode	Stalls
+In-Reply-To: <007f01cf12d0$4e008c30$ea01a490$@se>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>	<001401cf1144$50964f30$f1c2ed90$@se>
+	<78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+	<002801cf1147$8ca35ba0$a5ea12e0$@se>
+	<D8A1F5E2-5885-4A49-851F-B32A3AFA9631@navid.ca>
+	<007f01cf12d0$4e008c30$ea01a490$@se>
+Message-ID: <176CC873-A601-4BA6-8758-B68D855F9CE8@navid.ca>
+
+Hi Christian,
+
+Thank you for your reply. 
+
+I originally didn't use that as I didn't want to add another set of variables for finishing corner of rectangles (Gecode nooverlap API has a simple version that use fixed int width and int height).
+
+Per your suggestion, I added two array variables for finishing corner that I can employ the nooverlap API:
+-defined integer array variables for starting point of rectangles (e.g. top left corner): I called it vxs and vys (e.g. X0 and Y0 in Gecode MPG manual)
+-defined integer array variables for width and height of rectangles: I called it vw and vh (e.g. W and H in Gecode MPG manual)
+-defined integer array variables for finishing point of rectangles (e.g. lower right corner): I called it vxf and vyf (e.g. X1 and Y1 in Gecode MPG manual)
+-I removed all manual non-overllaping contraint that I manually added myself and add the following:
+
+	//starting point  width and hight will give us the finishing point
+	for (i =0 ; i < this->n_vars; i++)
+	{
+		rel(*this, ( (vxs[i] + vw[i] == vxf[i]) && (vys[i] + vh[i] == vyf[i]) )  );
+	}
+	//add nooverlap for all rectangles	
+	nooverlap(*this, vxs,vw,vxf,   vys,vh,vyf);
+
+
+My code gets solved for lower ranges of X vars (e.g. vxs < 1000 and vxf<1200) and the moment I change the x range to values greater than 1500 gecode stalls.
+
+I appreciate your feedback.
+
+Thank you,
+Navid
+
+
+On Jan 16, 2014, at 10:33 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi,
+>  
+> Just very quick: did you look at the nooverlap constraint in Gecode?
+>  
+> Cheers
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: Navid Mohaghegh [mailto:navid at navid.ca] 
+> Sent: Thursday, January 16, 2014 3:32 PM
+> To: users at gecode.org
+> Cc: cschulte at kth.se
+> Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+>  
+> Hi everyone,
+>  
+> I tried Gist as Christian mentioned. Gist will not terminate for higher ranges (attached screenshot shows that I had to stop Gist manually for range 1535).
+>  
+> Could you please point me in the right direction about what I have to more efficient for this problem:
+> -Like bin-packing problem, we have bunch of rectangles that shouldn't overlap with each other. 
+> -Unlike bin-packing, the width and hight of the rectangles can be variable (e.g. if we have more space in our sheet, we don't mind a rectangle gets bigger). 
+> -We have bunch of constraint for the size and location of rectangles.
+> -In below, 15 rectangles, 4 array of variables (2 arrays for X,Y location and 2 variables for Width,Height which is for size)     
+>  
+>  
+> Could you please let me know?
+>  
+> Thank you,
+> Navid
+> <image001.png>
+>  
+> On Jan 14, 2014, at 11:42 AM, Christian Schulte <cschulte at kth.se> wrote:
+> 
+> 
+> The bug you refer to has been fixed. But try Gist, there you can see what happens.
+>  
+> Cheers
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Navid Mohaghegh
+> Sent: Tuesday, January 14, 2014 5:39 PM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+>  
+> Hi Christian,
+>  
+> Thank your for your reply. I didn't try Gist yet, I will go and look at sample code to learn Gist and I will give it a shot.
+>  
+> Could you kindly have a look at this comment in mailing list: "There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it."
+> I am asking this as mu space get solved by Gecode almost instantly (less than 1ms on a 128 GB ram, quad CPU, 64 cores workstation) for values like 1199. And the moment it goes to 1200 it will stalls. After all it should get slow (I agree with you), but not stall/freeze for 5 days. That is the main reason I suspect a tiny bug somewhere.  
+>  
+> I will also look at Gist as well as you instructed.
+>  
+> Thank you,
+> Navid
+>  
+>  
+> On Jan 14, 2014, at 11:18 AM, Christian Schulte <cschulte at kth.se> wrote:
+> 
+> 
+> 
+> Did you try it in Gist to see how large the search trees get or whether Gecode just hangs?
+>  
+> After all, you exponentially increase the search space!
+>  
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Navid Mohaghegh
+> Sent: Tuesday, January 14, 2014 5:04 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+> Importance: High
+>  
+> Hi Everyone,
+>  
+> My question:
+> I am wondering what is happening in below and why Gecode stalls stall whenI increase the range of my IntegerVars (while its CPU utilization goes very high) despite the fact that our constraints are not changed?
+>  
+> Background (http://navid.ca/gecode/test.cpp):
+> We are trying to solve a space. We can easily solve the space when our variable ranges are small (e.g. 0 to 800). As soon as the range goes higher (e.g. 0-1535) Gecode will stall and can not produce a solution for the space with exactly the same constraints as before.
+>  
+> We have 4 groups of integer_array variables. They are called vars_a, vars_b, vars_c and vars_d. And inside each of them, we have 15 integer variables.
+> NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_, int vars_d_max_, int vcost_max_); 
+> NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000); means:
+> n = 15
+> vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ = 800
+> vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ = 500
+> vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ = 410
+> vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ = 60
+> our cost variable can be have values from zero to vcost_max_ = 2,000,000,000
+> As we have quadratic cost functions and values can easily grow.
+> lift() method is where we add our constraints. 
+> For demonstration purpose, we have a method that once used, Gecode can produce solution: it is called "void the_one_works()"
+> And we have another one (called: void the_one_doesnot_work) that can not be solved using Gecode (it is perfectly solvable and we test our solution in verify_answer() method)
+> The only difference between the_one_works() and the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+>  
+>  
+>  
+> I have found a mailing list entry stating a possible bug:
+> ==========
+> From: victor.zverovich at ... <victor.zverovich at ...>
+> Subject: bug in INT_VALUES_MAX
+> Newsgroups: gmane.comp.lib.gecode.user
+> Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes ago)
+> There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it.
+> Victor
+> ==========
+>  
+> Can someone have a look and let me know?
+> We are using Gecode 4.2.1 on Linux
+> GCC 4.7.2 and also latest 4.9
+> Debian 64bit and CentOS 64bit  
+> My code and how I compile and run is here: http://navid.ca/gecode/test.cpp
+>  
+> Thank you,
+> Navid
+>  
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140116/a5a5446e/attachment-0001.html>
+
+From medistif at hotmail.fr  Sat Jan 18 22:45:00 2014
+From: medistif at hotmail.fr (mehdi m)
+Date: Sat, 18 Jan 2014 21:45:00 +0000
+Subject: [gecode-users] sizes of  arguments arrays  mismatch
+Message-ID: <DUB119-W47103DBF5DB7F6BAF222AAB7BB0@phx.gbl>
+
+Hello everyone,in my model i have a problem, a try to use create a matrix such as :
+const int n=5;const int m=10;
+IntArgs D;
+Matrix <IntArgs> bdd (D , n, m);
+i need the type IntArgs in my model.
+this gives me  an error :
+Exception: Matrix::Matrix(A, w, h): Sizes of argument arrays mismatch stopping.
+if someone has an idea, thank you.
+Mehdi. 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140118/2a3f7bec/attachment.html>
+
+From tack at gecode.org  Sat Jan 18 23:49:58 2014
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 19 Jan 2014 09:49:58 +1100
+Subject: [gecode-users] sizes of  arguments arrays  mismatch
+In-Reply-To: <DUB119-W47103DBF5DB7F6BAF222AAB7BB0@phx.gbl>
+References: <DUB119-W47103DBF5DB7F6BAF222AAB7BB0@phx.gbl>
+Message-ID: <E2948BE5-E782-4BA5-8E68-DD65D3B229A7@gecode.org>
+
+You need to initialise D to size n*m before passing it to the Matrix constructor (the error says exactly that, the sizes don't match).
+
+Cheers,
+Guido
+
+On 19 Jan 2014, at 8:45 am, mehdi m <medistif at hotmail.fr> wrote:
+
+> Hello everyone,
+> in my model i have a problem, a try to use create a matrix such as :
+> 
+> const int n=5;
+> const int m=10;
+> 
+> IntArgs D;
+> 
+> Matrix <IntArgs> bdd (D , n, m);
+> 
+> i need the type IntArgs in my model.
+> 
+> this gives me  an error :
+> 
+> Exception: Matrix::Matrix(A, w, h): Sizes of argument arrays mismatch stopping.
+> 
+> if someone has an idea, thank you.
+> 
+> Mehdi.
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140119/4cfd509a/attachment.html>
+
+From medistif at hotmail.fr  Sun Jan 19 21:23:04 2014
+From: medistif at hotmail.fr (mehdi m)
+Date: Sun, 19 Jan 2014 20:23:04 +0000
+Subject: [gecode-users] Sizes of argument arrays mismatch
+Message-ID: <DUB119-W49A908D4F7CAF577939477B7BA0@phx.gbl>
+
+Hello everyone,in my model i have a problem, a try to use create a matrix such as :
+const int n=5;const int m=10;
+IntArgs D;
+Matrix <IntArgs> bdd (D , n, m);
+i need the type IntArgs in my model.
+this gives me  an error :
+Exception: Matrix::Matrix(A, w, h): Sizes of argument arrays mismatch stopping.
+but when I try to initialize D to size n*m, the type IntArgs accept one parameter such as IntArgs( int n).  i tried to do this : D (*this, n*m,0,1) but it doesn't work
+if someone has an idea, thank you.
+Mehdi. 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140119/046f90fa/attachment.html>
+
+From tack at gecode.org  Mon Jan 20 00:20:46 2014
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 20 Jan 2014 10:20:46 +1100
+Subject: [gecode-users] sizes of  arguments arrays  mismatch
+In-Reply-To: <DUB119-W1B422549EBEB2C9CB7223B7BA0@phx.gbl>
+References: <DUB119-W47103DBF5DB7F6BAF222AAB7BB0@phx.gbl>
+	<E2948BE5-E782-4BA5-8E68-DD65D3B229A7@gecode.org>
+	<DUB119-W1B422549EBEB2C9CB7223B7BA0@phx.gbl>
+Message-ID: <BD69B7E0-46C4-4683-8388-944748E914DE@gecode.org>
+
+Please read the documentation again, all the constructors are described there in detail (did you mix up IntArgs and IntVarArgs?).
+
+Cheers,
+Guido
+	
+On 19 Jan 2014, at 7:41 pm, mehdi m <medistif at hotmail.fr> wrote:
+
+> 
+> ok, but when  try to initialize D to size n*m, the type IntArgs accept one parameter such as IntArgs( int n).  i tried to do this : D (*this, n*m,0,1) it doesn't work.
+> 
+> Thank you. 
+> Mehdi
+> Subject: Re: [gecode-users] sizes of arguments arrays mismatch
+> From: tack at gecode.org
+> Date: Sun, 19 Jan 2014 09:49:58 +1100
+> CC: users at gecode.org
+> To: medistif at hotmail.fr
+> 
+> You need to initialise D to size n*m before passing it to the Matrix constructor (the error says exactly that, the sizes don't match).
+> 
+> Cheers,
+> Guido
+> 
+> On 19 Jan 2014, at 8:45 am, mehdi m <medistif at hotmail.fr> wrote:
+> 
+> Hello everyone,
+> in my model i have a problem, a try to use create a matrix such as :
+> 
+> const int n=5;
+> const int m=10;
+> 
+> IntArgs D;
+> 
+> Matrix <IntArgs> bdd (D , n, m);
+> 
+> i need the type IntArgs in my model.
+> 
+> this gives me  an error :
+> 
+> Exception: Matrix::Matrix(A, w, h): Sizes of argument arrays mismatch stopping.
+> 
+> if someone has an idea, thank you.
+> 
+> Mehdi.
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/34056b43/attachment.html>
+
+From navid at navid.ca  Thu Jan 16 15:31:53 2014
+From: navid at navid.ca (Navid Mohaghegh)
+Date: Thu, 16 Jan 2014 09:31:53 -0500
+Subject: [gecode-users] Possible Bug - Increase IntVars Range
+	and	Gecode	Stalls
+In-Reply-To: <002801cf1147$8ca35ba0$a5ea12e0$@se>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>	<001401cf1144$50964f30$f1c2ed90$@se>
+	<78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>
+	<002801cf1147$8ca35ba0$a5ea12e0$@se>
+Message-ID: <D8A1F5E2-5885-4A49-851F-B32A3AFA9631@navid.ca>
+
+Hi everyone,
+
+I tried Gist as Christian mentioned. Gist will not terminate for higher ranges (attached screenshot shows that I had to stop Gist manually for range 1535).
+
+Could you please point me in the right direction about what I have to more efficient for this problem:
+-Like bin-packing problem, we have bunch of rectangles that shouldn't overlap with each other. 
+-Unlike bin-packing, the width and hight of the rectangles can be variable (e.g. if we have more space in our sheet, we don't mind a rectangle gets bigger). 
+-We have bunch of constraint for the size and location of rectangles.
+-In below, 15 rectangles, 4 array of variables (2 arrays for X,Y location and 2 variables for Width,Height which is for size)     
+
+
+Could you please let me know?
+
+Thank you,
+Navid
+
+
+On Jan 14, 2014, at 11:42 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+> The bug you refer to has been fixed. But try Gist, there you can see what happens.
+>  
+> Cheers
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Navid Mohaghegh
+> Sent: Tuesday, January 14, 2014 5:39 PM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+>  
+> Hi Christian,
+>  
+> Thank your for your reply. I didn't try Gist yet, I will go and look at sample code to learn Gist and I will give it a shot.
+>  
+> Could you kindly have a look at this comment in mailing list: "There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it."
+> I am asking this as mu space get solved by Gecode almost instantly (less than 1ms on a 128 GB ram, quad CPU, 64 cores workstation) for values like 1199. And the moment it goes to 1200 it will stalls. After all it should get slow (I agree with you), but not stall/freeze for 5 days. That is the main reason I suspect a tiny bug somewhere.  
+>  
+> I will also look at Gist as well as you instructed.
+>  
+> Thank you,
+> Navid
+>  
+>  
+> On Jan 14, 2014, at 11:18 AM, Christian Schulte <cschulte at kth.se> wrote:
+> 
+> 
+> Did you try it in Gist to see how large the search trees get or whether Gecode just hangs?
+>  
+> After all, you exponentially increase the search space!
+>  
+> Christian
+>  
+> --
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+>  
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Navid Mohaghegh
+> Sent: Tuesday, January 14, 2014 5:04 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode Stalls
+> Importance: High
+>  
+> Hi Everyone,
+>  
+> My question:
+> I am wondering what is happening in below and why Gecode stalls stall whenI increase the range of my IntegerVars (while its CPU utilization goes very high) despite the fact that our constraints are not changed?
+>  
+> Background (http://navid.ca/gecode/test.cpp):
+> We are trying to solve a space. We can easily solve the space when our variable ranges are small (e.g. 0 to 800). As soon as the range goes higher (e.g. 0-1535) Gecode will stall and can not produce a solution for the space with exactly the same constraints as before.
+>  
+> We have 4 groups of integer_array variables. They are called vars_a, vars_b, vars_c and vars_d. And inside each of them, we have 15 integer variables.
+> NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_, int vars_d_max_, int vcost_max_); 
+> NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000); means:
+> n = 15
+> vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ = 800
+> vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ = 500
+> vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ = 410
+> vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ = 60
+> our cost variable can be have values from zero to vcost_max_ = 2,000,000,000
+> As we have quadratic cost functions and values can easily grow.
+> lift() method is where we add our constraints. 
+> For demonstration purpose, we have a method that once used, Gecode can produce solution: it is called "void the_one_works()"
+> And we have another one (called: void the_one_doesnot_work) that can not be solved using Gecode (it is perfectly solvable and we test our solution in verify_answer() method)
+> The only difference between the_one_works() and the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+>  
+>  
+>  
+> I have found a mailing list entry stating a possible bug:
+> ==========
+> From: victor.zverovich at ... <victor.zverovich at ...>
+> Subject: bug in INT_VALUES_MAX
+> Newsgroups: gmane.comp.lib.gecode.user
+> Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes ago)
+> There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of SEL_VALUES_MAX. The attached patch fixes it.
+> Victor
+> ==========
+>  
+> Can someone have a look and let me know?
+> We are using Gecode 4.2.1 on Linux
+> GCC 4.7.2 and also latest 4.9
+> Debian 64bit and CentOS 64bit  
+> My code and how I compile and run is here: http://navid.ca/gecode/test.cpp
+>  
+> Thank you,
+> Navid
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140116/0d5b6e01/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Screen Shot 2014-01-15 at 6.33.03 PM.png
+Type: image/png
+Size: 138042 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140116/0d5b6e01/attachment-0001.png>
+
+From tack at gecode.org  Mon Jan 20 12:08:44 2014
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 20 Jan 2014 22:08:44 +1100
+Subject: [gecode-users] sizes of  arguments arrays  mismatch
+In-Reply-To: <DUB119-W4663B6019945AA58007F50B7A50@phx.gbl>
+References: <DUB119-W47103DBF5DB7F6BAF222AAB7BB0@phx.gbl>
+	<E2948BE5-E782-4BA5-8E68-DD65D3B229A7@gecode.org>
+	<DUB119-W1B422549EBEB2C9CB7223B7BA0@phx.gbl>
+	<BD69B7E0-46C4-4683-8388-944748E914DE@gecode.org>
+	<DUB119-W4663B6019945AA58007F50B7A50@phx.gbl>
+Message-ID: <F57F97D9-E175-4279-9CA0-97F94EBD7F9D@gecode.org>
+
+Well what do you want to do?  The following works for example:
+      IntVarArgs D(*this, n*m, 0,1);
+      Matrix<IntVarArgs> m(D,n,m);
+The following works, too:
+      IntArgs D(n*m);
+      Matrix<IntArgs> m(D,n,m);
+
+Cheers,
+Guido
+
+
+On 20 Jan 2014, at 9:51 pm, mehdi m <medistif at hotmail.fr> wrote:
+
+> I read the documentation, there are no details on the declaration of a matrix IntArgs. I tried to declare D as follows: 
+> IntVarArgs D (* this, * nbrTransaction nbrMotifs); 
+> it does not work either.
+> 
+> Cheers,
+> Mehdi
+> 
+> Subject: Re: [gecode-users] sizes of arguments arrays mismatch
+> From: tack at gecode.org
+> Date: Mon, 20 Jan 2014 10:20:46 +1100
+> CC: users at gecode.org
+> To: medistif at hotmail.fr
+> 
+> Please read the documentation again, all the constructors are described there in detail (did you mix up IntArgs and IntVarArgs?).
+> 
+> Cheers,
+> Guido
+> 	
+> On 19 Jan 2014, at 7:41 pm, mehdi m <medistif at hotmail.fr> wrote:
+> 
+> 
+> ok, but when  try to initialize D to size n*m, the type IntArgs accept one parameter such as IntArgs( int n).  i tried to do this : D (*this, n*m,0,1) it doesn't work.
+> 
+> Thank you. 
+> Mehdi
+> Subject: Re: [gecode-users] sizes of arguments arrays mismatch
+> From: tack at gecode.org
+> Date: Sun, 19 Jan 2014 09:49:58 +1100
+> CC: users at gecode.org
+> To: medistif at hotmail.fr
+> 
+> You need to initialise D to size n*m before passing it to the Matrix constructor (the error says exactly that, the sizes don't match).
+> 
+> Cheers,
+> Guido
+> 
+> On 19 Jan 2014, at 8:45 am, mehdi m <medistif at hotmail.fr> wrote:
+> 
+> Hello everyone,
+> in my model i have a problem, a try to use create a matrix such as :
+> 
+> const int n=5;
+> const int m=10;
+> 
+> IntArgs D;
+> 
+> Matrix <IntArgs> bdd (D , n, m);
+> 
+> i need the type IntArgs in my model.
+> 
+> this gives me  an error :
+> 
+> Exception: Matrix::Matrix(A, w, h): Sizes of argument arrays mismatch stopping.
+> 
+> if someone has an idea, thank you.
+> 
+> Mehdi.
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/a3816a66/attachment.html>
+
+From medistif at hotmail.fr  Mon Jan 20 21:22:53 2014
+From: medistif at hotmail.fr (mehdi m)
+Date: Mon, 20 Jan 2014 20:22:53 +0000
+Subject: [gecode-users] error_segmentation
+Message-ID: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+
+
+
+
+Hello everyone,in my model,  i want to express : x <--> Sum Ai*Bi = 0.why i use linear constraint and reification such as :
+IntArgs A ;BoolVarArray B;BoolVar b;reify r (b);linear (*this, A , B , IRT_EQ , 0 , r);
+when running this gives me a segmentation fault. when I deleted the parameter r that passes, the problem might therefore be in the parameter r.
+if someone has an idea ! .thank you.Cheers,Mehdi  
+ 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/1e428776/attachment.html>
+
+From cschulte at kth.se  Mon Jan 20 21:26:24 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 20 Jan 2014 21:26:24 +0100
+Subject: [gecode-users] error_segmentation
+In-Reply-To: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+Message-ID: <008801cf161d$e52a6fe0$af7f4fa0$@kth.se>
+
+Please read MPG, you first have to properly initialize the arrays. C
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of mehdi m
+Sent: Monday, January 20, 2014 09:23 PM
+To: users at gecode.org
+Subject: [gecode-users] error_segmentation
+
+ 
+
+Hello everyone,
+
+in my model,  i want to express : x <--> Sum Ai*Bi = 0.
+
+why i use linear constraint and reification such as :
+
+ 
+
+IntArgs A ;
+
+BoolVarArray B;
+
+BoolVar b;
+
+reify r (b);
+
+linear (*this, A , B , IRT_EQ , 0 , r);
+
+ 
+
+when running this gives me a segmentation fault. when I deleted the
+parameter r that passes, the problem might therefore be in the parameter r.
+
+ 
+
+if someone has an idea ! .
+
+thank you.
+
+Cheers,
+
+Mehdi  
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/cac3d3c8/attachment.html>
+
+From cschulte at kth.se  Mon Jan 20 21:29:51 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 20 Jan 2014 21:29:51 +0100
+Subject: [gecode-users] Possible Bug - Increase IntVars
+	Range	and	Gecode	Stalls
+In-Reply-To: <176CC873-A601-4BA6-8758-B68D855F9CE8@navid.ca>
+References: <7D873EF2-12CD-46C2-AF3B-5E3110085815@navid.ca>	<001401cf1144$50964f30$f1c2ed90$@se>	<78523901-E0EC-403C-A230-CEA44F993D47@navid.ca>	<002801cf1147$8ca35ba0$a5ea12e0$@se>	<D8A1F5E2-5885-4A49-851F-B32A3AFA9631@navid.ca>	<007f01cf12d0$4e008c30$ea01a490$@se>
+	<176CC873-A601-4BA6-8758-B68D855F9CE8@navid.ca>
+Message-ID: <009501cf161e$60647520$212d5f60$@kth.se>
+
+What does stall mean, again? Is it still searching (you can observe that in
+Gist), that is making progress? Or is it dead.
+
+ 
+
+To improve your model, check the perfect square example that comes with
+Gecode and/or search for square packing on Helmut Simonis' webpage:
+<http://4c.ucc.ie/~hsimonis/> http://4c.ucc.ie/~hsimonis/
+
+ 
+
+Christian
+
+ 
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Thursday, January 16, 2014 09:23 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+
+ 
+
+Hi Christian,
+
+ 
+
+Thank you for your reply. 
+
+ 
+
+I originally didn't use that as I didn't want to add another set of
+variables for finishing corner of rectangles (Gecode nooverlap API has a
+simple version that use fixed int width and int height).
+
+ 
+
+Per your suggestion, I added two array variables for finishing corner that I
+can employ the nooverlap API:
+
+-defined integer array variables for starting point of rectangles (e.g. top
+left corner): I called it vxs and vys (e.g. X0 and Y0 in Gecode MPG manual)
+
+-defined integer array variables for width and height of rectangles: I
+called it vw and vh (e.g. W and H in Gecode MPG manual)
+
+-defined integer array variables for finishing point of rectangles (e.g.
+lower right corner): I called it vxf and vyf (e.g. X1 and Y1 in Gecode MPG
+manual)
+
+-I removed all manual non-overllaping contraint that I manually added myself
+and add the following:
+
+ 
+
+            //starting point  width and hight will give us the finishing
+point
+
+            for (i =0 ; i < this->n_vars; i++)
+
+            {
+
+                        rel(*this, ( (vxs[i] + vw[i] == vxf[i]) && (vys[i] +
+vh[i] == vyf[i]) )  );
+
+            }
+
+            //add nooverlap for all rectangles      
+
+            nooverlap(*this, vxs,vw,vxf,   vys,vh,vyf);
+
+ 
+
+ 
+
+My code gets solved for lower ranges of X vars (e.g. vxs < 1000 and
+vxf<1200) and the moment I change the x range to values greater than 1500
+gecode stalls.
+
+ 
+
+I appreciate your feedback.
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+ 
+
+On Jan 16, 2014, at 10:33 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+
+
+
+
+Hi,
+
+ 
+
+Just very quick: did you look at the nooverlap constraint in Gecode?
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+<http://www.ict.kth.se/~cschulte/> www.ict.kth.se/~cschulte/
+
+ 
+
+From: Navid Mohaghegh [ <mailto:navid at navid.ca> mailto:navid at navid.ca] 
+Sent: Thursday, January 16, 2014 3:32 PM
+To:  <mailto:users at gecode.org> users at gecode.org
+Cc:  <mailto:cschulte at kth.se> cschulte at kth.se
+Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+
+ 
+
+Hi everyone,
+
+ 
+
+I tried Gist as Christian mentioned. Gist will not terminate for higher
+ranges (attached screenshot shows that I had to stop Gist manually for range
+1535).
+
+ 
+
+Could you please point me in the right direction about what I have to more
+efficient for this problem:
+
+-Like bin-packing problem, we have bunch of rectangles that shouldn't
+overlap with each other. 
+
+-Unlike bin-packing, the width and hight of the rectangles can be variable
+(e.g. if we have more space in our sheet, we don't mind a rectangle gets
+bigger). 
+
+-We have bunch of constraint for the size and location of rectangles.
+
+-In below, 15 rectangles, 4 array of variables (2 arrays for X,Y location
+and 2 variables for Width,Height which is for size)     
+
+ 
+
+ 
+
+Could you please let me know?
+
+ 
+
+Thank you,
+
+Navid
+
+<image001.png>
+
+ 
+
+On Jan 14, 2014, at 11:42 AM, Christian Schulte < <mailto:cschulte at kth.se>
+cschulte at kth.se> wrote:
+
+
+
+
+
+
+The bug you refer to has been fixed. But try Gist, there you can see what
+happens.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+<http://www.ict.kth.se/~cschulte/> www.ict.kth.se/~cschulte/
+
+ 
+
+From:  <mailto:users-bounces at gecode.org> users-bounces at gecode.org [
+<mailto:users-bounces at gecode.org> mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Tuesday, January 14, 2014 5:39 PM
+To:  <mailto:cschulte at kth.se> cschulte at kth.se
+Cc:  <mailto:users at gecode.org> users at gecode.org
+Subject: Re: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+
+ 
+
+Hi Christian,
+
+ 
+
+Thank your for your reply. I didn't try Gist yet, I will go and look at
+sample code to learn Gist and I will give it a shot.
+
+ 
+
+Could you kindly have a look at this comment in mailing list: "There seems
+to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used instead of
+SEL_VALUES_MAX. The attached patch fixes it."
+
+I am asking this as mu space get solved by Gecode almost instantly (less
+than 1ms on a 128 GB ram, quad CPU, 64 cores workstation) for values like
+1199. And the moment it goes to 1200 it will stalls. After all it should get
+slow (I agree with you), but not stall/freeze for 5 days. That is the main
+reason I suspect a tiny bug somewhere.  
+
+ 
+
+I will also look at Gist as well as you instructed.
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+ 
+
+On Jan 14, 2014, at 11:18 AM, Christian Schulte < <mailto:cschulte at kth.se>
+cschulte at kth.se> wrote:
+
+
+
+
+
+
+
+Did you try it in Gist to see how large the search trees get or whether
+Gecode just hangs?
+
+ 
+
+After all, you exponentially increase the search space!
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+<http://www.ict.kth.se/~cschulte/> www.ict.kth.se/~cschulte/
+
+ 
+
+From:  <mailto:users-bounces at gecode.org> users-bounces at gecode.org [
+<mailto:users-bounces at gecode.org> mailto:users-bounces at gecode.org] On Behalf
+Of Navid Mohaghegh
+Sent: Tuesday, January 14, 2014 5:04 PM
+To:  <mailto:users at gecode.org> users at gecode.org
+Subject: [gecode-users] Possible Bug - Increase IntVars Range and Gecode
+Stalls
+Importance: High
+
+ 
+
+Hi Everyone,
+
+ 
+
+My question:
+
+I am wondering what is happening in below and why Gecode stalls stall whenI
+increase the range of my IntegerVars (while its CPU utilization goes very
+high) despite the fact that our constraints are not changed?
+
+ 
+
+Background ( <http://navid.ca/gecode/test.cpp>
+http://navid.ca/gecode/test.cpp):
+
+We are trying to solve a space. We can easily solve the space when our
+variable ranges are small (e.g. 0 to 800). As soon as the range goes higher
+(e.g. 0-1535) Gecode will stall and can not produce a solution for the space
+with exactly the same constraints as before.
+
+ 
+
+*	We have 4 groups of integer_array variables. They are called vars_a,
+vars_b, vars_c and vars_d. And inside each of them, we have 15 integer
+variables.
+
+*	NavidTest(int n, int vars_a_max_, int vars_b_max_, int vars_c_max_,
+int vars_d_max_, int vcost_max_); 
+*	NavidTest* m = new NavidTest(15,  800, 500, 410, 60, 2000000000);
+means:
+
+*	n = 15
+*	vars_a[0] ... vars_a[15] can have values from zero to vars_a_max_ =
+800
+*	vars_b[0] ... vars_b[15] can have values from zero to vars_b_max_ =
+500
+*	vars_c[0] ... vars_c[15] can have values from zero to vars_c_max_ =
+410
+*	vars_d[0] ... vars_d[15] can have values from zero to vars_d_max_ =
+60
+*	our cost variable can be have values from zero to vcost_max_ =
+2,000,000,000
+
+*	As we have quadratic cost functions and values can easily grow.
+
+*	lift() method is where we add our constraints. 
+*	For demonstration purpose, we have a method that once used, Gecode
+can produce solution: it is called "void the_one_works()"
+
+*	And we have another one (called: void the_one_doesnot_work) that can
+not be solved using Gecode (it is perfectly solvable and we test our
+solution in verify_answer() method)
+*	The only difference between the_one_works() and
+the_one_doesnot_work() is an increase in vars_a max range from 800 to 1535. 
+
+ 
+
+ 
+
+ 
+
+I have found a mailing list entry stating a possible bug:
+
+==========
+
+From:
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org> victor.zverovich at ... <
+<http://gmane.org/get-address.php?address=victor.zverovich%2dRe5JQEeQqe8Avxt
+iuMwx3w%40public.gmane.org> victor.zverovich at ...>
+Subject:
+<http://news.gmane.org/find-root.php?message_id=CANawtxb3jmzB754b7zWaZMuG76T
+7KJBwAj1PP%2bMmHgJL%3d0EKVQ%40mail.gmail.com> bug in INT_VALUES_MAX
+Newsgroups:  <http://news.gmane.org/gmane.comp.lib.gecode.user>
+gmane.comp.lib.gecode.user
+Date: 2013-06-21 22:20:18 GMT (29 weeks, 3 days, 17 hours and 17 minutes
+ago)
+
+There seems to be a trivial bug in INT_VALUES_MAX: SEL_VALUES_MIN is used
+instead of SEL_VALUES_MAX. The attached patch fixes it.
+
+Victor
+
+==========
+
+ 
+
+Can someone have a look and let me know?
+
+*	We are using Gecode 4.2.1 on Linux
+*	GCC 4.7.2 and also latest 4.9
+*	Debian 64bit and CentOS 64bit  
+*	My code and how I compile and run is here:
+<http://navid.ca/gecode/test.cpp> http://navid.ca/gecode/test.cpp
+
+ 
+
+Thank you,
+
+Navid
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/1899da05/attachment-0001.html>
+
+From medistif at hotmail.fr  Mon Jan 20 22:23:10 2014
+From: medistif at hotmail.fr (mehdi m)
+Date: Mon, 20 Jan 2014 21:23:10 +0000
+Subject: [gecode-users] error_segmentation
+In-Reply-To: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+Message-ID: <DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+
+
+Arrays are initialized properly like this: int i=5;int m=10;BoolVar B;Reify r(b);Intargs D (n*m);Matrix <IntArgs> A (*this, n, m);for (int i=0;i<m;i++){     for(int j=0;j<n;j++){     A(i,j)=1;     }}for (int i=0;i<m;i++){linear (*this, A.col(i),B , IRT_EQ, 0, r); }
+if you have an example of reification of linear constraint, could you send it to me.Thank you.CheersMehdiFrom: medistif at hotmail.fr
+To: users at gecode.org
+Date: Mon, 20 Jan 2014 20:22:53 +0000
+Subject: [gecode-users] error_segmentation
+
+
+
+
+
+
+
+Hello everyone,in my model,  i want to express : x <--> Sum Ai*Bi = 0.why i use linear constraint and reification such as :
+IntArgs A ;BoolVarArray B;BoolVar b;reify r (b);linear (*this, A , B , IRT_EQ , 0 , r);
+when running this gives me a segmentation fault. when I deleted the parameter r that passes, the problem might therefore be in the parameter r.
+if someone has an idea ! .thank you.Cheers,Mehdi  
+ 		 	   		  
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/1e4b2397/attachment.html>
+
+From tack at gecode.org  Mon Jan 20 22:27:42 2014
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 21 Jan 2014 08:27:42 +1100
+Subject: [gecode-users] error_segmentation
+In-Reply-To: <DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+Message-ID: <8B84BFF9-5820-4FF5-B4D2-03F1EEC6F5C7@gecode.org>
+
+The BoolVar doesn't look initialise (try BoolVar B(*this,0,1);).
+
+Just as a further tip, you don't need the Reify object, you can pass the BoolVar directly (the Reify is constructed automatically).
+
+Cheers,
+Guido
+
+On 21 Jan 2014, at 8:23 am, mehdi m <medistif at hotmail.fr> wrote:
+
+> 
+> Arrays are initialized properly like this: 
+> int i=5;
+> int m=10;
+> BoolVar B;
+> Reify r(b);
+> Intargs D (n*m);
+> Matrix <IntArgs> A (*this, n, m);
+> for (int i=0;i<m;i++){
+>      for(int j=0;j<n;j++){
+>      A(i,j)=1;
+>      }
+> }
+> for (int i=0;i<m;i++){
+> linear (*this, A.col(i),B , IRT_EQ, 0, r); 
+> }
+> 
+> if you have an example of reification of linear constraint, could you send it to me.
+> Thank you.
+> Cheers
+> Mehdi
+> From: medistif at hotmail.fr
+> To: users at gecode.org
+> Date: Mon, 20 Jan 2014 20:22:53 +0000
+> Subject: [gecode-users] error_segmentation
+> 
+> Hello everyone,
+> in my model,  i want to express : x <--> Sum Ai*Bi = 0.
+> why i use linear constraint and reification such as :
+> 
+> IntArgs A ;
+> BoolVarArray B;
+> BoolVar b;
+> reify r (b);
+> linear (*this, A , B , IRT_EQ , 0 , r);
+> 
+> when running this gives me a segmentation fault. when I deleted the parameter r that passes, the problem might therefore be in the parameter r.
+> 
+> if someone has an idea ! .
+> thank you.
+> Cheers,
+> Mehdi  
+> 
+> _______________________________________________ Gecode users mailing list users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Mon Jan 20 22:29:12 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 20 Jan 2014 22:29:12 +0100
+Subject: [gecode-users] error_segmentation
+In-Reply-To: <DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+Message-ID: <010301cf1626$aa543f50$fefcbdf0$@kth.se>
+
+But the Boolean variable is not! Please read in MPG about reification, then
+you will see that you actually do not need the Reify thing.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of mehdi m
+Sent: Monday, January 20, 2014 10:23 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] error_segmentation
+
+ 
+
+ 
+
+Arrays are initialized properly like this: 
+
+int i=5;
+
+int m=10;
+
+BoolVar B;
+
+Reify r(b);
+
+Intargs D (n*m);
+
+Matrix <IntArgs> A (*this, n, m);
+
+for (int i=0;i<m;i++){
+
+     for(int j=0;j<n;j++){
+
+     A(i,j)=1;
+
+     }
+
+}
+
+for (int i=0;i<m;i++){
+
+linear (*this, A.col(i),B , IRT_EQ, 0, r); 
+
+}
+
+ 
+
+if you have an example of reification of linear constraint, could you send
+it to me.
+
+Thank you.
+
+Cheers
+
+Mehdi
+
+  _____  
+
+From: medistif at hotmail.fr
+To: users at gecode.org
+Date: Mon, 20 Jan 2014 20:22:53 +0000
+Subject: [gecode-users] error_segmentation
+
+Hello everyone,
+
+in my model,  i want to express : x <--> Sum Ai*Bi = 0.
+
+why i use linear constraint and reification such as :
+
+ 
+
+IntArgs A ;
+
+BoolVarArray B;
+
+BoolVar b;
+
+reify r (b);
+
+linear (*this, A , B , IRT_EQ , 0 , r);
+
+ 
+
+when running this gives me a segmentation fault. when I deleted the
+parameter r that passes, the problem might therefore be in the parameter r.
+
+ 
+
+if someone has an idea ! .
+
+thank you.
+
+Cheers,
+
+Mehdi  
+
+
+_______________________________________________ Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140120/9991e598/attachment.html>
+
+From inspecteur.rick at gmail.com  Tue Jan 21 19:44:51 2014
+From: inspecteur.rick at gmail.com (inspecteur)
+Date: Tue, 21 Jan 2014 19:44:51 +0100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <010301cf1626$aa543f50$fefcbdf0$@kth.se>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+	<010301cf1626$aa543f50$fefcbdf0$@kth.se>
+Message-ID: <52DEC023.70700@gmail.com>
+
+Hi,
+
+I succes to compile version 4.2.1 from source on ubuntu 11.04
+http://www.gecode.org/download/gecode-4.2.1.tar.gz
+
+Commands:. /configure
+make
+make install
+
+But I get an error on ubuntu 13.04
+During make
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/1e4a9fcc/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: cdgajgfe.png
+Type: image/png
+Size: 49784 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/1e4a9fcc/attachment-0001.png>
+
+From cschulte at kth.se  Tue Jan 21 20:05:23 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 21 Jan 2014 20:05:23 +0100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <52DEC023.70700@gmail.com>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>	<010301cf1626$aa543f50$fefcbdf0$@kth.se>
+	<52DEC023.70700@gmail.com>
+Message-ID: <001401cf16db$bd0787f0$371697d0$@kth.se>
+
+I guess you did not install the right version of Qt (or your installation of
+Qt is somehow mangelled). Maybe Guido knows more.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of inspecteur
+Sent: Tuesday, January 21, 2014 07:45 PM
+To: users at gecode.org
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+
+ 
+
+Hi,
+
+I succes to compile version 4.2.1 from source on ubuntu 11.04 
+http://www.gecode.org/download/gecode-4.2.1.tar.gz 
+
+Commands: . /configure 
+                        make 
+                        make install 
+
+But I get an error on ubuntu 13.04 
+During make
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/6c33907e/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image001.png
+Type: image/png
+Size: 49784 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/6c33907e/attachment-0001.png>
+
+From inspecteur.rick at gmail.com  Tue Jan 21 20:08:52 2014
+From: inspecteur.rick at gmail.com (inspecteur)
+Date: Tue, 21 Jan 2014 20:08:52 +0100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <001401cf16db$bd0787f0$371697d0$@kth.se>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>	<010301cf1626$aa543f50$fefcbdf0$@kth.se>
+	<52DEC023.70700@gmail.com> <001401cf16db$bd0787f0$371697d0$@kth.se>
+Message-ID: <52DEC5C4.5020001@gmail.com>
+
+Yet I have not installed Qt on Unbuntu 11.04 and it works.
+
+I need to install QT on ubuntu 13.04?
+
+Le 21/01/2014 20:05, Christian Schulte a ?crit :
+>
+> I guess you did not install the right version of Qt (or your 
+> installation of Qt is somehow mangelled). Maybe Guido knows more.
+>
+> Christian
+>
+> --
+>
+> Christian Schulte, www.ict.kth.se/~cschulte
+>
+> *From:*users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On 
+> Behalf Of *inspecteur
+> *Sent:* Tuesday, January 21, 2014 07:45 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+>
+> Hi,
+>
+> I succes tocompile version 4.2.1 from source on ubuntu 11.04
+> http://www.gecode.org/download/gecode-4.2.1.tar.gz
+>
+> Commands: . /configure
+> make
+> make install
+>
+> But I get an error on ubuntu 13.04
+> During make
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/544ecaeb/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: not available
+Type: image/png
+Size: 49784 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20140121/544ecaeb/attachment-0001.png>
+
+From tack at gecode.org  Tue Jan 21 23:30:16 2014
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 22 Jan 2014 09:30:16 +1100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <52DEC5C4.5020001@gmail.com>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+	<010301cf1626$aa543f50$fefcbdf0$@kth.se> <52DEC023.70700@gmail.com>
+	<001401cf16db$bd0787f0$371697d0$@kth.se>
+	<52DEC5C4.5020001@gmail.com>
+Message-ID: <297736F1-B011-48F6-A684-90AE15C6BABA@gecode.org>
+
+It looks like a bit of Qt is installed but maybe not everything.  If configure doesn't find any Qt it doesn't compile the modules that depend on it.  You can either install all of the Qt development packages, or use ./configure --disable-qt to switch off Qt support in Gecode.
+
+Cheers,
+Guido
+
+On 22 Jan 2014, at 6:08 am, inspecteur <inspecteur.rick at gmail.com> wrote:
+
+> Yet I have not installed Qt on Unbuntu 11.04 and it works.
+> 
+> I need to install QT on ubuntu 13.04?
+> 
+> Le 21/01/2014 20:05, Christian Schulte a ?crit :
+>> I guess you did not install the right version of Qt (or your installation of Qt is somehow mangelled). Maybe Guido knows more.
+>>  
+>> Christian
+>>  
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte
+>>  
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of inspecteur
+>> Sent: Tuesday, January 21, 2014 07:45 PM
+>> To: users at gecode.org
+>> Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+>>  
+>> Hi,
+>> 
+>> I succes to compile version 4.2.1 from source on ubuntu 11.04 
+>> http://www.gecode.org/download/gecode-4.2.1.tar.gz 
+>> 
+>> Commands: . /configure 
+>>                         make 
+>>                         make install 
+>> 
+>> But I get an error on ubuntu 13.04 
+>> During make
+>> <Mail Attachment.png>
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20140122/2a33e46d/attachment.html>
+
+From tias.guns at cs.kuleuven.be  Thu Jan 23 11:43:41 2014
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Thu, 23 Jan 2014 11:43:41 +0100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <297736F1-B011-48F6-A684-90AE15C6BABA@gecode.org>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+	<010301cf1626$aa543f50$fefcbdf0$@kth.se> <52DEC023.70700@gmail.com>
+	<001401cf16db$bd0787f0$371697d0$@kth.se>
+	<52DEC5C4.5020001@gmail.com>
+	<297736F1-B011-48F6-A684-90AE15C6BABA@gecode.org>
+Message-ID: <52E0F25D.7040708@cs.kuleuven.be>
+
+On 01/21/2014 11:30 PM, Guido Tack wrote:> It looks like a bit of Qt is 
+installed but maybe not everything.  If
+ > configure doesn't find any Qt it doesn't compile the modules that depend
+ > on it.  You can either install all of the Qt development packages, or
+ > use ./configure --disable-qt to switch off Qt support in Gecode.
+
+Hi Guido, all,
+
+I just got the same error on a freshly installed debian system.
+
+The Makefile complained about 'qmake' not being present, so I installed 
+that. It then concluded that it can use qt and build gist.
+However, I hadn't installed 'libqt4-dev' yet, resulting in the error 
+reported by Rick.
+
+Is there a way that the Makefile can check for the presence of the 
+development files?
+
+
+Kind regards,
+Tias
+
+ > Cheers,
+ > Guido
+ >
+ > On 22 Jan 2014, at 6:08 am, inspecteur <inspecteur.rick at gmail.com
+ > <mailto:inspecteur.rick at gmail.com>> wrote:
+ >
+ >> Yet I have not installed Qt on Unbuntu 11.04 and it works.
+ >>
+ >> I need to install QT on ubuntu 13.04?
+ >>
+ >> Le 21/01/2014 20:05, Christian Schulte a ?crit :
+ >>>
+ >>> I guess you did not install the right version of Qt (or your
+ >>> installation of Qt is somehow mangelled). Maybe Guido knows more.
+ >>>
+ >>> Christian
+ >>>
+ >>> --
+ >>>
+ >>> Christian Schulte, www.ict.kth.se/~cschulte
+ >>>
+ >>> *From:*users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+ >>> Behalf Of *inspecteur
+ >>> *Sent:* Tuesday, January 21, 2014 07:45 PM
+ >>> *To:* users at gecode.org
+ >>> *Subject:* [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+ >>>
+ >>> Hi,
+ >>>
+ >>> I succes tocompile version 4.2.1 from source on ubuntu 11.04
+ >>> http://www.gecode.org/download/gecode-4.2.1.tar.gz
+ >>>
+ >>> Commands: . /configure
+ >>> make
+ >>> make install
+ >>>
+ >>> But I get an error on ubuntu 13.04
+ >>> During make
+ >>> <Mail Attachment.png>
+ >>>
+ >>
+ >> _______________________________________________
+ >> Gecode users mailing list
+ >> users at gecode.org <mailto:users at gecode.org>
+ >> https://www.gecode.org/mailman/listinfo/gecode-users
+ >
+ >
+ >
+ > _______________________________________________
+ > Gecode users mailing list
+ > users at gecode.org
+ > https://www.gecode.org/mailman/listinfo/gecode-users
+ >
+
+
+Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+
+
+From inspecteur.rick at gmail.com  Thu Jan 23 20:53:11 2014
+From: inspecteur.rick at gmail.com (inspecteur)
+Date: Thu, 23 Jan 2014 20:53:11 +0100
+Subject: [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+In-Reply-To: <52E0F25D.7040708@cs.kuleuven.be>
+References: <DUB119-W246AA6CB7DB7E1E54AF775B7A50@phx.gbl>
+	<DUB119-W212885A247963ACEA00EB7B7A50@phx.gbl>
+	<010301cf1626$aa543f50$fefcbdf0$@kth.se> <52DEC023.70700@gmail.com>
+	<001401cf16db$bd0787f0$371697d0$@kth.se>
+	<52DEC5C4.5020001@gmail.com>
+	<297736F1-B011-48F6-A684-90AE15C6BABA@gecode.org>
+	<52E0F25D.7040708@cs.kuleuven.be>
+Message-ID: <52E17327.4050007@gmail.com>
+
+Hi
+
+With : apt-get install libqt4-dev.
+It works well
+
+
+Thanks
+
+Le 23/01/2014 11:43, Tias Guns a ?crit :
+> On 01/21/2014 11:30 PM, Guido Tack wrote:> It looks like a bit of Qt 
+> is installed but maybe not everything.  If
+> > configure doesn't find any Qt it doesn't compile the modules that 
+> depend
+> > on it.  You can either install all of the Qt development packages, or
+> > use ./configure --disable-qt to switch off Qt support in Gecode.
+>
+> Hi Guido, all,
+>
+> I just got the same error on a freshly installed debian system.
+>
+> The Makefile complained about 'qmake' not being present, so I 
+> installed that. It then concluded that it can use qt and build gist.
+> However, I hadn't installed 'libqt4-dev' yet, resulting in the error 
+> reported by Rick.
+>
+> Is there a way that the Makefile can check for the presence of the 
+> development files?
+>
+>
+> Kind regards,
+> Tias
+>
+> > Cheers,
+> > Guido
+> >
+> > On 22 Jan 2014, at 6:08 am, inspecteur <inspecteur.rick at gmail.com
+> > <mailto:inspecteur.rick at gmail.com>> wrote:
+> >
+> >> Yet I have not installed Qt on Unbuntu 11.04 and it works.
+> >>
+> >> I need to install QT on ubuntu 13.04?
+> >>
+> >> Le 21/01/2014 20:05, Christian Schulte a ?crit :
+> >>>
+> >>> I guess you did not install the right version of Qt (or your
+> >>> installation of Qt is somehow mangelled). Maybe Guido knows more.
+> >>>
+> >>> Christian
+> >>>
+> >>> --
+> >>>
+> >>> Christian Schulte, www.ict.kth.se/~cschulte
+> >>>
+> >>> *From:*users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> >>> Behalf Of *inspecteur
+> >>> *Sent:* Tuesday, January 21, 2014 07:45 PM
+> >>> *To:* users at gecode.org
+> >>> *Subject:* [gecode-users] Gecode Compilation Ubuntu 13.04 failed
+> >>>
+> >>> Hi,
+> >>>
+> >>> I succes tocompile version 4.2.1 from source on ubuntu 11.04
+> >>> http://www.gecode.org/download/gecode-4.2.1.tar.gz
+> >>>
+> >>> Commands: . /configure
+> >>> make
+> >>> make install
+> >>>
+> >>> But I get an error on ubuntu 13.04
+> >>> During make
+> >>> <Mail Attachment.png>
+> >>>
+> >>
+> >> _______________________________________________
+> >> Gecode users mailing list
+> >> users at gecode.org <mailto:users at gecode.org>
+> >> https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+>
+>
+> Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+>
+
+
+

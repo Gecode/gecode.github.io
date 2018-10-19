@@ -1,0 +1,373 @@
+From kisshen at cisco.com  Tue Jul  8 20:39:34 2014
+From: kisshen at cisco.com (Kish Shen)
+Date: Tue, 08 Jul 2014 19:39:34 +0100
+Subject: [gecode-users] Passing user defined values to initialise IntActivity
+Message-ID: <53BC3AE6.1090008@cisco.com>
+
+Hi,
+
+I am trying to implement the initialisation of the starting values for 
+the activity of the variables in a search. From reading the MPG, I am 
+doing this when the IntActivity is declared:
+
+IntActivity act(*solver, vars, decay, merit)
+
+where merit is a IntBranchMerit function.
+
+I have implemented setting the initial value for the activity of a 
+variable to its degree. However, I also want to allow the user to 
+specify the initial values for the variables, in cases where they may 
+have some idea of which variables are "better", and I am not sure how 
+this can be done, i.e. how I can pass user defined values to a 
+IntBranchMerit function:
+
+(..IntBranchMerit)(const Space &home, IntVar x, int i)
+
+what I would like to pass to this function is an array that defines the 
+initial values (array[i] would give the value intended for x (i.e. 
+vars[i])).
+
+A possible issue I had with declaring the IntBranchMerit function is 
+that I had to use Space, rather than GecodeSpace, which is the class I 
+defined:
+
+class GecodeSpace : public Gecode::MinimizeSpace {....}
+
+i.e., I had to declare merit as:
+
+double merit(const Space& solver, IntVar x, int i)
+
+This probably reflects my (lack of) C++ knowledge...
+
+if I do have to use Space, then I cannot even pass a user specified 
+field via GecodeSpace to merit function -- and I am not sure if this is 
+the right thing to do anyway, as the data I want to pass is for a 
+specific search, rather than something global to the space itself.
+
+
+On a somewhat related note: it seems to make sense to me to allow the 
+user to set the initial values for the AFC of each variable, because the 
+degree may not always be the best initial value. Am I correct that this 
+is difficult to do, as the AFC value for each variable is computed from 
+summing the AFC values for the constraints involving that variable?
+
+Thanks in advance for any information/help!
+
+Kish
+
+
+From cschulte at kth.se  Wed Jul  9 15:37:37 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 9 Jul 2014 15:37:37 +0200
+Subject: [gecode-users] Passing user defined values to initialise
+	IntActivity
+In-Reply-To: <53BC3AE6.1090008@cisco.com>
+References: <53BC3AE6.1090008@cisco.com>
+Message-ID: <001401cf9b7a$f347d440$d9d77cc0$@se>
+
+Hi Kish,
+
+The activity thing is easy enough, just cast Space to whatever you want. See
+Section 8.7 in MPG how to do it!
+
+Yes, AFC cannot be initialized for the very reason you mention!
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Tuesday, July 08, 2014 8:40 PM
+To: users at gecode.org
+Subject: [gecode-users] Passing user defined values to initialise
+IntActivity
+
+Hi,
+
+I am trying to implement the initialisation of the starting values for the
+activity of the variables in a search. From reading the MPG, I am doing this
+when the IntActivity is declared:
+
+IntActivity act(*solver, vars, decay, merit)
+
+where merit is a IntBranchMerit function.
+
+I have implemented setting the initial value for the activity of a variable
+to its degree. However, I also want to allow the user to specify the initial
+values for the variables, in cases where they may have some idea of which
+variables are "better", and I am not sure how this can be done, i.e. how I
+can pass user defined values to a IntBranchMerit function:
+
+(..IntBranchMerit)(const Space &home, IntVar x, int i)
+
+what I would like to pass to this function is an array that defines the
+initial values (array[i] would give the value intended for x (i.e. 
+vars[i])).
+
+A possible issue I had with declaring the IntBranchMerit function is that I
+had to use Space, rather than GecodeSpace, which is the class I
+defined:
+
+class GecodeSpace : public Gecode::MinimizeSpace {....}
+
+i.e., I had to declare merit as:
+
+double merit(const Space& solver, IntVar x, int i)
+
+This probably reflects my (lack of) C++ knowledge...
+
+if I do have to use Space, then I cannot even pass a user specified field
+via GecodeSpace to merit function -- and I am not sure if this is the right
+thing to do anyway, as the data I want to pass is for a specific search,
+rather than something global to the space itself.
+
+
+On a somewhat related note: it seems to make sense to me to allow the user
+to set the initial values for the AFC of each variable, because the degree
+may not always be the best initial value. Am I correct that this is
+difficult to do, as the AFC value for each variable is computed from summing
+the AFC values for the constraints involving that variable?
+
+Thanks in advance for any information/help!
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kellen at cretin.net  Sun Jul 20 17:00:45 2014
+From: kellen at cretin.net (kellen at cretin.net)
+Date: Sun, 20 Jul 2014 16:00:45 +0100
+Subject: [gecode-users] node count
+Message-ID: <20140720150045.GA16378@cretin.net>
+
+Hej!
+
+I have a custom variable implementation where I am printing the value
+selections to the terminal as they happen. I can see that a number of
+values are being chosen, but when I print the statistics for the DFS
+search engine it always returns stat.node as 0.
+
+Is there something I'm missing here? I would have expected each value
+choice to increment the node count.
+
+My models directly extend Gecode::Space if that makes any difference.
+
+Cheers,
+Kellen
+
+
+From cschulte at kth.se  Tue Jul 22 15:54:09 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 22 Jul 2014 15:54:09 +0200
+Subject: [gecode-users] node count
+In-Reply-To: <20140720150045.GA16378@cretin.net>
+References: <20140720150045.GA16378@cretin.net>
+Message-ID: <003d01cfa5b4$6a527980$3ef76c80$@kth.se>
+
+Hi,
+
+I don't really see what you are doing. But anyway: have you tried Gist to
+see what search does?
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of kellen at cretin.net
+Sent: Sunday, July 20, 2014 05:01 PM
+To: users at gecode.org
+Subject: [gecode-users] node count
+
+Hej!
+
+I have a custom variable implementation where I am printing the value
+selections to the terminal as they happen. I can see that a number of values
+are being chosen, but when I print the statistics for the DFS search engine
+it always returns stat.node as 0.
+
+Is there something I'm missing here? I would have expected each value choice
+to increment the node count.
+
+My models directly extend Gecode::Space if that makes any difference.
+
+Cheers,
+Kellen
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kellen at cretin.net  Tue Jul 22 20:31:03 2014
+From: kellen at cretin.net (kellen at cretin.net)
+Date: Tue, 22 Jul 2014 19:31:03 +0100
+Subject: [gecode-users] node count
+In-Reply-To: <003d01cfa5b4$6a527980$3ef76c80$@kth.se>
+References: <20140720150045.GA16378@cretin.net>
+	<003d01cfa5b4$6a527980$3ef76c80$@kth.se>
+Message-ID: <20140722183103.GA20543@cretin.net>
+
+> I don't really see what you are doing. 
+
+
+My code is basically:
+
+    Search::Options so;
+    so.stop = CombinedStop::create(0, 0, 120000, true);
+    CombinedStop::installCtrlHandler(true);
+    DFS<BenchmarkBase> e(s, so);
+    Search::Statistics stat = e.statistics();
+    BenchmarkBase* ex = e.next();
+    while(ex != NULL) {
+        ex->print(out);
+        delete ex;
+        ex = e.next();
+    }
+    std::cerr
+      << "\tpropagations: " << stat.propagate << std::endl
+      << "\tnodes:        " << stat.node << std::endl
+      << "\tfailures:     " << stat.fail << std::endl
+      << "\trestarts:     " << stat.restart << std::endl
+      << "\tno-goods:     " << stat.nogood << std::endl
+      << "\tpeak depth:   " << stat.depth << std::endl
+      << std::endl;
+
+
+In which my benchmarking model (a class derived from BenchmarkBase) uses my
+custom brancher and value selection. When the val() method of my value
+selection class is called, I am printing out some debugging information, so I
+can see that it is making a value choice. 
+
+I would have expected that `stat.node` would be increased each time the value 
+selection function is called, but it always returns `0`.
+
+Is that clearer?
+
+> But anyway: have you tried Gist to see what search does?
+
+I haven't tried gist as I'm running my code on a server without X installed.
+I guess that's the next step if I can't figure out what's going on.
+
+Cheers,
+Kellen
+
+
+From cschulte at kth.se  Wed Jul 23 20:02:12 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 23 Jul 2014 20:02:12 +0200
+Subject: [gecode-users] node count
+In-Reply-To: <20140722183103.GA20543@cretin.net>
+References: <20140720150045.GA16378@cretin.net>	<003d01cfa5b4$6a527980$3ef76c80$@kth.se>
+	<20140722183103.GA20543@cretin.net>
+Message-ID: <007b01cfa6a0$3b3b3d70$b1b1b850$@kth.se>
+
+You access the statistics before you actually start to search. That's wrong:
+the statistics returned is always wrt the current state of the search. So,
+what you want to do is to access stat() after you do the search.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of kellen at cretin.net
+> Sent: Tuesday, July 22, 2014 8:31 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] node count
+> 
+> > I don't really see what you are doing.
+> 
+> 
+> My code is basically:
+> 
+>     Search::Options so;
+>     so.stop = CombinedStop::create(0, 0, 120000, true);
+>     CombinedStop::installCtrlHandler(true);
+>     DFS<BenchmarkBase> e(s, so);
+>     Search::Statistics stat = e.statistics();
+>     BenchmarkBase* ex = e.next();
+>     while(ex != NULL) {
+>         ex->print(out);
+>         delete ex;
+>         ex = e.next();
+>     }
+>     std::cerr
+>       << "\tpropagations: " << stat.propagate << std::endl
+>       << "\tnodes:        " << stat.node << std::endl
+>       << "\tfailures:     " << stat.fail << std::endl
+>       << "\trestarts:     " << stat.restart << std::endl
+>       << "\tno-goods:     " << stat.nogood << std::endl
+>       << "\tpeak depth:   " << stat.depth << std::endl
+>       << std::endl;
+> 
+> 
+> In which my benchmarking model (a class derived from BenchmarkBase) uses
+my
+> custom brancher and value selection. When the val() method of my value
+> selection class is called, I am printing out some debugging information,
+so I can
+> see that it is making a value choice.
+> 
+> I would have expected that `stat.node` would be increased each time the
+value
+> selection function is called, but it always returns `0`.
+> 
+> Is that clearer?
+> 
+> > But anyway: have you tried Gist to see what search does?
+> 
+> I haven't tried gist as I'm running my code on a server without X
+installed.
+> I guess that's the next step if I can't figure out what's going on.
+> 
+> Cheers,
+> Kellen
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kellen at cretin.net  Thu Jul 24 09:58:22 2014
+From: kellen at cretin.net (kellen at cretin.net)
+Date: Thu, 24 Jul 2014 08:58:22 +0100
+Subject: [gecode-users] node count
+In-Reply-To: <007b01cfa6a0$3b3b3d70$b1b1b850$@kth.se>
+References: <20140720150045.GA16378@cretin.net>
+	<003d01cfa5b4$6a527980$3ef76c80$@kth.se>
+	<20140722183103.GA20543@cretin.net>
+	<007b01cfa6a0$3b3b3d70$b1b1b850$@kth.se>
+Message-ID: <20140724075822.GA5014@cretin.net>
+
+> You access the statistics before you actually start to search. That's wrong:
+> the statistics returned is always wrt the current state of the search. So,
+> what you want to do is to access stat() after you do the search.
+
+Ah, of course. That is obvious in retrospect!
+
+Thanks!
+Kellen
+
+

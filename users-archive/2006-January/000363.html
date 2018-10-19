@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Unexpected propagation/search behaviour
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Unexpected%20propagation/search%20behaviour&In-Reply-To=%3C43D4FF39.2070305%40student.chalmers.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000362.html">
+   <LINK REL="Next"  HREF="000364.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Unexpected propagation/search behaviour</H1>
+    <B>Lars Otten</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Unexpected%20propagation/search%20behaviour&In-Reply-To=%3C43D4FF39.2070305%40student.chalmers.se%3E"
+       TITLE="[gecode-users] Unexpected propagation/search behaviour">ottenl at student.chalmers.se
+       </A><BR>
+    <I>Mon Jan 23 17:07:21 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000362.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+        <LI>Next message: <A HREF="000364.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#363">[ date ]</a>
+              <a href="thread.html#363">[ thread ]</a>
+              <a href="subject.html#363">[ subject ]</a>
+              <a href="author.html#363">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Attached you find all code related to my propagator, below are the essential
+parts of the main program. I hope that is sufficient...
+
+Any ideas will be greatly appreciated!
+
+/Lars
+
+
+/*
+ * tailassi.cc (excerpts)
+ */
+
+using namespace std;
+
+class Activity;
+vector&lt;Activity&gt; activities;
+
+class Tail : public Example {
+protected:
+  // predecessor, successor and vehicle variables
+  IntVarArray suc, pre, veh;
+public:
+
+  using Space::nextRand; // int (*nextRand) (const int&amp;)
+
+  /// Actual model
+  Tail(const Options&amp; opt);
+
+  /// Constructor for cloning \a s
+  Tail(bool share, Tail&amp; s) : Example(share,s) {
+    nextRand = s.nextRand;
+    pre.update(this, share, s.pre);
+    suc.update(this, share, s.suc);
+    veh.update(this, share, s.veh);
+  }
+
+  /// Print solution
+  virtual void print(void);
+
+  /// Copy during cloning
+  virtual Space* copy(bool share) {
+    return new Tail(share,*this);
+  }
+};
+
+int nextRandom(const int&amp; max);
+
+int main(int argc, char** argv) {
+  Options opt(&quot;Tail assignment&quot;);
+  opt.iterations = 20000;
+  opt.parse(argc,argv);
+  parseData(opt.file); // parses the datafile
+
+  opt.fptr = &amp;nextRandom;
+  srand(opt.seed);
+
+  Example::run&lt;Tail,DFS&gt;(opt);
+
+  return 0;
+}
+
+
+Tail::Tail(const Options&amp; opt) :
+  suc(this,noOfAct),
+  pre(this,noOfAct),
+  veh(this,noOfAct)
+{
+
+//... Variable initialisation
+
+  distinct(this,suc);
+
+  // check for overlaps in case of restricted acitivities
+  for (int i=0; i&lt;noOfAct; ++i) {
+    if (activities[i].restricted) {
+      const set&lt;int&gt;&amp; s = activities[i].overlappingActs;
+      if (s.size() != 0) {
+        IntVarArray arr(this,s.size() + 1);
+        int j=0;
+        for (set&lt;int&gt;::iterator it = s.begin(); it != s.end(); ++it) {
+          arr[j++] = veh[*it];
+        }
+        arr[j] = veh[i]; // add current act. no to set
+        distinct(this,arr);
+      }
+    }
+  }
+
+  inverse(this,suc,pre);
+  tunneling(this,suc,pre,veh, &amp;fwOverlap);
+
+  branch(this, suc, BVAR_DEGREE_MIN, BVAL_MAX);
+
+}
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 425 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.cc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.cc</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.hh
+Type: text/x-c++hdr
+Size: 1419 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.hh">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.hh</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 1755 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment-0001.cc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment-0001.cc</A>&gt;
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: tunneling.icc
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.asc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.asc</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000362.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+	<LI>Next message: <A HREF="000364.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#363">[ date ]</a>
+              <a href="thread.html#363">[ thread ]</a>
+              <a href="subject.html#363">[ subject ]</a>
+              <a href="author.html#363">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

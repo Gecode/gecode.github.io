@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] reified linear sum of booleans
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3Cop.ue0e3pl4qa8xjr%40demerzel.cs.kuleuven.be%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001751.html">
+   <LINK REL="Next"  HREF="001753.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] reified linear sum of booleans</H1>
+    <B>Tias Guns</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20reified%20linear%20sum%20of%20booleans&In-Reply-To=%3Cop.ue0e3pl4qa8xjr%40demerzel.cs.kuleuven.be%3E"
+       TITLE="[gecode-users] reified linear sum of booleans">tias.guns at cs.kuleuven.be
+       </A><BR>
+    <I>Mon Jul 28 18:08:06 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001751.html">[gecode-users] Gecode::MemoryExhausted
+</A></li>
+        <LI>Next message: <A HREF="001753.html">[gecode-users] reified linear sum of booleans
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1752">[ date ]</a>
+              <a href="thread.html#1752">[ thread ]</a>
+              <a href="subject.html#1752">[ subject ]</a>
+              <a href="author.html#1752">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Greetings,
+
+I'm using a model in which I rely heavily on reified linear sums of  
+booleans. Unfortunately the existing boolean reified linear sum  
+implementatiom is horribly slow for this ! To overcome this, I'm currently  
+channeling all boolean variables to integers, and posting the reified  
+linear sum over the integers. This gives incredibly faster runtimes.
+
+The first batch of constraints are regular reified linear sums, they are  
+constructed by reading a binary matrix and creating an IntArgs 'row' which  
+contains 0 or 1 (out or in). This 'row' is multiplied by an array of  
+decision variables, each representing one column. Doing so selects the  
+desired subset of those variables after which they are constrained and  
+reified to the variable representing that row:
+for (int r = 0; r!=nr_r;r++ ) {
+   // make row
+   for (int c = 0; c!=nr_c;c++ ) {
+     row[c] = (1-tdb[r][c]); // complement
+   }
+   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+}
+here, the col_vars is an IntVarArgs that is channeled to corresponding  
+BoolVars.
+
+The second batch of constraints are imply-reified linear sums, having one  
+sided reification. Because one-sided reification is not implemented in  
+gecode directly, an extra auxiliary variable and constraint is used to  
+manage it:
+for (int c = 0; c!=nr_c;c++ ) {
+   // make col
+   for (int r = 0; r!=nr_r;r++ ) {
+     col[r] = tdb[r][c];
+   }
+   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation, reformulation  
+is) col_aux[c] =&lt; col_varsBool[c]
+   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+}
+similarly as above, row_vars is an IntVarArgs channeled to corresponding  
+BoolVars.
+
+
+This model works very well but still, I'm wondering if there would be a  
+better or cleaner way to model this, and if there are any plans to improve  
+the reified linear sum of boolean constraints.
+
+
+Kind regards,
+Tias
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001751.html">[gecode-users] Gecode::MemoryExhausted
+</A></li>
+	<LI>Next message: <A HREF="001753.html">[gecode-users] reified linear sum of booleans
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1752">[ date ]</a>
+              <a href="thread.html#1752">[ thread ]</a>
+              <a href="subject.html#1752">[ subject ]</a>
+              <a href="author.html#1752">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

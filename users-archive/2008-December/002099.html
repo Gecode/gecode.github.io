@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Quicksort bug
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C4eff48ac0812151903y7def9e91y5f2a3a9b9c8e441f%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002097.html">
+   <LINK REL="Next"  HREF="002100.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Quicksort bug</H1>
+    <B>Michal D.</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Quicksort%20bug&In-Reply-To=%3C4eff48ac0812151903y7def9e91y5f2a3a9b9c8e441f%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Quicksort bug">michal.dobrogost at gmail.com
+       </A><BR>
+    <I>Tue Dec 16 04:03:40 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002097.html">[gecode-users] Quicksort bug
+</A></li>
+        <LI>Next message: <A HREF="002100.html">[gecode-users] Quicksort bug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2099">[ date ]</a>
+              <a href="thread.html#2099">[ thread ]</a>
+              <a href="subject.html#2099">[ subject ]</a>
+              <a href="author.html#2099">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Christian,
+
+&gt;<i>  - Gecode's quicksort uses O(log n) stackspace: it will always push the
+</I>&gt;<i> larger array onto the stack,
+</I>&gt;<i>   which will be at least n/2 long! That's O(log n).
+</I>
+I completely missed this, that's a very nice property to have! =)
+
+
+&gt;<i>  - There is no difference (in principle) whether you use a strict or
+</I>&gt;<i> non-strict ordering (as the complement
+</I>&gt;<i>   will be the opposite).
+</I>
+Nevertheless, I think this is where the problem stems from. Strictness
+can be a problem if the code makes assumptions about it. Partition()
+seems to depend on strictness:
+
+Suppose the array is completely sorted and consists of very many
+duplicate elements. Specifically there are many elements past R that
+have the same value as (*R). Then we can imagine a situation in which
+line sort.icc:121 is executed many times and i goes arbitrarily far
+past the R pointer (since (*i) == (*R) and thus (*i) &lt;= (*R) and thus
+lt(*i, R*)). This would be impossible if the comparison was strict.
+Continuing the trace, we reenter quicksort() with L &gt; R (ie. L is to
+the right of R).
+
+
+&gt;<i> The only problem I see is that 32 was not good enough.
+</I>
+Indeed, on 64-bit machines 32 is too small. I don't follow why the
+&quot;sizeof(int)&quot;? I think this value should be something along the lines
+of:
+
+sizeof(void*) * std::numeric_limits&lt;unsigned char&gt;::digits
+
+Ie. 64 on current 64bit systems.
+
+
+&gt;<i> Could you be so kind
+</I>&gt;<i> and retry what happens with replacing 32 by &quot;sizeof(int) * 64&quot;?
+</I>
+The sort is still running after 10 minutes and counting.
+
+Using my dynamic stack I recall that I left it running for longer than
+30 minutes before finally killing it.
+
+
+&gt;<i>
+</I>&gt;<i> Then, how much memory does your machine have?
+</I>
+4Gb of memory in the system + 8gb of pagefile. The program uses 600Mb
+when I use the strict comparison operator and at a depth of about 30
+spaces. Note that it works fine with a depth 32 stack so long as the
+comparison operator is strict.
+
+
+&gt;<i> Then, how deep does the stack
+</I>&gt;<i> grow for Quicksort and how many elements does the array have you try to
+</I>&gt;<i> sort?
+</I>
+The TupleSet contains 4728252 tuples. If you want, I can send you the data.
+
+I recall that with the dynamic stack the stack depth exceeded 1024.
+
+Cheers,
+
+Michal
+
+
+&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.it.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Michal D.
+</I>&gt;<i> Sent: Saturday, December 13, 2008 7:03 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Quicksort bug
+</I>&gt;<i>
+</I>&gt;<i> Hi All,
+</I>&gt;<i>
+</I>&gt;<i> I had one hell of a bug hunt recently. What started as a crash on winxp x64
+</I>&gt;<i> ended up in a &quot;true&quot; being changed to a &quot;false&quot; on freebsd (so I could
+</I>&gt;<i> sanely debug into the Gecode code base). The culprit was FullTupleCompare
+</I>&gt;<i> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in the
+</I>&gt;<i> cross-fire.
+</I>&gt;<i>
+</I>&gt;<i> FullTupleCompare implements a less than or equal (&lt;=) operator and not a
+</I>&gt;<i> strict less than (&lt;) operator. In effect, for the case where both tuples are
+</I>&gt;<i> identical up the arity it returns true instead of false.
+</I>&gt;<i> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+</I>&gt;<i>
+</I>&gt;<i> The gecode quicksort assumes that its stack will never exceed a depth of 32.
+</I>&gt;<i> This was getting exceeded when used on a large tupleset with the above
+</I>&gt;<i> comparison operator. However, in general this assumption is wrong. Stack
+</I>&gt;<i> usage for quicksort is worst case O(n) depending on the values that are
+</I>&gt;<i> chosen for the pivot! Exceeding the stack current results in an outright
+</I>&gt;<i> crash as an out of bounds pointer is dereferenced. I toyed with two fixes:
+</I>&gt;<i>
+</I>&gt;<i> 1) make push return a success/failure code and if the push fails then call
+</I>&gt;<i> quicksort recursively instead of pushing onto the stack. See sort.icc.diff.
+</I>&gt;<i>
+</I>&gt;<i> 2) start off with an static stack and expand it dynamically if it's
+</I>&gt;<i> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the right
+</I>&gt;<i> ways to go about grabbing memory. There is no performance penalty if the
+</I>&gt;<i> stack depth does not exceed 32 entries. See sort.icc.diff2.
+</I>&gt;<i>
+</I>&gt;<i> Both solutions have the overhead of checking if the stack is going to exceed
+</I>&gt;<i> 32 entries on a push. This doesn't seem significant especially since most of
+</I>&gt;<i> the work should be happening in partition. My vote is for fix # 2 as it
+</I>&gt;<i> seems to be the more robust solution (no potential stack overflow).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Michal
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002097.html">[gecode-users] Quicksort bug
+</A></li>
+	<LI>Next message: <A HREF="002100.html">[gecode-users] Quicksort bug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2099">[ date ]</a>
+              <a href="thread.html#2099">[ thread ]</a>
+              <a href="subject.html#2099">[ subject ]</a>
+              <a href="author.html#2099">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

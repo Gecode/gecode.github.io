@@ -1,0 +1,314 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Gecode BAB Questions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20BAB%20Questions&In-Reply-To=%3Cop.wunzlhbpvqe8uy%40hiller-t60p%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003850.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Gecode BAB Questions</H1>
+    <B>Dean Hiller</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20BAB%20Questions&In-Reply-To=%3Cop.wunzlhbpvqe8uy%40hiller-t60p%3E"
+       TITLE="[gecode-users] Gecode BAB Questions">hiller at employees.org
+       </A><BR>
+    <I>Thu Mar 28 17:18:43 CET 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003850.html">[gecode-users] BinPacking constraint crash
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3849">[ date ]</a>
+              <a href="thread.html#3849">[ thread ]</a>
+              <a href="subject.html#3849">[ subject ]</a>
+              <a href="author.html#3849">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>I am very new to constraint programming, but by using the MPG have been
+able to develop a fairly large Gecode application in a relatively
+short period of time. Due to my lack of constraint programming
+knowledge, I may not have selected the best methods for solving
+my particular problem, but what I have done appears to work
+with two exceptions which are shown in the attached program.
+This program is the minimum program I could generate to show
+what I am doing and to replicate my two problems.
+
+In the attached program, I have an IntVar X which is to
+receive ordered values from Y0, Y1, and Y2 along with an
+indication of from which Y the value came.
+
+The first problem I am having is that the program stops
+after finding 6 of the 10 possible solutions and I don't
+understand how to debug this problem.
+
+The second problem I am having is that the program fails
+to find any solutions if the constraints on one of the
+Y variables results in it not having any solutions even
+though there are other solutions for X.
+
+I have this problem with both the 3.7.3 release and the
+4.0.0 release.
+
+I would appreciate any assistance you can provide.
+
+Thanks,
+Dean
+
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+typedef struct Y_s
+{
+	IntVar nY;
+} Y;
+
+class GecodeTest3 : public Space {
+protected:
+	int m_nMin;
+	int m_nMax;
+	int m_nNumY;
+	IntVar m_nX;
+	IntVarArray m_naX;
+	BoolVarArray m_baX;
+	int m_nYIndex;
+	IntVar m_nY0;
+	IntVar m_nY1;
+	IntVar m_nY2;
+	IntVar *m_vY[3];
+	IntVar m_nCost;
+	IntVarArray m_nValue;
+	IntArgs m_nC;
+
+public:
+	void AddY(int* naY, int nSize)
+	{
+		m_nYIndex++;
+		*m_vY[m_nYIndex] = IntVar(*this, m_nMin, m_nMax);
+		ConstrainY(naY, nSize);
+		rel(*this, m_naX[m_nYIndex] == *m_vY[m_nYIndex]);
+		rel(*this, m_baX[m_nYIndex] == (m_naX[m_nYIndex] == m_nX));
+		branch(*this, *m_vY[m_nYIndex], INT_VAL_MIN());
+	}
+
+	void ConstrainY(int *naY, int nSize)
+	{
+		IntArgs nTemp;
+		for (int i = 0; i &lt; nSize; i++)
+		{
+			nTemp &lt;&lt; naY[i];
+		}
+		IntSet nsTemp(nTemp);
+		dom(*this, *m_vY[m_nYIndex], nsTemp);
+	}
+
+	int GetX(void)
+	{
+		return m_nX.val();
+	}
+
+	int GetWhichY(void)
+	{
+		return m_nValue[0].val();
+	}
+
+	int GetCost(void)
+	{
+		return m_nCost.val();
+	}
+
+	GecodeTest3(int nMin, int nMax, int nNumY) :
+	m_nMin(nMin), m_nMax(nMax), m_nNumY(nNumY), m_nYIndex(-1)
+	{
+		if (m_nMin &lt; 0)
+		{
+			std::cout &lt;&lt; &quot;m_nMin must not be negative&quot; &lt;&lt; std::endl;
+		}
+		m_vY[0] = &amp;m_nY0;
+		m_vY[1] = &amp;m_nY1;
+		m_vY[2] = &amp;m_nY2;
+		m_nX = IntVar(*this, m_nMin, m_nMax);
+		m_naX = IntVarArray(*this, m_nNumY, m_nMin, m_nMax);
+		m_baX = BoolVarArray(*this, m_nNumY, 0, 1);
+		m_nC &lt;&lt; 1;
+		m_nC &lt;&lt; m_nNumY;
+		int nTemp =  m_nNumY * m_nMax + m_nNumY;
+		m_nCost = IntVar(*this, 0, nTemp);
+		nTemp = m_nMax &gt; nNumY ? m_nMax : nNumY;
+		m_nValue = IntVarArray(*this, 2, 0, nTemp);
+		rel(*this, m_nX == min(m_naX));
+		element(*this, m_baX, m_nValue[0], 1);
+		rel(*this, m_nValue[1] == m_nX);
+		linear(*this, m_nC, m_nValue, IRT_EQ, m_nCost);
+		branch(*this, m_naX, INT_VAR_MIN_MIN(), INT_VAL_MIN());
+		branch(*this, m_nX, INT_VAL_MIN());
+		branch(*this, m_nValue[0], INT_VAL_MIN());
+	}
+	// search support
+	GecodeTest3(bool share, GecodeTest3&amp; s) : Space(share, s) {
+		// s.print(std::cout);
+		m_vY[0] = &amp;m_nY0;
+		m_vY[1] = &amp;m_nY1;
+		m_vY[2] = &amp;m_nY2;
+		m_nX.update(*this, share, s.m_nX);
+		m_naX.update(*this, share, s.m_naX);
+		m_baX.update(*this, share, s.m_baX);
+		m_nCost.update(*this, share, s.m_nCost);
+		m_nY0.update(*this, share, s.m_nY0);
+		m_nY1.update(*this, share, s.m_nY1);
+		m_nY2.update(*this, share, s.m_nY2);
+		m_nValue.update(*this, share, s.m_nValue);
+		for (int i = 0; i &lt; 2; i++)
+		{
+			m_nC &lt;&lt; s.m_nC[i];
+		}
+	}
+	virtual Space* copy(bool share) {
+		return new GecodeTest3(share,*this);
+	}
+	virtual void constrain(const Space&amp; _b)
+	{
+		const GecodeTest3&amp; b = static_cast&lt;const GecodeTest3&amp;&gt;(_b);
+		rel(*this, m_nCost &gt; b.m_nCost);
+	}
+
+	// print solution
+	void print(std::ostream&amp; os) const {
+		os &lt;&lt; &quot;m_nX:         &quot; &lt;&lt; m_nX &lt;&lt; std::endl;
+		for (int i = 0;  i &lt; m_naX.size(); i++)
+		{
+			os &lt;&lt; &quot;m_naX[&quot; &lt;&lt; i &lt;&lt; &quot;]:   &quot; &lt;&lt; m_naX[i] &lt;&lt; &quot;   &quot;;
+               os &lt;&lt; &quot;m_baX[&quot; &lt;&lt; i &lt;&lt; &quot;]:   &quot; &lt;&lt; m_baX[i] &lt;&lt; &quot;   &quot;;
+			os &lt;&lt; std::endl;
+		}
+		for (int i = 0; i &lt; m_nC.size(); i++)
+		{
+			os &lt;&lt; &quot;m_nC[&quot; &lt;&lt; i &lt;&lt; &quot;]:  &quot; &lt;&lt; m_nC[i] &lt;&lt; std::endl;
+		}
+		for (int i = 0; i &lt; m_nValue.size(); i++)
+		{
+			os &lt;&lt; &quot;m_nValue[&quot; &lt;&lt; i &lt;&lt; &quot;]:  &quot; &lt;&lt; m_nValue[i] &lt;&lt; std::endl;
+		}
+		os &lt;&lt; &quot;m_nCost:  &quot; &lt;&lt; m_nCost &lt;&lt; std::endl;
+	}
+};
+
+void BuildAndSolve(bool b2Y1)
+{
+	int Y0[3] = {1, 3, 7};
+	int Y1[3] = {2, 4, 5};
+	int Y2[4] = {4, 6, 8, 9};
+	int Y1a[3] = {1, 3, 8};
+
+	// create model and search engine
+	GecodeTest3 *m = new GecodeTest3(0, 20, 3);
+	m-&gt;AddY(Y0, sizeof(Y0)/sizeof(int));
+	m-&gt;AddY(Y1, sizeof(Y1)/sizeof(int));
+	if (b2Y1)
+	{
+		m-&gt;ConstrainY(Y1a, sizeof(Y1a)/sizeof(int));
+	}
+	m-&gt;AddY(Y2, sizeof(Y2)/sizeof(int));
+	// m-&gt;print(std::cout);
+	bool bFailed = true;
+	BAB&lt;GecodeTest3&gt; e(m);
+	GecodeTest3 *s;
+	while (((s = e.next()) != 0))
+	{
+		bFailed = false;
+		// s-&gt;print(std::cout);
+		int X = s-&gt;GetX();
+		int whichY = s-&gt;GetWhichY();
+		int nCost = s-&gt;GetCost();
+		std::cout &lt;&lt; &quot;X=&quot; &lt;&lt; X &lt;&lt; &quot; from Y&quot; &lt;&lt; whichY &lt;&lt; &quot;. Cost=&quot; &lt;&lt; nCost &lt;&lt;
+std::endl;
+		// std::cout &lt;&lt; std::endl;
+		delete s;
+	}
+	
+	if (bFailed)
+	{
+		std::cout &lt;&lt; &quot;Model failed&quot; &lt;&lt; std::endl;
+	}
+
+	Search::Statistics stat = e.statistics();
+	std::cout &lt;&lt; &quot;Search Statistics&quot; &lt;&lt; std::endl;
+	std::cout &lt;&lt; &quot;  Propagations: &quot; &lt;&lt; stat.propagate &lt;&lt; std::endl;
+	std::cout &lt;&lt; &quot;  Nodes:        &quot; &lt;&lt; stat.node &lt;&lt; std::endl;
+	std::cout &lt;&lt; &quot;  Failures:     &quot; &lt;&lt; stat.fail &lt;&lt; std::endl;
+	std::cout &lt;&lt; &quot;  Depth:        &quot; &lt;&lt; stat.depth &lt;&lt; std::endl;
+	int nPeakMemoryKB = static_cast&lt;int&gt;((stat.memory+1023) / 1024);
+	std::cout &lt;&lt; &quot;  Peak Memory   &quot; &lt;&lt; nPeakMemoryKB &lt;&lt; &quot;KB&quot; &lt;&lt; std::endl;
+	std::cout &lt;&lt; std::endl;
+	delete m;
+	return;
+}
+
+int GecodeTest3Main(int argc, char* argv[])
+{
+	std::cout &lt;&lt; &quot;One Y1 constraint&quot; &lt;&lt; std::endl;
+	BuildAndSolve(false);
+	std::cout &lt;&lt; &quot;Two Y1 constraints&quot; &lt;&lt; std::endl;
+	BuildAndSolve(true);
+	return 0;
+}
+
+Sample output:
+One Y1 constraint
+X=1 from Y0. Cost=3
+X=2 from Y1. Cost=7
+X=3 from Y0. Cost=9
+X=4 from Y1. Cost=13
+X=4 from Y2. Cost=14
+X=5 from Y1. Cost=16
+Search Statistics
+     Propagations: 149
+     Nodes:        21
+     Failures:     5
+     Depth:        3
+     Peak Memory   8KB
+
+Two Y1 constraints
+Model failed
+Search Statistics
+     Propagations: 0
+     Nodes:        0
+     Failures:     1
+     Depth:        0
+     Peak Memory   4KB
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003850.html">[gecode-users] BinPacking constraint crash
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3849">[ date ]</a>
+              <a href="thread.html#3849">[ thread ]</a>
+              <a href="subject.html#3849">[ subject ]</a>
+              <a href="author.html#3849">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,36 @@
+<tt>
+Thank&nbsp;you&nbsp;very&nbsp;much&nbsp;Guido!&nbsp;just&nbsp;what&nbsp;I&nbsp;needed&nbsp;:)&nbsp;.&lt;br&gt;&lt;br&gt;&lt;div&nbsp;class=&quot;gmail_quote&quot;&gt;2010/8/2&nbsp;Guido&nbsp;Tack&nbsp;&lt;span&nbsp;dir=&quot;ltr&quot;&gt;&amp;lt;&lt;a&nbsp;href=&quot;mailto:tack@gecode.org&quot;&gt;tack@gecode.org&lt;/a&gt;&amp;gt;&lt;/span&gt;&lt;br&gt;&lt;blockquote&nbsp;class=&quot;gmail_quote&quot;&nbsp;style=&quot;margin:0&nbsp;0&nbsp;0&nbsp;.8ex;border-left:1px&nbsp;#ccc&nbsp;solid;padding-left:1ex;&quot;&gt;<br>
+&lt;div&gt;&lt;div&nbsp;class=&quot;h5&quot;&gt;Gustavo&nbsp;Gutierrez&nbsp;wrote:&lt;br&gt;<br>
+&amp;gt;&nbsp;Probably&nbsp;what&nbsp;I&nbsp;am&nbsp;going&nbsp;to&nbsp;ask&nbsp;is&nbsp;not&nbsp;useful&nbsp;or&nbsp;is&nbsp;just&nbsp;to&nbsp;much&nbsp;particular&nbsp;to&nbsp;my&nbsp;case&nbsp;that&nbsp;does&nbsp;not&nbsp;worth&nbsp;have&nbsp;it,&nbsp;however,&nbsp;I&nbsp;wouldn&amp;#39;t&nbsp;hesitate&nbsp;to&nbsp;ask&nbsp;:).&lt;br&gt;<br>
+&amp;gt;&lt;br&gt;<br>
+&amp;gt;&nbsp;While&nbsp;writing&nbsp;a&nbsp;propagator&nbsp;I&nbsp;realized&nbsp;that&nbsp;keeping&nbsp;some&nbsp;state&nbsp;in&nbsp;it&nbsp;will&nbsp;lower&nbsp;the&nbsp;complexity.&nbsp;This&nbsp;propagator&nbsp;is&nbsp;on&nbsp;a&nbsp;finite&nbsp;set&nbsp;variable&nbsp;and&nbsp;what&nbsp;I&nbsp;does&nbsp;is&nbsp;to&nbsp;track&nbsp;&amp;quot;the&nbsp;new&nbsp;elements&nbsp;in&nbsp;the&nbsp;glb&amp;quot;&nbsp;and&nbsp;propagate&nbsp;according&nbsp;with&nbsp;its&nbsp;semantics.&nbsp;At&nbsp;the&nbsp;beginning&nbsp;to&nbsp;I&nbsp;was&nbsp;using&nbsp;an&nbsp;std::set&nbsp;to&nbsp;keep&nbsp;the&nbsp;&amp;quot;old&nbsp;values&amp;quot;&nbsp;and&nbsp;using&nbsp;it&nbsp;to&nbsp;compute&nbsp;the&nbsp;new&nbsp;elements:&lt;br&gt;<br>
+<br>
+&amp;gt;&lt;br&gt;<br>
+&amp;gt;&nbsp;new&nbsp;elements&nbsp;=&nbsp;current&nbsp;glb&nbsp;\&nbsp; old&nbsp;values&lt;br&gt;<br>
+&amp;gt;&lt;br&gt;<br>
+&amp;gt;&nbsp;The&nbsp;propagator&nbsp;was&nbsp;performing&nbsp;well&nbsp;but&nbsp;the&nbsp;memory&nbsp;consumption&nbsp;and&nbsp;the&nbsp;time&nbsp;to&nbsp;compute&nbsp;the&nbsp;intersection&nbsp;was&nbsp;quite&nbsp;high.&nbsp;After&nbsp;realizing&nbsp;that&nbsp;I&nbsp;start&nbsp;using&nbsp;an&nbsp;IntSet&nbsp;instead&nbsp;of&nbsp;a&nbsp;std::set&nbsp;to&nbsp;keep&nbsp;the&nbsp;data.&nbsp;The&nbsp;advantage&nbsp;is&nbsp;that&nbsp;the&nbsp;IntSet&nbsp;stores&nbsp;ranges&nbsp;and&nbsp;then&nbsp;is&nbsp;*hopefully*&nbsp;less&nbsp;memory&nbsp;hungry.&nbsp;There&nbsp;is&nbsp;also&nbsp;something&nbsp;nice,&nbsp;you&nbsp;can&nbsp;use&nbsp;all&nbsp;the&nbsp;iterators&nbsp;with&nbsp;them&nbsp;(range&nbsp;iterators).&nbsp;The&nbsp;only&nbsp;problem&nbsp;is&nbsp;that&nbsp;they&nbsp;are&nbsp;intended&nbsp;to&nbsp;be&nbsp;used&nbsp;only&nbsp;to&nbsp;represent&nbsp;variable&nbsp;domains&nbsp;in&nbsp;initializations&nbsp;or&nbsp;when&nbsp;posting&nbsp;constraints&nbsp;and&nbsp;this&nbsp;is&nbsp;reflected&nbsp;in&nbsp;the&nbsp;fact&nbsp;that&nbsp;they&nbsp;lack&nbsp;of&nbsp;&amp;quot;modification&nbsp;operations&amp;quot;&nbsp;in&nbsp;the&nbsp;API.&lt;br&gt;<br>
+<br>
+&amp;gt;&lt;br&gt;<br>
+&amp;gt;&nbsp;In&nbsp;my&nbsp;case&nbsp;I&nbsp;have&nbsp;to&nbsp;copy&nbsp;construct&nbsp;all&nbsp;the&nbsp;time&nbsp;and&nbsp;this&nbsp;is&nbsp;of&nbsp;course&nbsp;time&nbsp;consuming&nbsp;but&nbsp;far&nbsp;better&nbsp;than&nbsp;my&nbsp;previous&nbsp;implementation.&nbsp;Now&nbsp;my&nbsp;question,&nbsp;sounds&nbsp;it&nbsp;very&nbsp;crazy&nbsp;or&nbsp;stupid&nbsp;to&nbsp;use&nbsp;the&nbsp;IntSet&nbsp;in&nbsp;this&nbsp;way?,&nbsp;if&nbsp;it&nbsp;does&nbsp;not,&nbsp;then&nbsp;it&nbsp;would&nbsp;be&nbsp;nice&nbsp;to&nbsp;provide&nbsp;an&nbsp;specialization&nbsp;(via&nbsp;inheritance,&nbsp;for&nbsp;instance)&nbsp;that&nbsp;allows&nbsp;this&nbsp;kind&nbsp;of&nbsp;use.&nbsp; What&nbsp;do&nbsp;you&nbsp;think?&lt;br&gt;<br>
+<br>
+&lt;br&gt;<br>
+&lt;/div&gt;&lt;/div&gt;Yes,&nbsp;that&nbsp;is&nbsp;very&nbsp;crazy&nbsp;:-)&nbsp; However,&nbsp;there&amp;#39;s&nbsp;a&nbsp;different&nbsp;data&nbsp;structure&nbsp;you&nbsp;can&nbsp;use&nbsp;in&nbsp;exactly&nbsp;the&nbsp;way&nbsp;you&nbsp;describe.&nbsp; It&amp;#39;s&nbsp;actually&nbsp;two&nbsp;data&nbsp;structures,&nbsp;LUBndSet&nbsp;and&nbsp;GLBndSet.&nbsp; The&nbsp;difference&nbsp;is&nbsp;in&nbsp;the&nbsp;available&nbsp;operations:&nbsp;LUBndSet&nbsp;has&nbsp;intersectI&nbsp;and&nbsp;excludeI&nbsp;operations&nbsp;(i.e.,&nbsp;it&nbsp;can&nbsp;shrink),&nbsp;and&nbsp;GLBndSet&nbsp;has&nbsp;an&nbsp;includeI&nbsp;operation&nbsp;(i.e.,&nbsp;it&nbsp;can&nbsp;grow).&nbsp;These&nbsp;sets&nbsp;are&nbsp;used&nbsp;internally&nbsp;for&nbsp;implementing&nbsp;set&nbsp;variables.&nbsp;In&nbsp;your&nbsp;case,&nbsp;you&amp;#39;d&nbsp;use&nbsp;a&nbsp;GLBndSet&nbsp;(and&nbsp;includeI&nbsp;the&nbsp;current&nbsp;lower&nbsp;bound&nbsp;after&nbsp;each&nbsp;propagation).&nbsp; There&amp;#39;s&nbsp;an&nbsp;iterator&nbsp;called&nbsp;BndSetRanges&nbsp;that&nbsp;you&nbsp;can&nbsp;use&nbsp;on&nbsp;these&nbsp;sets.&lt;br&gt;<br>
+<br>
+You&nbsp;should&nbsp;have&nbsp;a&nbsp;look&nbsp;at&nbsp;the&nbsp;IntersectionN&nbsp;propagator,&nbsp;it&nbsp;uses&nbsp;a&nbsp;LUBndSet&nbsp;to&nbsp;remember&nbsp;the&nbsp;intersection&nbsp;of&nbsp;all&nbsp;assigned&nbsp;variables&nbsp;it&nbsp;has&nbsp;seen&nbsp;so&nbsp;far&nbsp;(it&nbsp;will&nbsp;show&nbsp;you&nbsp;how&nbsp;to&nbsp;initialize&nbsp;and&nbsp;copy&nbsp;these&nbsp;sets).&lt;br&gt;<br>
+&lt;br&gt;<br>
+Cheers,&lt;br&gt;<br>
+&nbsp; &nbsp; &nbsp; &nbsp; Guido&lt;br&gt;<br>
+&lt;br&gt;<br>
+--&lt;br&gt;<br>
+Guido&nbsp;Tack,&nbsp;&lt;a&nbsp;href=&quot;http://people.cs.kuleuven.be/~guido.tack/&quot;&nbsp;target=&quot;_blank&quot;&gt;http://people.cs.kuleuven.be/~guido.tack/&lt;/a&gt;&lt;br&gt;<br>
+&lt;br&gt;<br>
+&lt;br&gt;<br>
+&lt;br&gt;<br>
+&lt;br&gt;<br>
+_______________________________________________&lt;br&gt;<br>
+Gecode&nbsp;users&nbsp;mailing&nbsp;list&lt;br&gt;<br>
+&lt;a&nbsp;href=&quot;mailto:users@gecode.org&quot;&gt;users@gecode.org&lt;/a&gt;&lt;br&gt;<br>
+&lt;a&nbsp;href=&quot;https://www.gecode.org/mailman/listinfo/gecode-users&quot;&nbsp;target=&quot;_blank&quot;&gt;https://www.gecode.org/mailman/listinfo/gecode-users&lt;/a&gt;&lt;br&gt;<br>
+&lt;/blockquote&gt;&lt;/div&gt;&lt;br&gt;&lt;br&nbsp;clear=&quot;all&quot;&gt;&lt;br&gt;--&nbsp;&lt;br&gt;Gustavo&nbsp;Gutierrez&lt;br&gt;<br>
+
+</tt>

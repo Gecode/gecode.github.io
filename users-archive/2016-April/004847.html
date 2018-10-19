@@ -1,0 +1,337 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Smart pointer in propagator?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Smart%20pointer%20in%20propagator%3F&In-Reply-To=%3C4f1c429012b54318b6e2029772f0e7ba%40DEROTE13DE07.global.corp.sap%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004846.html">
+   <LINK REL="Next"  HREF="004848.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Smart pointer in propagator?</H1>
+    <B>Drescher, Conrad</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Smart%20pointer%20in%20propagator%3F&In-Reply-To=%3C4f1c429012b54318b6e2029772f0e7ba%40DEROTE13DE07.global.corp.sap%3E"
+       TITLE="[gecode-users] Smart pointer in propagator?">conrad.drescher at sap.com
+       </A><BR>
+    <I>Thu Apr 14 15:57:43 CEST 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004846.html">[gecode-users] Smart pointer in propagator?
+</A></li>
+        <LI>Next message: <A HREF="004848.html">[gecode-users] Smart pointer in propagator?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4847">[ date ]</a>
+              <a href="thread.html#4847">[ thread ]</a>
+              <a href="subject.html#4847">[ subject ]</a>
+              <a href="author.html#4847">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Christian,
+
+and thanks again. I think I found something: It seems whether class Propagator has a virtual destructor depends on the compiler. In class Actor in core.hpp it says:
+
+#ifndef __GNUC__
+    /// Not used (uses dispose instead)
+    static void  operator delete(void* p);
+#endif
+    /// Not used
+    static void* operator new(size_t s);
+    //@}
+#ifdef __GNUC__
+  public:
+    /// To avoid warnings from GCC
+    GECODE_KERNEL_EXPORT virtual ~Actor(void);
+    /// Not used (uses dispose instead)
+    static void  operator delete(void* p);
+#endif
+
+Do you think we could get the same on Windows without causing any harm?
+
+Best wishes,
+Conrad
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>] 
+Sent: Mittwoch, 13. April 2016 20:58
+To: Drescher, Conrad &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">conrad.drescher at sap.com</A>&gt;; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Smart pointer in propagator?
+
+* PGP - S/MIME Signed by an unverified key: 13.04.2016 at 20:57:41
+
+Hi Conrad,
+
+That's easy: you do not define a destructor, that's why you get a warning:
+ - The class Propagator has a virtual destructor just to avoid warnings.
+ - Just define a destructor and the warning goes away.
+
+I guess it comes from the fact that your Less class has a member which
+itself has a destructor.
+
+I'd rather ignore it but if you do like warnings at least add an
+assert(false) to the destructor!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+-----Original Message-----
+From: Drescher, Conrad [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">conrad.drescher at sap.com</A>] 
+Sent: Wednesday, April 13, 2016 16:57
+To: Schulte, Christian &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Smart pointer in propagator?
+
+Hi Christian,
+
+and many thanks for confirming we're not completely off the track.
+
+We have a propagator that has a shared_ptr member. We follow your basic
+guidelines and in the propagator dispose function we reset the shared
+pointer (decreasing the reference count). On Linux with gcc 4.8 that
+compiles fine and behaves as expected. On Windows with Visual Studio 2015 we
+get a warning: 
+
+warning C4265: 'Less': class has virtual functions, but destructor is not
+virtual
+           instances of this class may not be destructed correctly
+
+(and we're living in a &quot;warning-as-errors&quot;-environment).
+
+Would you happen to have some advice on that issue, too?
+
+Many thanks!
+Conrad
+
+The example below can be used to reproduce the behavior on Windows (it
+extends the na&#239;ve Less-constraint from MPG with an otherwise useless shared
+pointer).
+
+#include &lt;memory&gt;
+#include &lt;iostream&gt;
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/support.hh&gt;
+
+using namespace Gecode;
+
+class TestObj{
+private:
+	int i;
+public:
+	TestObj(int i1) : i(i1) {
+		std::cout &lt;&lt; &quot;Constructed&quot; &lt;&lt; std::endl;
+	}
+	~TestObj(){
+		std::cout &lt;&lt; &quot;Destroyed&quot; &lt;&lt; std::endl;
+	}
+};
+
+class Less : public Propagator {
+protected:
+	Int::IntView x0, x1;
+	std::shared_ptr&lt;TestObj&gt; p;
+public:
+	// posting
+	Less(Space&amp; home, Int::IntView y0, Int::IntView y1,
+std::shared_ptr&lt;TestObj&gt; p1) : Propagator(home), x0(y0), x1(y1) {
+		x0.subscribe(home,*this,Int::PC_INT_DOM);
+		x1.subscribe(home,*this,Int::PC_INT_DOM);
+		p = p1;
+        home.notice(*this, AP_DISPOSE);
+	}
+	static ExecStatus post(Space&amp; home, Int::IntView x0, Int::IntView
+x1, std::shared_ptr&lt;TestObj&gt; p) {
+		(void) new (home) Less(home,x0,x1,p); return ES_OK;
+	}
+	// disposal
+	virtual size_t dispose(Space&amp; home) {
+		x0.cancel(home,*this,Int::PC_INT_DOM);
+		x1.cancel(home,*this,Int::PC_INT_DOM);
+		p.reset();
+		//p.~shared_ptr&lt;TestObj&gt;();
+		(void) Propagator::dispose(home);
+		home.ignore(*this,AP_DISPOSE);
+		return sizeof(*this);
+	}
+	// copying
+	Less(Space&amp; home, bool share, Less&amp; prop) :
+Propagator(home,share,prop), p(prop.p) {
+		x0.update(home,share,prop.x0);
+		x1.update(home,share,prop.x1);
+	}
+	virtual Propagator* copy(Space&amp; home, bool share) {
+		return new (home) Less(home,share,*this);
+	}
+	// cost computation
+	virtual PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+		return PropCost::binary(PropCost::LO);
+	}
+	// propagation
+	virtual ExecStatus propagate(Space&amp; home, const ModEventDelta&amp;) {
+		if (x0.le(home,x1.max()) == Int::ME_INT_FAILED)
+			return ES_FAILED;
+		if (x1.gr(home,x0.min()) == Int::ME_INT_FAILED)
+			return ES_FAILED;
+		if (x0.assigned() &amp;&amp; x1.assigned())
+			return home.ES_SUBSUMED(*this);
+		else return ES_NOFIX;
+	}
+};
+
+void less(Space&amp; home, IntVar x0, IntVar x1, std::shared_ptr&lt;TestObj&gt; p) {
+// constraint post function
+	Int::IntView y0(x0), y1(x1);
+	if (Less::post(home,y0,y1,p) != ES_OK) home.fail();
+
+}
+
+class ExampleSpace : public Script {
+protected:
+  /// Arrays of ints
+  IntVarArray intvars;
+public:
+  /// Actual model
+
+  ExampleSpace(const Options&amp; opt) : Script(opt), intvars(*this,2,0,10) {
+     std::shared_ptr&lt;TestObj&gt; p = std::make_shared&lt;TestObj&gt;(1);
+	 less(*this,intvars[0],intvars[1],p);
+	 branch(*this, intvars, INT_VAR_SIZE_MIN(), INT_VAL_MIN() );
+  }
+  /// Print solution
+  virtual void
+  print(std::ostream&amp; os) const {
+    os &lt;&lt; &quot;\t&quot; &lt;&lt; intvars &lt;&lt; std::endl;
+  }
+
+  /// Constructor for cloning \a s
+  ExampleSpace(bool share, ExampleSpace&amp; s) : Script(share,s) {
+    intvars.update(*this, share, s.intvars);
+  }
+  /// Copy during cloning
+  virtual Space*
+  copy(bool share) {
+    return new ExampleSpace(true,*this);
+  }
+};
+
+int
+main(int argc, char* argv[]) {
+  Options opt(&quot;ExampleSpace&quot;);
+  opt.parse(argc,argv);
+  Script::run&lt;ExampleSpace,DFS,Options&gt;(opt);
+  return 0;
+}
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Dienstag, 12. April 2016 21:22
+To: Drescher, Conrad &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">conrad.drescher at sap.com</A>&gt;; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Smart pointer in propagator?
+
+Hi Conrad,
+
+There is a catch here: storing a smart pointer (or any other data structure
+that has a destructor) in an object is okay, provided that:
+1. You register the propagator so that its dispose() member function is
+called when the propagator is deleted. But that you say you do.
+2. You add an explicit call to the smart pointer's destructor in the
+propagator's dispose() function, for example: if p is the smart pointer of
+say type unique_ptr&lt;T&gt;, then add p.&#168;unique_ptr&lt;T&gt;() to the dispose() member
+function.
+
+That should do the trick. Is this worth being added as a tip to MPG?
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.gecode.org/~schulte">http://www.gecode.org/~schulte</A> Professor of Computer
+Science, KTH, mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS,
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Drescher, Conrad
+Sent: Friday, April 8, 2016 14:24
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Smart pointer in propagator?
+
+Hi there,
+
+we were thinking of storing a smart pointer in a propagator that is asking
+its home space to call its dispose()-method upon home space deletion. In the
+absence of a virtual destructor for class Propagator we're not sure it's a
+smart idea. Reading MPG 30.2 did not entirely clarify the situation - could
+you please elaborate?
+
+Many thanks!
+Conrad
+
+Dr. Conrad Drescher
+Senior Developer | AI DEV SCM PLM DE
+SAP SE | Dietmar-Hopp-Allee 16 | 69190 Walldorf | Germany T +49 6227 7-77888
+|<i> M +49 160 90684883 | E mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">conrad.drescher at sap.com</A> <A HREF="http://www.sap.com/">http://www.sap.com/</A>
+</I>
+Please consider the impact on the environment before printing this e-mail.
+
+
+Pflichtangaben/Mandatory Disclosure Statements: 
+<A HREF="http://www.sap.com/company/legal/impressum.epx">http://www.sap.com/company/legal/impressum.epx</A>
+
+Diese E-Mail kann Betriebs- oder Gesch&#228;ftsgeheimnisse oder sonstige
+vertrauliche Informationen enthalten. Sollten Sie diese E-Mail irrt&#252;mlich
+erhalten haben, ist Ihnen eine Kenntnisnahme des Inhalts, eine
+Vervielf&#228;ltigung oder Weitergabe der E-Mail ausdr&#252;cklich untersagt. Bitte
+benachrichtigen Sie uns und vernichten Sie die empfangene E-Mail. Vielen
+Dank. 
+
+This e-mail may contain trade secrets or privileged, undisclosed, or
+otherwise confidential information. If you have received this e-mail in
+error, you are hereby notified that any review, copying, or distribution of
+it is strictly prohibited. Please inform us immediately and destroy the
+original transmittal. Thank you for your cooperation.
+
+
+
+* Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+* Issuer: TERENA - Unverified
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004846.html">[gecode-users] Smart pointer in propagator?
+</A></li>
+	<LI>Next message: <A HREF="004848.html">[gecode-users] Smart pointer in propagator?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4847">[ date ]</a>
+              <a href="thread.html#4847">[ thread ]</a>
+              <a href="subject.html#4847">[ subject ]</a>
+              <a href="author.html#4847">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Gecode terminates on incomplete solution
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20terminates%20on%20incomplete%20solution&In-Reply-To=%3C5399AA8E.2010108%40gmx.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004453.html">
+   <LINK REL="Next"  HREF="004455.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Gecode terminates on incomplete solution</H1>
+    <B>Philipp Keck</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Gecode%20terminates%20on%20incomplete%20solution&In-Reply-To=%3C5399AA8E.2010108%40gmx.de%3E"
+       TITLE="[gecode-users] Gecode terminates on incomplete solution">philipp.keck at gmx.de
+       </A><BR>
+    <I>Thu Jun 12 15:26:38 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004453.html">[gecode-users] Constraints on &quot;wave&quot; form
+</A></li>
+        <LI>Next message: <A HREF="004455.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4454">[ date ]</a>
+              <a href="thread.html#4454">[ thread ]</a>
+              <a href="subject.html#4454">[ subject ]</a>
+              <a href="author.html#4454">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Guido, Hi Max,
+
+thank you very much for taking your time! Your tips and ideas just 
+doubled the size of my todo list :-), that's why it took me so long to 
+reply. In particular, the tip about pseudo-boolean solvers was great. I 
+am now experimenting with Sat4J (both PB and MinCostSAT), which is a lot 
+slower than Gecode, but solves some more problem instances on which 
+Gecode needs to search a large tree. But because it is only quick on 
+decision problems and too inefficient for my optimization problems, I 
+continue my experiments with Gecode.
+
+About the initial problem mentioned in the subject of this mail: 
+BoolVarArray was indeed the solution. I didn't copy it from the examples 
+at first, because I don't know in advance how much variables there will 
+be, so I thought I couldn't use it. But by first reading all the 
+variables to a list and then placing them in an (uninitialized) 
+BoolVarArray works fine. Thank you!
+
+Thanks to Gist, I can now try to experiment with different kinds of 
+constraints. It looks like the search space is simply too large right 
+now. With Gist activated, Gecode explores around 500 failures every two 
+seconds - no matter which way I model the constraints. In comparison to 
+the entire (binary) search tree, that's almost nothing. After a few 
+hours, more than 90% of the search tree is still linear (to the left), 
+i.e. has not yet been explored.
+
+Is it true that alldifferent/distinct/atmost/count only exist for 
+integer variables? And according to the manual BoolVars can't be casted 
+to IntVars. But maybe this is a solution (I don't know enough C++ to 
+tell): As described in the manual Figure 27.4, one could use 
+Gecode::Int::Count::LqInt&lt;VX,VY&gt; to implement a &quot;count&quot; or &quot;atmost&quot; 
+method that accepts a BoolVarArray instead of a IntVarArray. Is that 
+possible?
+The kind of constraint I need should ensure that at most one of a given 
+list of boolean variables is true. So it could be &quot;all different except 
+0&quot;, &quot;distinct except 0&quot;, &quot;Multi-XOR&quot;, or it could be modeled with 
+&quot;atmost&quot; or &quot;count&quot;, if they are able to handle boolean variables.
+
+Best,
+Philipp
+
+Am 19.05.2014 09:36, schrieb Max Ostrowski:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> On 05/18/2014 06:38 PM, Philipp Keck wrote:
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I am new to Gecode and also to Constraint Programming. While my first
+</I>&gt;&gt;<i> problem may be a general CP question (so off-topic here? In that case
+</I>&gt;&gt;<i> ignore it please.), my second problem is Gecode-specific.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> My first problem is that Gecode either finds a solution immediately
+</I>&gt;&gt;<i> (&lt;1ms) and without any backtracking (peak-depth equals explored
+</I>&gt;&gt;<i> nodes-1), or takes longer than I want to wait (at least 2 hours). This
+</I>&gt;&gt;<i> problem might be related to my problem instances, because or-tools shows
+</I>&gt;&gt;<i> exactly the same behaviour. My problem instances have 1,000 to 10,000
+</I>&gt;&gt;<i> boolean variables and 400 to 2,500 constraints. There are both large and
+</I>&gt;&gt;<i> small instances that can be solved within milliseconds, and both large
+</I>&gt;&gt;<i> and small instances that take a long time. For those that take more than
+</I>&gt;&gt;<i> 2 hours, I still am sure that there is a solution, because Gurobi finds
+</I>&gt;&gt;<i> one when I formulate the same problem as an LP.
+</I>&gt;&gt;<i> How could I improve the running time of Gecode here? Does adding more
+</I>&gt;&gt;<i> constraints make finding (any feasible) solution faster (because the
+</I>&gt;&gt;<i> search space is more restricted and therefore the search tree is
+</I>&gt;&gt;<i> smaller) or slower (because there are simply less solutions)? Should I
+</I>&gt;&gt;<i> add redundant constraints?
+</I>&gt;<i> If adding more constraints make the search faster or not can not be said
+</I>&gt;<i> in general.
+</I>&gt;<i> Adding redundant constraints is always worse a try, if you can improve
+</I>&gt;<i> propagation strength with it.
+</I>&gt;&gt;<i> For a set of boolean variables, if I want at most one of them to be 1,
+</I>&gt;&gt;<i> is it better to add &quot;a+b+c+... &lt;= 1&quot; using a linear-Constraint, or
+</I>&gt;&gt;<i> should I use &quot;a!=b&quot;, &quot;a!=c&quot;, &quot;b!=c&quot;, ... instead? Unfortunately I have
+</I>&gt;&gt;<i> difficulties finding out the answers by experimenting because Gecode
+</I>&gt;&gt;<i> runs for such long times. Is there a way to get some output during the
+</I>&gt;&gt;<i> computation?
+</I>&gt;<i> The first thing you can try is using global cosntraints that exactly fit
+</I>&gt;<i> your needs.
+</I>&gt;<i> In this case, allDifferent or atmost, etc...
+</I>&gt;<i> They usually perform much better than linear constraints.
+</I>&gt;<i> (It may be the case that Gecode automatically detects this in your case
+</I>&gt;<i> and replaces the linear constraints with the global constraints. )
+</I>&gt;<i>
+</I>&gt;<i> Furthermore, your problem sounds like a PB(Pseudo-Boolean) problem.
+</I>&gt;<i> So maybe you should try a PB solver.
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;&gt;<i> My second problem is a weird behaviour of Gecode terminating with some
+</I>&gt;&gt;<i> variables remaining unassigned:
+</I>&gt;&gt;<i> My models have the following structure: I have boolean variables only
+</I>&gt;&gt;<i> and two kinds of constraints. The first kind of constraints requires
+</I>&gt;&gt;<i> exactly c variables out of a certain subset to be 1, e.g. &quot;a+c+d+x+y =
+</I>&gt;&gt;<i> 3&quot; or &quot;a+b = 1&quot;. The second kind allows at most one variable to be 1,
+</I>&gt;&gt;<i> e.g. &quot;a+b+r &lt;= 1&quot;. That's all.
+</I>&gt;&gt;<i> As mentioned above, Gecode either terminates immediately, or takes a
+</I>&gt;&gt;<i> very long time. However, I have a particular problem instances that
+</I>&gt;&gt;<i> makes Gecode terminate and report &quot;solutions: 1&quot; without having all the
+</I>&gt;&gt;<i> variables set. So there are variables that still have [0..1] instead of
+</I>&gt;&gt;<i> a specific value and val() throws ValOfUnassignedVar. Why does Gecode
+</I>&gt;&gt;<i> terminate before it has a solution?
+</I>&gt;&gt;<i> I call it like this:
+</I>&gt;&gt;<i> branch(*this, allVariablesArgs, INT_VAR_NONE(), INT_VAL_MIN());
+</I>&gt;&gt;<i> Using this call on the other hand makes Gecode compute forever (i.e.
+</I>&gt;&gt;<i> more than 2 hours):
+</I>&gt;&gt;<i> branch(*this, allVariablesArgs, INT_VAR_RND(someRnd),
+</I>&gt;&gt;<i> INT_VAL_RND(someOtherRnd));
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The problem might be related to how I implemented the copy function. I
+</I>&gt;&gt;<i> have my variables inside a std::map&lt;std::string, BoolVar&gt; *and* inside a
+</I>&gt;&gt;<i> BoolVarArgs and clone them like this:
+</I>&gt;&gt;<i> variablesMap = s.variablesMap;
+</I>&gt;&gt;<i> allVariablesArgs = BoolVarArgs(s.allVariablesArgs);
+</I>&gt;&gt;<i> I don't know if that's the correct way to go. In particular, my copy
+</I>&gt;&gt;<i> implementation never uses the share-parameter.
+</I>&gt;&gt;<i> After reading the thread &quot;Integer Variable Randomization&quot; on this
+</I>&gt;&gt;<i> mailing list, I also tried setting -c-d and -a-d to high values, but
+</I>&gt;&gt;<i> still the copy-method was called many times.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you for any help!
+</I>&gt;&gt;<i> Philipp
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Platform: Windows 7 x64, Visual Studio 2013 x64, Gecode 4.2.1
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004453.html">[gecode-users] Constraints on &quot;wave&quot; form
+</A></li>
+	<LI>Next message: <A HREF="004455.html">[gecode-users] Gecode terminates on incomplete solution
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4454">[ date ]</a>
+              <a href="thread.html#4454">[ thread ]</a>
+              <a href="subject.html#4454">[ subject ]</a>
+              <a href="author.html#4454">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

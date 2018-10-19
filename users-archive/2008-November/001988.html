@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] member function branching
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20member%20function%20branching&In-Reply-To=%3C63b5c8b00811130036w18df2935p6684891a9c423ce8%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001987.html">
+   <LINK REL="Next"  HREF="001997.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] member function branching</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20member%20function%20branching&In-Reply-To=%3C63b5c8b00811130036w18df2935p6684891a9c423ce8%40mail.gmail.com%3E"
+       TITLE="[gecode-users] member function branching">zayenz at gmail.com
+       </A><BR>
+    <I>Thu Nov 13 09:36:10 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001987.html">[gecode-users] member function branching
+</A></li>
+        <LI>Next message: <A HREF="001997.html">[gecode-users] member function branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1988">[ date ]</a>
+              <a href="thread.html#1988">[ thread ]</a>
+              <a href="subject.html#1988">[ subject ]</a>
+              <a href="author.html#1988">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+The MemberFunctionBranch that was posted earlier can not be used in
+the way that you propose. The problem is in the part:
+    next_var = &lt;some calculations to figure out next branching variable&gt;;
+Due to batch recomputation, the MemberFunctionBranch must not depend
+on the values of the variables, since the space in most cases has not
+been propagated yet. For example, changing the c-d-parameter should
+give you different results.
+
+While we are aware that some helpers for creating branchings would be
+good, we don't know how to implement a good and simple system yet. On
+the bright side, while a full custom branching (as in queen-armies.cc
+and black-hole.cc) might not be very pretty, they are fairly easy to
+write. The main parts are status, description, and commit. The parts
+are described below
+ - status
+    Checks whether there is anything left to do for this branching.
+Typically looks for an unassigned variable.
+ - description
+    Computes the actual branching to be done. How to do the branching
+is encoded in a BranchingDesc, and is returned. This description is
+often used in another Space than the Space it was constructed in, so
+the description can not contain a variable for example, only
+unchanging data such as variable-array indices.
+ - commit
+    Performs alternative number a of a BranchingDesc d. Note that
+commit cannot rely on anything about the variables - they may have
+fewer values, more values, or even an incomparable set of values to
+the values of the variables when the description was computed. This is
+due to batch recomputation and/or optimization.
+
+
+Hope this helps,
+Mikael
+
+On Thu, Nov 13, 2008 at 5:05 AM, Patrik Haslum &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">patrik.haslum at anu.edu.au</A>&gt; wrote:
+&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Looking for hints for an easy way to customise the branching strategy in
+</I>&gt;<i> a solver implemented using Gecode, I searched through the archive of
+</I>&gt;<i> this list and found the MemberFunctionBranch code (thread &quot;staged
+</I>&gt;<i> search&quot;, from early october this year).
+</I>&gt;<i>
+</I>&gt;<i> I found this piece of code very helpful in implementing my branching
+</I>&gt;<i> strategy. (So many thanks to both the one who asked the original
+</I>&gt;<i> question and the one who provided the answer!) Abstracted a bit, what
+</I>&gt;<i> I've done is:
+</I>&gt;<i>
+</I>&gt;<i> In &quot;my space&quot; constructor:
+</I>&gt;<i>
+</I>&gt;<i>  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+</I>&gt;<i>
+</I>&gt;<i> in my_branching_function:
+</I>&gt;<i>
+</I>&gt;<i>  next_var = &lt;some calculations to figure out next branching variable&gt;;
+</I>&gt;<i>  IntVarArgs va(1);
+</I>&gt;<i>  va[0] = my_var_array[next_var];
+</I>&gt;<i>  branch(this, va, ..., ...);
+</I>&gt;<i>  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+</I>&gt;<i>  return ES_OK;
+</I>&gt;<i>
+</I>&gt;<i> That is, the branching function re-installs itself as the next branch
+</I>&gt;<i> point after each &quot;real&quot; branching point (on a variable).
+</I>&gt;<i>
+</I>&gt;<i> However, when used with branch-and-bound search, this gives me incorrect
+</I>&gt;<i> results: On one example problem, I get a sequence of solutions with
+</I>&gt;<i> decreasing cost, 486, 344, 324, 304, after which it reports that there
+</I>&gt;<i> are no more solutions. But if I start the same branch-and-bound search
+</I>&gt;<i> with an initial upper bound of, say, 300, it finds a solution with cost
+</I>&gt;<i> 284 (which is what I think is optimal).
+</I>&gt;<i>
+</I>&gt;<i> Does anyone know why this happens?
+</I>&gt;<i>
+</I>&gt;<i> As an additional comment, something I would appreciate in future
+</I>&gt;<i> versions of Gecode is some more &quot;helpers&quot; for custom branching, like the
+</I>&gt;<i> MemberFunctionBranch. It may be possible to implement any branching
+</I>&gt;<i> strategy with the current interface, but it's not exactly easy. Why not
+</I>&gt;<i> a branch function/object that takes as argument a vector of constraint
+</I>&gt;<i> expressions (the kind that you post by &quot;post(tt(...))&quot;, don't remember
+</I>&gt;<i> what the type is called) and branches by posting one of them? That would
+</I>&gt;<i> make it easy to use a branching such as for example, &quot;x &lt; y&quot; or &quot;y &gt; x&quot;,
+</I>&gt;<i> which I don't know how to do (simply!) with the current interface.
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A> Haslum
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001987.html">[gecode-users] member function branching
+</A></li>
+	<LI>Next message: <A HREF="001997.html">[gecode-users] member function branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1988">[ date ]</a>
+              <a href="thread.html#1988">[ thread ]</a>
+              <a href="subject.html#1988">[ subject ]</a>
+              <a href="author.html#1988">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

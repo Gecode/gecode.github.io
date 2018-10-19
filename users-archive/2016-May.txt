@@ -1,0 +1,909 @@
+From alexander.schiendorfer at informatik.uni-augsburg.de  Mon May  2 11:04:36 2016
+From: alexander.schiendorfer at informatik.uni-augsburg.de (Alexander Schiendorfer)
+Date: Mon, 2 May 2016 11:04:36 +0200
+Subject: [gecode-users] Reified MiniZinc Decompositions of Globals are
+	overridden for Gecode
+Message-ID: <57271824.80202@informatik.uni-augsburg.de>
+
+Hi everyone,
+
+I have a question regarding the MiniZinc globals definition of lex_less 
+(among others) in Gecode,
+in particular how their reified version is treated.
+
+Say I wanted to solve the following model:
+
+% test if lexless can be used in reified mode
+array[1..5] of var 0..10: x;
+array[1..5] of var 0..10: y;
+
+include "globals.mzn";
+constraint alldifferent(x);
+
+constraint lex_less(x, y) \/ x[1] = 9;
+solve satisfy;
+
+
+Since, for example, the Gecode-specific "lex_less.mzn" file overwrites 
+all predicate definitions there, we also
+lose the "lex_less_int_reif" decomposition specified in the standard 
+MZN-library.
+
+Wouldn't it be nicer to have this decomposition available until there is 
+a reified variant of "lex_less"?
+I tried copying "predicate lex_less_int_reif(...)" from "std" to 
+Gecode's "lex_less.mzn" and it made the above
+model solvable.
+
+Is there a particular reason for not doing this?
+
+Cheers,
+Alex
+
+-- 
+Alexander Schiendorfer, M.Sc.
+Institute for Software & Systems Engineering
+Raum 3043, Geb?ude N
+Universit?t Augsburg
+
+Web: http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer/
+Tel.: +49 (821) 598 - 2196
+E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de
+
+SASO?16 - Tenth IEEE International Conference on Self-Adaptive and Self Organizing Systems
+Augsburg, Germany, 12-16 September 2016
+@SASO2016Conf
+http://uni-augsburg.de/saso2016 ? Submit! Announce! Participate!
+
+
+
+From guido.tack at monash.edu  Tue May  3 05:12:28 2016
+From: guido.tack at monash.edu (Guido Tack)
+Date: Tue, 3 May 2016 13:12:28 +1000
+Subject: [gecode-users] Reified MiniZinc Decompositions of Globals are
+	overridden for Gecode
+In-Reply-To: <57271824.80202@informatik.uni-augsburg.de>
+References: <57271824.80202@informatik.uni-augsburg.de>
+Message-ID: <75AC0229-3E4A-4FD6-A128-474A4C5D2D1F@monash.edu>
+
+Hi,
+
+that?s indeed a bit of a design problem in the current MiniZinc library.  We?ve got a solution for it (at the MiniZinc level, so solvers wouldn?t have to change) but it?s not fully implemented yet (it would involve having standard decompositions for all reified globals, and solvers being able to override them if they have dedicated reified constraints).
+
+Cheers,
+Guido
+
+-- 
+GUIDO TACK                  
+Senior Lecturer
+
+Information Technology
+Monash University
+Level 6, Room 6.40, Building H, Caulfield Campus
+900 Dandenong Road
+Caulfield East VIC 3145
+Australia
+
+T: +61 3 9903 1214                      
+E: guido.tack at monash.edu <mailto:guido.tack at monash.edu>
+http://www.csse.monash.edu/~guidot/ <http://www.csse.monash.edu/~guidot/>
+
+
+> On 2 May 2016, at 7:04 PM, Alexander Schiendorfer <alexander.schiendorfer at informatik.uni-augsburg.de> wrote:
+> 
+> Hi everyone,
+> 
+> I have a question regarding the MiniZinc globals definition of lex_less (among others) in Gecode,
+> in particular how their reified version is treated.
+> 
+> Say I wanted to solve the following model:
+> 
+> % test if lexless can be used in reified mode
+> array[1..5] of var 0..10: x;
+> array[1..5] of var 0..10: y;
+> 
+> include "globals.mzn";
+> constraint alldifferent(x);
+> 
+> constraint lex_less(x, y) \/ x[1] = 9;
+> solve satisfy;
+> 
+> 
+> Since, for example, the Gecode-specific "lex_less.mzn" file overwrites all predicate definitions there, we also
+> lose the "lex_less_int_reif" decomposition specified in the standard MZN-library.
+> 
+> Wouldn't it be nicer to have this decomposition available until there is a reified variant of "lex_less"?
+> I tried copying "predicate lex_less_int_reif(...)" from "std" to Gecode's "lex_less.mzn" and it made the above
+> model solvable.
+> 
+> Is there a particular reason for not doing this?
+> 
+> Cheers,
+> Alex
+> 
+> -- 
+> Alexander Schiendorfer, M.Sc.
+> Institute for Software & Systems Engineering
+> Raum 3043, Geb?ude N
+> Universit?t Augsburg
+> 
+> Web: http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer/
+> Tel.: +49 (821) 598 - 2196
+> E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de
+> 
+> SASO?16 - Tenth IEEE International Conference on Self-Adaptive and Self Organizing Systems
+> Augsburg, Germany, 12-16 September 2016
+> @SASO2016Conf
+> http://uni-augsburg.de/saso2016 ? Submit! Announce! Participate!
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160503/4fb10695/attachment.html>
+
+From filip.konvicka at logis.cz  Wed May 18 09:57:15 2016
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Wed, 18 May 2016 09:57:15 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <004f01d190fb$95665e00$c0331a00$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org> <mten1j$f52$1@ger.gmane.org>
+	<004201d0f1fb$dddb3380$99919a80$@kth.se> <mtgsg1$uaj$1@ger.gmane.org>
+	<mulddl$hr5$1@ger.gmane.org> <046601d0ff63$ebf91840$c3eb48c0$@kth.se>
+	<ndlq7v$408$1@ger.gmane.org> <008901d18cda$246e1b90$6d4a52b0$@kth.se>
+	<ndoo75$h9n$1@ger.gmane.org> <ndrtf9$nmi$1@ger.gmane.org>
+	<ndt49c$g4f$1@ger.gmane.org> <004f01d190fb$95665e00$c0331a00$@kth.se>
+Message-ID: <8e678c3d-4811-6a5d-870e-73e7b1316ad9@logis.cz>
+
+Hi,
+
+So, I've spent some time investigating.  Until now I haven't looked into 
+the "new" FloatVar code contributed by Vincent and you guys, and it 
+looks like it inherits some ideas, maybe even files from our initial 
+implementation for Gecode 2.  So, I feel some blame for using Boost's 
+Interval Arithmetic library without investigating enough first: if you 
+look at the documentation homepage, you'll see a big red warning :)
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/interval.htm
+
+which says that the library probably won't work with SSE2 (or at least 
+not out of the box).  But SSE2 is the only option for x64.
+
+On the other hand, I'm not aware of any good alternative to this Boost 
+library.  I think the library is actually quite good (even though it 
+would use some work on supporting SSE2 better).
+
+So I thought I'd play with the library's policies to see if I could make 
+it work with x64.  I looked into float.hh which defines what exact 
+interval datatype is used.  It looks like changing from 
+'rounded_arith_opp' to 'rounded_arith_std' fixes the issues that we're 
+observing.  If you're interested the description of those types is 
+available here:
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/rounding.htm
+
+I've run the Float tests with this change and they all seem to pass. 
+Compared to the _opp version the total runtime running the Float 
+testsuite increased by 50%. This is still fine for me; I haven't 
+compared this with the x86/x87 version.  Maybe Gecode could use some 
+#ifdef to choose between _opp and _std based on whether the 
+compiler/architecture setup is known to be safe for _opp or not.
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> Thanks for all the info and checking. I'll have a look a little later.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Monday, April 4, 2016 09:15
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Hi,
+>
+> You said that you have uploaded packages recently; I assume that it was
+> Gecode-4.4.0-x64-2015.msi.  I compiled and linked using this with MSVC
+> 2015 Update 2 and it also freezes on the testcase.  Replacing this with the
+> MSVC 2013 package (Gecode-4.4.0-x64-2013.msi) works fine, even using the
+> same toolset.
+>
+> Cheers,
+> Filip
+>
+>> Hi,
+>>
+>> I have updated to MSVC 2015 update 2, compiled the current Gecode
+>> trunk for x64, and my testcase from the beginning of this thread still
+>> freezes (the one from Sep 3rd 2015 - I have attached it to this mail
+>> for convenience).
+>>
+>> I also tried running Float::Arithmetic::Div::Sol::A and that test
+>> still fails.  For some reason 'make check' only runs a small subset of
+>> tests, so I ran this manually like this:
+>>
+>> $ test/test -test Float::Arithmetic::Div::Sol::A
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Another try failed with a different seed number:
+>> $ test/test -test Float::Arithmetic::Div Float::Arithmetic::Div::A
+>> +++++ Float::Arithmetic::Div::B +++++ Float::Arithmetic::Div::C +++++
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1975575111 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Thanks,
+>> Filip
+>>
+>>> Christian,
+>>>
+>>> Thanks.  I was referring to this September & October thread - there
+>>> were issues with Gecode freezing on some FloatVar problems (my
+>>> testcase and your "Float::Arithmetic::Div::C") with MSVC 2015, and
+>>> you said then that it might be resolved by not using SSE2 (but that
+>>> Guido would investigate more).  We also identified a number of float
+>>> tests that were failing on GCC 5 (not with GCC 4.9).
+>>>
+>>> I can try re-running our tests here with the current trunk to see if
+>>> something changed - I just thought that I would ask directly whether
+>>> you did something specific to address these issues.  The failures
+>>> seemed a bit non-deterministic...
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> MSVC2015 works for Gecode.4.4.0 since its initial release, I in fact
+>>>> uploaded packages to the Gecode website last week. Since last week
+>>>> (Mar 30) the update 2 to MSVC 2015 finally also compiles the trunk
+>>>> and the upcoming Gecode 5.0.0.
+>>>>
+>>>> Don't know about GCC, though.
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>>
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Friday, April 1, 2016 14:41
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>> Hi Christian,
+>>>>
+>>>> Have you had any chance to look into supporting gcc 5 and MSVC 2015?
+>>>>
+>>>> Thanks,
+>>>> Filip
+>>>>
+>>>>> Hi Filip,
+>>>>>
+>>>>> Thanks for the information. This really looks like a gcc problem.
+>>>>> Guido, can you reproduce this behavior?
+>>>>>
+>>>>> Cheers
+>>>>> Christian
+>>>>>
+>>>>> --
+>>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>>>> cschulte at sics.se
+>>>>>
+>>>>> -----Original Message-----
+>>>>> From: users-bounces at gecode.org
+>>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>>> Sent: Friday, October 2, 2015 09:58 AM
+>>>>> To: users at gecode.org
+>>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>>
+>>>>> Hi,
+>>>>>
+>>>>> We were looking a bit more into 4.4.0 on Linux where we've also hit
+>>>>> some issues.
+>>>>>
+>>>>> All tests worked fine with gcc 4.9.3.  However, with gcc 5.2.0 many
+>>>>> tests failed - see the attachements for details:
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.list
+>>>>>      ... list of failed tests (except two memory fails below)
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.log
+>>>>>      ... log from 'test' for failed tests
+>>>>>
+>>>>> Two tests ran out of memory (allocated several GBs of memory before
+>>>>> getting killed by system):
+>>>>>      Set::Branch::Sparse::3
+>>>>>      Set::Channel::Sorted
+>>>>>
+>>>>> gcc details:
+>>>>> target=x86_64-linux-gnu
+>>>>> GCC_VER=5.2.0
+>>>>> GMP_VER=6.0.0
+>>>>> MPFR_VER=3.1.3
+>>>>> MPC_VER=1.0.3
+>>>>> BINUTILS_VER=2.25
+>>>>>
+>>>>> It could also be a gcc bug of course, hard to tell.
+>>>>>
+>>>>> Thanks,
+>>>>> Filip
+>>>>>
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From cschulte at kth.se  Wed May 18 10:03:12 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 18 May 2016 10:03:12 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <8e678c3d-4811-6a5d-870e-73e7b1316ad9@logis.cz>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>	<mteklg$60h$1@ger.gmane.org>
+	<00f201d0f15a$68174310$3845c930$@kth.se>	<mtem3n$ur8$1@ger.gmane.org>
+	<mten1j$f52$1@ger.gmane.org>	<004201d0f1fb$dddb3380$99919a80$@kth.se>
+	<mtgsg1$uaj$1@ger.gmane.org>	<mulddl$hr5$1@ger.gmane.org>
+	<046601d0ff63$ebf91840$c3eb48c0$@kth.se>	<ndlq7v$408$1@ger.gmane.org>
+	<008901d18cda$246e1b90$6d4a52b0$@kth.se>	<ndoo75$h9n$1@ger.gmane.org>
+	<ndrtf9$nmi$1@ger.gmane.org>	<ndt49c$g4f$1@ger.gmane.org>
+	<004f01d190fb$95665e00$c0331a00$@kth.se>
+	<8e678c3d-4811-6a5d-870e-73e7b1316ad9@logis.cz>
+Message-ID: <04d201d1b0db$ba0fd060$2e2f7120$@kth.se>
+
+Hi Filip,
+
+Thanks a lot for your hard work. That sounds very encouraging, indeed! The
+#ifdef is a piece of cake, of course.
+
+No blame from me on you ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Wednesday, May 18, 2016 09:57
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi,
+
+So, I've spent some time investigating.  Until now I haven't looked into the
+"new" FloatVar code contributed by Vincent and you guys, and it looks like
+it inherits some ideas, maybe even files from our initial implementation for
+Gecode 2.  So, I feel some blame for using Boost's Interval Arithmetic
+library without investigating enough first: if you look at the documentation
+homepage, you'll see a big red warning :)
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/interval.htm
+
+which says that the library probably won't work with SSE2 (or at least not
+out of the box).  But SSE2 is the only option for x64.
+
+On the other hand, I'm not aware of any good alternative to this Boost
+library.  I think the library is actually quite good (even though it would
+use some work on supporting SSE2 better).
+
+So I thought I'd play with the library's policies to see if I could make it
+work with x64.  I looked into float.hh which defines what exact interval
+datatype is used.  It looks like changing from 'rounded_arith_opp' to
+'rounded_arith_std' fixes the issues that we're observing.  If you're
+interested the description of those types is available here:
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/rounding.htm
+
+I've run the Float tests with this change and they all seem to pass. 
+Compared to the _opp version the total runtime running the Float testsuite
+increased by 50%. This is still fine for me; I haven't compared this with
+the x86/x87 version.  Maybe Gecode could use some #ifdef to choose between
+_opp and _std based on whether the compiler/architecture setup is known to
+be safe for _opp or not.
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> Thanks for all the info and checking. I'll have a look a little later.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Filip Konvicka
+> Sent: Monday, April 4, 2016 09:15
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Hi,
+>
+> You said that you have uploaded packages recently; I assume that it 
+> was Gecode-4.4.0-x64-2015.msi.  I compiled and linked using this with 
+> MSVC
+> 2015 Update 2 and it also freezes on the testcase.  Replacing this 
+> with the MSVC 2013 package (Gecode-4.4.0-x64-2013.msi) works fine, 
+> even using the same toolset.
+>
+> Cheers,
+> Filip
+>
+>> Hi,
+>>
+>> I have updated to MSVC 2015 update 2, compiled the current Gecode 
+>> trunk for x64, and my testcase from the beginning of this thread 
+>> still freezes (the one from Sep 3rd 2015 - I have attached it to this 
+>> mail for convenience).
+>>
+>> I also tried running Float::Arithmetic::Div::Sol::A and that test 
+>> still fails.  For some reason 'make check' only runs a small subset 
+>> of tests, so I ran this manually like this:
+>>
+>> $ test/test -test Float::Arithmetic::Div::Sol::A 
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Another try failed with a different seed number:
+>> $ test/test -test Float::Arithmetic::Div Float::Arithmetic::Div::A
+>> +++++ Float::Arithmetic::Div::B +++++ Float::Arithmetic::Div::C +++++
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1975575111 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Thanks,
+>> Filip
+>>
+>>> Christian,
+>>>
+>>> Thanks.  I was referring to this September & October thread - there 
+>>> were issues with Gecode freezing on some FloatVar problems (my 
+>>> testcase and your "Float::Arithmetic::Div::C") with MSVC 2015, and 
+>>> you said then that it might be resolved by not using SSE2 (but that 
+>>> Guido would investigate more).  We also identified a number of float 
+>>> tests that were failing on GCC 5 (not with GCC 4.9).
+>>>
+>>> I can try re-running our tests here with the current trunk to see if 
+>>> something changed - I just thought that I would ask directly whether 
+>>> you did something specific to address these issues.  The failures 
+>>> seemed a bit non-deterministic...
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> MSVC2015 works for Gecode.4.4.0 since its initial release, I in 
+>>>> fact uploaded packages to the Gecode website last week. Since last 
+>>>> week (Mar 30) the update 2 to MSVC 2015 finally also compiles the 
+>>>> trunk and the upcoming Gecode 5.0.0.
+>>>>
+>>>> Don't know about GCC, though.
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>>
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Friday, April 1, 2016 14:41
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>> Hi Christian,
+>>>>
+>>>> Have you had any chance to look into supporting gcc 5 and MSVC 2015?
+>>>>
+>>>> Thanks,
+>>>> Filip
+>>>>
+>>>>> Hi Filip,
+>>>>>
+>>>>> Thanks for the information. This really looks like a gcc problem.
+>>>>> Guido, can you reproduce this behavior?
+>>>>>
+>>>>> Cheers
+>>>>> Christian
+>>>>>
+>>>>> --
+>>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>>> cschulte at sics.se
+>>>>>
+>>>>> -----Original Message-----
+>>>>> From: users-bounces at gecode.org
+>>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>>> Sent: Friday, October 2, 2015 09:58 AM
+>>>>> To: users at gecode.org
+>>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>>
+>>>>> Hi,
+>>>>>
+>>>>> We were looking a bit more into 4.4.0 on Linux where we've also 
+>>>>> hit some issues.
+>>>>>
+>>>>> All tests worked fine with gcc 4.9.3.  However, with gcc 5.2.0 
+>>>>> many tests failed - see the attachements for details:
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.list
+>>>>>      ... list of failed tests (except two memory fails below)
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.log
+>>>>>      ... log from 'test' for failed tests
+>>>>>
+>>>>> Two tests ran out of memory (allocated several GBs of memory 
+>>>>> before getting killed by system):
+>>>>>      Set::Branch::Sparse::3
+>>>>>      Set::Channel::Sorted
+>>>>>
+>>>>> gcc details:
+>>>>> target=x86_64-linux-gnu
+>>>>> GCC_VER=5.2.0
+>>>>> GMP_VER=6.0.0
+>>>>> MPFR_VER=3.1.3
+>>>>> MPC_VER=1.0.3
+>>>>> BINUTILS_VER=2.25
+>>>>>
+>>>>> It could also be a gcc bug of course, hard to tell.
+>>>>>
+>>>>> Thanks,
+>>>>> Filip
+>>>>>
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4623 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20160518/08721b89/attachment.bin>
+
+From Filip.Konvicka at logis.cz  Wed May 18 11:03:56 2016
+From: Filip.Konvicka at logis.cz (Konvicka Filip)
+Date: Wed, 18 May 2016 09:03:56 +0000
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <04d201d1b0db$ba0fd060$2e2f7120$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org> <mten1j$f52$1@ger.gmane.org>
+	<004201d0f1fb$dddb3380$99919a80$@kth.se> <mtgsg1$uaj$1@ger.gmane.org>
+	<mulddl$hr5$1@ger.gmane.org> <046601d0ff63$ebf91840$c3eb48c0$@kth.se>
+	<ndlq7v$408$1@ger.gmane.org> <008901d18cda$246e1b90$6d4a52b0$@kth.se>
+	<ndoo75$h9n$1@ger.gmane.org> <ndrtf9$nmi$1@ger.gmane.org>
+	<ndt49c$g4f$1@ger.gmane.org> <004f01d190fb$95665e00$c0331a00$@kth.se>
+	<8e678c3d-4811-6a5d-870e-73e7b1316ad9@logis.cz>
+	<04d201d1b0db$ba0fd060$2e2f7120$@kth.se>
+Message-ID: <F3693ACFBB4CBE40894F6560386A67BF5A84BF52@EX1.logis.local>
+
+Hi Christian,
+
+Fortunately this wasn't much work in the end...  I'm happy that we can switch to MSVC 2015 now :)  I'll also run the tests in our RHEL and Debian environments to see whether we're good on those platforms as well.
+
+On the Gecode download page you're mentioning some issues with floats on the Mac OS X; I wonder whether those could have the same root cause.  So it may be worth checking whether the problems still persist.
+
+Cheers,
+Filip
+
+-----Original Message-----
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Wednesday, May 18, 2016 10:03 AM
+To: Konvicka Filip; users at gecode.org
+Subject: RE: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi Filip,
+
+Thanks a lot for your hard work. That sounds very encouraging, indeed! The
+#ifdef is a piece of cake, of course.
+
+No blame from me on you ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Wednesday, May 18, 2016 09:57
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi,
+
+So, I've spent some time investigating.  Until now I haven't looked into the
+"new" FloatVar code contributed by Vincent and you guys, and it looks like
+it inherits some ideas, maybe even files from our initial implementation for
+Gecode 2.  So, I feel some blame for using Boost's Interval Arithmetic
+library without investigating enough first: if you look at the documentation
+homepage, you'll see a big red warning :)
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/interval.htm
+
+which says that the library probably won't work with SSE2 (or at least not
+out of the box).  But SSE2 is the only option for x64.
+
+On the other hand, I'm not aware of any good alternative to this Boost
+library.  I think the library is actually quite good (even though it would
+use some work on supporting SSE2 better).
+
+So I thought I'd play with the library's policies to see if I could make it
+work with x64.  I looked into float.hh which defines what exact interval
+datatype is used.  It looks like changing from 'rounded_arith_opp' to
+'rounded_arith_std' fixes the issues that we're observing.  If you're
+interested the description of those types is available here:
+
+http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/rounding.htm
+
+I've run the Float tests with this change and they all seem to pass. 
+Compared to the _opp version the total runtime running the Float testsuite
+increased by 50%. This is still fine for me; I haven't compared this with
+the x86/x87 version.  Maybe Gecode could use some #ifdef to choose between
+_opp and _std based on whether the compiler/architecture setup is known to
+be safe for _opp or not.
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> Thanks for all the info and checking. I'll have a look a little later.
+>
+> Best
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Filip Konvicka
+> Sent: Monday, April 4, 2016 09:15
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Hi,
+>
+> You said that you have uploaded packages recently; I assume that it 
+> was Gecode-4.4.0-x64-2015.msi.  I compiled and linked using this with 
+> MSVC
+> 2015 Update 2 and it also freezes on the testcase.  Replacing this 
+> with the MSVC 2013 package (Gecode-4.4.0-x64-2013.msi) works fine, 
+> even using the same toolset.
+>
+> Cheers,
+> Filip
+>
+>> Hi,
+>>
+>> I have updated to MSVC 2015 update 2, compiled the current Gecode 
+>> trunk for x64, and my testcase from the beginning of this thread 
+>> still freezes (the one from Sep 3rd 2015 - I have attached it to this 
+>> mail for convenience).
+>>
+>> I also tried running Float::Arithmetic::Div::Sol::A and that test 
+>> still fails.  For some reason 'make check' only runs a small subset 
+>> of tests, so I ran this manually like this:
+>>
+>> $ test/test -test Float::Arithmetic::Div::Sol::A 
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Another try failed with a different seed number:
+>> $ test/test -test Float::Arithmetic::Div Float::Arithmetic::Div::A
+>> +++++ Float::Arithmetic::Div::B +++++ Float::Arithmetic::Div::C +++++
+>> Float::Arithmetic::Div::Sol::A -
+>> Options: -seed 1975575111 -test Float::Arithmetic::Div::Sol::A
+>>
+>> Thanks,
+>> Filip
+>>
+>>> Christian,
+>>>
+>>> Thanks.  I was referring to this September & October thread - there 
+>>> were issues with Gecode freezing on some FloatVar problems (my 
+>>> testcase and your "Float::Arithmetic::Div::C") with MSVC 2015, and 
+>>> you said then that it might be resolved by not using SSE2 (but that 
+>>> Guido would investigate more).  We also identified a number of float 
+>>> tests that were failing on GCC 5 (not with GCC 4.9).
+>>>
+>>> I can try re-running our tests here with the current trunk to see if 
+>>> something changed - I just thought that I would ask directly whether 
+>>> you did something specific to address these issues.  The failures 
+>>> seemed a bit non-deterministic...
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> MSVC2015 works for Gecode.4.4.0 since its initial release, I in 
+>>>> fact uploaded packages to the Gecode website last week. Since last 
+>>>> week (Mar 30) the update 2 to MSVC 2015 finally also compiles the 
+>>>> trunk and the upcoming Gecode 5.0.0.
+>>>>
+>>>> Don't know about GCC, though.
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>>
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Friday, April 1, 2016 14:41
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>> Hi Christian,
+>>>>
+>>>> Have you had any chance to look into supporting gcc 5 and MSVC 2015?
+>>>>
+>>>> Thanks,
+>>>> Filip
+>>>>
+>>>>> Hi Filip,
+>>>>>
+>>>>> Thanks for the information. This really looks like a gcc problem.
+>>>>> Guido, can you reproduce this behavior?
+>>>>>
+>>>>> Cheers
+>>>>> Christian
+>>>>>
+>>>>> --
+>>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>>> cschulte at sics.se
+>>>>>
+>>>>> -----Original Message-----
+>>>>> From: users-bounces at gecode.org
+>>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>>> Sent: Friday, October 2, 2015 09:58 AM
+>>>>> To: users at gecode.org
+>>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>>
+>>>>> Hi,
+>>>>>
+>>>>> We were looking a bit more into 4.4.0 on Linux where we've also 
+>>>>> hit some issues.
+>>>>>
+>>>>> All tests worked fine with gcc 4.9.3.  However, with gcc 5.2.0 
+>>>>> many tests failed - see the attachements for details:
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.list
+>>>>>      ... list of failed tests (except two memory fails below)
+>>>>>      gecode-4.4.0-gcc-5.2.0-failed_tests.log
+>>>>>      ... log from 'test' for failed tests
+>>>>>
+>>>>> Two tests ran out of memory (allocated several GBs of memory 
+>>>>> before getting killed by system):
+>>>>>      Set::Branch::Sparse::3
+>>>>>      Set::Channel::Sorted
+>>>>>
+>>>>> gcc details:
+>>>>> target=x86_64-linux-gnu
+>>>>> GCC_VER=5.2.0
+>>>>> GMP_VER=6.0.0
+>>>>> MPFR_VER=3.1.3
+>>>>> MPC_VER=1.0.3
+>>>>> BINUTILS_VER=2.25
+>>>>>
+>>>>> It could also be a gcc bug of course, hard to tell.
+>>>>>
+>>>>> Thanks,
+>>>>> Filip
+>>>>>
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+

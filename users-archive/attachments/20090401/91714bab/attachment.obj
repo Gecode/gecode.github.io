@@ -1,0 +1,106 @@
+
+#include "examples/support.hh"
+#include <gecode/minimodel.hh>
+
+using namespace Gecode::Int;
+
+class DoNothing : public UnaryPropagator<IntView,PC_INT_DOM> {
+protected:
+  using UnaryPropagator<IntView,PC_INT_DOM>::x0;
+  Council<Advisor> c;
+  DoNothing(Space& home, bool share, DoNothing& d)
+    : UnaryPropagator<IntView,PC_INT_DOM>(home,share,d) {
+    c.update(home,share,d.c);
+  }
+  DoNothing(Space& home, IntView x) 
+    : UnaryPropagator<IntView,PC_INT_DOM>(home,x)
+  {
+    std::cout << "Constructor" << std::endl;
+    x0.subscribe(home,*new (home) Advisor(home,*this,c));
+  }
+  
+public:
+  virtual Actor* copy(Space& home, bool share) {
+    return new (home) DoNothing(home,share,*this);
+  }
+  virtual ExecStatus propagate(Space& home, const ModEventDelta& med) {
+    std::cout << "This should not appear " << &home << std::endl;
+    if (x0.assigned()) {
+      return ES_SUBSUMED(*this,home);
+    }
+    return ES_FIX;
+  }
+  virtual ExecStatus advise(Space& home, Advisor& a, const Delta& d) {
+    std::cout << "Advise called " << &home << std::endl;
+    return ES_FIX;
+  }  
+  static ExecStatus post(Space& home, IntView x) {
+   (void) new (home) DoNothing(home,x);
+   return ES_OK;
+  }
+  size_t dispose(Space& home){
+    std::cout << "Called dispose " << &home << std::endl;
+    cancel(home);
+    (void) Propagator::dispose(home);
+    return sizeof(*this);
+  }
+  void cancel(Space& home) {
+    for(Advisors<Advisor> as(c); as(); ++as) {
+      x0.cancel(home,as.advisor());
+      as.advisor().dispose(home,c);
+    }
+    c.dispose(home);
+    x0.cancel(home,*this,PC_INT_DOM);
+  }
+};
+
+void doNothing(Space& home, IntVar x) {
+  if (home.failed()) return;
+  GECODE_ES_FAIL(home,DoNothing::post(home,x));
+}
+
+class Queens : public Example {
+protected:
+  IntVar x;
+public:
+  Queens(const SizeOptions& opt) 
+    : x(*this,0,5)//, y(*this,0,5) 
+  {
+    doNothing(*this,x);
+    IntVarArgs b(1);
+    b[0] = x;
+    branch(*this, b, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+  }
+
+  /// Constructor for cloning \a s
+  Queens(bool share, Queens& s) : Example(share,s) {
+    x.update(*this, share, s.x);
+    //y.update(*this, share, s.y);
+  }
+
+  /// Perform copying during cloning
+  virtual Space*
+  copy(bool share) {
+    return new Queens(share,*this);
+  }
+
+  /// Print solution
+  virtual void
+  print(std::ostream& os) const {
+    os << "queens\t" << std::endl
+       << x << " -- " << std::endl;
+  }
+};
+
+/** \brief Main-function
+ *  \relates Queens
+ */
+int
+main(int argc, char* argv[]) {
+  SizeOptions opt("Queens");
+  opt.parse(argc,argv);
+  Example::run<Queens,DFS,SizeOptions>(opt);
+  return 0;
+}
+
+// STATISTICS: example-any

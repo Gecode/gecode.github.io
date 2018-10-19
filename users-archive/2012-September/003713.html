@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Add constraints to Flatzinc sharing	parameters	between them
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Add%20constraints%20to%20Flatzinc%20sharing%0A%09parameters%09between%20them&In-Reply-To=%3C76234AC3-E28C-4AE1-B964-F5308A67BE7C%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003710.html">
+   <LINK REL="Next"  HREF="003716.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Add constraints to Flatzinc sharing	parameters	between them</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Add%20constraints%20to%20Flatzinc%20sharing%0A%09parameters%09between%20them&In-Reply-To=%3C76234AC3-E28C-4AE1-B964-F5308A67BE7C%40gecode.org%3E"
+       TITLE="[gecode-users] Add constraints to Flatzinc sharing	parameters	between them">tack at gecode.org
+       </A><BR>
+    <I>Wed Sep 26 01:34:06 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003710.html">[gecode-users] Add constraints to Flatzinc sharing parameters	between them
+</A></li>
+        <LI>Next message: <A HREF="003716.html">[gecode-users] Add constraints to Flatzinc sharing parameters between them
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3713">[ date ]</a>
+              <a href="thread.html#3713">[ thread ]</a>
+              <a href="subject.html#3713">[ subject ]</a>
+              <a href="author.html#3713">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Andrea,
+
+there's currently no sharing between arrays (i.e., a new AST::Array object is created for each invocation), and it's probably coincidental that s_array is the same between invocations.  The reason for this is the very simple memory management model for AST objects.
+Do you already have a problem just posting the constraints because FlatZinc/Gecode creates the duplicate arrays, or are you mainly worried about solver performance?  If it's the latter, you could create a global hash table mapping AST::Arrays to IntSharedArrays in your registry post function.
+
+Cheers,
+Guido
+
+On 25/09/2012, at 8:09 PM, Andrea Pretto &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">a.pretto at miriade.it</A>&gt; wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> I'm trying to add a custom constraint in Flatizinc/Gecode. A simple version is already working. (Yes, I figured out how to modify registry.cpp etc... and yes, I know this is more hacking than extending cause there's no an official way to do that)
+</I>&gt;<i> 
+</I>&gt;<i> I have the problem of sharing data (parameters) between constraints.
+</I>&gt;<i> This is the constraint signature:
+</I>&gt;<i> 
+</I>&gt;<i> predicate my_con(var int: x, var int: y, array[int] of int: params1, array[int] of int: params2);
+</I>&gt;<i> 
+</I>&gt;<i> my_con is a constraint between X and Y, parametrized by params1 and params2.
+</I>&gt;<i> params1 and params2 are (possibly) large arrays, so I want to share them between different my_con instances:
+</I>&gt;<i> 
+</I>&gt;<i> There's a clean way to do that ??
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> The simplest solution I found was using flatzinc parameters, but I have some problems.
+</I>&gt;<i> 
+</I>&gt;<i> % flatzinc file
+</I>&gt;<i> array [1..many many] of int: p1;
+</I>&gt;<i> array [1..many many] of int: p2;
+</I>&gt;<i> 
+</I>&gt;<i> ...
+</I>&gt;<i> 
+</I>&gt;<i> my_con(x, y, p1, p2)
+</I>&gt;<i> ...
+</I>&gt;<i> my_con(z, w, p1, p2)
+</I>&gt;<i> %
+</I>&gt;<i> 
+</I>&gt;<i> The flatzinc file above should resolve the problem alone, because the parameter arrays should be shared.
+</I>&gt;<i> This is a snippet of the function in registry.cpp that receives the constraint declaration.
+</I>&gt;<i> 
+</I>&gt;<i> void p_my_con(FlatZincSpace&amp; s, const ConExpr&amp; ce, AST::Node* ann) {
+</I>&gt;<i>       ...
+</I>&gt;<i>       AST::Array* s_array = ce[2]-&gt;getArray();
+</I>&gt;<i>       AST::Array* e_array = ce[3]-&gt;getArray();
+</I>&gt;<i> 
+</I>&gt;<i>       std::cout &lt;&lt; &quot;SA &quot; &lt;&lt; s_array &lt;&lt; std::endl;
+</I>&gt;<i>       std::cout &lt;&lt; &quot;SE &quot; &lt;&lt; e_array &lt;&lt; std::endl;
+</I>&gt;<i>       ...
+</I>&gt;<i> }
+</I>&gt;<i> 
+</I>&gt;<i> Now the output shows me that s_array pointer is the same between invocation, but e_array is not, so it's like the second parameter array is copied every time.
+</I>&gt;<i> 
+</I>&gt;<i> I don't know if this is a bug or not.
+</I>&gt;<i> However the main question is how to share data between multiple constraints.
+</I>&gt;<i> 
+</I>&gt;<i> Any help is appreciated.
+</I>&gt;<i> 
+</I>&gt;<i> Cheers.
+</I>&gt;<i>  
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003710.html">[gecode-users] Add constraints to Flatzinc sharing parameters	between them
+</A></li>
+	<LI>Next message: <A HREF="003716.html">[gecode-users] Add constraints to Flatzinc sharing parameters between them
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3713">[ date ]</a>
+              <a href="thread.html#3713">[ thread ]</a>
+              <a href="subject.html#3713">[ subject ]</a>
+              <a href="author.html#3713">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

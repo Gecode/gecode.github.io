@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Propagator
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator&In-Reply-To=%3C4A1AB8E0.6080208%40fel.cvut.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002431.html">
+   <LINK REL="Next"  HREF="002435.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Propagator</H1>
+    <B>Jan Kelbel</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagator&In-Reply-To=%3C4A1AB8E0.6080208%40fel.cvut.cz%3E"
+       TITLE="[gecode-users] Propagator">kelbelj at fel.cvut.cz
+       </A><BR>
+    <I>Mon May 25 17:27:28 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002431.html">[gecode-users] Propagator
+</A></li>
+        <LI>Next message: <A HREF="002435.html">[gecode-users] Propagator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2432">[ date ]</a>
+              <a href="thread.html#2432">[ thread ]</a>
+              <a href="subject.html#2432">[ subject ]</a>
+              <a href="author.html#2432">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>I did it too, with no real effect (the memory used by the process grows 
+by 1MB/s, and for job-shop 8 machines x 8 tasks there are 8 edge-finder 
+propagators, each with SharedArray&lt;Int&gt; of size 8).
+I did not use home.notice(*this,AP_DISPOSE) in copy constructor - it 
+caused crash of the process - but it is neither used in copy 
+constructors in Gecode.
+
+Jan
+
+
+Christian Schulte napsal(a):
+&gt;<i> For a SharedArray, you have to manually call its destructor in the dispose
+</I>&gt;<i> method and you have to use notice/ignore as described before.
+</I>&gt;<i> 
+</I>&gt;<i> For an example, see gecode/element/int.hpp
+</I>&gt;<i> 
+</I>&gt;<i> Christian
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Jan Kelbel [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">kelbelj at fel.cvut.cz</A>] 
+</I>&gt;<i> Sent: Monday, May 25, 2009 5:08 PM
+</I>&gt;<i> To: Christian Schulte
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Propagator
+</I>&gt;<i> 
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i> 
+</I>&gt;<i> thank you for the answer. From the things you described (and I already 
+</I>&gt;<i> tried, though I not really knew what it is doing), it must be something 
+</I>&gt;<i> else. The propagator has one array created in propagate() method using 
+</I>&gt;<i> Region allocator, that should be freed automatically when the 
+</I>&gt;<i> propagate() returns, and one SharedArray that is shared among all the 
+</I>&gt;<i> copies of one propagator.
+</I>&gt;<i> 
+</I>&gt;<i> Regards, Jan
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Christian Schulte napsal(a):
+</I>&gt;&gt;<i> Hi Jan,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> there are the following catches:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> a) propagators do not use destructors. Instead, when a propagator is
+</I>&gt;&gt;<i> deleted, the dispose function is called. That in particular implies that
+</I>&gt;<i> for
+</I>&gt;&gt;<i> any member of your propagator you have to explicitly call the member's
+</I>&gt;&gt;<i> destructor (that is something that is done automatically inside a
+</I>&gt;<i> destructor
+</I>&gt;&gt;<i> but not in the dispose function).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> b) most likely you are under the assumption that when a space containing
+</I>&gt;&gt;<i> your propagator is deleted, the dispose method of the propagator is called
+</I>&gt;&gt;<i> such that memory possibly allocated by your propagator is freed. That is
+</I>&gt;<i> not
+</I>&gt;&gt;<i> the case. In case your propagator requires the dispose method to be called
+</I>&gt;&gt;<i> when a space is deleted, the propagator must register itself with its
+</I>&gt;<i> space
+</I>&gt;&gt;<i> for deletion. For example, when home refers to the space, you have to
+</I>&gt;&gt;<i> register the propagator by
+</I>&gt;&gt;<i> 	home.notice(*this, AP_DISPOSE);
+</I>&gt;&gt;<i> and consequently in the dispose function you have to deregister
+</I>&gt;&gt;<i> 	home.ignore(*this, AP_DISPOSE);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The only exception is if your propagator has only allocated memory from
+</I>&gt;<i> the
+</I>&gt;&gt;<i> space but not via malloc or something else. Then it does not be deleted
+</I>&gt;<i> when
+</I>&gt;&gt;<i> its space is deleted.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Then, the behaviour you describe must have to do with something else as
+</I>&gt;&gt;<i> there is really nothing special happening for NaryPropagator. Maybe you
+</I>&gt;&gt;<i> could check your code again.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I think you are referring to the Gecode 2.* implementation of the
+</I>&gt;&gt;<i> cumulatives propagator. That was actually nonsensical and has been changed
+</I>&gt;&gt;<i> in 3.*. If no variables are modified by a propagator and the propagator
+</I>&gt;<i> says
+</I>&gt;&gt;<i> ES_NOFIX, Gecode still knows that nothing has changed. So finding out
+</I>&gt;&gt;<i> whether something has changed, and if yes reporting ES_NOFIX and ES_FIX
+</I>&gt;&gt;<i> otherwise is exactly the same than reporting ES_NOFIX.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I hope that helps
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;&gt;<i> Of Jan Kelbel
+</I>&gt;&gt;<i> Sent: Monday, May 25, 2009 3:16 PM
+</I>&gt;&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: [gecode-users] Propagator
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hello,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> some months ago I implemented N-ary propagator (it is that edge-finder). 
+</I>&gt;&gt;<i> When I used it to solve larger problem instances, I noticed that it 
+</I>&gt;&gt;<i> consumes memory in rate of about 1MB/s.
+</I>&gt;&gt;<i> I tested it in Gecode 2.2.0 (where it was even about 3MB/s) and in 
+</I>&gt;&gt;<i> Gecode 3.1.0., using MS Visual C++ 2008.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> This propagator is inherited from class NaryPropagator. In the propagate 
+</I>&gt;&gt;<i> method, there is an array for sorting, which is created using the Region 
+</I>&gt;&gt;<i> allocation.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> When I changed the edge-finder to inherit directly from the class 
+</I>&gt;&gt;<i> Propagator, the growing memory consumption disappeared.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> My question is, are there some rules, what should be implemented in 
+</I>&gt;&gt;<i> propagator inherited from NaryPropagator in order allocate/dealocate 
+</I>&gt;&gt;<i> memory correctly?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> My second question (set of questions) is related to Val propagator for 
+</I>&gt;&gt;<i> cumulatives constrait, which is my study material for implementation of 
+</I>&gt;&gt;<i> scheduling constraints.
+</I>&gt;&gt;<i> 1) in Val::propagate()  file cumulatives/val.hpp
+</I>&gt;&gt;<i> at line 276 there is a test if all the variables are assigned. Is there 
+</I>&gt;&gt;<i> a reason why in case of subsumed = true; the function ES_SUBSUMED() is 
+</I>&gt;&gt;<i> called  as late as at line 386?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 2) Why there is no ES_FIX return from the Val::propagate() method?
+</I>&gt;&gt;<i> In the documentation is that when the propagator computes fixpoint, it 
+</I>&gt;&gt;<i> should return ES_FIX.
+</I>&gt;&gt;<i> Is the reason that checking whether fixpoint is reached is expensive, 
+</I>&gt;&gt;<i> and the propagation scheduler arranges that the propagation is not 
+</I>&gt;&gt;<i> executed too many times?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Regards, Jan
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002431.html">[gecode-users] Propagator
+</A></li>
+	<LI>Next message: <A HREF="002435.html">[gecode-users] Propagator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2432">[ date ]</a>
+              <a href="thread.html#2432">[ thread ]</a>
+              <a href="subject.html#2432">[ subject ]</a>
+              <a href="author.html#2432">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

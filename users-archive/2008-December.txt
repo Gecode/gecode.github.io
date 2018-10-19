@@ -1,0 +1,4857 @@
+From malcolmr at cse.unsw.edu.au  Mon Dec  1 08:11:50 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 1 Dec 2008 18:11:50 +1100
+Subject: [gecode-users] Propagating constraints
+Message-ID: <531C7529-C9C2-48AE-87A6-4FD129EBA48E@cse.unsw.edu.au>
+
+How do I force the propagation of constraints on a Space?
+Is there a C++ equivalent to the Gecode/J Space.status()?
+
+Malcolm
+
+
+
+From zayenz at gmail.com  Mon Dec  1 08:17:42 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 1 Dec 2008 08:17:42 +0100
+Subject: [gecode-users] Propagating constraints
+In-Reply-To: <531C7529-C9C2-48AE-87A6-4FD129EBA48E@cse.unsw.edu.au>
+References: <531C7529-C9C2-48AE-87A6-4FD129EBA48E@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811302317m6682c8d1p42122852be0377fa@mail.gmail.com>
+
+Yes, use Space.status(). See
+http://www.gecode.org/gecode-doc-latest/group__TaskSearch.html#g2ff3a26e78da2825ff5dc4ffb1056cb7
+
+Cheers,
+Mikael
+
+On Mon, Dec 1, 2008 at 8:11 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> How do I force the propagation of constraints on a Space?
+> Is there a C++ equivalent to the Gecode/J Space.status()?
+>
+> Malcolm
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From chaosangel at gmx.de  Mon Dec  1 17:24:13 2008
+From: chaosangel at gmx.de (Max)
+Date: Mon, 01 Dec 2008 17:24:13 +0100
+Subject: [gecode-users] Using Linear Constraints
+Message-ID: <49340FAD.9050005@gmx.de>
+
+Hello, as already asked some time ago i still want to speed up my parser 
+building the constraints using linear expressions.
+Currently i'm doing the following:
+I got two values (either variables or constant integers) and i want to 
+for example add them:
+
+At first, all Integer Values are converted to Variables
+
+IntVar(this, a->getInteger(), a->getInteger());
+
+Now, for the following operands i do:
+
+ return plus(this, v1,v2);
+
+Returns the linear constrained variable, thats ok, the same for minus.
+If i now want to multiply two Values, i use
+
+ return mult(this, v1,v2);
+or for division
+
+       IntVar ret(this, Gecode::Int::Limits::min, Gecode::Int::Limits::max);
+       div(this, v1,v2, ret);
+       return ret;
+Both returning a variable.
+Now i want to use linear constraints if one of my values is a constant 
+integer.
+I found out that plus(this, v1,v2);
+translates into  linear(home, xy, IRT_EQ, z, icl, pk);
+and then returns "z" as a variable.
+For multiplication (constant with variable) i only found:
+Minimodel::operator*
+It does create a Minimodel::LinExpr.
+Now i want to know how can i convert it back to variable, to set further 
+operators.
+
+For example:
+
+(X*5)+Y
+
+I want to create a linear expression with X*5.
+Using Minimodel i do get a LinExpr.
+How can i now use the function plus(this, v1,v2) to add Y as linear 
+function?
+
+Thank you for any help.
+Max
+
+
+
+
+From cschulte at kth.se  Mon Dec  1 17:31:37 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 1 Dec 2008 17:31:37 +0100
+Subject: [gecode-users] Using Linear Constraints
+In-Reply-To: <49340FAD.9050005@gmx.de>
+References: <49340FAD.9050005@gmx.de>
+Message-ID: <016b01c953d2$48cf1be0$da6d53a0$@se>
+
+I think I already answered that: please use linear directly! Do not
+decompose int several plus or minus constraints as this sacrifices
+propagation.
+
+So, in your example for 5*x+y=z, you post:
+	IntArgs c(3);
+	IntVarArgs xyz(3);
+	c[0]= 5; xyz[0]=x;
+	c[1]= 1; xyz[1]=y;
+	c[2]=-1; xyz[3]=z;
+	linear(home,c,xyz,IRT_EQ,0);
+
+Cheers
+Christian
+
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max
+Sent: Monday, December 01, 2008 5:24 PM
+To: users at gecode.org
+Subject: [gecode-users] Using Linear Constraints
+
+Hello, as already asked some time ago i still want to speed up my parser 
+building the constraints using linear expressions.
+Currently i'm doing the following:
+I got two values (either variables or constant integers) and i want to 
+for example add them:
+
+At first, all Integer Values are converted to Variables
+
+IntVar(this, a->getInteger(), a->getInteger());
+
+Now, for the following operands i do:
+
+ return plus(this, v1,v2);
+
+Returns the linear constrained variable, thats ok, the same for minus.
+If i now want to multiply two Values, i use
+
+ return mult(this, v1,v2);
+or for division
+
+       IntVar ret(this, Gecode::Int::Limits::min, Gecode::Int::Limits::max);
+       div(this, v1,v2, ret);
+       return ret;
+Both returning a variable.
+Now i want to use linear constraints if one of my values is a constant 
+integer.
+I found out that plus(this, v1,v2);
+translates into  linear(home, xy, IRT_EQ, z, icl, pk);
+and then returns "z" as a variable.
+For multiplication (constant with variable) i only found:
+Minimodel::operator*
+It does create a Minimodel::LinExpr.
+Now i want to know how can i convert it back to variable, to set further 
+operators.
+
+For example:
+
+(X*5)+Y
+
+I want to create a linear expression with X*5.
+Using Minimodel i do get a LinExpr.
+How can i now use the function plus(this, v1,v2) to add Y as linear 
+function?
+
+Thank you for any help.
+Max
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From chaosangel at gmx.de  Mon Dec  1 17:52:39 2008
+From: chaosangel at gmx.de (Max)
+Date: Mon, 01 Dec 2008 17:52:39 +0100
+Subject: [gecode-users] Using Linear Constraints
+In-Reply-To: <016b01c953d2$48cf1be0$da6d53a0$@se>
+References: <49340FAD.9050005@gmx.de> <016b01c953d2$48cf1be0$da6d53a0$@se>
+Message-ID: <49341657.5000301@gmx.de>
+
+Now i think i got it. Forgot the second parameter, multiplying each 
+argument.
+I still have to combine linear with the non-linear constraints, but now 
+i have everything in variables, thats great.
+Thx
+
+Christian Schulte wrote:
+> I think I already answered that: please use linear directly! Do not
+> decompose int several plus or minus constraints as this sacrifices
+> propagation.
+>
+> So, in your example for 5*x+y=z, you post:
+> 	IntArgs c(3);
+> 	IntVarArgs xyz(3);
+> 	c[0]= 5; xyz[0]=x;
+> 	c[1]= 1; xyz[1]=y;
+> 	c[2]=-1; xyz[3]=z;
+> 	linear(home,c,xyz,IRT_EQ,0);
+>
+> Cheers
+> Christian
+>
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Max
+> Sent: Monday, December 01, 2008 5:24 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Using Linear Constraints
+>
+> Hello, as already asked some time ago i still want to speed up my parser 
+> building the constraints using linear expressions.
+> Currently i'm doing the following:
+> I got two values (either variables or constant integers) and i want to 
+> for example add them:
+>
+> At first, all Integer Values are converted to Variables
+>
+> IntVar(this, a->getInteger(), a->getInteger());
+>
+> Now, for the following operands i do:
+>
+>  return plus(this, v1,v2);
+>
+> Returns the linear constrained variable, thats ok, the same for minus.
+> If i now want to multiply two Values, i use
+>
+>  return mult(this, v1,v2);
+> or for division
+>
+>        IntVar ret(this, Gecode::Int::Limits::min, Gecode::Int::Limits::max);
+>        div(this, v1,v2, ret);
+>        return ret;
+> Both returning a variable.
+> Now i want to use linear constraints if one of my values is a constant 
+> integer.
+> I found out that plus(this, v1,v2);
+> translates into  linear(home, xy, IRT_EQ, z, icl, pk);
+> and then returns "z" as a variable.
+> For multiplication (constant with variable) i only found:
+> Minimodel::operator*
+> It does create a Minimodel::LinExpr.
+> Now i want to know how can i convert it back to variable, to set further 
+> operators.
+>
+> For example:
+>
+> (X*5)+Y
+>
+> I want to create a linear expression with X*5.
+> Using Minimodel i do get a LinExpr.
+> How can i now use the function plus(this, v1,v2) to add Y as linear 
+> function?
+>
+> Thank you for any help.
+> Max
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>   
+
+
+
+
+From chaosangel at gmx.de  Tue Dec  2 12:51:42 2008
+From: chaosangel at gmx.de (Max)
+Date: Tue, 02 Dec 2008 12:51:42 +0100
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+Message-ID: <4935214E.8080903@gmx.de>
+
+Hello everybody,
+
+i wanted to create an IntVarArgs array for using linear constraints.
+I need this array in an recursive function where the size is calculated 
+at the end of the recursion(recursion size == array size).
+
+Now i found out that a can not dynamically create an IntVarArgs or an 
+IntArgs.
+This, seems reasonable, because i would have to destroy it somewhere, 
+and i don't know if gecode copies the reference it gets in the linear 
+call(i don't think so and it would be better not to do so).
+
+BUT:
+Why can i not create an IntVarArgs array without size and initializing 
+it with a size at a later time.
+Without that, i would have to recurse my tree two times, one time for 
+evaluating the size of the array, and one time to fill it. This is bad. 
+Do i have overseen something ? Why is this feature not supported.
+Any ideas how to solve my problem?
+
+Thanks in advance.
+
+Max
+
+
+
+From cschulte at kth.se  Tue Dec  2 13:00:26 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 2 Dec 2008 13:00:26 +0100
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+In-Reply-To: <4935214E.8080903@gmx.de>
+References: <4935214E.8080903@gmx.de>
+Message-ID: <01b501c95475$90cd4bd0$b267e370$@se>
+
+That's the oldest trick from the schoolbook: when you create the tree,
+maintain in each node a counter that tells you the number of nodes (or
+leaves, or the nodes corresponding to a linear expression or whatever you
+need) in the subtree.
+
+As suggested earlier, this trick is used also in post linear expressions in
+mini model.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Max
+Sent: Tuesday, December 02, 2008 12:52 PM
+To: users at gecode.org
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+
+Hello everybody,
+
+i wanted to create an IntVarArgs array for using linear constraints.
+I need this array in an recursive function where the size is calculated 
+at the end of the recursion(recursion size == array size).
+
+Now i found out that a can not dynamically create an IntVarArgs or an 
+IntArgs.
+This, seems reasonable, because i would have to destroy it somewhere, 
+and i don't know if gecode copies the reference it gets in the linear 
+call(i don't think so and it would be better not to do so).
+
+BUT:
+Why can i not create an IntVarArgs array without size and initializing 
+it with a size at a later time.
+Without that, i would have to recurse my tree two times, one time for 
+evaluating the size of the array, and one time to fill it. This is bad. 
+Do i have overseen something ? Why is this feature not supported.
+Any ideas how to solve my problem?
+
+Thanks in advance.
+
+Max
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From chaosangel at gmx.de  Tue Dec  2 13:03:31 2008
+From: chaosangel at gmx.de (Max)
+Date: Tue, 02 Dec 2008 13:03:31 +0100
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+In-Reply-To: <01b501c95475$90cd4bd0$b267e370$@se>
+References: <4935214E.8080903@gmx.de> <01b501c95475$90cd4bd0$b267e370$@se>
+Message-ID: <49352413.2020809@gmx.de>
+
+Yes, of course i can do this (and have to do this),
+but my tree is an abstracted form that should not know about linear 
+constraints or not.
+An resize function would be much easier.
+
+Thanks for the post linear expression hint, i will have a look at.
+
+Max
+
+Christian Schulte wrote:
+> That's the oldest trick from the schoolbook: when you create the tree,
+> maintain in each node a counter that tells you the number of nodes (or
+> leaves, or the nodes corresponding to a linear expression or whatever you
+> need) in the subtree.
+>
+> As suggested earlier, this trick is used also in post linear expressions in
+> mini model.
+>
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Max
+> Sent: Tuesday, December 02, 2008 12:52 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Dynamic creation of IntVarArgs
+>
+> Hello everybody,
+>
+> i wanted to create an IntVarArgs array for using linear constraints.
+> I need this array in an recursive function where the size is calculated 
+> at the end of the recursion(recursion size == array size).
+>
+> Now i found out that a can not dynamically create an IntVarArgs or an 
+> IntArgs.
+> This, seems reasonable, because i would have to destroy it somewhere, 
+> and i don't know if gecode copies the reference it gets in the linear 
+> call(i don't think so and it would be better not to do so).
+>
+> BUT:
+> Why can i not create an IntVarArgs array without size and initializing 
+> it with a size at a later time.
+> Without that, i would have to recurse my tree two times, one time for 
+> evaluating the size of the array, and one time to fill it. This is bad. 
+> Do i have overseen something ? Why is this feature not supported.
+> Any ideas how to solve my problem?
+>
+> Thanks in advance.
+>
+> Max
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>   
+
+
+
+
+From tack at ps.uni-sb.de  Tue Dec  2 13:56:20 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 2 Dec 2008 13:56:20 +0100
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+In-Reply-To: <49352413.2020809@gmx.de>
+References: <4935214E.8080903@gmx.de> <01b501c95475$90cd4bd0$b267e370$@se>
+	<49352413.2020809@gmx.de>
+Message-ID: <76400448-B477-4AF9-BDE9-DD5B90ADCD9F@ps.uni-sb.de>
+
+Max wrote:
+
+> Yes, of course i can do this (and have to do this),
+> but my tree is an abstracted form that should not know about linear
+> constraints or not.
+> An resize function would be much easier.
+
+If you just want to get it done quickly, simply collect the vars in an  
+std::vector<IntVar>, and then after walking the tree copy the vector  
+to an IntVarArgs.  There's nothing wrong with keeping IntVars in data  
+structures other than the ones we provide, you just have to get them  
+in the right shape for passing them to our post functions.
+
+Cheers,
+	Guido
+
+
+
+
+From chaosangel at gmx.de  Tue Dec  2 14:04:26 2008
+From: chaosangel at gmx.de (Max)
+Date: Tue, 02 Dec 2008 14:04:26 +0100
+Subject: [gecode-users] Dynamic creation of IntVarArgs
+In-Reply-To: <76400448-B477-4AF9-BDE9-DD5B90ADCD9F@ps.uni-sb.de>
+References: <4935214E.8080903@gmx.de>
+	<01b501c95475$90cd4bd0$b267e370$@se>	<49352413.2020809@gmx.de>
+	<76400448-B477-4AF9-BDE9-DD5B90ADCD9F@ps.uni-sb.de>
+Message-ID: <4935325A.4010600@gmx.de>
+
+Thank you very much. Its a good idea. The overhead of copying should be 
+not that big.
+But maybe i'm not that lazy and rewrite my code that it precomputes  the 
+linear relation size.
+
+Thanks.
+Max
+
+
+Guido Tack wrote:
+> Max wrote:
+>
+>   
+>> Yes, of course i can do this (and have to do this),
+>> but my tree is an abstracted form that should not know about linear
+>> constraints or not.
+>> An resize function would be much easier.
+>>     
+>
+> If you just want to get it done quickly, simply collect the vars in an  
+> std::vector<IntVar>, and then after walking the tree copy the vector  
+> to an IntVarArgs.  There's nothing wrong with keeping IntVars in data  
+> structures other than the ones we provide, you just have to get them  
+> in the right shape for passing them to our post functions.
+>
+> Cheers,
+> 	Guido
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>   
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Tue Dec  2 00:58:25 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Tue, 2 Dec 2008 10:58:25 +1100
+Subject: [gecode-users] Bug in TupleSet?
+Message-ID: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+
+There seems to be a bug in TupleSet. If you add a particular tuple  
+more than twice, the next call to extensional will segfault. Eg:
+
+	TupleSet tuples;
+
+	int n = 3;		// works if n <= 2
+
+	for (int i = 0; i < n; i++) {
+		IntArgs pair(2);
+		pair[0] = 0;
+		pair[1] = 1;
+
+		tuples.add(pair);
+	}
+
+	TestSpace* space = new TestSpace();
+
+	IntVarArray x(space, 2, 0, 1);
+	space->add(x);
+
+	extensional(space, x, tuples);	// segfault if n >= 3
+
+(where TestSpace is a simple Space implementation)
+
+GDB shows:
+
+Program received signal EXC_BAD_ACCESS, Could not access memory.
+Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()  
+at gecode/int/extensional/tuple-set.cc:55
+55              if (a[i] < b[i]) {
+
+Malcolm
+
+
+
+From malcolmr at cse.unsw.edu.au  Wed Dec  3 02:37:15 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Wed, 3 Dec 2008 12:37:15 +1100
+Subject: [gecode-users] Propagating constraints
+In-Reply-To: <63b5c8b00811302317m6682c8d1p42122852be0377fa@mail.gmail.com>
+References: <531C7529-C9C2-48AE-87A6-4FD129EBA48E@cse.unsw.edu.au>
+	<63b5c8b00811302317m6682c8d1p42122852be0377fa@mail.gmail.com>
+Message-ID: <2637BF21-7A71-4DF8-A626-AED55CAEF2EE@cse.unsw.edu.au>
+
+Duh. I was looking at the wrong page of the docs. Thanks.
+
+Malcolm
+
+On 01/12/2008, at 6:17 PM, Mikael Zayenz Lagerkvist wrote:
+
+> Yes, use Space.status(). See
+> http://www.gecode.org/gecode-doc-latest/group__TaskSearch.html#g2ff3a26e78da2825ff5dc4ffb1056cb7
+>
+> Cheers,
+> Mikael
+>
+> On Mon, Dec 1, 2008 at 8:11 AM, Malcolm Ryan  
+> <malcolmr at cse.unsw.edu.au> wrote:
+>> How do I force the propagation of constraints on a Space?
+>> Is there a C++ equivalent to the Gecode/J Space.status()?
+>>
+>> Malcolm
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From zayenz at gmail.com  Wed Dec  3 07:37:05 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 3 Dec 2008 07:37:05 +0100
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+Message-ID: <63b5c8b00812022237m7f249110nc9503309ad26d35b@mail.gmail.com>
+
+A TupleSet does not accept more than one instance of a tuple (hence
+the name set). However, the implementation should probably be safer
+for erroneous usage and throw an exception during finalization if
+multiple tuples are discovered.
+
+Cheers,
+Mikael
+
+On Tue, Dec 2, 2008 at 12:58 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> There seems to be a bug in TupleSet. If you add a particular tuple
+> more than twice, the next call to extensional will segfault. Eg:
+>
+>        TupleSet tuples;
+>
+>        int n = 3;              // works if n <= 2
+>
+>        for (int i = 0; i < n; i++) {
+>                IntArgs pair(2);
+>                pair[0] = 0;
+>                pair[1] = 1;
+>
+>                tuples.add(pair);
+>        }
+>
+>        TestSpace* space = new TestSpace();
+>
+>        IntVarArray x(space, 2, 0, 1);
+>        space->add(x);
+>
+>        extensional(space, x, tuples);  // segfault if n >= 3
+>
+> (where TestSpace is a simple Space implementation)
+>
+> GDB shows:
+>
+> Program received signal EXC_BAD_ACCESS, Could not access memory.
+> Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+> 0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()
+> at gecode/int/extensional/tuple-set.cc:55
+> 55              if (a[i] < b[i]) {
+>
+> Malcolm
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From David.Rijsman at quintiq.com  Wed Dec  3 12:58:33 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 03 Dec 2008 12:58:33 +0100
+Subject: [gecode-users] Space::force and Space::unforce
+Message-ID: <49368278.D4D3.0085.0@quintiq.com>
+
+I am implementing my own propagator and I am looking at different implementations. In LayeredGraph for example I see the use of Space::force and Space::unforce but in other propagators I do not see such a use. When should I use the force and unforce and for what purpose?
+
+thanks,
+
+David
+
+
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From David.Rijsman at quintiq.com  Wed Dec  3 13:07:08 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 03 Dec 2008 13:07:08 +0100
+Subject: [gecode-users] ES_SUBSUMED_FIX error
+Message-ID: <4936847A.D4D3.0085.0@quintiq.com>
+
+Attached you find a little sample in which I have written a peace of code in which I am trying to subsume my advisors and it is crashing on de second subsume invocation... Am I doing something wrong or missing something?
+
+thanks,
+
+David
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: main.cpp
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081203/f30625c4/attachment.asc>
+
+From zayenz at gmail.com  Wed Dec  3 13:20:47 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 3 Dec 2008 13:20:47 +0100
+Subject: [gecode-users] Space::force and Space::unforce
+In-Reply-To: <49368278.D4D3.0085.0@quintiq.com>
+References: <49368278.D4D3.0085.0@quintiq.com>
+Message-ID: <63b5c8b00812030420m500280c8p3d5eaadd2cdaa13@mail.gmail.com>
+
+Hi,
+
+The functions force(Space*) and unforce(Space*) are members of the
+Actor-class [1], and are used to register and deregister propagators
+that have references to data that is external to the space. The
+layered graph propagator, for example, has a reference to a DFA that
+is shared. If a propagator does not register for deletion, then the
+dispose-member will not be run when a space is deleted.
+
+Note that the members force(Space*) and unforce(Space*) will be
+replaced in Gecode 3.0.0 with the more general Space-members notice
+and ignore.
+
+Cheers,
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Actor.html#e32f558bd1d470b3f9bbb8283a282678
+
+On Wed, Dec 3, 2008 at 12:58 PM, David Rijsman
+<David.Rijsman at quintiq.com> wrote:
+> I am implementing my own propagator and I am looking at different implementations. In LayeredGraph for example I see the use of Space::force and Space::unforce but in other propagators I do not see such a use. When should I use the force and unforce and for what purpose?
+>
+> thanks,
+>
+> David
+>
+>
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From David.Rijsman at quintiq.com  Wed Dec  3 13:28:57 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 03 Dec 2008 13:28:57 +0100
+Subject: [gecode-users] Space::force and Space::unforce
+In-Reply-To: <63b5c8b00812030420m500280c8p3d5eaadd2cdaa13@mail.gmail.com>
+References: <49368278.D4D3.0085.0@quintiq.com>
+	<63b5c8b00812030420m500280c8p3d5eaadd2cdaa13@mail.gmail.com>
+Message-ID: <49368997.D4D3.0085.0@quintiq.com>
+
+Hi Mikael,
+
+thanks, what is the use of BinaryPropagator::dispose if this class does not register itself  (it does not use force nor unforce)?
+
+David
+
+>>> 
+From: 	"Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+To:	"David Rijsman" <David.Rijsman at quintiq.com>
+CC:	<users at gecode.org>
+Date: 	12/3/2008 1:22 PM
+Subject: 	Re: [gecode-users] Space::force and Space::unforce
+
+Hi,
+
+The functions force(Space*) and unforce(Space*) are members of the
+Actor-class [1], and are used to register and deregister propagators
+that have references to data that is external to the space. The
+layered graph propagator, for example, has a reference to a DFA that
+is shared. If a propagator does not register for deletion, then the
+dispose-member will not be run when a space is deleted.
+
+Note that the members force(Space*) and unforce(Space*) will be
+replaced in Gecode 3.0.0 with the more general Space-members notice
+and ignore.
+
+Cheers,
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Actor.html#e32f558bd1d470b3f9bbb8283a282678 
+
+On Wed, Dec 3, 2008 at 12:58 PM, David Rijsman
+<David.Rijsman at quintiq.com> wrote:
+> I am implementing my own propagator and I am looking at different implementations. In LayeredGraph for example I see the use of Space::force and Space::unforce but in other propagators I do not see such a use. When should I use the force and unforce and for what purpose?
+>
+> thanks,
+>
+> David
+>
+>
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org 
+> https://www.gecode.org/mailman/listinfo/gecode-users 
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/ 
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From zayenz at gmail.com  Wed Dec  3 13:35:12 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 3 Dec 2008 13:35:12 +0100
+Subject: [gecode-users] Space::force and Space::unforce
+In-Reply-To: <49368997.D4D3.0085.0@quintiq.com>
+References: <49368278.D4D3.0085.0@quintiq.com>
+	<63b5c8b00812030420m500280c8p3d5eaadd2cdaa13@mail.gmail.com>
+	<49368997.D4D3.0085.0@quintiq.com>
+Message-ID: <63b5c8b00812030435i33bcc55bn631823fa593387f6@mail.gmail.com>
+
+Hi,
+
+The force/unforce members makes sure that the dispose-member is called
+when the Space is deleted. However, there are other circumstances
+where a propagator is disposed but the Space lives on. One such case
+is when a propagator is subsumed, another is when rewriting is done.
+In these cases the propagator should clean up after itself, for
+example by making sure to cancel subscriptions and returning any
+space-allocated memory. Unless you have references to external data,
+the kind of clean-up done in dispose is not necessary when a space is
+deleted.
+
+Cheers,
+Mikael
+
+On Wed, Dec 3, 2008 at 1:28 PM, David Rijsman <David.Rijsman at quintiq.com> wrote:
+> Hi Mikael,
+>
+> thanks, what is the use of BinaryPropagator::dispose if this class does not register itself  (it does not use force nor unforce)?
+>
+> David
+>
+>>>>
+> From:   "Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+> To:     "David Rijsman" <David.Rijsman at quintiq.com>
+> CC:     <users at gecode.org>
+> Date:   12/3/2008 1:22 PM
+> Subject:        Re: [gecode-users] Space::force and Space::unforce
+>
+> Hi,
+>
+> The functions force(Space*) and unforce(Space*) are members of the
+> Actor-class [1], and are used to register and deregister propagators
+> that have references to data that is external to the space. The
+> layered graph propagator, for example, has a reference to a DFA that
+> is shared. If a propagator does not register for deletion, then the
+> dispose-member will not be run when a space is deleted.
+>
+> Note that the members force(Space*) and unforce(Space*) will be
+> replaced in Gecode 3.0.0 with the more general Space-members notice
+> and ignore.
+>
+> Cheers,
+> Mikael
+>
+> [1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Actor.html#e32f558bd1d470b3f9bbb8283a282678
+>
+> On Wed, Dec 3, 2008 at 12:58 PM, David Rijsman
+> <David.Rijsman at quintiq.com> wrote:
+>> I am implementing my own propagator and I am looking at different implementations. In LayeredGraph for example I see the use of Space::force and Space::unforce but in other propagators I do not see such a use. When should I use the force and unforce and for what purpose?
+>>
+>> thanks,
+>>
+>> David
+>>
+>>
+>>
+>>
+>> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Wed Dec  3 13:59:17 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 3 Dec 2008 13:59:17 +0100
+Subject: [gecode-users] ES_SUBSUMED_FIX error
+In-Reply-To: <4936847A.D4D3.0085.0@quintiq.com>
+References: <4936847A.D4D3.0085.0@quintiq.com>
+Message-ID: <63b5c8b00812030459l22ddd597s8c0e328d650ab816@mail.gmail.com>
+
+Hi,
+
+The program does not crash on my machine (Athlon 64, gcc 4.2.4, gecode
+2.2.0). What kind of machine and compiler do you use?
+
+Apart form that, I see one bug and a potential bug in your code.
+First: the subscriptions are never canceled! This should be done
+somewhere in the clean-up code. Either it could be done in the advisor
+itself (as is done in the ViewAdvisor class [1]), or it could be done
+in the class by iterating over the advisors in the council [2].
+
+A potential bug is that the advise function is ill-formed, in that
+both branches check the value of the MY-variable. Since you assign the
+MY-variable first, the problem never occurs, but if you change the
+order of the rel calls in the main function the advise function
+returns with garbage as return vale.
+
+Cheers,
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewAdvisor.html
+[2] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Advisors.html
+
+On Wed, Dec 3, 2008 at 1:07 PM, David Rijsman <David.Rijsman at quintiq.com> wrote:
+> Attached you find a little sample in which I have written a peace of code in which I am trying to subsume my advisors and it is crashing on de second subsume invocation... Am I doing something wrong or missing something?
+>
+> thanks,
+>
+> David
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From David.Rijsman at quintiq.com  Wed Dec  3 14:23:09 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 03 Dec 2008 14:23:09 +0100
+Subject: [gecode-users] ES_SUBSUMED_FIX error
+In-Reply-To: <63b5c8b00812030459l22ddd597s8c0e328d650ab816@mail.gmail.com>
+References: <4936847A.D4D3.0085.0@quintiq.com>
+	<63b5c8b00812030459l22ddd597s8c0e328d650ab816@mail.gmail.com>
+Message-ID: <4936964A.D4D3.0085.0@quintiq.com>
+
+Hi Mikael,
+
+Windows XP Professional x64 edition, X64-based PC,
+Microsoft (R) 32-bit C/C++ Optimizing Compiler Version 14.00.50727.762 for 80x86 
+gecode 2.1.1 and also gecode 2.2.2
+
+- The code is a reproduction of the bug so I didn't bother about the clean-up because the error happens in the dispose of the second advisor long before any cleanup
+- Checking the same variable is also done on purpose but is not required to reproduce the scenario
+
+You are pointing to the ViewAdvisor and this makes me wonder if I am doing the right thing. My goal is actually to cancel the subscription of the advisor for that variable and to remove the advisor. I am assuming that ES_SUBSUME_FIX is doing that and also returns ES_FIX.
+
+I am wondering if I should add the cancel invocation (which does not change the behavior), you can also change the second condition to MX.one() (does not change behavior either):
+
+if(padvisor->MIndex)
+      {
+        if( MY.one() )
+        {
+          MY.cancel(home,padvisor);
+          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+        }
+      }
+      else
+      {
+        if( MY.one() )
+        {
+          MX.cancel(home,padvisor);
+          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+        }
+      }
+
+What I see is that the second dispose on the second MyAdvisor is checking if MyAdvisor::next() is disposed, next is garbage....crash
+
+>>> 
+From: 	"Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+To:	"David Rijsman" <David.Rijsman at quintiq.com>
+CC:	<users at gecode.org>
+Date: 	12/3/2008 1:59 PM
+Subject: 	Re: [gecode-users] ES_SUBSUMED_FIX error
+
+Hi,
+
+The program does not crash on my machine (Athlon 64, gcc 4.2.4, gecode
+2.2.0). What kind of machine and compiler do you use?
+
+Apart form that, I see one bug and a potential bug in your code.
+First: the subscriptions are never canceled! This should be done
+somewhere in the clean-up code. Either it could be done in the advisor
+itself (as is done in the ViewAdvisor class [1]), or it could be done
+in the class by iterating over the advisors in the council [2].
+
+A potential bug is that the advise function is ill-formed, in that
+both branches check the value of the MY-variable. Since you assign the
+MY-variable first, the problem never occurs, but if you change the
+order of the rel calls in the main function the advise function
+returns with garbage as return vale.
+
+Cheers,
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewAdvisor.html 
+[2] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Advisors.html 
+
+On Wed, Dec 3, 2008 at 1:07 PM, David Rijsman <David.Rijsman at quintiq.com> wrote:
+> Attached you find a little sample in which I have written a peace of code in which I am trying to subsume my advisors and it is crashing on de second subsume invocation... Am I doing something wrong or missing something?
+>
+> thanks,
+>
+> David
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org 
+> https://www.gecode.org/mailman/listinfo/gecode-users 
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From zayenz at gmail.com  Wed Dec  3 14:59:44 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Wed, 3 Dec 2008 14:59:44 +0100
+Subject: [gecode-users] ES_SUBSUMED_FIX error
+In-Reply-To: <4936964A.D4D3.0085.0@quintiq.com>
+References: <4936847A.D4D3.0085.0@quintiq.com>
+	<63b5c8b00812030459l22ddd597s8c0e328d650ab816@mail.gmail.com>
+	<4936964A.D4D3.0085.0@quintiq.com>
+Message-ID: <63b5c8b00812030559u4e19bf01r950a1af1c4136aa4@mail.gmail.com>
+
+Hi,
+
+In this particular instance, canceling the subscriptions should not be
+necessary. In the general case it should be done if subsumption
+happens before the all variables the advisor subscribes to are
+assigned.
+
+As for the problem, next() should really not be garbage, so there is
+something erroneous here. Reading your program more carefully, I see
+that you have the council as a member of the space. This is incorrect,
+the council should be a member of the propagator. Furthermore, the
+council should not be default-constructed, but should be constructed
+with the Council<A>::Council(Space*) constructor. I haven't tested
+this (gecode 2.2.0 still compiling on my Windows-machine), but that
+should be the error.
+
+Cheers,
+Mikael
+
+On Wed, Dec 3, 2008 at 2:23 PM, David Rijsman <David.Rijsman at quintiq.com> wrote:
+> Hi Mikael,
+>
+> Windows XP Professional x64 edition, X64-based PC,
+> Microsoft (R) 32-bit C/C++ Optimizing Compiler Version 14.00.50727.762 for 80x86
+> gecode 2.1.1 and also gecode 2.2.2
+>
+> - The code is a reproduction of the bug so I didn't bother about the clean-up because the error happens in the dispose of the second advisor long before any cleanup
+> - Checking the same variable is also done on purpose but is not required to reproduce the scenario
+>
+> You are pointing to the ViewAdvisor and this makes me wonder if I am doing the right thing. My goal is actually to cancel the subscription of the advisor for that variable and to remove the advisor. I am assuming that ES_SUBSUME_FIX is doing that and also returns ES_FIX.
+>
+> I am wondering if I should add the cancel invocation (which does not change the behavior), you can also change the second condition to MX.one() (does not change behavior either):
+>
+> if(padvisor->MIndex)
+>      {
+>        if( MY.one() )
+>        {
+>          MY.cancel(home,padvisor);
+>          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+>        }
+>      }
+>      else
+>      {
+>        if( MY.one() )
+>        {
+>          MX.cancel(home,padvisor);
+>          return ES_SUBSUMED_FIX(padvisor,home,MCouncil);
+>        }
+>      }
+>
+> What I see is that the second dispose on the second MyAdvisor is checking if MyAdvisor::next() is disposed, next is garbage....crash
+>
+>>>>
+> From:   "Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+> To:     "David Rijsman" <David.Rijsman at quintiq.com>
+> CC:     <users at gecode.org>
+> Date:   12/3/2008 1:59 PM
+> Subject:        Re: [gecode-users] ES_SUBSUMED_FIX error
+>
+> Hi,
+>
+> The program does not crash on my machine (Athlon 64, gcc 4.2.4, gecode
+> 2.2.0). What kind of machine and compiler do you use?
+>
+> Apart form that, I see one bug and a potential bug in your code.
+> First: the subscriptions are never canceled! This should be done
+> somewhere in the clean-up code. Either it could be done in the advisor
+> itself (as is done in the ViewAdvisor class [1]), or it could be done
+> in the class by iterating over the advisors in the council [2].
+>
+> A potential bug is that the advise function is ill-formed, in that
+> both branches check the value of the MY-variable. Since you assign the
+> MY-variable first, the problem never occurs, but if you change the
+> order of the rel calls in the main function the advise function
+> returns with garbage as return vale.
+>
+> Cheers,
+> Mikael
+>
+> [1] http://www.gecode.org/gecode-doc-latest/classGecode_1_1ViewAdvisor.html
+> [2] http://www.gecode.org/gecode-doc-latest/classGecode_1_1Advisors.html
+>
+> On Wed, Dec 3, 2008 at 1:07 PM, David Rijsman <David.Rijsman at quintiq.com> wrote:
+>> Attached you find a little sample in which I have written a peace of code in which I am trying to subsume my advisors and it is crashing on de second subsume invocation... Am I doing something wrong or missing something?
+>>
+>> thanks,
+>>
+>> David
+>>
+>>
+>> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From mauriciotorob at gmail.com  Thu Dec  4 13:25:11 2008
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Thu, 4 Dec 2008 13:25:11 +0100
+Subject: [gecode-users] Bug in Gecode Framework for Mac OS
+Message-ID: <a6b4b44a0812040425q194e8b2fx2f93cd28a17032ff@mail.gmail.com>
+
+Hello all,
+I am writing a simple program that performs search
+using the DFS search engine. I am also using
+a TimeStop object to parametrize this engine.
+I am compiling it with gcc 4.0.1 under Mac OS 10.5.2
+with Gecode 2.2.0.
+
+The program works great when I compile
+with Gecode sources:
+
+g++  testing.cc -I. -fPIC -lgecodesearch -lgecodekernel -lgecodeint
+-lgecodeset -lgecodeminimodel -lstdc++ -lgecodesupport -o testing
+
+However, when I compile it with the Gecode framework
+g++  -o testing testing.cc -I. -framework gecode -ffast-math -O3
+
+I always get NULL when I search a solution, unless I setup time to 0.
+I tried with big values for the time parameter and the results
+are the same.
+
+Thanks for your help,
+
+Mauricio
+
+
+-- 
+Mauricio Toro Bermudez
+Estudiante de Ingenier?a de Sistemas
+Pontificia Universidad Javeriana, Colombia
+
+Stagiare ? l'Ircam
+1, place Igor-Stravinsky 75004 Paris,
+France de 2008 ? 2009
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081204/1e6f1b72/attachment.htm>
+
+From malcolmr at cse.unsw.edu.au  Thu Dec  4 21:57:45 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Fri, 5 Dec 2008 07:57:45 +1100
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <63b5c8b00812022237m7f249110nc9503309ad26d35b@mail.gmail.com>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+	<63b5c8b00812022237m7f249110nc9503309ad26d35b@mail.gmail.com>
+Message-ID: <845EFC43-A034-4EF8-B346-546F071939C0@cse.unsw.edu.au>
+
+Why not just make adding the duplicate elements to be without effect?
+That's what most set implementations I've encountered do.
+
+Malcolm
+
+On 03/12/2008, at 5:37 PM, Mikael Zayenz Lagerkvist wrote:
+
+> A TupleSet does not accept more than one instance of a tuple (hence
+> the name set). However, the implementation should probably be safer
+> for erroneous usage and throw an exception during finalization if
+> multiple tuples are discovered.
+>
+> Cheers,
+> Mikael
+>
+> On Tue, Dec 2, 2008 at 12:58 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> There seems to be a bug in TupleSet. If you add a particular tuple
+>> more than twice, the next call to extensional will segfault. Eg:
+>>
+>>       TupleSet tuples;
+>>
+>>       int n = 3;              // works if n <= 2
+>>
+>>       for (int i = 0; i < n; i++) {
+>>               IntArgs pair(2);
+>>               pair[0] = 0;
+>>               pair[1] = 1;
+>>
+>>               tuples.add(pair);
+>>       }
+>>
+>>       TestSpace* space = new TestSpace();
+>>
+>>       IntVarArray x(space, 2, 0, 1);
+>>       space->add(x);
+>>
+>>       extensional(space, x, tuples);  // segfault if n >= 3
+>>
+>> (where TestSpace is a simple Space implementation)
+>>
+>> GDB shows:
+>>
+>> Program received signal EXC_BAD_ACCESS, Could not access memory.
+>> Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+>> 0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()
+>> at gecode/int/extensional/tuple-set.cc:55
+>> 55              if (a[i] < b[i]) {
+>>
+>> Malcolm
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From cschulte at kth.se  Thu Dec  4 22:53:38 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 4 Dec 2008 22:53:38 +0100
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <845EFC43-A034-4EF8-B346-546F071939C0@cse.unsw.edu.au>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>	<63b5c8b00812022237m7f249110nc9503309ad26d35b@mail.gmail.com>
+	<845EFC43-A034-4EF8-B346-546F071939C0@cse.unsw.edu.au>
+Message-ID: <000001c9565a$c65340c0$52f9c240$@se>
+
+I second Malcolm here.
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Thursday, December 04, 2008 9:58 PM
+To: gecode list
+Subject: Re: [gecode-users] Bug in TupleSet?
+
+Why not just make adding the duplicate elements to be without effect?
+That's what most set implementations I've encountered do.
+
+Malcolm
+
+On 03/12/2008, at 5:37 PM, Mikael Zayenz Lagerkvist wrote:
+
+> A TupleSet does not accept more than one instance of a tuple (hence
+> the name set). However, the implementation should probably be safer
+> for erroneous usage and throw an exception during finalization if
+> multiple tuples are discovered.
+>
+> Cheers,
+> Mikael
+>
+> On Tue, Dec 2, 2008 at 12:58 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> There seems to be a bug in TupleSet. If you add a particular tuple
+>> more than twice, the next call to extensional will segfault. Eg:
+>>
+>>       TupleSet tuples;
+>>
+>>       int n = 3;              // works if n <= 2
+>>
+>>       for (int i = 0; i < n; i++) {
+>>               IntArgs pair(2);
+>>               pair[0] = 0;
+>>               pair[1] = 1;
+>>
+>>               tuples.add(pair);
+>>       }
+>>
+>>       TestSpace* space = new TestSpace();
+>>
+>>       IntVarArray x(space, 2, 0, 1);
+>>       space->add(x);
+>>
+>>       extensional(space, x, tuples);  // segfault if n >= 3
+>>
+>> (where TestSpace is a simple Space implementation)
+>>
+>> GDB shows:
+>>
+>> Program received signal EXC_BAD_ACCESS, Could not access memory.
+>> Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+>> 0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()
+>> at gecode/int/extensional/tuple-set.cc:55
+>> 55              if (a[i] < b[i]) {
+>>
+>> Malcolm
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From marco.v.correia at gmail.com  Fri Dec  5 13:11:46 2008
+From: marco.v.correia at gmail.com (Marco Correia)
+Date: Fri, 5 Dec 2008 12:11:46 +0000
+Subject: [gecode-users] getting all solutions + interrupting gecode
+Message-ID: <200812051211.46136.marco.v.correia@gmail.com>
+
+hi!
+
+Q1:
+
+I have a problem for which I want to get all solutions. I have departed from 
+one of the examples, but now I'm subclassing from the object Space directly. 
+I have the feeling I'm not doing things right:
+
+class MyProblem : public Space 
+{ /* ... */}
+
+int
+main(int argc, char* argv[]) 
+{
+   MyProblem* t = new MyProblem(args);
+   d = new DFS<MyProblem>(t);
+   while (t != NULL)
+   {
+   	//t = d->next();	// with only this, it does not seem to release memory
+	TestLinear* n = d->next();
+        delete t;	// hum....
+        t = n;
+   }
+   return 0;
+}
+
+Q2:
+
+I'm registering a signal before the 'new MyProblem' line, to make gecode quit 
+when I press Ctrl+C and show me the search statistics:
+
+signal(SIGINT, atExit);
+
+In the function atExit I use the methods from t and d (which I make global 
+variables) to get the statistics. The last line of this function is a system 
+call to exit(0).
+
+It seems to work sometimes, but other times it just crashes on the exit(0). 
+Obviously I'm forgeting something, so I guess the solution to this is simple. 
+Otherwise I can provide more details.
+
+
+Thanks!
+Marco
+
+-- 
+Marco Correia <mvc at netcabo.pt>
+
+
+
+From zayenz at gmail.com  Fri Dec  5 14:12:10 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 5 Dec 2008 14:12:10 +0100
+Subject: [gecode-users] getting all solutions + interrupting gecode
+In-Reply-To: <200812051211.46136.marco.v.correia@gmail.com>
+References: <200812051211.46136.marco.v.correia@gmail.com>
+Message-ID: <63b5c8b00812050512t7cbf3876ufbd3fdc40c0af6ff@mail.gmail.com>
+
+Hi,
+
+For the first question, one thing you must remember is to delete the
+original instance of the problem also. An easy way to write a loop
+that goes through all solutions is for example:
+    MyProblem *root = new MyProblem();
+    DFS<MyProblem> dfs(root);
+    delete root;
+    while (MyProblem *sol = dfs.next()) {
+      // do something...
+      delete sol;
+    }
+
+As for question 2, t is probably not a valid Space most of the time
+when you might call the signal handler (the code is between deletion
+of the Space and having a new solution computed). A cleaner interface
+would be to write your own stop-object that stops the search when some
+variable is set due to the signal handler having been called.
+
+Cheers,
+Mikael
+
+On Fri, Dec 5, 2008 at 1:11 PM, Marco Correia <marco.v.correia at gmail.com> wrote:
+> hi!
+>
+> Q1:
+>
+> I have a problem for which I want to get all solutions. I have departed from
+> one of the examples, but now I'm subclassing from the object Space directly.
+> I have the feeling I'm not doing things right:
+>
+> class MyProblem : public Space
+> { /* ... */}
+>
+> int
+> main(int argc, char* argv[])
+> {
+>   MyProblem* t = new MyProblem(args);
+>   d = new DFS<MyProblem>(t);
+>   while (t != NULL)
+>   {
+>        //t = d->next();        // with only this, it does not seem to release memory
+>        TestLinear* n = d->next();
+>        delete t;       // hum....
+>        t = n;
+>   }
+>   return 0;
+> }
+>
+> Q2:
+>
+> I'm registering a signal before the 'new MyProblem' line, to make gecode quit
+> when I press Ctrl+C and show me the search statistics:
+>
+> signal(SIGINT, atExit);
+>
+> In the function atExit I use the methods from t and d (which I make global
+> variables) to get the statistics. The last line of this function is a system
+> call to exit(0).
+>
+> It seems to work sometimes, but other times it just crashes on the exit(0).
+> Obviously I'm forgeting something, so I guess the solution to this is simple.
+> Otherwise I can provide more details.
+>
+>
+> Thanks!
+> Marco
+>
+> --
+> Marco Correia <mvc at netcabo.pt>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From filip.konvicka at logis.cz  Fri Dec  5 14:44:27 2008
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Fri, 05 Dec 2008 14:44:27 +0100
+Subject: [gecode-users] getting all solutions + interrupting gecode
+In-Reply-To: <63b5c8b00812050512t7cbf3876ufbd3fdc40c0af6ff@mail.gmail.com>
+References: <200812051211.46136.marco.v.correia@gmail.com>
+	<63b5c8b00812050512t7cbf3876ufbd3fdc40c0af6ff@mail.gmail.com>
+Message-ID: <ghbb7s$erb$1@ger.gmane.org>
+
+Hi,
+
+> For the first question, one thing you must remember is to delete the
+> original instance of the problem also. An easy way to write a loop
+> that goes through all solutions is for example:
+>     MyProblem *root = new MyProblem();
+>     DFS<MyProblem> dfs(root);
+>     delete root;
+>     while (MyProblem *sol = dfs.next()) {
+>       // do something...
+>       delete sol;
+>     }
+
+Just a technical note - this is quite error-prone, because throwing 
+exception or returning in "do something..." results in memory leaks.
+
+A better way of doing this would be using auto_ptr (or shared_ptr), like 
+this:
+
+typedef auto_ptr<MyProblem> APMyProblem;
+APMyProblem root(new MyProblem());
+DFS<MyProblem> dfs(root.get());
+root.reset();
+while(true) {
+   APMyProblem sol(dfs.next());
+   if ( !sol.get() )
+     break;
+   MyProblem& solution=*sol;
+   // do something...
+}
+
+Cheers,
+Filip
+
+
+
+
+From zayenz at gmail.com  Fri Dec  5 15:21:44 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 5 Dec 2008 15:21:44 +0100
+Subject: [gecode-users] getting all solutions + interrupting gecode
+In-Reply-To: <ghbb7s$erb$1@ger.gmane.org>
+References: <200812051211.46136.marco.v.correia@gmail.com>
+	<63b5c8b00812050512t7cbf3876ufbd3fdc40c0af6ff@mail.gmail.com>
+	<ghbb7s$erb$1@ger.gmane.org>
+Message-ID: <63b5c8b00812050621s4ce214f1y38ede4fd4762b9f6@mail.gmail.com>
+
+On Fri, Dec 5, 2008 at 2:44 PM, Filip Konvi?ka <filip.konvicka at logis.cz> wrote:
+> Just a technical note - this is quite error-prone, because throwing
+> exception or returning in "do something..." results in memory leaks.
+
+Yes, using some auto_ptr-version is of course much better. My example
+was only meant for the case where the loop is in the main-function, as
+was the case in the OP. Thanks for the improved code.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+From marco.v.correia at gmail.com  Fri Dec  5 16:05:21 2008
+From: marco.v.correia at gmail.com (Marco Correia)
+Date: Fri, 5 Dec 2008 15:05:21 +0000
+Subject: [gecode-users] n-ary branching
+Message-ID: <200812051505.21569.mvc@di.fct.unl.pt>
+
+Hi!
+
+From what I understood so far, 
+
+branch(this, q, INT_VAR_NONE, INT_VAL_MIN);
+
+creates a binary search tree. 
+
+Is there an easy way to create an n-ary search tree instead? I mean, once it 
+picks a variable, it branches on all of its values and only then goes to the 
+next. I know that binary branching is better in general, but I still would 
+like to make it n-ary. I could try messing around with 
+
+gecode/int/branch/select-val.icc
+
+but it didn't went well last time :)
+
+Thanks!
+Marco
+
+-- 
+Marco Correia <mvc at di.fct.unl.pt>
+
+
+
+From cschulte at kth.se  Fri Dec  5 16:11:29 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 5 Dec 2008 16:11:29 +0100
+Subject: [gecode-users] n-ary branching
+In-Reply-To: <200812051505.21569.mvc@di.fct.unl.pt>
+References: <200812051505.21569.mvc@di.fct.unl.pt>
+Message-ID: <000001c956eb$c0a14eb0$41e3ec10$@se>
+
+It's in the trunk already, called INT_VALUES_MIN or INT_VALUES_MAX.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Marco Correia
+Sent: Friday, December 05, 2008 4:05 PM
+To: users at gecode.org
+Subject: [gecode-users] n-ary branching
+
+Hi!
+
+>From what I understood so far, 
+
+branch(this, q, INT_VAR_NONE, INT_VAL_MIN);
+
+creates a binary search tree. 
+
+Is there an easy way to create an n-ary search tree instead? I mean, once it
+
+picks a variable, it branches on all of its values and only then goes to the
+
+next. I know that binary branching is better in general, but I still would 
+like to make it n-ary. I could try messing around with 
+
+gecode/int/branch/select-val.icc
+
+but it didn't went well last time :)
+
+Thanks!
+Marco
+
+-- 
+Marco Correia <mvc at di.fct.unl.pt>
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From juliancardona10 at gmail.com  Mon Dec  8 18:32:22 2008
+From: juliancardona10 at gmail.com (Julian Cardona)
+Date: Mon, 8 Dec 2008 17:32:22 +0000 (UTC)
+Subject: [gecode-users] InVarArray methods
+Message-ID: <loom.20081208T172457-5@post.gmane.org>
+
+Hey people i feel very idiot posting this but i have no idea hot to assign 
+values to a IntVarArray, i mean, i have an IntVarArray and i can initialize it 
+how it is described in the API but i dont know how to assign arbitrary vaules 
+to it.
+I cant figure out why i can print out the value of a desired position:
+std::cout << MyIntVarArray[i] << std::endl;
+but im unable to assign values to it in the common way:
+MyIntVarArray[4] = element;
+
+Please help me!!!
+
+
+
+
+
+
+From mauriciotorob at gmail.com  Mon Dec  8 19:58:46 2008
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Mon, 8 Dec 2008 19:58:46 +0100
+Subject: [gecode-users] What is the exception Gecode::Set::OutOfLimits?
+Message-ID: <a6b4b44a0812081058v17015dd7m488ca87b86e3261a@mail.gmail.com>
+
+Hello,
+My program is throwing the exception Gecode::Set::OutOfLimits
+what does it mean?
+
+Documentation only says:
+Exception: Value out of limits
+
+thanks
+
+-- 
+Mauricio Toro Bermudez
+Estudiante de Ingenier?a de Sistemas
+Pontificia Universidad Javeriana, Colombia
+
+Stagiare ? l'Ircam
+1, place Igor-Stravinsky 75004 Paris,
+France de 2008 ? 2009
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081208/17e76f6b/attachment.htm>
+
+From mauriciotorob at gmail.com  Mon Dec  8 20:00:55 2008
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Mon, 8 Dec 2008 20:00:55 +0100
+Subject: [gecode-users] What is the exception Gecode::Set::OutOfLimits? (2)
+Message-ID: <a6b4b44a0812081100j649f7b06re8dff37d844019e8@mail.gmail.com>
+
+This is the full error'Gecode::Set::OutOfLimits'
+  what():  Set::dom: Number out of limits
+
+
+---------- Forwarded message ----------
+From: Mauricio Toro <mauriciotorob at gmail.com>
+Date: 2008/12/8
+Subject: What is the exception Gecode::Set::OutOfLimits?
+To: gecode list <users at gecode.org>
+
+
+Hello,
+My program is throwing the exception Gecode::Set::OutOfLimits
+what does it mean?
+
+Documentation only says:
+Exception: Value out of limits
+
+thanks
+
+-- 
+Mauricio Toro Bermudez
+Estudiante de Ingenier?a de Sistemas
+Pontificia Universidad Javeriana, Colombia
+
+Stagiare ? l'Ircam
+1, place Igor-Stravinsky 75004 Paris,
+France de 2008 ? 2009
+
+
+
+-- 
+Mauricio Toro Bermudez
+Estudiante de Ingenier?a de Sistemas
+Pontificia Universidad Javeriana, Colombia
+
+Stagiare ? l'Ircam
+1, place Igor-Stravinsky 75004 Paris,
+France de 2008 ? 2009
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081208/6c8e89ce/attachment.htm>
+
+From boysen at itu.dk  Mon Dec  8 23:41:17 2008
+From: boysen at itu.dk (Morten Boysen)
+Date: Mon, 08 Dec 2008 23:41:17 +0100
+Subject: [gecode-users] Value branching heuristics
+Message-ID: <493DA28D.7040801@itu.dk>
+
+Hi
+
+I have to program a value selection heuristic for a configurator that is 
+being implemented on top of the FlatZincGecode space. This means that 
+all variables are in an IntVarArray and in a BoolVarArray. What we need 
+to do is simply to choose the a value to branch on that has not been 
+verified as valid. Therefore, we have the following requirements:
+
+1) We need to know the index of the specific value we are branching on, 
+when the heuristic is invoked. This is needed, because the index is used 
+as a key into a map that contains the valid domains computed so far.
+
+2) We have no need to create any branching for variables (so we do not 
+need to modify the standard variable ordering).
+
+3) It would be nice if the heuristic van easily be integrated with the 
+standard least-constraining-value heuristic, so the heuristic first 
+tries the least-constraining-value of the values that have not been 
+verified as valid, and if all values have always been verified as valid, 
+the heuristic should simply work as the standard 
+least-constraining-value heuristic.
+
+I have seen two examples on how to implement this: The first method is 
+to inherit from Gecode::Branching and implement a heuristic (Question: 
+If we use this, do we also have to implement a variable selection 
+heuristics?). The second method is to use the Gecode::ViewValBranching 
+class. Given the requirements above, what would you recommend as the way 
+to implement the heuristic?
+
+Kind regards
+Morten Boysen
+
+
+
+From zayenz at gmail.com  Tue Dec  9 07:34:11 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 9 Dec 2008 07:34:11 +0100
+Subject: [gecode-users] What is the exception Gecode::Set::OutOfLimits?
+In-Reply-To: <a6b4b44a0812081058v17015dd7m488ca87b86e3261a@mail.gmail.com>
+References: <a6b4b44a0812081058v17015dd7m488ca87b86e3261a@mail.gmail.com>
+Message-ID: <63b5c8b00812082234r4e833f1eua9741f90177eb036@mail.gmail.com>
+
+The exception means exactly what the documentation says: the value you
+supplied is out of limits. Check the call that you made that throws
+the exception.
+
+/Mikael
+
+On Mon, Dec 8, 2008 at 7:58 PM, Mauricio Toro <mauriciotorob at gmail.com> wrote:
+> Hello,
+> My program is throwing the exception Gecode::Set::OutOfLimits
+> what does it mean?
+> Documentation only says:
+> Exception: Value out of limits
+>
+> thanks
+>
+> --
+> Mauricio Toro Bermudez
+> Estudiante de Ingenier?a de Sistemas
+> Pontificia Universidad Javeriana, Colombia
+>
+> Stagiare ? l'Ircam
+> 1, place Igor-Stravinsky 75004 Paris,
+> France de 2008 ? 2009
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Tue Dec  9 07:52:57 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 9 Dec 2008 07:52:57 +0100
+Subject: [gecode-users] Value branching heuristics
+In-Reply-To: <493DA28D.7040801@itu.dk>
+References: <493DA28D.7040801@itu.dk>
+Message-ID: <63b5c8b00812082252p417da4e1lade35c346a0f8f13@mail.gmail.com>
+
+Hi,
+
+I would suggest that you implement your own branching the same way
+some of the examples do it. You will need to implement some kind of
+variable selection yourself, but this is easy to do. While it is
+possible to implement a new value selection heuristic for
+ViewValBranch (and thus to reuse the variable selection part), the
+interfaces are not geared towards custom branchings. In particular,
+ViewValBranch will not give you the index of the variable the
+selection is to be made for.
+
+I'm not sure what kind of least constraining value heuristic you are
+referring to in part three of your question. There is no such generic
+value selection heuristic in Gecode, since the information needed is
+not readily available in any propagator based constraint programming
+system. There might be some custom way for your specific problem to
+make such a heuristic though.
+
+Hope this helps,
+Mikael
+
+On Mon, Dec 8, 2008 at 11:41 PM, Morten Boysen <boysen at itu.dk> wrote:
+> Hi
+>
+> I have to program a value selection heuristic for a configurator that is
+> being implemented on top of the FlatZincGecode space. This means that
+> all variables are in an IntVarArray and in a BoolVarArray. What we need
+> to do is simply to choose the a value to branch on that has not been
+> verified as valid. Therefore, we have the following requirements:
+>
+> 1) We need to know the index of the specific value we are branching on,
+> when the heuristic is invoked. This is needed, because the index is used
+> as a key into a map that contains the valid domains computed so far.
+>
+> 2) We have no need to create any branching for variables (so we do not
+> need to modify the standard variable ordering).
+>
+> 3) It would be nice if the heuristic van easily be integrated with the
+> standard least-constraining-value heuristic, so the heuristic first
+> tries the least-constraining-value of the values that have not been
+> verified as valid, and if all values have always been verified as valid,
+> the heuristic should simply work as the standard
+> least-constraining-value heuristic.
+>
+> I have seen two examples on how to implement this: The first method is
+> to inherit from Gecode::Branching and implement a heuristic (Question:
+> If we use this, do we also have to implement a variable selection
+> heuristics?). The second method is to use the Gecode::ViewValBranching
+> class. Given the requirements above, what would you recommend as the way
+> to implement the heuristic?
+>
+> Kind regards
+> Morten Boysen
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Tue Dec  9 08:12:17 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 9 Dec 2008 08:12:17 +0100
+Subject: [gecode-users] What is the exception Gecode::Set::OutOfLimits?
+In-Reply-To: <63b5c8b00812082234r4e833f1eua9741f90177eb036@mail.gmail.com>
+References: <a6b4b44a0812081058v17015dd7m488ca87b86e3261a@mail.gmail.com>
+	<63b5c8b00812082234r4e833f1eua9741f90177eb036@mail.gmail.com>
+Message-ID: <004a01c959cd$78551760$68ff4620$@se>
+
+To elaborate: not all integers or unsigned integers are legal values,
+apparently you try to include an integer into a set or use an integer that
+is out of limits (see Gecode::Set::Limits).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Tuesday, December 09, 2008 7:34 AM
+To: Mauricio Toro
+Cc: gecode list
+Subject: Re: [gecode-users] What is the exception Gecode::Set::OutOfLimits?
+
+The exception means exactly what the documentation says: the value you
+supplied is out of limits. Check the call that you made that throws
+the exception.
+
+/Mikael
+
+On Mon, Dec 8, 2008 at 7:58 PM, Mauricio Toro <mauriciotorob at gmail.com>
+wrote:
+> Hello,
+> My program is throwing the exception Gecode::Set::OutOfLimits
+> what does it mean?
+> Documentation only says:
+> Exception: Value out of limits
+>
+> thanks
+>
+> --
+> Mauricio Toro Bermudez
+> Estudiante de Ingenier?a de Sistemas
+> Pontificia Universidad Javeriana, Colombia
+>
+> Stagiare ? l'Ircam
+> 1, place Igor-Stravinsky 75004 Paris,
+> France de 2008 ? 2009
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Tue Dec  9 08:15:45 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 9 Dec 2008 08:15:45 +0100
+Subject: [gecode-users] InVarArray methods
+In-Reply-To: <loom.20081208T172457-5@post.gmane.org>
+References: <loom.20081208T172457-5@post.gmane.org>
+Message-ID: <004d01c959cd$f45022b0$dcf06810$@se>
+
+You can only print fields after they have been initialized.
+
+If you say "assign values" what do you mean? Assigning variables to fields
+in thne array? Or, assigning values to the variables stored at a fields in
+the array?
+
+Did you look at the examples that come with Gecode?
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Julian Cardona
+Sent: Monday, December 08, 2008 6:32 PM
+To: users at gecode.org
+Subject: [gecode-users] InVarArray methods
+
+Hey people i feel very idiot posting this but i have no idea hot to assign 
+values to a IntVarArray, i mean, i have an IntVarArray and i can initialize
+it 
+how it is described in the API but i dont know how to assign arbitrary
+vaules 
+to it.
+I cant figure out why i can print out the value of a desired position:
+std::cout << MyIntVarArray[i] << std::endl;
+but im unable to assign values to it in the common way:
+MyIntVarArray[4] = element;
+
+Please help me!!!
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From patrik.haslum at anu.edu.au  Tue Dec  9 11:21:21 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Tue, 09 Dec 2008 21:21:21 +1100
+Subject: [gecode-users] InVarArray methods
+In-Reply-To: <004d01c959cd$f45022b0$dcf06810$@se>
+References: <loom.20081208T172457-5@post.gmane.org>
+	<004d01c959cd$f45022b0$dcf06810$@se>
+Message-ID: <493E46A1.8020309@anu.edu.au>
+
+
+Hi,
+Actually, I'm a bit confused over Var's and VarArrays too. My 
+understanding (and please correct me if I'm wrong) is that a Var or 
+VarArray (and similarly ArgArrays; not sure what's the difference with 
+them) holds only pointers/references to the actual variables, which are 
+(in some slightly magic fashion) associated with the space object. Does 
+this mean that having all variables in VarArrays that are members of the 
+Space-derived object (and doing .updates on them in the copy 
+constructor) is in fact not necessary? (execpt if I want to do something 
+else with the variables, such as print them after a solution has been 
+found). The actual variables (as opposed to the pointers stored in a 
+Var/VarArray) would get copied/updated anyway? It seems to work, but I 
+haven't found a clear indication either way in the documentation.
+
+Julian, if you want to assign a value to an integer variable (that your 
+IntVar holds a reference to), I think you have to do it by posting a 
+constraint. For example,
+
+dom(this, X, 4, 4)
+
+would constrain the IntVar X so that 4 <= X <= 4 (here assuming the call 
+is made from within a method of the space-derived class; otherwise put a 
+pointer to the space instead of "this").
+
+cheers,
+			/P at trik
+
+
+Christian Schulte wrote:
+> You can only print fields after they have been initialized.
+> 
+> If you say "assign values" what do you mean? Assigning variables to fields
+> in thne array? Or, assigning values to the variables stored at a fields in
+> the array?
+> 
+> Did you look at the examples that come with Gecode?
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Julian Cardona
+> Sent: Monday, December 08, 2008 6:32 PM
+> To: users at gecode.org
+> Subject: [gecode-users] InVarArray methods
+> 
+> Hey people i feel very idiot posting this but i have no idea hot to assign 
+> values to a IntVarArray, i mean, i have an IntVarArray and i can initialize
+> it 
+> how it is described in the API but i dont know how to assign arbitrary
+> vaules 
+> to it.
+> I cant figure out why i can print out the value of a desired position:
+> std::cout << MyIntVarArray[i] << std::endl;
+> but im unable to assign values to it in the common way:
+> MyIntVarArray[4] = element;
+> 
+> Please help me!!!
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Tue Dec  9 11:33:25 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 9 Dec 2008 11:33:25 +0100
+Subject: [gecode-users] InVarArray methods
+In-Reply-To: <493E46A1.8020309@anu.edu.au>
+References: <loom.20081208T172457-5@post.gmane.org>
+	<004d01c959cd$f45022b0$dcf06810$@se> <493E46A1.8020309@anu.edu.au>
+Message-ID: <001301c959e9$9185b200$b4911600$@se>
+
+Hi,
+
+it works as follows:
+ - no variables are kept alive during cloning implicitly.
+ - a variable is kept alive during cloning if it is updated explicitly.
+ - a variable is updated explicitly if it is stored in a space and is there
+updated explicitly, or it is 
+   stored in some data structure (such as a IntVarArray) that is explicitly
+updated which in turn will 
+   explicitly update its fields, or it is used by a propagator or branching
+that while being copied also
+   while explicitly update the variables they use.
+
+With other words, when you want to use inside your space variables not only
+when you initialize the space but also for printing a solution etc, then you
+have to keep them alive by yourself. That typically will amount to storing
+them in a space directly or storing them in an IntVarArray that is stored in
+the space or some other datastructure and update them in the copy function
+of a space.
+
+ArgArrays cannot be used to keep variables alive, they only serve as a
+temporary datastructure for passing arrays of variables as arguments (for
+example, to post a constraint or a branching).
+
+Then, variables are indeed implemented as pointers to variable
+implementations but that should be of no concern. Whenever you update a
+variable the corresponding variable implementation will be copied if needed
+(sometimes some magic is used to actually avoid copying variable
+implementations, for example for Boolean variable implementations being
+already assigned 0 or 1).
+
+Hope that helps
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Patrik Haslum [mailto:patrik.haslum at anu.edu.au] 
+Sent: Tuesday, December 09, 2008 11:21 AM
+To: Christian Schulte
+Cc: 'Julian Cardona'; users at gecode.org
+Subject: Re: [gecode-users] InVarArray methods
+
+
+Hi,
+Actually, I'm a bit confused over Var's and VarArrays too. My 
+understanding (and please correct me if I'm wrong) is that a Var or 
+VarArray (and similarly ArgArrays; not sure what's the difference with 
+them) holds only pointers/references to the actual variables, which are 
+(in some slightly magic fashion) associated with the space object. Does 
+this mean that having all variables in VarArrays that are members of the 
+Space-derived object (and doing .updates on them in the copy 
+constructor) is in fact not necessary? (execpt if I want to do something 
+else with the variables, such as print them after a solution has been 
+found). The actual variables (as opposed to the pointers stored in a 
+Var/VarArray) would get copied/updated anyway? It seems to work, but I 
+haven't found a clear indication either way in the documentation.
+
+Julian, if you want to assign a value to an integer variable (that your 
+IntVar holds a reference to), I think you have to do it by posting a 
+constraint. For example,
+
+dom(this, X, 4, 4)
+
+would constrain the IntVar X so that 4 <= X <= 4 (here assuming the call 
+is made from within a method of the space-derived class; otherwise put a 
+pointer to the space instead of "this").
+
+cheers,
+			/P at trik
+
+
+Christian Schulte wrote:
+> You can only print fields after they have been initialized.
+> 
+> If you say "assign values" what do you mean? Assigning variables to fields
+> in thne array? Or, assigning values to the variables stored at a fields in
+> the array?
+> 
+> Did you look at the examples that come with Gecode?
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Julian Cardona
+> Sent: Monday, December 08, 2008 6:32 PM
+> To: users at gecode.org
+> Subject: [gecode-users] InVarArray methods
+> 
+> Hey people i feel very idiot posting this but i have no idea hot to assign
+
+> values to a IntVarArray, i mean, i have an IntVarArray and i can
+initialize
+> it 
+> how it is described in the API but i dont know how to assign arbitrary
+> vaules 
+> to it.
+> I cant figure out why i can print out the value of a desired position:
+> std::cout << MyIntVarArray[i] << std::endl;
+> but im unable to assign values to it in the common way:
+> MyIntVarArray[4] = element;
+> 
+> Please help me!!!
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+
+From boysen at itu.dk  Tue Dec  9 13:58:26 2008
+From: boysen at itu.dk (boysen at itu.dk)
+Date: Tue, 9 Dec 2008 13:58:26 +0100 (CET)
+Subject: [gecode-users] Value branching heuristics
+In-Reply-To: <63b5c8b00812082252p417da4e1lade35c346a0f8f13@mail.gmail.com>
+References: <493DA28D.7040801@itu.dk>
+	<63b5c8b00812082252p417da4e1lade35c346a0f8f13@mail.gmail.com>
+Message-ID: <53253.130.226.143.173.1228827506.squirrel@secure.itu.dk>
+
+Hi,
+
+Thank you for the reply.
+
+> I would suggest that you implement your own branching the same way
+> some of the examples do it. You will need to implement some kind of
+> variable selection yourself, but this is easy to do. While it is
+> possible to implement a new value selection heuristic for
+> ViewValBranch (and thus to reuse the variable selection part), the
+> interfaces are not geared towards custom branchings. In particular,
+> ViewValBranch will not give you the index of the variable the
+> selection is to be made for.
+
+Ok. I assume the way I can easily get the index of the variable that is
+being branched on is because the heuristic also acts as a variable
+heuristic, and hence knows which variable is being branched on. Is this
+correct?
+
+If this is the case, then what we want to do is to implement the
+Minimum-Remaining-Value (also known as fail-first. See the section on
+variable ordering:
+http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html) heuristic as
+the variable ordering (possibly using some way to break ties) and then use
+the custom value selection heuristic afterwards. Is this the way to go
+about it?
+
+> I'm not sure what kind of least constraining value heuristic you are
+> referring to in part three of your question. There is no such generic
+> value selection heuristic in Gecode, since the information needed is
+> not readily available in any propagator based constraint programming
+> system. There might be some custom way for your specific problem to
+> make such a heuristic though.
+
+The heuristic I am referring to is the one Bartak calls "succeed first" in
+the section on value ordering:
+http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html. Is the
+information for that heuristic missing in the solver?
+
+Kind regards
+Morten Boysen
+
+
+> On Mon, Dec 8, 2008 at 11:41 PM, Morten Boysen <boysen at itu.dk> wrote:
+>> Hi
+>>
+>> I have to program a value selection heuristic for a configurator that is
+>> being implemented on top of the FlatZincGecode space. This means that
+>> all variables are in an IntVarArray and in a BoolVarArray. What we need
+>> to do is simply to choose the a value to branch on that has not been
+>> verified as valid. Therefore, we have the following requirements:
+>>
+>> 1) We need to know the index of the specific value we are branching on,
+>> when the heuristic is invoked. This is needed, because the index is used
+>> as a key into a map that contains the valid domains computed so far.
+>>
+>> 2) We have no need to create any branching for variables (so we do not
+>> need to modify the standard variable ordering).
+>>
+>> 3) It would be nice if the heuristic van easily be integrated with the
+>> standard least-constraining-value heuristic, so the heuristic first
+>> tries the least-constraining-value of the values that have not been
+>> verified as valid, and if all values have always been verified as valid,
+>> the heuristic should simply work as the standard
+>> least-constraining-value heuristic.
+>>
+>> I have seen two examples on how to implement this: The first method is
+>> to inherit from Gecode::Branching and implement a heuristic (Question:
+>> If we use this, do we also have to implement a variable selection
+>> heuristics?). The second method is to use the Gecode::ViewValBranching
+>> class. Given the requirements above, what would you recommend as the way
+>> to implement the heuristic?
+>>
+>> Kind regards
+>> Morten Boysen
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+
+
+
+
+
+From cschulte at kth.se  Tue Dec  9 15:22:54 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 9 Dec 2008 15:22:54 +0100
+Subject: [gecode-users] Value branching heuristics
+In-Reply-To: <53253.130.226.143.173.1228827506.squirrel@secure.itu.dk>
+References: <493DA28D.7040801@itu.dk>	<63b5c8b00812082252p417da4e1lade35c346a0f8f13@mail.gmail.com>
+	<53253.130.226.143.173.1228827506.squirrel@secure.itu.dk>
+Message-ID: <004b01c95a09$a64f4c30$f2ede490$@se>
+
+Hi,
+
+yes, that information is not available in the solver. That is not a
+shortcoming of the solver, though. This information is only available for
+specialized solvers fully based on extensional representations used during
+propagation. Modern solvers such as Gecode use intensional propagators to
+accomodate for global constraints.
+
+What I did not really understand: why do you not use the predefined
+branchings (posted with branch)? Unless you also want to do something for
+value selection they should be enough.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of boysen at itu.dk
+Sent: Tuesday, December 09, 2008 1:58 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Value branching heuristics
+
+Hi,
+
+Thank you for the reply.
+
+> I would suggest that you implement your own branching the same way
+> some of the examples do it. You will need to implement some kind of
+> variable selection yourself, but this is easy to do. While it is
+> possible to implement a new value selection heuristic for
+> ViewValBranch (and thus to reuse the variable selection part), the
+> interfaces are not geared towards custom branchings. In particular,
+> ViewValBranch will not give you the index of the variable the
+> selection is to be made for.
+
+Ok. I assume the way I can easily get the index of the variable that is
+being branched on is because the heuristic also acts as a variable
+heuristic, and hence knows which variable is being branched on. Is this
+correct?
+
+If this is the case, then what we want to do is to implement the
+Minimum-Remaining-Value (also known as fail-first. See the section on
+variable ordering:
+http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html) heuristic as
+the variable ordering (possibly using some way to break ties) and then use
+the custom value selection heuristic afterwards. Is this the way to go
+about it?
+
+> I'm not sure what kind of least constraining value heuristic you are
+> referring to in part three of your question. There is no such generic
+> value selection heuristic in Gecode, since the information needed is
+> not readily available in any propagator based constraint programming
+> system. There might be some custom way for your specific problem to
+> make such a heuristic though.
+
+The heuristic I am referring to is the one Bartak calls "succeed first" in
+the section on value ordering:
+http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html. Is the
+information for that heuristic missing in the solver?
+
+Kind regards
+Morten Boysen
+
+
+> On Mon, Dec 8, 2008 at 11:41 PM, Morten Boysen <boysen at itu.dk> wrote:
+>> Hi
+>>
+>> I have to program a value selection heuristic for a configurator that is
+>> being implemented on top of the FlatZincGecode space. This means that
+>> all variables are in an IntVarArray and in a BoolVarArray. What we need
+>> to do is simply to choose the a value to branch on that has not been
+>> verified as valid. Therefore, we have the following requirements:
+>>
+>> 1) We need to know the index of the specific value we are branching on,
+>> when the heuristic is invoked. This is needed, because the index is used
+>> as a key into a map that contains the valid domains computed so far.
+>>
+>> 2) We have no need to create any branching for variables (so we do not
+>> need to modify the standard variable ordering).
+>>
+>> 3) It would be nice if the heuristic van easily be integrated with the
+>> standard least-constraining-value heuristic, so the heuristic first
+>> tries the least-constraining-value of the values that have not been
+>> verified as valid, and if all values have always been verified as valid,
+>> the heuristic should simply work as the standard
+>> least-constraining-value heuristic.
+>>
+>> I have seen two examples on how to implement this: The first method is
+>> to inherit from Gecode::Branching and implement a heuristic (Question:
+>> If we use this, do we also have to implement a variable selection
+>> heuristics?). The second method is to use the Gecode::ViewValBranching
+>> class. Given the requirements above, what would you recommend as the way
+>> to implement the heuristic?
+>>
+>> Kind regards
+>> Morten Boysen
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From boysen at itu.dk  Tue Dec  9 22:30:44 2008
+From: boysen at itu.dk (Morten Boysen)
+Date: Tue, 09 Dec 2008 22:30:44 +0100
+Subject: [gecode-users] Value branching heuristics
+In-Reply-To: <004b01c95a09$a64f4c30$f2ede490$@se>
+References: <493DA28D.7040801@itu.dk>	<63b5c8b00812082252p417da4e1lade35c346a0f8f13@mail.gmail.com>
+	<53253.130.226.143.173.1228827506.squirrel@secure.itu.dk>
+	<004b01c95a09$a64f4c30$f2ede490$@se>
+Message-ID: <493EE384.8040101@itu.dk>
+
+Christian Schulte skrev:
+> Hi,
+> 
+> yes, that information is not available in the solver. That is not a
+> shortcoming of the solver, though. This information is only available for
+> specialized solvers fully based on extensional representations used during
+> propagation. Modern solvers such as Gecode use intensional propagators to
+> accomodate for global constraints.
+
+Ok. If I understand it correctly, this means that it is not possible to 
+break ties in the case of equal size domains. So the variable heuristic 
+will simply select the variable with the smallest domain, and in case of 
+a tie, choose a random one (or the first, or ...).
+
+> What I did not really understand: why do you not use the predefined
+> branchings (posted with branch)? Unless you also want to do something for
+> value selection they should be enough.
+
+What we want to do is to implement the heuristic mentioned by Peter 
+Tiedemann in his PhD thesis (page 78, "Improving support from 
+solution"). So after a variable has been chosen, the value heuristic 
+should simply choose the first unsupported variable in that domain. If 
+all values in the domain have support, we choose a random value (or the 
+first, or ...).
+
+Kind regards
+Morten Boysen
+
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of boysen at itu.dk
+> Sent: Tuesday, December 09, 2008 1:58 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Value branching heuristics
+> 
+> Hi,
+> 
+> Thank you for the reply.
+> 
+>> I would suggest that you implement your own branching the same way
+>> some of the examples do it. You will need to implement some kind of
+>> variable selection yourself, but this is easy to do. While it is
+>> possible to implement a new value selection heuristic for
+>> ViewValBranch (and thus to reuse the variable selection part), the
+>> interfaces are not geared towards custom branchings. In particular,
+>> ViewValBranch will not give you the index of the variable the
+>> selection is to be made for.
+> 
+> Ok. I assume the way I can easily get the index of the variable that is
+> being branched on is because the heuristic also acts as a variable
+> heuristic, and hence knows which variable is being branched on. Is this
+> correct?
+> 
+> If this is the case, then what we want to do is to implement the
+> Minimum-Remaining-Value (also known as fail-first. See the section on
+> variable ordering:
+> http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html) heuristic as
+> the variable ordering (possibly using some way to break ties) and then use
+> the custom value selection heuristic afterwards. Is this the way to go
+> about it?
+> 
+>> I'm not sure what kind of least constraining value heuristic you are
+>> referring to in part three of your question. There is no such generic
+>> value selection heuristic in Gecode, since the information needed is
+>> not readily available in any propagator based constraint programming
+>> system. There might be some custom way for your specific problem to
+>> make such a heuristic though.
+> 
+> The heuristic I am referring to is the one Bartak calls "succeed first" in
+> the section on value ordering:
+> http://ktiml.mff.cuni.cz/~bartak/constraints/ordering.html. Is the
+> information for that heuristic missing in the solver?
+> 
+> Kind regards
+> Morten Boysen
+> 
+> 
+>> On Mon, Dec 8, 2008 at 11:41 PM, Morten Boysen <boysen at itu.dk> wrote:
+>>> Hi
+>>>
+>>> I have to program a value selection heuristic for a configurator that is
+>>> being implemented on top of the FlatZincGecode space. This means that
+>>> all variables are in an IntVarArray and in a BoolVarArray. What we need
+>>> to do is simply to choose the a value to branch on that has not been
+>>> verified as valid. Therefore, we have the following requirements:
+>>>
+>>> 1) We need to know the index of the specific value we are branching on,
+>>> when the heuristic is invoked. This is needed, because the index is used
+>>> as a key into a map that contains the valid domains computed so far.
+>>>
+>>> 2) We have no need to create any branching for variables (so we do not
+>>> need to modify the standard variable ordering).
+>>>
+>>> 3) It would be nice if the heuristic van easily be integrated with the
+>>> standard least-constraining-value heuristic, so the heuristic first
+>>> tries the least-constraining-value of the values that have not been
+>>> verified as valid, and if all values have always been verified as valid,
+>>> the heuristic should simply work as the standard
+>>> least-constraining-value heuristic.
+>>>
+>>> I have seen two examples on how to implement this: The first method is
+>>> to inherit from Gecode::Branching and implement a heuristic (Question:
+>>> If we use this, do we also have to implement a variable selection
+>>> heuristics?). The second method is to use the Gecode::ViewValBranching
+>>> class. Given the requirements above, what would you recommend as the way
+>>> to implement the heuristic?
+>>>
+>>> Kind regards
+>>> Morten Boysen
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>
+>>
+>> --
+>> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>>
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+
+
+From David.Rijsman at quintiq.com  Wed Dec 10 16:52:00 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 10 Dec 2008 16:52:00 +0100
+Subject: [gecode-users] Any Advise on assignment delta
+Message-ID: <493FF3AF.D4D3.0085.0@quintiq.com>
+
+Hi,
+
+I have a use case where I would like to get more information than just 'any' on a Delta when I am being advised  in a Propagator, for example as a result of an eq invocation on an IntView. 
+Specifically I would like to get each individual value that has been removed after successfully eq(ualizing) the view. I think this is not possible (today) but I am hoping I am missing some other ways of getting this information? 
+
+Second, if I would like to test in Propagator::advise if I am in propagation is it sufficient to test Space::stable  (and it must be false to be in propagation)?
+
+thank you,
+
+David
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From cschulte at kth.se  Wed Dec 10 21:14:06 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 10 Dec 2008 21:14:06 +0100
+Subject: [gecode-users] Any Advise on assignment delta
+In-Reply-To: <493FF3AF.D4D3.0085.0@quintiq.com>
+References: <493FF3AF.D4D3.0085.0@quintiq.com>
+Message-ID: <000001c95b03$e1408020$a3c18060$@se>
+
+Hi David,
+
+There are two possibilities for 'any' in general:
+ (1) You really treat it like any and compute whatever you need from
+scratch. Normally, you will
+     have the routines for doing so anyway, as you have to initialize your
+data without reference
+     to a delta.
+ (2) You keep a copy of the last domain: by that you can find out what has
+changed exactly. Maybe your data
+     structures can tell you the old domain anyway?
+
+'any' does not happen often: assignment is relatively rare compared to other
+changes on the variable because you can do it at most once; the other
+operations that lead to 'any' are iterator-based variable domain updates
+which in most cases just remove a single value or a range (and hence the
+delta information is accurate). 
+
+In all our propagators we use approach (1) or (2) where the datastructures
+we need anyway capture the old domain.
+
+Then, your idea about finding out whether you are "in propagation" does not
+work. The space might not be stable even though no propagator is currently
+running. But I have to admit that I am little bit confused by your desire:
+what we use quite often is to find out whether an advisor belongs to the
+currently running propagator (which is easy: just maintain a flag in the
+propagator that you set to true when the propagator starts and reset to
+false when you return. Then, an advisor can check that flag). I can't really
+see what you would do if a propagator is not running (that's a very rare
+occasion, actually). Maybe you can elaborate?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of David Rijsman
+Sent: Wednesday, December 10, 2008 4:52 PM
+To: users at gecode.org
+Subject: [gecode-users] Any Advise on assignment delta
+
+Hi,
+
+I have a use case where I would like to get more information than just 'any'
+on a Delta when I am being advised  in a Propagator, for example as a result
+of an eq invocation on an IntView. 
+Specifically I would like to get each individual value that has been removed
+after successfully eq(ualizing) the view. I think this is not possible
+(today) but I am hoping I am missing some other ways of getting this
+information? 
+
+Second, if I would like to test in Propagator::advise if I am in propagation
+is it sufficient to test Space::stable  (and it must be false to be in
+propagation)?
+
+thank you,
+
+David
+
+
+This message contains information that may be privileged or confidential and
+is the property of Quintiq. It is only intended for the person to whom it is
+addressed. If you are not the intended recipient, you are not authorized to
+read, print, retain, copy, disseminate, distribute or use this message or
+any part thereof. If you have received this message in error, please notify
+the sender immediately and delete all copies of this message. Please note
+that e-mails are susceptible to change, therefore they are not binding.
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From David.Rijsman at quintiq.com  Thu Dec 11 09:22:34 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 11 Dec 2008 09:22:34 +0100
+Subject: [gecode-users] Any Advise on assignment delta
+In-Reply-To: <000001c95b03$e1408020$a3c18060$@se>
+References: <493FF3AF.D4D3.0085.0@quintiq.com>
+	<000001c95b03$e1408020$a3c18060$@se>
+Message-ID: <4940DBD7.D4D3.0085.0@quintiq.com>
+
+Hi Christian,
+
+thanks for the reply, your absolutely right in each and every remark. The use case for the propagating check is to see  if a delta is the result of an 'external' action or a propagation action and external is defined as anything else than the propagate of the propagator instance which is also being advised. So indeed a flag will do the job.
+
+David
+
+>>> 
+From: 	"Christian Schulte" <cschulte at kth.se>
+To:	"'David Rijsman'" <David.Rijsman at quintiq.com>, <users at gecode.org>
+Date: 	12/10/2008 9:14 PM
+Subject: 	RE: [gecode-users] Any Advise on assignment delta
+
+Hi David,
+
+There are two possibilities for 'any' in general:
+ (1) You really treat it like any and compute whatever you need from
+scratch. Normally, you will
+     have the routines for doing so anyway, as you have to initialize your
+data without reference
+     to a delta.
+ (2) You keep a copy of the last domain: by that you can find out what has
+changed exactly. Maybe your data
+     structures can tell you the old domain anyway?
+
+'any' does not happen often: assignment is relatively rare compared to other
+changes on the variable because you can do it at most once; the other
+operations that lead to 'any' are iterator-based variable domain updates
+which in most cases just remove a single value or a range (and hence the
+delta information is accurate). 
+
+In all our propagators we use approach (1) or (2) where the datastructures
+we need anyway capture the old domain.
+
+Then, your idea about finding out whether you are "in propagation" does not
+work. The space might not be stable even though no propagator is currently
+running. But I have to admit that I am little bit confused by your desire:
+what we use quite often is to find out whether an advisor belongs to the
+currently running propagator (which is easy: just maintain a flag in the
+propagator that you set to true when the propagator starts and reset to
+false when you return. Then, an advisor can check that flag). I can't really
+see what you would do if a propagator is not running (that's a very rare
+occasion, actually). Maybe you can elaborate?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of David Rijsman
+Sent: Wednesday, December 10, 2008 4:52 PM
+To: users at gecode.org 
+Subject: [gecode-users] Any Advise on assignment delta
+
+Hi,
+
+I have a use case where I would like to get more information than just 'any'
+on a Delta when I am being advised  in a Propagator, for example as a result
+of an eq invocation on an IntView. 
+Specifically I would like to get each individual value that has been removed
+after successfully eq(ualizing) the view. I think this is not possible
+(today) but I am hoping I am missing some other ways of getting this
+information? 
+
+Second, if I would like to test in Propagator::advise if I am in propagation
+is it sufficient to test Space::stable  (and it must be false to be in
+propagation)?
+
+thank you,
+
+David
+
+
+This message contains information that may be privileged or confidential and
+is the property of Quintiq. It is only intended for the person to whom it is
+addressed. If you are not the intended recipient, you are not authorized to
+read, print, retain, copy, disseminate, distribute or use this message or
+any part thereof. If you have received this message in error, please notify
+the sender immediately and delete all copies of this message. Please note
+that e-mails are susceptible to change, therefore they are not binding.
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users 
+
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From anden_blah at hotmail.com  Thu Dec 11 13:24:50 2008
+From: anden_blah at hotmail.com (Anden blah)
+Date: Thu, 11 Dec 2008 12:24:50 +0000
+Subject: [gecode-users] BDD-based propagator for Gecode
+Message-ID: <COL101-W382FF9D44A8974E751A3F6F7F80@phx.gbl>
+
+
+
+
+Hi
+
+I am developing a BDD-based propagator for Gecode, and I have
+difficulty making it fast enough to be useful. Basically what I am doing is to
+subscribe to PC_GEN_ASSIGNED events on each of the variables involved in the
+BDD. Then when propagate is being called I find out which variable has been
+assigned, restrict the BDD accordingly and find the new valid domains
+(according to the BDD) so that I can prune values from the domain store. 
+
+One of the issues I have is that I do not know which
+variable that has had a value assigned to it when propagate is being called. To
+solve this I am currently iterating through each of the variables involved in
+the BDD that have not been assigned so far, create a view on each of them and call
+the method assigned() to find the variable. This however is inefficient and I
+wonder if I can get this information in a better way (?)
+
+If you have any good suggestions, advice or resources regarding
+bdd propagators for Gecode it would be greatly appreciated.
+
+Thanks
+
+Andreas
+
+
+_________________________________________________________________
+News, entertainment and everything you care about at Live.com. Get it now!
+http://www.live.com/getstarted.aspx
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081211/e5a6604b/attachment.htm>
+
+From David.Rijsman at quintiq.com  Thu Dec 11 13:56:25 2008
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 11 Dec 2008 13:56:25 +0100
+Subject: [gecode-users] Intersection
+Message-ID: <49411C08.D4D3.0085.0@quintiq.com>
+
+Hi,
+
+what is the easiest way to check if the intersection of two views (of IntVar) is empty in Gecode? My guess would be to use the range iterators for computing intersection something like this:
+
+bool intersects(IntVar& x0, IntVar& x1)
+{
+IntView view0(x0);
+IntView view1(x1);
+
+IntVarRanges vr0(view0);
+IntVarRanges vr1(view1);
+
+Iter::Ranges::Inter<IntVarRanges,IntVarRanges>  i1(vr0,vr1);
+
+return i1();
+}
+
+or is their a pre-defined helper function?
+
+thanks,
+
+David
+
+
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+
+From zayenz at gmail.com  Thu Dec 11 14:29:52 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 11 Dec 2008 14:29:52 +0100
+Subject: [gecode-users] BDD-based propagator for Gecode
+In-Reply-To: <COL101-W382FF9D44A8974E751A3F6F7F80@phx.gbl>
+References: <COL101-W382FF9D44A8974E751A3F6F7F80@phx.gbl>
+Message-ID: <63b5c8b00812110529p5c0c5a4ejc17142ef6695d4e5@mail.gmail.com>
+
+Hi,
+
+There are two principal ways to find out what variables have been
+changed. The first is to iterate through all the variables, and to
+check if they have changed (for example, by comparing the size with a
+cache of the previous size), or by using advisors. You can replace
+subscriptions with advisors to know exactly which variable has been
+modified. For information about the concept see [1], for some examples
+see the Layered graph and Boolean linear equation propagators, and for
+some practical information see previous discussion in the mailing list
+[2]
+
+Apart from this, I wonder if the search for the modified variables
+really is the prime source of inefficiency. Testing the variables is
+constant time (and thus linear in the number of variable to test all
+variables), while computing the valid domains is linear in the size of
+the BDD.
+
+Cheers/
+Mikael
+
+PS. In general, a propagator stores views and not variables, so I'm
+not sure why you need to create a view for each variable.
+
+[1] http://www.gecode.org/paper.html?id=LagerkvistSchulte:CP:2007
+[2] http://search.gmane.org/search.php?group=gmane.comp.lib.gecode.user&query=advisor
+
+
+On Thu, Dec 11, 2008 at 1:24 PM, Anden blah <anden_blah at hotmail.com> wrote:
+>
+> Hi
+>
+> I am developing a BDD-based propagator for Gecode, and I have difficulty making it fast enough to be useful. Basically what I am doing is to subscribe to PC_GEN_ASSIGNED events on each of the variables involved in the BDD. Then when propagate is being called I find out which variable has been assigned, restrict the BDD accordingly and find the new valid domains (according to the BDD) so that I can prune values from the domain store.
+>
+> One of the issues I have is that I do not know which variable that has had a value assigned to it when propagate is being called. To solve this I am currently iterating through each of the variables involved in the BDD that have not been assigned so far, create a view on each of them and call the method assigned() to find the variable. This however is inefficient and I wonder if I can get this information in a better way (?)
+>
+> If you have any good suggestions, advice or resources regarding bdd propagators for Gecode it would be greatly appreciated.
+>
+> Thanks
+>
+> Andreas
+>
+> ________________________________
+> Get news, entertainment and everything you care about at Live.com. Check it out!
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+--
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Thu Dec 11 15:03:17 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 11 Dec 2008 15:03:17 +0100
+Subject: [gecode-users] Intersection
+In-Reply-To: <49411C08.D4D3.0085.0@quintiq.com>
+References: <49411C08.D4D3.0085.0@quintiq.com>
+Message-ID: <63b5c8b00812110603v3282f201u16ca3ad316e1b4c2@mail.gmail.com>
+
+Hi,
+
+You can also use the functions for testing relations between integer views [1].
+
+Cheers,
+Mikael
+
+[1] http://www.gecode.org/gecode-doc-latest/group__TaskActorIntTest.html
+
+On Thu, Dec 11, 2008 at 1:56 PM, David Rijsman
+<David.Rijsman at quintiq.com> wrote:
+> Hi,
+>
+> what is the easiest way to check if the intersection of two views (of IntVar) is empty in Gecode? My guess would be to use the range iterators for computing intersection something like this:
+>
+> bool intersects(IntVar& x0, IntVar& x1)
+> {
+> IntView view0(x0);
+> IntView view1(x1);
+>
+> IntVarRanges vr0(view0);
+> IntVarRanges vr1(view1);
+>
+> Iter::Ranges::Inter<IntVarRanges,IntVarRanges>  i1(vr0,vr1);
+>
+> return i1();
+> }
+>
+> or is their a pre-defined helper function?
+>
+> thanks,
+>
+> David
+>
+>
+>
+>
+> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From mauriciotorob at gmail.com  Thu Dec 11 21:58:45 2008
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Thu, 11 Dec 2008 21:58:45 +0100
+Subject: [gecode-users] Estimating propagation times
+Message-ID: <a6b4b44a0812111258q6afb8a1dk575adb4ead5cf032@mail.gmail.com>
+
+Hello all,
+It's me again trying to "abuse" from Gecode.
+I am trying to use Gecode for real-time applications.
+I want to measure how much time takes for a
+"tell" a constraint in Concurrent Constraint Programming
+given a certain propagator
+and a certain constraint "store".
+
+For instance, I would like to have data like this:
+Equality domain propagator (a=b), for a store (a=2,b = [0..3]) takes to 20
+ms
+to achieve a partial fix point.
+
+Also, in a later time I could have:
+Equality domain propagator (a=b), for a store (a=2,b = 2) takes to 5 ms
+to achieve a fix point.
+
+I think that maybe I can train a neural network to learn that information.
+Can you think of a way to model this problem?
+
+Any suggestions are welcomed.
+
+Thanks,
+
+Mauricio
+
+-- 
+Mauricio Toro Bermudez
+Estudiante de Ingenier?a de Sistemas
+Pontificia Universidad Javeriana, Colombia
+
+Stagiare ? l'Ircam
+1, place Igor-Stravinsky 75004 Paris,
+France de 2008 ? 2009
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081211/1a969e60/attachment.htm>
+
+From denys.duchier at univ-orleans.fr  Sun Dec 14 16:59:10 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Sun, 14 Dec 2008 16:59:10 +0100
+Subject: [gecode-users] reified set/min constraint
+Message-ID: <873agqzr1t.fsf@tiny.univ-orleans.fr>
+
+Hi guys,
+
+It turns out I'll be needing a reified version of set/min.  So here is a
+11-patch series that attempts to provide this new constraint (also
+reified set/max).  These patches are for Gecode 2.2.0.  I am posting
+these here in case you'd like to add something based on them to gecode.
+
+These are my very first gecode propagators, so I don't quite know what
+I'm doing, but I coded them using the best and time-honored "copy,
+paste, mutate, and pray" technique.  To parody Knuth: beware of bugs in
+this code; I have only tried it, not proven it correct.
+
+First, an independent "typo fix":
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-01.patch
+Type: text/x-patch
+Size: 562 bytes
+Desc: fixed typo
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment.bin>
+-------------- next part --------------
+
+The "not min" constraint:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-02.patch
+Type: text/x-patch
+Size: 7852 bytes
+Desc: declaration and implementation of Set::Int::NotMinElement propagator
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0001.bin>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-03.patch
+Type: text/x-patch
+Size: 2194 bytes
+Desc: reuse min(...) to also post Set::Int::NotMinElement constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0002.bin>
+-------------- next part --------------
+
+The "not max" constraint:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-04.patch
+Type: text/x-patch
+Size: 6623 bytes
+Desc: declaration and implementation of Set::Int::NotMaxElement propagator
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0003.bin>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-05.patch
+Type: text/x-patch
+Size: 2247 bytes
+Desc: reuse max(...) to also post Set::Int::NotMaxElement constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0004.bin>
+-------------- next part --------------
+
+Support for reified set/int connection constraints:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-06.patch
+Type: text/x-patch
+Size: 2959 bytes
+Desc: IntSetRePropagator for reified int/set connection constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0005.bin>
+-------------- next part --------------
+
+The "reified min" constraint:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-07.patch
+Type: text/x-patch
+Size: 7545 bytes
+Desc: declaration and implementation of Set::Int::ReMinElement propagator
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0006.bin>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-08.patch
+Type: text/x-patch
+Size: 2009 bytes
+Desc: reuse min(...) to also post Set::Int::ReMinElement constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0007.bin>
+-------------- next part --------------
+
+The "reified max" constraint:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-09.patch
+Type: text/x-patch
+Size: 6512 bytes
+Desc: declaration and implementation of Set::Int::ReMaxElement propagator
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0008.bin>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-10.patch
+Type: text/x-patch
+Size: 1913 bytes
+Desc: reuse max(...) to also post Set::Int::ReMaxElement constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0009.bin>
+-------------- next part --------------
+
+Unit tests for these constraints:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reminmax-11.patch
+Type: text/x-patch
+Size: 15258 bytes
+Desc: unit tests for notmin,notmax,remin,remax constraints
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081214/526dd4bb/attachment-0010.bin>
+-------------- next part --------------
+
+I didn't even try to put these tests in the test suite
+because... well... who has the time to read the extensive documentation
+for that?
+
+/me ducks.  quack, quack!
+
+Cheers,
+
+--Denys
+
+From michal.dobrogost at gmail.com  Sat Dec 13 19:03:28 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Sat, 13 Dec 2008 13:03:28 -0500
+Subject: [gecode-users] Quicksort bug
+Message-ID: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+
+Hi All,
+
+I had one hell of a bug hunt recently. What started as a crash on
+winxp x64 ended up in a "true" being changed to a "false" on freebsd
+(so I could sanely debug into the Gecode code base). The culprit was
+FullTupleCompare (gecode/int/extensional/tuple-set.cc) but quicksort
+also got hit in the cross-fire.
+
+FullTupleCompare implements a less than or equal (<=) operator and not
+a strict less than (<) operator. In effect, for the case where both
+tuples are identical up the arity it returns true instead of false.
+This causes quicksort massive problems. See tuple-set.cc.diff for the
+fix.
+
+The gecode quicksort assumes that its stack will never exceed a depth
+of 32. This was getting exceeded when used on a large tupleset with
+the above comparison operator. However, in general this assumption is
+wrong. Stack usage for quicksort is worst case O(n) depending on the
+values that are chosen for the pivot! Exceeding the stack current
+results in an outright crash as an out of bounds pointer is
+dereferenced. I toyed with two fixes:
+
+1) make push return a success/failure code and if the push fails then
+call quicksort recursively instead of pushing onto the stack. See
+sort.icc.diff.
+
+2) start off with an static stack and expand it dynamically if it's
+exceeded. I'm not sure if Memory::malloc() / Memory::free() are the
+right ways to go about grabbing memory. There is no performance
+penalty if the stack depth does not exceed 32 entries. See
+sort.icc.diff2.
+
+Both solutions have the overhead of checking if the stack is going to
+exceed 32 entries on a push. This doesn't seem significant especially
+since most of the work should be happening in partition. My vote is
+for fix # 2 as it seems to be the more robust solution (no potential
+stack overflow).
+
+Cheers,
+
+Michal
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tuple-set.cc.diff
+Type: application/octet-stream
+Size: 833 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment.obj>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sort.icc.diff
+Type: application/octet-stream
+Size: 2954 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0001.obj>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sort.icc.diff2
+Type: application/octet-stream
+Size: 2937 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081213/61408fd1/attachment-0002.obj>
+
+From cschulte at kth.se  Mon Dec 15 22:32:41 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 15 Dec 2008 22:32:41 +0100
+Subject: [gecode-users] Quicksort bug
+In-Reply-To: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+References: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+Message-ID: <000301c95efc$a8e577b0$fab06710$@se>
+
+Hi Michal,
+
+I think that your reasoning is not fully correct: 
+ - Gecode's quicksort uses O(log n) stackspace: it will always push the
+larger array onto the stack,
+   which will be at least n/2 long! That's O(log n).
+ - There is no difference (in principle) whether you use a strict or
+non-strict ordering (as the complement
+   will be the opposite).
+
+The only problem I see is that 32 was not good enough. Could you be so kind
+and retry what happens with replacing 32 by "sizeof(int) * 64"? 
+
+Then, how much memory does your machine have? Then, how deep does the stack
+grow for Quicksort and how many elements does the array have you try to
+sort?
+
+Thanks
+Christian
+ 
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Michal D.
+Sent: Saturday, December 13, 2008 7:03 PM
+To: users at gecode.org
+Subject: [gecode-users] Quicksort bug
+
+Hi All,
+
+I had one hell of a bug hunt recently. What started as a crash on winxp x64
+ended up in a "true" being changed to a "false" on freebsd (so I could
+sanely debug into the Gecode code base). The culprit was FullTupleCompare
+(gecode/int/extensional/tuple-set.cc) but quicksort also got hit in the
+cross-fire.
+
+FullTupleCompare implements a less than or equal (<=) operator and not a
+strict less than (<) operator. In effect, for the case where both tuples are
+identical up the arity it returns true instead of false.
+This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+
+The gecode quicksort assumes that its stack will never exceed a depth of 32.
+This was getting exceeded when used on a large tupleset with the above
+comparison operator. However, in general this assumption is wrong. Stack
+usage for quicksort is worst case O(n) depending on the values that are
+chosen for the pivot! Exceeding the stack current results in an outright
+crash as an out of bounds pointer is dereferenced. I toyed with two fixes:
+
+1) make push return a success/failure code and if the push fails then call
+quicksort recursively instead of pushing onto the stack. See sort.icc.diff.
+
+2) start off with an static stack and expand it dynamically if it's
+exceeded. I'm not sure if Memory::malloc() / Memory::free() are the right
+ways to go about grabbing memory. There is no performance penalty if the
+stack depth does not exceed 32 entries. See sort.icc.diff2.
+
+Both solutions have the overhead of checking if the stack is going to exceed
+32 entries on a push. This doesn't seem significant especially since most of
+the work should be happening in partition. My vote is for fix # 2 as it
+seems to be the more robust solution (no potential stack overflow).
+
+Cheers,
+
+Michal
+
+
+
+
+From michal.dobrogost at gmail.com  Tue Dec 16 06:17:22 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Tue, 16 Dec 2008 05:17:22 +0000 (UTC)
+Subject: [gecode-users] Bug in TupleSet?
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+Message-ID: <loom.20081216T051225-973@post.gmane.org>
+
+> 
+> There seems to be a bug in TupleSet. If you add a particular tuple  
+> more than twice, the next call to extensional will segfault. Eg:
+> 
+> 	TupleSet tuples;
+> 
+> 	int n = 3;		// works if n <= 2
+> 
+> 	for (int i = 0; i < n; i++) {
+> 		IntArgs pair(2);
+> 		pair[0] = 0;
+> 		pair[1] = 1;
+> 
+> 		tuples.add(pair);
+> 	}
+> 
+> 	TestSpace* space = new TestSpace();
+> 
+> 	IntVarArray x(space, 2, 0, 1);
+> 	space->add(x);
+> 
+> 	extensional(space, x, tuples);	// segfault if n >= 3
+> 
+> (where TestSpace is a simple Space implementation)
+> 
+> GDB shows:
+> 
+> Program received signal EXC_BAD_ACCESS, Could not access memory.
+> Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+> 0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()  
+> at gecode/int/extensional/tuple-set.cc:55
+> 55              if (a[i] < b[i]) {
+> 
+> Malcolm
+> 
+
+I just noticed this message, and it's the exact same problem I was having
+(see http://article.gmane.org/gmane.comp.lib.gecode.user/2053). Just for
+reference: extensional() calls tupleSet::finalize() which calls quicksort()
+on the tuples and eventually produces this seg fault. I confirmed that with
+duplicates removed quicksort() terminates using the "<=" comparison and a
+stack depth of 32 for my data. However, this does not clear the use of "<="
+comparisons in quicksort (see the other thread).
+
+Sorry for spamming everyone with all these posts but hopefully we're making
+progress. I do have two actual questions:
+
+1) Is a tupleSet shared if it is used as part of multiple extensional()
+constraints?
+
+2) Do the unneeded tuples in a given extensional() constraint get discarded at
+some point? Ie. is it ok to have extra values that will be dropped on the first
+propagation or will they stay on as runtime overhead forever?
+
+Thanks,
+
+Michal
+
+
+
+
+
+From michal.dobrogost at gmail.com  Tue Dec 16 04:03:40 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Mon, 15 Dec 2008 22:03:40 -0500
+Subject: [gecode-users] Quicksort bug
+In-Reply-To: <000301c95efc$a8e577b0$fab06710$@se>
+References: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+	<000301c95efc$a8e577b0$fab06710$@se>
+Message-ID: <4eff48ac0812151903y7def9e91y5f2a3a9b9c8e441f@mail.gmail.com>
+
+Hi Christian,
+
+>  - Gecode's quicksort uses O(log n) stackspace: it will always push the
+> larger array onto the stack,
+>   which will be at least n/2 long! That's O(log n).
+
+I completely missed this, that's a very nice property to have! =)
+
+
+>  - There is no difference (in principle) whether you use a strict or
+> non-strict ordering (as the complement
+>   will be the opposite).
+
+Nevertheless, I think this is where the problem stems from. Strictness
+can be a problem if the code makes assumptions about it. Partition()
+seems to depend on strictness:
+
+Suppose the array is completely sorted and consists of very many
+duplicate elements. Specifically there are many elements past R that
+have the same value as (*R). Then we can imagine a situation in which
+line sort.icc:121 is executed many times and i goes arbitrarily far
+past the R pointer (since (*i) == (*R) and thus (*i) <= (*R) and thus
+lt(*i, R*)). This would be impossible if the comparison was strict.
+Continuing the trace, we reenter quicksort() with L > R (ie. L is to
+the right of R).
+
+
+> The only problem I see is that 32 was not good enough.
+
+Indeed, on 64-bit machines 32 is too small. I don't follow why the
+"sizeof(int)"? I think this value should be something along the lines
+of:
+
+sizeof(void*) * std::numeric_limits<unsigned char>::digits
+
+Ie. 64 on current 64bit systems.
+
+
+> Could you be so kind
+> and retry what happens with replacing 32 by "sizeof(int) * 64"?
+
+The sort is still running after 10 minutes and counting.
+
+Using my dynamic stack I recall that I left it running for longer than
+30 minutes before finally killing it.
+
+
+>
+> Then, how much memory does your machine have?
+
+4Gb of memory in the system + 8gb of pagefile. The program uses 600Mb
+when I use the strict comparison operator and at a depth of about 30
+spaces. Note that it works fine with a depth 32 stack so long as the
+comparison operator is strict.
+
+
+> Then, how deep does the stack
+> grow for Quicksort and how many elements does the array have you try to
+> sort?
+
+The TupleSet contains 4728252 tuples. If you want, I can send you the data.
+
+I recall that with the dynamic stack the stack depth exceeded 1024.
+
+Cheers,
+
+Michal
+
+
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Michal D.
+> Sent: Saturday, December 13, 2008 7:03 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Quicksort bug
+>
+> Hi All,
+>
+> I had one hell of a bug hunt recently. What started as a crash on winxp x64
+> ended up in a "true" being changed to a "false" on freebsd (so I could
+> sanely debug into the Gecode code base). The culprit was FullTupleCompare
+> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in the
+> cross-fire.
+>
+> FullTupleCompare implements a less than or equal (<=) operator and not a
+> strict less than (<) operator. In effect, for the case where both tuples are
+> identical up the arity it returns true instead of false.
+> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+>
+> The gecode quicksort assumes that its stack will never exceed a depth of 32.
+> This was getting exceeded when used on a large tupleset with the above
+> comparison operator. However, in general this assumption is wrong. Stack
+> usage for quicksort is worst case O(n) depending on the values that are
+> chosen for the pivot! Exceeding the stack current results in an outright
+> crash as an out of bounds pointer is dereferenced. I toyed with two fixes:
+>
+> 1) make push return a success/failure code and if the push fails then call
+> quicksort recursively instead of pushing onto the stack. See sort.icc.diff.
+>
+> 2) start off with an static stack and expand it dynamically if it's
+> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the right
+> ways to go about grabbing memory. There is no performance penalty if the
+> stack depth does not exceed 32 entries. See sort.icc.diff2.
+>
+> Both solutions have the overhead of checking if the stack is going to exceed
+> 32 entries on a push. This doesn't seem significant especially since most of
+> the work should be happening in partition. My vote is for fix # 2 as it
+> seems to be the more robust solution (no potential stack overflow).
+>
+> Cheers,
+>
+> Michal
+>
+>
+
+
+
+From michal.dobrogost at gmail.com  Tue Dec 16 04:39:04 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Mon, 15 Dec 2008 22:39:04 -0500
+Subject: [gecode-users] Quicksort bug
+In-Reply-To: <000301c95efc$a8e577b0$fab06710$@se>
+References: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+	<000301c95efc$a8e577b0$fab06710$@se>
+Message-ID: <4eff48ac0812151939kc31fc84jc206907867aad45c@mail.gmail.com>
+
+Here's another nugget of information. These are traces of the
+variables l and r  between lines 135 and 136 of sort.icc. As you can
+see l stays constant while r is jumping all over the place. Compiled
+using the <= comparison with maxsize set to "sizeof(int) * 64".
+
+34533544336 34533544656
+34533544336 34533544624
+34533544336 34533544640
+34533544336 34533544608
+34533544336 34533544624
+34533544336 34533544592
+34533544336 34533544608
+34533544336 34533544576
+34533544336 34533544592
+34533544336 34533544560
+34533544336 34533544576
+34533544336 34533544544
+34533544336 34533544560
+34533544336 34533544528
+34533544336 34533544544
+34533544336 34533544512
+34533544336 34533544528
+34533544336 34533544496
+34533544336 34533544512
+
+Michal
+
+On Mon, Dec 15, 2008 at 4:32 PM, Christian Schulte <cschulte at kth.se> wrote:
+> Hi Michal,
+>
+> I think that your reasoning is not fully correct:
+>  - Gecode's quicksort uses O(log n) stackspace: it will always push the
+> larger array onto the stack,
+>   which will be at least n/2 long! That's O(log n).
+>  - There is no difference (in principle) whether you use a strict or
+> non-strict ordering (as the complement
+>   will be the opposite).
+>
+> The only problem I see is that 32 was not good enough. Could you be so kind
+> and retry what happens with replacing 32 by "sizeof(int) * 64"?
+>
+> Then, how much memory does your machine have? Then, how deep does the stack
+> grow for Quicksort and how many elements does the array have you try to
+> sort?
+>
+> Thanks
+> Christian
+>
+>
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Michal D.
+> Sent: Saturday, December 13, 2008 7:03 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Quicksort bug
+>
+> Hi All,
+>
+> I had one hell of a bug hunt recently. What started as a crash on winxp x64
+> ended up in a "true" being changed to a "false" on freebsd (so I could
+> sanely debug into the Gecode code base). The culprit was FullTupleCompare
+> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in the
+> cross-fire.
+>
+> FullTupleCompare implements a less than or equal (<=) operator and not a
+> strict less than (<) operator. In effect, for the case where both tuples are
+> identical up the arity it returns true instead of false.
+> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+>
+> The gecode quicksort assumes that its stack will never exceed a depth of 32.
+> This was getting exceeded when used on a large tupleset with the above
+> comparison operator. However, in general this assumption is wrong. Stack
+> usage for quicksort is worst case O(n) depending on the values that are
+> chosen for the pivot! Exceeding the stack current results in an outright
+> crash as an out of bounds pointer is dereferenced. I toyed with two fixes:
+>
+> 1) make push return a success/failure code and if the push fails then call
+> quicksort recursively instead of pushing onto the stack. See sort.icc.diff.
+>
+> 2) start off with an static stack and expand it dynamically if it's
+> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the right
+> ways to go about grabbing memory. There is no performance penalty if the
+> stack depth does not exceed 32 entries. See sort.icc.diff2.
+>
+> Both solutions have the overhead of checking if the stack is going to exceed
+> 32 entries on a push. This doesn't seem significant especially since most of
+> the work should be happening in partition. My vote is for fix # 2 as it
+> seems to be the more robust solution (no potential stack overflow).
+>
+> Cheers,
+>
+> Michal
+>
+>
+
+
+
+From michal.dobrogost at gmail.com  Tue Dec 16 05:24:19 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Mon, 15 Dec 2008 23:24:19 -0500
+Subject: [gecode-users] Quicksort bug
+In-Reply-To: <000301c95efc$a8e577b0$fab06710$@se>
+References: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>
+	<000301c95efc$a8e577b0$fab06710$@se>
+Message-ID: <4eff48ac0812152024i312a18d5t189387c5f967f3ac@mail.gmail.com>
+
+Hi Christian,
+
+Put the attached file in the same directory as sort.icc. Compile with
+"g++ -ggdb main.cpp".
+
+The program uses quicksort on an array of 21 uniform elements. I get a
+seg fault right on line 121 as predicted (hehe, can't believe my luck,
+or rather bad luck).  It only happens with the "<" comparison. I
+haven't tried on a 32 bit system but I don't imagine it would make any
+difference.
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000400dda in Gecode::Support::partition<int, comp>
+(l=0x800d01084, r=0x800d010cc, lt=@0x7fffffffea9f) at sort.icc:121
+121           while (lt(*(++i),v)) {}
+
+Does Gecode admit the use of asserts? Maybe it should have a simple
+check "assert(! lt(L[i], L[i]))" for all elements in the array in
+debug mode before launching into the sort? I know the std library
+containers do this type of thing (at least in MSVC).
+
+Cheers,
+
+Michal
+
+On Mon, Dec 15, 2008 at 4:32 PM, Christian Schulte <cschulte at kth.se> wrote:
+> Hi Michal,
+>
+> I think that your reasoning is not fully correct:
+>  - Gecode's quicksort uses O(log n) stackspace: it will always push the
+> larger array onto the stack,
+>   which will be at least n/2 long! That's O(log n).
+>  - There is no difference (in principle) whether you use a strict or
+> non-strict ordering (as the complement
+>   will be the opposite).
+>
+> The only problem I see is that 32 was not good enough. Could you be so kind
+> and retry what happens with replacing 32 by "sizeof(int) * 64"?
+>
+> Then, how much memory does your machine have? Then, how deep does the stack
+> grow for Quicksort and how many elements does the array have you try to
+> sort?
+>
+> Thanks
+> Christian
+>
+>
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Michal D.
+> Sent: Saturday, December 13, 2008 7:03 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Quicksort bug
+>
+> Hi All,
+>
+> I had one hell of a bug hunt recently. What started as a crash on winxp x64
+> ended up in a "true" being changed to a "false" on freebsd (so I could
+> sanely debug into the Gecode code base). The culprit was FullTupleCompare
+> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in the
+> cross-fire.
+>
+> FullTupleCompare implements a less than or equal (<=) operator and not a
+> strict less than (<) operator. In effect, for the case where both tuples are
+> identical up the arity it returns true instead of false.
+> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+>
+> The gecode quicksort assumes that its stack will never exceed a depth of 32.
+> This was getting exceeded when used on a large tupleset with the above
+> comparison operator. However, in general this assumption is wrong. Stack
+> usage for quicksort is worst case O(n) depending on the values that are
+> chosen for the pivot! Exceeding the stack current results in an outright
+> crash as an out of bounds pointer is dereferenced. I toyed with two fixes:
+>
+> 1) make push return a success/failure code and if the push fails then call
+> quicksort recursively instead of pushing onto the stack. See sort.icc.diff.
+>
+> 2) start off with an static stack and expand it dynamically if it's
+> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the right
+> ways to go about grabbing memory. There is no performance penalty if the
+> stack depth does not exceed 32 entries. See sort.icc.diff2.
+>
+> Both solutions have the overhead of checking if the stack is going to exceed
+> 32 entries on a push. This doesn't seem significant especially since most of
+> the work should be happening in partition. My vote is for fix # 2 as it
+> seems to be the more robust solution (no potential stack overflow).
+>
+> Cheers,
+>
+> Michal
+>
+>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: main.cpp
+Type: text/x-c++src
+Size: 410 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081215/0f898e2e/attachment.cpp>
+
+From cschulte at kth.se  Tue Dec 16 10:39:55 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 16 Dec 2008 10:39:55 +0100
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <loom.20081216T051225-973@post.gmane.org>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+	<loom.20081216T051225-973@post.gmane.org>
+Message-ID: <000601c95f62$42c39f00$c84add00$@se>
+
+Dear Michal,
+
+Thanks so far for your input, I'll have a closer look at all of this as I
+find time (I am travelling today).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Michal D.
+Sent: Tuesday, December 16, 2008 6:17 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Bug in TupleSet?
+
+> 
+> There seems to be a bug in TupleSet. If you add a particular tuple  
+> more than twice, the next call to extensional will segfault. Eg:
+> 
+> 	TupleSet tuples;
+> 
+> 	int n = 3;		// works if n <= 2
+> 
+> 	for (int i = 0; i < n; i++) {
+> 		IntArgs pair(2);
+> 		pair[0] = 0;
+> 		pair[1] = 1;
+> 
+> 		tuples.add(pair);
+> 	}
+> 
+> 	TestSpace* space = new TestSpace();
+> 
+> 	IntVarArray x(space, 2, 0, 1);
+> 	space->add(x);
+> 
+> 	extensional(space, x, tuples);	// segfault if n >= 3
+> 
+> (where TestSpace is a simple Space implementation)
+> 
+> GDB shows:
+> 
+> Program received signal EXC_BAD_ACCESS, Could not access memory.
+> Reason: KERN_PROTECTION_FAILURE at address: 0x00000000
+> 0x0057f857 in (anonymous namespace)::FullTupleCompare::operator() ()  
+> at gecode/int/extensional/tuple-set.cc:55
+> 55              if (a[i] < b[i]) {
+> 
+> Malcolm
+> 
+
+I just noticed this message, and it's the exact same problem I was having
+(see http://article.gmane.org/gmane.comp.lib.gecode.user/2053). Just for
+reference: extensional() calls tupleSet::finalize() which calls quicksort()
+on the tuples and eventually produces this seg fault. I confirmed that with
+duplicates removed quicksort() terminates using the "<=" comparison and a
+stack depth of 32 for my data. However, this does not clear the use of "<="
+comparisons in quicksort (see the other thread).
+
+Sorry for spamming everyone with all these posts but hopefully we're making
+progress. I do have two actual questions:
+
+1) Is a tupleSet shared if it is used as part of multiple extensional()
+constraints?
+
+2) Do the unneeded tuples in a given extensional() constraint get discarded
+at
+some point? Ie. is it ok to have extra values that will be dropped on the
+first
+propagation or will they stay on as runtime overhead forever?
+
+Thanks,
+
+Michal
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From denys.duchier at univ-orleans.fr  Tue Dec 16 16:04:27 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Tue, 16 Dec 2008 16:04:27 +0100
+Subject: [gecode-users] non empty rangelist with an empty range
+Message-ID: <874p14p3es.fsf@tiny.univ-orleans.fr>
+
+I wrote:
+
+    SetVar s(this, 0, -1, 0, 10, 0, 11);
+
+because it seemed (I guess, by analogy with loops) a fairly natural way
+to indicate an empty glb.  It turns out that Gecode will happily create
+a range list containing the range [0,-1] which causes Gecode to behave
+strangely.
+
+I think that either the documentation should explicitely state the
+invariant or the code should check it.
+
+Cheers,
+
+--Denys
+
+
+
+From denys.duchier at univ-orleans.fr  Tue Dec 16 16:47:56 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Tue, 16 Dec 2008 16:47:56 +0100
+Subject: [gecode-users] making macros safe for semicolons
+Message-ID: <87skoonmtv.fsf@tiny.univ-orleans.fr>
+
+I had a couple of problems using some of Gecode macros because they
+cannot all be safely followed by a semicolon.  Here is a proposed patch
+that uses de "do {...} while (0)" pattern to make these macros safe.
+This is an old trick that is used a great deal in the Linux kernel.
+
+The patch is against Gecode 2.2.0:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: macros-01.patch
+Type: text/x-patch
+Size: 3761 bytes
+Desc: use do {...} while (0) pattern for macros
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081216/469431db/attachment.bin>
+-------------- next part --------------
+
+Cheers,
+
+--Denys
+
+From gutierrez.gustavo at uclouvain.be  Tue Dec 16 17:08:27 2008
+From: gutierrez.gustavo at uclouvain.be (Gustavo Gutierrez)
+Date: Tue, 16 Dec 2008 17:08:27 +0100
+Subject: [gecode-users] Gist and standard output
+Message-ID: <e7b0e5a40812160808y577c2ee6pd203792cca3cb9d9@mail.gmail.com>
+
+Hello,
+
+Gist is great for debug, i was wondering if is there a way to use git and
+still has the standard output in the terminal from where gist was launched.
+As i have some "cout" statements in my code, when i use gist i cannot see
+them in the console.
+
+
+Thanks in advance,
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081216/5164ce18/attachment.htm>
+
+From tack at ps.uni-sb.de  Tue Dec 16 17:30:18 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 16 Dec 2008 17:30:18 +0100
+Subject: [gecode-users] non empty rangelist with an empty range
+In-Reply-To: <874p14p3es.fsf@tiny.univ-orleans.fr>
+References: <874p14p3es.fsf@tiny.univ-orleans.fr>
+Message-ID: <FB1FBF4D-13C9-4030-B863-1082BE8E375C@ps.uni-sb.de>
+
+Denys Duchier wrote:
+
+> I wrote:
+>
+>    SetVar s(this, 0, -1, 0, 10, 0, 11);
+>
+> because it seemed (I guess, by analogy with loops) a fairly natural  
+> way
+> to indicate an empty glb.  It turns out that Gecode will happily  
+> create
+> a range list containing the range [0,-1] which causes Gecode to behave
+> strangely.
+>
+> I think that either the documentation should explicitely state the
+> invariant or the code should check it.
+
+Thanks, Denys.  We should definitely support the 0,-1 notation (we  
+support it for IntSets, so SetVars should be no exception).  I fixed  
+it in the trunk, and while I was looking at that code, I also found  
+out that the SetVar constructors did not throw proper exceptions when  
+trying to create an empty domain - it should all work as expected now.
+
+Cheers,
+	Guido
+
+
+
+
+From tack at ps.uni-sb.de  Tue Dec 16 17:35:37 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 16 Dec 2008 17:35:37 +0100
+Subject: [gecode-users] Gist and standard output
+In-Reply-To: <e7b0e5a40812160808y577c2ee6pd203792cca3cb9d9@mail.gmail.com>
+References: <e7b0e5a40812160808y577c2ee6pd203792cca3cb9d9@mail.gmail.com>
+Message-ID: <7155EBCF-ED80-471A-9ED9-F85598F8D3C8@ps.uni-sb.de>
+
+Gustavo Gutierrez wrote:
+> Gist is great for debug, i was wondering if is there a way to use  
+> git and still has the standard output in the terminal from where  
+> gist was launched. As i have some "cout" statements in my code, when  
+> i use gist i cannot see them in the console.
+
+I can't reproduce that behavior.  On my machine, cout still works when  
+running Gist.  Which platform do you use?  It could be that the Qt  
+framework does something strange to cout on Windows or Linux (I can  
+only test Mac OS at the moment).
+
+Cheers,
+	Guido
+
+
+
+
+From tack at ps.uni-sb.de  Tue Dec 16 17:48:45 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 16 Dec 2008 17:48:45 +0100
+Subject: [gecode-users] reified set/min constraint
+In-Reply-To: <873agqzr1t.fsf@tiny.univ-orleans.fr>
+References: <873agqzr1t.fsf@tiny.univ-orleans.fr>
+Message-ID: <F33F2453-6BE1-4548-8256-45F4167BF872@ps.uni-sb.de>
+
+Denys Duchier wrote:
+> It turns out I'll be needing a reified version of set/min.  So here  
+> is a
+> 11-patch series that attempts to provide this new constraint (also
+> reified set/max).  These patches are for Gecode 2.2.0.  I am posting
+> these here in case you'd like to add something based on them to  
+> gecode.
+>
+> These are my very first gecode propagators, so I don't quite know what
+> I'm doing, but I coded them using the best and time-honored "copy,
+> paste, mutate, and pray" technique.  To parody Knuth: beware of bugs  
+> in
+> this code; I have only tried it, not proven it correct.
+
+Thanks, Denys.  The new propagators are available in the trunk now.
+
+Cheers,
+	Guido
+
+
+
+
+From tack at ps.uni-sb.de  Tue Dec 16 17:52:28 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 16 Dec 2008 17:52:28 +0100
+Subject: [gecode-users] making macros safe for semicolons
+In-Reply-To: <87skoonmtv.fsf@tiny.univ-orleans.fr>
+References: <87skoonmtv.fsf@tiny.univ-orleans.fr>
+Message-ID: <622BD8F5-4A6A-4357-9B75-2A432628F09D@ps.uni-sb.de>
+
+Denys Duchier wrote:
+
+> I had a couple of problems using some of Gecode macros because they
+> cannot all be safely followed by a semicolon.  Here is a proposed  
+> patch
+> that uses de "do {...} while (0)" pattern to make these macros safe.
+> This is an old trick that is used a great deal in the Linux kernel.
+
+Right, it's even mentioned in the cpp documentation:
+http://gcc.gnu.org/onlinedocs/gcc-3.2.3/cpp/Swallowing-the-Semicolon.html
+
+Thanks, it's in the trunk now.
+
+Cheers,
+	Guido
+
+
+
+
+From cschulte at kth.se  Wed Dec 17 10:49:57 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Dec 2008 10:49:57 +0100
+Subject: [gecode-users] Formatting of Int view output
+References: <87r655dc6c.fsf@loki.cmears.id.au> 
+Message-ID: <001e01c9602c$d5032370$7f096a50$@se>
+
+Hi, it's now fixed in 3.0 (apart from some stuff that's still changing). We
+also made the stuff working with output streams using arbitrary character
+sets.
+
+Thanks again
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Friday, November 21, 2008 10:28 AM
+To: 'Chris Mears'; 'Gecode Users mailing list'
+Subject: RE: [gecode-users] Formatting of Int view output
+
+Hi Chris,
+
+thanks for pointing out that bug. The fix is even easier (but your stuff of
+course works as well): the problem is that we do not thread through the
+state of the output stream. Really stupid mistake from us, but well there
+you go...
+
+We'll fix it for 3.0
+
+Thanks
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Chris Mears
+Sent: Friday, November 21, 2008 3:51 AM
+To: Gecode Users mailing list
+Subject: [gecode-users] Formatting of Int view output
+
+Hello,
+
+In Gecode 2.2.0 the formatting of integer variables doesn't quite work
+correctly.  For example, I tried to print a matrix of variables with
+padding, like this:
+
+    for (int i = 0 ; i < 6 ; i++)
+    {
+        for (int j = 0 ; j < 6 ; j++)
+            cout << setw(15) << m(i,j);
+        cout << endl;
+    }
+
+"m" is a Matrix<IntVarArray>.  "setw(15)" is intended to make each
+element of the matrix use 15 characters, right-justified.  The output
+looks like this (fixed-width font required):
+
+              3              {1..2,4..6}              {1..2,4..6}
+[4..6]              {2,4..6}              {1..2,5}
+              [1..2]              {1..3,5..6}              [1..3]
+{2,5}              {1..3,5..6}              4
+              [4..6]              [2..6]              [1..5]
+[4..6]              [2..6]              {1..3,5}
+              [1..2]              [5..6]              [4..5]              3
+[4..6]              [1..2]
+              [4..6]              [2..6]              [2..6]              1
+[3..6]              {2..3,5}
+              [4..5]              [1..5]              [1..5]
+{2,4..5}              [1..5]              6
+
+The problem can be seen in the first item in the second row.  In the
+first row, the "3" is correctly placed, but beneath it the "[1..2]" is
+in the wrong spot -- the "]" should be directly beneath the "3".  The
+reason is that the first thing printed -- the "[" -- is padded, and the
+rest of the range isn't.  That is, because the range is printed
+piece-by-piece, only the first piece is padded.
+
+I do not know the proper C++ solution, but it seems like this would
+work.  The idea is to print the entire range "[1..2]" as one unit.  In
+gecode/int/view/print.cc, I changed the print_view method to build up
+the range in a stringstream and then print that at the end.  This fixes
+the problem I saw.  There are other places (e.g. print_scale, and the
+Bool versions) where this would need to be fixed too.
+
+Is this the right way to do it?
+
+  template <class View>
+  inline static std::ostream&
+  print_view(std::ostream& os, const View& x) {
+    std::stringstream ss;
+    if (x.assigned()) {
+      ss << x.val();
+    } else if (x.range()) {
+      ss << '[' << x.min() << ".." << x.max() << ']';
+    } else {
+      ss << '{';
+      ViewRanges<View> r(x);
+      while (true) {
+        if (r.min() == r.max()) {
+          ss << r.min();
+        } else {
+          ss << r.min() << ".." << r.max();
+        }
+        ++r;
+        if (!r()) break;
+        ss << ',';
+      }
+      ss << '}';
+    }
+    return os << ss.str();
+  }
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From Maria.GarciadelaBanda at infotech.monash.edu.au  Wed Dec 17 11:24:51 2008
+From: Maria.GarciadelaBanda at infotech.monash.edu.au (Maria Garcia de la Banda)
+Date: Wed, 17 Dec 2008 21:24:51 +1100
+Subject: [gecode-users] Porting attributed variables
+Message-ID: <200812171024.mBHAOp0O002601@bruce.infotech.monash.edu.au>
+
+
+Hi,
+
+Total newbie question (from an LPer): assume that, during search, I want
+to add some extra prunnings for all search variables that have a
+particular attribute (e.g., they apper in a given constraint, or they
+appear in some data structure I am maintaining, or whatever). In some LP
+languages this could easily be done by using "attributed variables", i.e.,
+variables to which extra information can be attached and consulted/
+modified during execution. 
+
+The question is: how could I do (easily) this in gecode? Using the
+reflection API?
+
+Thanks in advance,
+
+Maria
+
+
+
+
+
+From tack at ps.uni-sb.de  Wed Dec 17 13:49:32 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 17 Dec 2008 13:49:32 +0100
+Subject: [gecode-users] Porting attributed variables
+In-Reply-To: <200812171024.mBHAOp0O002601@bruce.infotech.monash.edu.au>
+References: <200812171024.mBHAOp0O002601@bruce.infotech.monash.edu.au>
+Message-ID: <F0456522-2B8A-4BF3-B6D7-04C622398600@ps.uni-sb.de>
+
+Maria Garcia de la Banda wrote:
+> Total newbie question (from an LPer): assume that, during search, I  
+> want
+> to add some extra prunnings for all search variables that have a
+> particular attribute (e.g., they apper in a given constraint, or they
+> appear in some data structure I am maintaining, or whatever). In  
+> some LP
+> languages this could easily be done by using "attributed variables",  
+> i.e.,
+> variables to which extra information can be attached and consulted/
+> modified during execution.
+
+Do you want to do the extra pruning in the branching?  E.g., collect  
+some attributes for particular variables, and then perform the  
+branching based on these attributes?  This reminds me of branchings  
+for scheduling, where propagators determine precedences between  
+activities, and the branching uses this precedence information to  
+order activities.  Is that a similar scenario?
+
+> The question is: how could I do (easily) this in gecode? Using the
+> reflection API?
+
+With reflection you can only get information about the variable  
+domain, but you can't add extra information.  But you can simply  
+introduce an additional data structure that collects the attributes,  
+and that is shared between the branching and whoever is responsible  
+for maintaining the attributes (e.g. some propagators).
+You'd only have to make sure that a) the data structure is copied  
+properly, and b) that the branching is still compatible with  
+recomputation.  For a), you could abuse a SharedArray and always set  
+the bool share flag to false during update.  For b), you have to  
+record at each branching step which prunings your branching does, and  
+encode them in the BranchingDesc, so that later recomputation steps  
+can perform the exact same prunings again.
+
+That's just the overall idea, if you need more concrete hints how to  
+implement this, just ask.
+
+Cheers,
+	Guido
+
+
+
+
+From cschulte at kth.se  Wed Dec 17 15:00:06 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Dec 2008 15:00:06 +0100
+Subject: [gecode-users] Quicksort bug
+In-Reply-To: <4eff48ac0812152024i312a18d5t189387c5f967f3ac@mail.gmail.com>
+References: <4eff48ac0812131003w6ed6f0d2he7761a454c0db169@mail.gmail.com>	
+	<000301c95efc$a8e577b0$fab06710$@se>
+	<4eff48ac0812152024i312a18d5t189387c5f967f3ac@mail.gmail.com>
+Message-ID: <006101c9604f$c49aec20$4dd0c460$@se>
+
+Hi Michal,
+
+you are absolutely right, our quicksort implementation only handles strict
+comparison! And actually, I did it that way because partitioning becomes
+more efficient that way.
+
+However, the bug was in the docs which omitted that piece of information
+(quicksort is actually one of the oldest parts of Gecode and existed before
+Gecode got its documentation)! That's now fixed together with the assertions
+you suggested and works for arrays that have more than 2^32 elements (I
+chose sizeof(int) * CHAR_BITS, as you can only use integers to specify the
+number of elements to sort).
+
+I also fixed the order for TupleSet but not the duplicate issue (just make
+the order strict), I'll leave that to Mikael who will be back tomorrow.
+
+Thanks again for your kind effort!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Michal D. [mailto:michal.dobrogost at gmail.com] 
+Sent: Tuesday, December 16, 2008 5:24 AM
+To: Christian Schulte
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Quicksort bug
+
+Hi Christian,
+
+Put the attached file in the same directory as sort.icc. Compile with "g++
+-ggdb main.cpp".
+
+The program uses quicksort on an array of 21 uniform elements. I get a seg
+fault right on line 121 as predicted (hehe, can't believe my luck, or rather
+bad luck).  It only happens with the "<" comparison. I haven't tried on a 32
+bit system but I don't imagine it would make any difference.
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000400dda in Gecode::Support::partition<int, comp> (l=0x800d01084,
+r=0x800d010cc, lt=@0x7fffffffea9f) at sort.icc:121
+121           while (lt(*(++i),v)) {}
+
+Does Gecode admit the use of asserts? Maybe it should have a simple check
+"assert(! lt(L[i], L[i]))" for all elements in the array in debug mode
+before launching into the sort? I know the std library containers do this
+type of thing (at least in MSVC).
+
+Cheers,
+
+Michal
+
+On Mon, Dec 15, 2008 at 4:32 PM, Christian Schulte <cschulte at kth.se> wrote:
+> Hi Michal,
+>
+> I think that your reasoning is not fully correct:
+>  - Gecode's quicksort uses O(log n) stackspace: it will always push 
+> the larger array onto the stack,
+>   which will be at least n/2 long! That's O(log n).
+>  - There is no difference (in principle) whether you use a strict or 
+> non-strict ordering (as the complement
+>   will be the opposite).
+>
+> The only problem I see is that 32 was not good enough. Could you be so 
+> kind and retry what happens with replacing 32 by "sizeof(int) * 64"?
+>
+> Then, how much memory does your machine have? Then, how deep does the 
+> stack grow for Quicksort and how many elements does the array have you 
+> try to sort?
+>
+> Thanks
+> Christian
+>
+>
+> --
+> Christian Schulte, www.it.kth.se/~cschulte/
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Michal D.
+> Sent: Saturday, December 13, 2008 7:03 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Quicksort bug
+>
+> Hi All,
+>
+> I had one hell of a bug hunt recently. What started as a crash on 
+> winxp x64 ended up in a "true" being changed to a "false" on freebsd 
+> (so I could sanely debug into the Gecode code base). The culprit was 
+> FullTupleCompare
+> (gecode/int/extensional/tuple-set.cc) but quicksort also got hit in 
+> the cross-fire.
+>
+> FullTupleCompare implements a less than or equal (<=) operator and not 
+> a strict less than (<) operator. In effect, for the case where both 
+> tuples are identical up the arity it returns true instead of false.
+> This causes quicksort massive problems. See tuple-set.cc.diff for the fix.
+>
+> The gecode quicksort assumes that its stack will never exceed a depth of
+32.
+> This was getting exceeded when used on a large tupleset with the above 
+> comparison operator. However, in general this assumption is wrong. 
+> Stack usage for quicksort is worst case O(n) depending on the values 
+> that are chosen for the pivot! Exceeding the stack current results in 
+> an outright crash as an out of bounds pointer is dereferenced. I toyed
+with two fixes:
+>
+> 1) make push return a success/failure code and if the push fails then 
+> call quicksort recursively instead of pushing onto the stack. See
+sort.icc.diff.
+>
+> 2) start off with an static stack and expand it dynamically if it's 
+> exceeded. I'm not sure if Memory::malloc() / Memory::free() are the 
+> right ways to go about grabbing memory. There is no performance 
+> penalty if the stack depth does not exceed 32 entries. See sort.icc.diff2.
+>
+> Both solutions have the overhead of checking if the stack is going to 
+> exceed
+> 32 entries on a push. This doesn't seem significant especially since 
+> most of the work should be happening in partition. My vote is for fix 
+> # 2 as it seems to be the more robust solution (no potential stack
+overflow).
+>
+> Cheers,
+>
+> Michal
+>
+>
+
+
+
+
+From Maria.GarciadelaBanda at infotech.monash.edu.au  Wed Dec 17 14:25:36 2008
+From: Maria.GarciadelaBanda at infotech.monash.edu.au (Maria Garcia de la Banda)
+Date: Thu, 18 Dec 2008 00:25:36 +1100
+Subject: [gecode-users] Porting attributed variables
+In-Reply-To: "Your message of Wed, 17 Dec 2008 13:49:32 BST."
+	<F0456522-2B8A-4BF3-B6D7-04C622398600@ps.uni-sb.de>
+Message-ID: <200812171325.mBHDPa0O005345@bruce.infotech.monash.edu.au>
+
+Guido Tack wrote:
+
+> Do you want to do the extra pruning in the branching?  E.g., collect  
+> some attributes for particular variables, and then perform the  
+> branching based on these attributes?  This reminds me of branchings  
+> for scheduling, where propagators determine precedences between  
+> activities, and the branching uses this precedence information to  
+> order activities.  Is that a similar scenario?
+
+What we are considering is a restricted kind of symmetry breaking during
+search (i.e., at each search node after a failed assignment we try to
+prune extra values based on the known symmetries). While some symetries
+are easy to break efficiently, others require (for efficiency) direct
+access from the variable to a data structure that indicates in which
+variables symmetries it appears (kind of reverse indexing). We could
+always lookup every element of the data structure to find where the
+variable appears, but that is too slow.
+
+> With reflection you can only get information about the variable  
+> domain, but you can't add extra information. 
+
+Aha. So that is off.
+
+> But you can simply  
+> introduce an additional data structure that collects the attributes,  
+> and that is shared between the branching and whoever is responsible  
+> for maintaining the attributes (e.g. some propagators).
+
+The datastructure must be maintained through the entire search, mmmh,
+actually, this is not true, it only needs to be maintained down in the
+search tree , all other branches are kind of independent of siblings.
+
+> You'd only have to make sure that a) the data structure is copied  
+> properly, and b) that the branching is still compatible with  
+> recomputation.  For a), you could abuse a SharedArray and always set  
+> the bool share flag to false during update.  For b), you have to  
+> record at each branching step which prunings your branching does, and  
+> encode them in the BranchingDesc, so that later recomputation steps  
+> can perform the exact same prunings again.
+> 
+> That's just the overall idea, if you need more concrete hints how to  
+> implement this, just ask. 
+
+So, I could use a Shared structure (like the array) to keep track of the
+info of all variables not yet labeled. Could I somehow maintain pointers
+to where exactly each variable appears in the structure? (mmh, I think I
+am mixing paradigms).
+
+Cheers, Maria
+
+
+
+
+
+
+From tack at ps.uni-sb.de  Thu Dec 18 11:08:13 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 18 Dec 2008 11:08:13 +0100
+Subject: [gecode-users] Porting attributed variables
+In-Reply-To: <200812171325.mBHDPa0O005345@bruce.infotech.monash.edu.au>
+References: <200812171325.mBHDPa0O005345@bruce.infotech.monash.edu.au>
+Message-ID: <2CF11A0D-F440-42E9-A998-CBE76C64287B@ps.uni-sb.de>
+
+Maria Garcia de la Banda wrote:
+
+> Guido Tack wrote:
+>
+>> Do you want to do the extra pruning in the branching?  E.g., collect
+>> some attributes for particular variables, and then perform the
+>> branching based on these attributes?  This reminds me of branchings
+>> for scheduling, where propagators determine precedences between
+>> activities, and the branching uses this precedence information to
+>> order activities.  Is that a similar scenario?
+>
+> What we are considering is a restricted kind of symmetry breaking  
+> during
+> search (i.e., at each search node after a failed assignment we try to
+> prune extra values based on the known symmetries). While some  
+> symetries
+> are easy to break efficiently, others require (for efficiency) direct
+> access from the variable to a data structure that indicates in which
+> variables symmetries it appears (kind of reverse indexing). We could
+> always lookup every element of the data structure to find where the
+> variable appears, but that is too slow.
+
+I see.  So you will need a special search engine anyway, and the  
+search has to have access to the variables.  I think the key to the  
+implementation will be to identify variables with their indexes in an  
+array, so that you can just use additional arrays for storing the  
+attributes.  If the attributes are just needed down one branch, a  
+global array will do.  If not, the array must be inside the space and  
+copied.
+
+> So, I could use a Shared structure (like the array) to keep track of  
+> the
+> info of all variables not yet labeled.
+
+Yes. I'd just use an array of info data structures, and it only  
+contains actual data at the indexes of the unassigned variables.
+
+> Could I somehow maintain pointers
+> to where exactly each variable appears in the structure? (mmh, I  
+> think I
+> am mixing paradigms).
+
+Is it an info field per variable, and the info should again contain  
+pointers to other variables?  I think identifying variables with their  
+array indexes should make all of this simple.
+
+Cheers,
+	Guido
+
+
+
+
+From Maria.GarciadelaBanda at infotech.monash.edu.au  Thu Dec 18 11:24:22 2008
+From: Maria.GarciadelaBanda at infotech.monash.edu.au (Maria Garcia de la Banda)
+Date: Thu, 18 Dec 2008 21:24:22 +1100
+Subject: [gecode-users] Porting attributed variables
+In-Reply-To: Message from Guido Tack <tack@ps.uni-sb.de>
+	"of Thu, 18 Dec 2008 11:08:13 BST."
+	<2CF11A0D-F440-42E9-A998-CBE76C64287B@ps.uni-sb.de>
+Message-ID: <200812181024.mBIAOM0O017689@bruce.infotech.monash.edu.au>
+
+
+Thanks Guido,
+
+That gives me good idea of how to start. I will talk to you about the
+details when you land in Melbourne.
+
+Cheers, Maria
+
+
+
+
+
+From denys.duchier at univ-orleans.fr  Thu Dec 18 21:23:17 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Thu, 18 Dec 2008 21:23:17 +0100
+Subject: [gecode-users] html doc and the doxygen 1.5.7.1 issue
+Message-ID: <87iqphdyh6.fsf@tiny.univ-orleans.fr>
+
+Just in case somebody encounters the issue:
+
+Doxygen 1.5.7.1 introduced an erroneous change in the semantics of
+"substitute" thats result in $relpath$ remaining in the doc produced
+instead of being substituted by the empty string.  As a consequence, the
+browser cannot find the stylesheet.
+
+The following patch to doxygen fixes the problem:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: doxygen-1.5.7.1-substitute.patch
+Type: text/x-patch
+Size: 656 bytes
+Desc: fix it
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081218/098d1e8e/attachment.bin>
+-------------- next part --------------
+
+Cheers,
+
+--Denys
+
+From zayenz at kth.se  Fri Dec 19 13:19:26 2008
+From: zayenz at kth.se (Mikael Zayenz Lagerkvist)
+Date: Fri, 19 Dec 2008 13:19:26 +0100
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <loom.20081216T051225-973@post.gmane.org>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+	<loom.20081216T051225-973@post.gmane.org>
+Message-ID: <63b5c8b00812190419r54c66d40l7e5f7fe2ae0041d0@mail.gmail.com>
+
+On Tue, Dec 16, 2008 at 6:17 AM, Michal D. <michal.dobrogost at gmail.com> wrote:
+> I just noticed this message, and it's the exact same problem I was having
+> (see http://article.gmane.org/gmane.comp.lib.gecode.user/2053). Just for
+> reference: extensional() calls tupleSet::finalize() which calls quicksort()
+> on the tuples and eventually produces this seg fault. I confirmed that with
+> duplicates removed quicksort() terminates using the "<=" comparison and a
+> stack depth of 32 for my data. However, this does not clear the use of "<="
+> comparisons in quicksort (see the other thread).
+
+This has been fixed in the trunk now, and tuple sets work with
+duplicate items. Thanks for helping with the bug-hunt. Tuple sets will
+also remove those duplicates on finalization in a coming update.
+
+> 1) Is a tupleSet shared if it is used as part of multiple extensional()
+> constraints?
+
+Yes, it is.
+
+> 2) Do the unneeded tuples in a given extensional() constraint get discarded at
+> some point? Ie. is it ok to have extra values that will be dropped on the first
+> propagation or will they stay on as runtime overhead forever?
+
+The set of tuples in a tuple set will always be the same, so including
+tuples that will never be solutions anyway will generate an overhead.
+For values of variables, extra values do not generate any overhead.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From michal.dobrogost at gmail.com  Fri Dec 19 17:26:07 2008
+From: michal.dobrogost at gmail.com (Michal D.)
+Date: Fri, 19 Dec 2008 11:26:07 -0500
+Subject: [gecode-users] Bug in TupleSet?
+In-Reply-To: <63b5c8b00812190419r54c66d40l7e5f7fe2ae0041d0@mail.gmail.com>
+References: <6B839AED-8700-4B56-9587-2A5FC5A10D58@cse.unsw.edu.au>
+	<loom.20081216T051225-973@post.gmane.org>
+	<63b5c8b00812190419r54c66d40l7e5f7fe2ae0041d0@mail.gmail.com>
+Message-ID: <4eff48ac0812190826u5af8a8d3h93f97cb9ae771cff@mail.gmail.com>
+
+>> 1) Is a tupleSet shared if it is used as part of multiple extensional()
+>> constraints?
+>
+> Yes, it is.
+>
+>> 2) Do the unneeded tuples in a given extensional() constraint get discarded at
+>> some point? Ie. is it ok to have extra values that will be dropped on the first
+>> propagation or will they stay on as runtime overhead forever?
+>
+> The set of tuples in a tuple set will always be the same, so including
+> tuples that will never be solutions anyway will generate an overhead.
+> For values of variables, extra values do not generate any overhead.
+>
+
+Thanks Mikael!
+
+
+
+From jeffreym9 at yahoo.com.hk  Wed Dec 24 13:03:10 2008
+From: jeffreym9 at yahoo.com.hk (Jeffrey)
+Date: Wed, 24 Dec 2008 04:03:10 -0800 (PST)
+Subject: [gecode-users] Linking Error when building Example in VC 2008
+Message-ID: <289833.9942.qm@web111406.mail.gq1.yahoo.com>
+
+I'm a new Gecode user.
+I've tried to build the example in Visual Studio 2008 platform.
+
+I've added the Gecode\lib as the library directory and set linker to link all the nine library including GecodeSupport.lib.
+
+It compiles with no error but carries 4 errors when trying to link the SizeOptions class.
+
+Error?1?error LNK2001: unresolved external symbol "public: void __thiscall SizeOptions::parse(int &,char * * const)" (?parse at SizeOptions@@QAEXAAHQAPAD at Z)?LeagueSchedule.obj?LeagueSchedule2
+
+Please help.
+Is there anyone tried to build the example on visual studio 2008? could you share your project with me?
+Big thanks!!!!
+
+Regards,
+Jeffrey
+
+
+      Yahoo!???????????????????! ??? http://hk.promo.yahoo.com/security/ ????!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081224/f00fd599/attachment.htm>
+
+From tack at ps.uni-sb.de  Wed Dec 24 13:36:45 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 24 Dec 2008 13:36:45 +0100
+Subject: [gecode-users] Linking Error when building Example in VC 2008
+In-Reply-To: <289833.9942.qm@web111406.mail.gq1.yahoo.com>
+References: <289833.9942.qm@web111406.mail.gq1.yahoo.com>
+Message-ID: <BDB3093B-13E5-43A1-AB5B-DB3F0BB8B966@ps.uni-sb.de>
+
+Jeffrey wrote:
+
+> I'm a new Gecode user.
+> I've tried to build the example in Visual Studio 2008 platform.
+>
+> I've added the Gecode\lib as the library directory and set linker to  
+> link all the nine library including GecodeSupport.lib.
+>
+> It compiles with no error but carries 4 errors when trying to link  
+> the SizeOptions class.
+
+You have to compile and link the .cpp files under examples/support, too.
+
+Cheers,
+	Guido
+
+
+
+
+From juliancardona10 at gmail.com  Thu Dec 25 17:39:46 2008
+From: juliancardona10 at gmail.com (Julian Cardona)
+Date: Thu, 25 Dec 2008 11:39:46 -0500
+Subject: [gecode-users] How to pass Options
+Message-ID: <3cf38b4d0812250839l588c4378y45395e4e0a88309@mail.gmail.com>
+
+I need to pass some new data to the functions of queens but i don't
+understand how they use the options. In the main() they just run the
+program with:
+Example::run<Queens,DFS,SizeOptions>(opt);
+How do i pass for example a string or int to Queens from the main
+function if i need to use it for new operations?
+Please help me!!
+
+
+
+From denys.duchier at univ-orleans.fr  Fri Dec 26 15:36:50 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Fri, 26 Dec 2008 15:36:50 +0100
+Subject: [gecode-users] question about view types and propagator templates
+Message-ID: <87myejgfzx.fsf@tiny.univ-orleans.fr>
+
+is there a design principle that guides the decision to parametrize
+Int::Rel::EqDom with two view types, but Int::Rel:Nq with only one?
+
+or why set propagators use IntViews but don't allow for other kinds of
+integer views?
+
+Cheers,
+
+--Denys
+
+
+

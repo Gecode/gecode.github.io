@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Installation with Intel Compiler 64 bits
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Installation%20with%20Intel%20Compiler%2064%20bits&In-Reply-To=%3CDB4621BF-ECBA-469B-896F-71C4FDAB6EB1%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001013.html">
+   <LINK REL="Next"  HREF="001015.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Installation with Intel Compiler 64 bits</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Installation%20with%20Intel%20Compiler%2064%20bits&In-Reply-To=%3CDB4621BF-ECBA-469B-896F-71C4FDAB6EB1%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] Installation with Intel Compiler 64 bits">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Fri Jul 20 10:20:55 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001013.html">[gecode-users] Installation with Intel Compiler 64 bits
+</A></li>
+        <LI>Next message: <A HREF="001015.html">[gecode-users] Variable updates and copies
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1014">[ date ]</a>
+              <a href="thread.html#1014">[ thread ]</a>
+              <a href="subject.html#1014">[ subject ]</a>
+              <a href="author.html#1014">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Simon Boivin wrote:
+
+&gt;<i> We had some problems to install Gecode on our new parallel computer  
+</I>&gt;<i> with  Intel Compiler 64 bits which crash when compiling  the  
+</I>&gt;<i> library  :
+</I>&gt;<i>
+</I>&gt;<i> icpc -I. -I. -DNDEBUG -fPIC -ggdb -O3 -fno-strict-aliasing  - 
+</I>&gt;<i> DNDEBUG -fPIC -ggdb
+</I>&gt;<i> -O3 -fno-strict-aliasing   \
+</I>&gt;<i> -c -o gecode/int/var/imp.o  gecode/int/var/imp.cc
+</I>&gt;<i> ../gecode/kernel/core.icc(1605): error #1556: conversion from  
+</I>&gt;<i> inaccessible
+</I>&gt;<i> base class &quot;Gecode::ActorLink&quot; is not allowed
+</I>&gt;<i>       t[0] = static_cast&lt;Propagator*&gt;(f[0]-&gt;prev());;
+</I>&gt;<i> which is an internal error of the compiler.
+</I>
+Actually, this is not an internal error, but a proper error in the  
+code (at least icpc thinks it is).
+
+&gt;<i> According to the c++ expert from Intel the program is not c++  
+</I>&gt;<i> standard conforming.
+</I>&gt;<i> So, to install the library we must modified the class Space as :
+</I>[...]
+&gt;<i> -  class Actor : public ActorDeleteLink {
+</I>&gt;<i> +  class Actor : private ActorDeleteLink {
+</I>
+Yes, I also noticed that recently. However, we are quite sure that  
+our code is legal C++ and Intel does not implement that correctly.  
+All the classes down the hierarchy (Propagator, Actor,  
+ActorDeleteLink, and ActorLink) have friend declarations with the  
+Variable class, where the error occurs - so the base class ActorLink  
+really shouldn't be inaccessible here. Both gcc and the Microsoft C++  
+compiler handle this without problems.
+
+The minimal example that shows this problem is:
+
+template &lt;class X&gt; class C;
+class A {};
+class B : private A { template &lt;class X&gt; friend class C; };
+template &lt;class X&gt; class C { public: C(A* a) { B* b = static_cast&lt;B*&gt; 
+(a); } };
+class D { D() { C&lt;int&gt; c(0); } };
+
+If you make class C a non-template class, everything works. If you  
+have contact to the icpc developers, please forward this example to  
+them, maybe they can explain whether we misinterpreted the C++  
+standard or it's a bug in their compiler. I'm really interested what  
+they say.
+
+A slightly cleaner workaround would be to add a private function
+Propagator* fromActorLink(ActorLink* a) { return  
+static_cast&lt;Propagator*&gt;(a); }
+to the Propagator class, which just does the static_cast. That way,  
+you could stick with private inheritance.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001013.html">[gecode-users] Installation with Intel Compiler 64 bits
+</A></li>
+	<LI>Next message: <A HREF="001015.html">[gecode-users] Variable updates and copies
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1014">[ date ]</a>
+              <a href="thread.html#1014">[ thread ]</a>
+              <a href="subject.html#1014">[ subject ]</a>
+              <a href="author.html#1014">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

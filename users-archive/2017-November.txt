@@ -1,0 +1,321 @@
+From tpot at frungy.org  Fri Nov 24 22:38:35 2017
+From: tpot at frungy.org (Tim Potter)
+Date: Sat, 25 Nov 2017 08:38:35 +1100
+Subject: [gecode-users] Operation of precede constraint on array of sets
+Message-ID: <78367DA5-35BD-47D8-B151-DA7CBAB93F99@frungy.org>
+
+Hi everyone.  I hope this isn't some silly misunderstanding but I'm having trouble figuring out how the precede() constraint works when applied to SetVarArray.
+
+Imagine I have a set of tasks with dependencies, for example 1->2, 2->3 and 3->4 to keep things simple.  I've added the following constraints:
+
+    // Array of sets of integers from {1..4}
+
+    SetVarArray deps(*this, 4, IntSet::empty, IntSet(1, 4));
+
+    // Enforce pairwise disjointedness
+
+    sequence(*this, deps);
+
+    // Final task must appear
+
+    rel(*this, setunion(deps) >= IntSet(IntArgs(1, 4)));
+
+    // Task ordering constraints
+
+    precede(*this, deps, 1, 2);
+    precede(*this, deps, 2, 3);
+    precede(*this, deps, 3, 4);
+
+Now this should produce at least a solution like {{1}, {2}, {3}, {4}}.  However I get this as my first solution in the output:
+
+	{{1..4}, {}, {}, {}}
+
+which indicates that the precede() constraint is not behaving as I think it should.  
+
+According to to the documentation the precede(home, x, s, t) version of the value precedence constraint as applied to set variables says that s is not an element of x_j and t is an element of x_j, then i < j such that s is an element of x_i and t is not an element of x_i. 
+
+I don't understand how the solution above satisfies the above unless maybe the i < j is really acting as i <= j.  This seems to be the case based on the other solutions as they're sorted but that could be a side effect of the sequence() constraint.
+
+Does anyone know what I'm doing wrong here?
+
+
+Thanks,
+
+Tim.
+
+From chris at cmears.id.au  Mon Nov 27 01:45:52 2017
+From: chris at cmears.id.au (Chris Mears)
+Date: Mon, 27 Nov 2017 11:45:52 +1100
+Subject: [gecode-users] Operation of precede constraint on array of sets
+In-Reply-To: <78367DA5-35BD-47D8-B151-DA7CBAB93F99@frungy.org>
+References: <78367DA5-35BD-47D8-B151-DA7CBAB93F99@frungy.org>
+Message-ID: <CAOXihOZFEyykMpC1CoXS=9fZPrMSwuR58D4geYasR4KFO8j4Ew@mail.gmail.com>
+
+Hello Tim,
+
+I think you might be misreading this version of the constraint. The
+constraint means "if s and t are ever treated differently -- that is, if
+there's a set where one of them is present but not the other -- then you'll
+get a set with only s before you get any set with only t." So your example
+satisfies the constraint because s and t are always either both present or
+both absent.
+
+Cheers,
+Chris
+
+
+On 25 November 2017 at 08:38, Tim Potter <tpot at frungy.org> wrote:
+
+> Hi everyone.  I hope this isn't some silly misunderstanding but I'm having
+> trouble figuring out how the precede() constraint works when applied to
+> SetVarArray.
+>
+> Imagine I have a set of tasks with dependencies, for example 1->2, 2->3
+> and 3->4 to keep things simple.  I've added the following constraints:
+>
+>     // Array of sets of integers from {1..4}
+>
+>     SetVarArray deps(*this, 4, IntSet::empty, IntSet(1, 4));
+>
+>     // Enforce pairwise disjointedness
+>
+>     sequence(*this, deps);
+>
+>     // Final task must appear
+>
+>     rel(*this, setunion(deps) >= IntSet(IntArgs(1, 4)));
+>
+>     // Task ordering constraints
+>
+>     precede(*this, deps, 1, 2);
+>     precede(*this, deps, 2, 3);
+>     precede(*this, deps, 3, 4);
+>
+> Now this should produce at least a solution like {{1}, {2}, {3}, {4}}.
+> However I get this as my first solution in the output:
+>
+>         {{1..4}, {}, {}, {}}
+>
+> which indicates that the precede() constraint is not behaving as I think
+> it should.
+>
+> According to to the documentation the precede(home, x, s, t) version of
+> the value precedence constraint as applied to set variables says that s is
+> not an element of x_j and t is an element of x_j, then i < j such that s is
+> an element of x_i and t is not an element of x_i.
+>
+> I don't understand how the solution above satisfies the above unless maybe
+> the i < j is really acting as i <= j.  This seems to be the case based on
+> the other solutions as they're sorted but that could be a side effect of
+> the sequence() constraint.
+>
+> Does anyone know what I'm doing wrong here?
+>
+>
+> Thanks,
+>
+> Tim.
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20171127/623ef4c6/attachment.html>
+
+From tpot at frungy.org  Mon Nov 27 22:52:19 2017
+From: tpot at frungy.org (Tim Potter)
+Date: Tue, 28 Nov 2017 08:52:19 +1100
+Subject: [gecode-users] Operation of precede constraint on array of sets
+In-Reply-To: <CAOXihOZFEyykMpC1CoXS=9fZPrMSwuR58D4geYasR4KFO8j4Ew@mail.gmail.com>
+References: <78367DA5-35BD-47D8-B151-DA7CBAB93F99@frungy.org>
+	<CAOXihOZFEyykMpC1CoXS=9fZPrMSwuR58D4geYasR4KFO8j4Ew@mail.gmail.com>
+Message-ID: <FBCDC069-0E35-489F-A764-2832AFF98898@frungy.org>
+
+Thanks Chris and Sebastian for your replies.  I agree that your parsing of the mathematical description of the constraint is valid but I don't think the result is in the spirit of the constraint, as much as I can divine this from the documentation.  
+
+"Value precedence constraints over set variables enforce that a value pieces another value in a set of array variables" is the overview of the precede() constraint in Modelling and Programming with Gecode.  Surely if there is any case where the first value is not placed before, i.e is preceded by, the second then there doesn't seem to be any point to the constraint.
+
+I think I'll dive into the source code and test case to try and get some more insight.
+
+(I forgot to mention in my original message that the constraint is documented in MPG, p.93).
+
+
+Thanks,
+
+Tim.
+
+> On 27 Nov 2017, at 11:45 am, Chris Mears <chris at cmears.id.au> wrote:
+> 
+> Hello Tim,
+> 
+> I think you might be misreading this version of the constraint. The constraint means "if s and t are ever treated differently -- that is, if there's a set where one of them is present but not the other -- then you'll get a set with only s before you get any set with only t." So your example satisfies the constraint because s and t are always either both present or both absent.
+> 
+> Cheers,
+> Chris
+> 
+> 
+> On 25 November 2017 at 08:38, Tim Potter <tpot at frungy.org> wrote:
+> Hi everyone.  I hope this isn't some silly misunderstanding but I'm having trouble figuring out how the precede() constraint works when applied to SetVarArray.
+> 
+> Imagine I have a set of tasks with dependencies, for example 1->2, 2->3 and 3->4 to keep things simple.  I've added the following constraints:
+> 
+>     // Array of sets of integers from {1..4}
+> 
+>     SetVarArray deps(*this, 4, IntSet::empty, IntSet(1, 4));
+> 
+>     // Enforce pairwise disjointedness
+> 
+>     sequence(*this, deps);
+> 
+>     // Final task must appear
+> 
+>     rel(*this, setunion(deps) >= IntSet(IntArgs(1, 4)));
+> 
+>     // Task ordering constraints
+> 
+>     precede(*this, deps, 1, 2);
+>     precede(*this, deps, 2, 3);
+>     precede(*this, deps, 3, 4);
+> 
+> Now this should produce at least a solution like {{1}, {2}, {3}, {4}}.  However I get this as my first solution in the output:
+> 
+>         {{1..4}, {}, {}, {}}
+> 
+> which indicates that the precede() constraint is not behaving as I think it should.
+> 
+> According to to the documentation the precede(home, x, s, t) version of the value precedence constraint as applied to set variables says that s is not an element of x_j and t is an element of x_j, then i < j such that s is an element of x_i and t is not an element of x_i.
+> 
+> I don't understand how the solution above satisfies the above unless maybe the i < j is really acting as i <= j.  This seems to be the case based on the other solutions as they're sorted but that could be a side effect of the sequence() constraint.
+> 
+> Does anyone know what I'm doing wrong here?
+> 
+> 
+> Thanks,
+> 
+> Tim.
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+
+From chris at cmears.id.au  Tue Nov 28 03:22:43 2017
+From: chris at cmears.id.au (Chris Mears)
+Date: Tue, 28 Nov 2017 13:22:43 +1100
+Subject: [gecode-users] Operation of precede constraint on array of sets
+In-Reply-To: <FBCDC069-0E35-489F-A764-2832AFF98898@frungy.org>
+References: <78367DA5-35BD-47D8-B151-DA7CBAB93F99@frungy.org>
+	<CAOXihOZFEyykMpC1CoXS=9fZPrMSwuR58D4geYasR4KFO8j4Ew@mail.gmail.com>
+	<FBCDC069-0E35-489F-A764-2832AFF98898@frungy.org>
+Message-ID: <CAOXihOa-UJeZrzaORo_1ogaBqNFzPGUOUhaYPiBNbw7VdNK8LQ@mail.gmail.com>
+
+I agree that that description is misleading in the case of set variables.
+The idea behind the constraint is symmetry breaking: if the two values are
+symmetric, the constraint breaks that symmetry. See e.g. the social golfers
+example on page 241 of MPG.
+
+On 28 November 2017 at 08:52, Tim Potter <tpot at frungy.org> wrote:
+
+> Thanks Chris and Sebastian for your replies.  I agree that your parsing of
+> the mathematical description of the constraint is valid but I don't think
+> the result is in the spirit of the constraint, as much as I can divine this
+> from the documentation.
+>
+> "Value precedence constraints over set variables enforce that a value
+> pieces another value in a set of array variables" is the overview of the
+> precede() constraint in Modelling and Programming with Gecode.  Surely if
+> there is any case where the first value is not placed before, i.e is
+> preceded by, the second then there doesn't seem to be any point to the
+> constraint.
+>
+> I think I'll dive into the source code and test case to try and get some
+> more insight.
+>
+> (I forgot to mention in my original message that the constraint is
+> documented in MPG, p.93).
+>
+>
+> Thanks,
+>
+> Tim.
+>
+> > On 27 Nov 2017, at 11:45 am, Chris Mears <chris at cmears.id.au> wrote:
+> >
+> > Hello Tim,
+> >
+> > I think you might be misreading this version of the constraint. The
+> constraint means "if s and t are ever treated differently -- that is, if
+> there's a set where one of them is present but not the other -- then you'll
+> get a set with only s before you get any set with only t." So your example
+> satisfies the constraint because s and t are always either both present or
+> both absent.
+> >
+> > Cheers,
+> > Chris
+> >
+> >
+> > On 25 November 2017 at 08:38, Tim Potter <tpot at frungy.org> wrote:
+> > Hi everyone.  I hope this isn't some silly misunderstanding but I'm
+> having trouble figuring out how the precede() constraint works when applied
+> to SetVarArray.
+> >
+> > Imagine I have a set of tasks with dependencies, for example 1->2, 2->3
+> and 3->4 to keep things simple.  I've added the following constraints:
+> >
+> >     // Array of sets of integers from {1..4}
+> >
+> >     SetVarArray deps(*this, 4, IntSet::empty, IntSet(1, 4));
+> >
+> >     // Enforce pairwise disjointedness
+> >
+> >     sequence(*this, deps);
+> >
+> >     // Final task must appear
+> >
+> >     rel(*this, setunion(deps) >= IntSet(IntArgs(1, 4)));
+> >
+> >     // Task ordering constraints
+> >
+> >     precede(*this, deps, 1, 2);
+> >     precede(*this, deps, 2, 3);
+> >     precede(*this, deps, 3, 4);
+> >
+> > Now this should produce at least a solution like {{1}, {2}, {3}, {4}}.
+> However I get this as my first solution in the output:
+> >
+> >         {{1..4}, {}, {}, {}}
+> >
+> > which indicates that the precede() constraint is not behaving as I think
+> it should.
+> >
+> > According to to the documentation the precede(home, x, s, t) version of
+> the value precedence constraint as applied to set variables says that s is
+> not an element of x_j and t is an element of x_j, then i < j such that s is
+> an element of x_i and t is not an element of x_i.
+> >
+> > I don't understand how the solution above satisfies the above unless
+> maybe the i < j is really acting as i <= j.  This seems to be the case
+> based on the other solutions as they're sorted but that could be a side
+> effect of the sequence() constraint.
+> >
+> > Does anyone know what I'm doing wrong here?
+> >
+> >
+> > Thanks,
+> >
+> > Tim.
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20171128/788a3fec/attachment.html>
+

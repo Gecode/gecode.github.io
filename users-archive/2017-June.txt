@@ -1,0 +1,476 @@
+From yilmaz.arslanoglu at gmail.com  Thu Jun  1 10:19:01 2017
+From: yilmaz.arslanoglu at gmail.com (Yilmaz Arslanoglu)
+Date: Thu, 1 Jun 2017 11:19:01 +0300
+Subject: [gecode-users] bin packing variant
+Message-ID: <CACUL20gc1K8jncgrcOgafPC9O17UNSjo7gvkZDtZXcWpJDXngA@mail.gmail.com>
+
+Hi;
+
+I was trying to write a model for a bin packing variant.
+(You can find the problem description at the bottom of this mail)
+
+I'm quite new to Gecode so I couldn't get the whole logic behind it,
+but below is my model which I based on the given directions in Gecode
+documentation:
+
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/set.hh>
+
+namespace {
+
+    using namespace Gecode;
+
+    const int rod_length[] = { 3, 2, 4, 5, 3 };
+    const int bin_weight_limit[] = { 30 };
+    const int bin_start[] = {0, 15};
+
+    inline int num_rods() {
+        return static_cast<int>(
+                   sizeof(rod_length) / sizeof(int)
+               );
+    }
+
+    inline int num_bins() {
+        return static_cast<int>(
+                   (sizeof(bin_weight_limit) / sizeof(int))
+               );
+    }
+
+    inline int box_start() {
+        return bin_start[0];
+    }
+
+    inline int box_end() {
+        return bin_start[num_bins()];
+    }
+
+    class Test : public Script {
+      public:
+
+        SetVarArray rod_position;
+        IntVarArray accum;
+
+        Test(const Options& opt)
+            : Script(opt)
+            , rod_position(*this,
+                           num_rods(),
+                           IntSet::empty,
+                           IntSet(box_start(),
+                                  box_end()))
+            , accum(*this,
+                    num_bins() * num_rods()) {
+
+            for (int i = 0; i < num_rods(); ++i) {
+                //
+                convex(*this, rod_position[i]);
+                //
+                cardinality(*this,
+                            rod_position[i],
+                            rod_length[i],
+                            rod_length[i]);
+            }
+
+            Matrix<IntVarArray> accum_matrix(accum,
+                                             num_bins(),
+                                             num_rods());
+
+            for (int i = 0; i < num_bins(); ++i) {
+                //
+                auto bin_interval = IntSet(bin_start[i] + 1,
+                                           bin_start[i + 1]);
+
+                //
+                for (int j = 0; j < num_rods(); ++j) {
+                    rel(*this,
+                        accum_matrix(i, j) ==
+                        cardinality(rod_position[j] & bin_interval));
+                }
+
+                //
+                rel(*this,
+                    sum(accum_matrix.col(i)) <= bin_weight_limit[i]);
+            }
+        }
+
+        Test(bool share, Test& s)
+            : Script(share, s) {
+            rod_position.update(*this, share, s.rod_position);
+            accum.update(*this, share, s.accum);
+        }
+
+        virtual
+        Space* copy(bool share) {
+            return new Test(share, *this);
+        }
+    };
+}
+
+I get an exception in <gecode>/int.hpp at this location:
+
+forceinline int
+  IntVarImp::RangeList::min(void) const {
+    return _min;
+  }
+
+And here is my bin packing problem description (please check the image
+attached):
+
+I would like to place *N* rods (the red ones) into a rectangle which is
+divided into *M* contiguous bins with different sizes. The rods can move
+through bins. That is, they don't need to be completely covered by a single
+bin, but can be hold by more than one bin.
+
+My constraint is: for each bin, there is a specific weight capacity *W* and
+total  weight of rod pieces falling into that bin cannot exceed *W*.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: packing_rods.png
+Type: image/png
+Size: 18132 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.png>
+
+From cschulte at kth.se  Thu Jun  1 11:02:00 2017
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 1 Jun 2017 11:02:00 +0200
+Subject: [gecode-users] bin packing variant
+In-Reply-To: <CACUL20gc1K8jncgrcOgafPC9O17UNSjo7gvkZDtZXcWpJDXngA@mail.gmail.com>
+References: <CACUL20gc1K8jncgrcOgafPC9O17UNSjo7gvkZDtZXcWpJDXngA@mail.gmail.com>
+Message-ID: <05f201d2dab5$bb1a6290$314f27b0$@kth.se>
+
+Look, we can?t debug your programs.
+
+ 
+
+However, the mistake is so basic that I saw it in one second: you do not initialize accum properly as you do not give bounds for the variables. Please read MPG carefully.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, RISE SICS, christian.schulte at ri.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Yilmaz Arslanoglu
+Sent: Thursday, June 1, 2017 10:19
+To: users at gecode.org
+Subject: [gecode-users] bin packing variant
+
+ 
+
+Hi;
+
+I was trying to write a model for a bin packing variant.
+
+(You can find the problem description at the bottom of this mail)
+
+I'm quite new to Gecode so I couldn't get the whole logic behind it,
+but below is my model which I based on the given directions in Gecode documentation:
+
+ 
+
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/set.hh>
+
+namespace {
+
+    using namespace Gecode;
+
+    const int rod_length[] = { 3, 2, 4, 5, 3 };
+    const int bin_weight_limit[] = { 30 };
+    const int bin_start[] = {0, 15};
+
+    inline int num_rods() {
+        return static_cast<int>(
+                   sizeof(rod_length) / sizeof(int)
+               );
+    }
+
+    inline int num_bins() {
+        return static_cast<int>(
+                   (sizeof(bin_weight_limit) / sizeof(int))
+               );
+    }
+
+    inline int box_start() {
+        return bin_start[0];
+    }
+
+    inline int box_end() {
+        return bin_start[num_bins()];
+    }
+
+    class Test : public Script {
+      public:
+
+        SetVarArray rod_position;
+        IntVarArray accum;
+
+        Test(const Options& opt)
+            : Script(opt)
+            , rod_position(*this,
+                           num_rods(),
+                           IntSet::empty,
+                           IntSet(box_start(),
+                                  box_end()))
+            , accum(*this,
+                    num_bins() * num_rods()) {
+
+            for (int i = 0; i < num_rods(); ++i) {
+                //
+                convex(*this, rod_position[i]);
+                //
+                cardinality(*this,
+                            rod_position[i],
+                            rod_length[i],
+                            rod_length[i]);
+            }
+
+            Matrix<IntVarArray> accum_matrix(accum,
+                                             num_bins(),
+                                             num_rods());
+
+            for (int i = 0; i < num_bins(); ++i) {
+                //
+                auto bin_interval = IntSet(bin_start[i] + 1,
+                                           bin_start[i + 1]);
+
+                //
+                for (int j = 0; j < num_rods(); ++j) {
+                    rel(*this,
+                        accum_matrix(i, j) ==
+                        cardinality(rod_position[j] & bin_interval));
+                }
+
+                //
+                rel(*this,
+                    sum(accum_matrix.col(i)) <= bin_weight_limit[i]);
+            }
+        }
+
+        Test(bool share, Test& s)
+            : Script(share, s) {
+            rod_position.update(*this, share, s.rod_position);
+            accum.update(*this, share, s.accum);
+        }
+
+        virtual
+        Space* copy(bool share) {
+            return new Test(share, *this);
+        }
+    };
+}
+
+I get an exception in <gecode>/int.hpp at this location:
+
+forceinline int
+  IntVarImp::RangeList::min(void) const {
+    return _min;
+  }
+
+And here is my bin packing problem description (please check the image attached):
+
+I would like to place N rods (the red ones) into a rectangle which is divided into M contiguous bins with different sizes. The rods can move through bins. That is, they don't need to be completely covered by a single bin, but can be hold by more than one bin.
+
+My constraint is: for each bin, there is a specific weight capacity W and total  weight of rod pieces falling into that bin cannot exceed W.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170601/498ccdf6/attachment.html>
+
+From yilmaz.arslanoglu at gmail.com  Thu Jun  1 11:21:57 2017
+From: yilmaz.arslanoglu at gmail.com (Yilmaz Arslanoglu)
+Date: Thu, 1 Jun 2017 12:21:57 +0300
+Subject: [gecode-users] bin packing variant
+In-Reply-To: <05f201d2dab5$bb1a6290$314f27b0$@kth.se>
+References: <CACUL20gc1K8jncgrcOgafPC9O17UNSjo7gvkZDtZXcWpJDXngA@mail.gmail.com>
+	<05f201d2dab5$bb1a6290$314f27b0$@kth.se>
+Message-ID: <CACUL20gpNoi2MzN6op6cjyOyNG6QBCgDbS9oj-OTtceWb=hBJA@mail.gmail.com>
+
+Hi Christian;
+
+Thanks for the quick response!
+
+Sorry, my intention was not to ask for code debugging.
+I intentionally left the bounds empty with an
+intuitive expectation that they will be filled with default min/max.
+
+Thanks again!
+
+Y?lmaz
+
+On Thu, Jun 1, 2017 at 12:02 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Look, we can?t debug your programs.
+>
+>
+>
+> However, the mistake is so basic that I saw it in one second: you do not
+> initialize accum properly as you do not give bounds for the variables.
+> Please read MPG carefully.
+>
+>
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, RISE SICS, christian.schulte at ri.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Yilmaz Arslanoglu
+> *Sent:* Thursday, June 1, 2017 10:19
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] bin packing variant
+>
+>
+>
+> Hi;
+>
+> I was trying to write a model for a bin packing variant.
+>
+> (You can find the problem description at the bottom of this mail)
+>
+> I'm quite new to Gecode so I couldn't get the whole logic behind it,
+> but below is my model which I based on the given directions in Gecode
+> documentation:
+>
+>
+>
+> #include <gecode/driver.hh>
+> #include <gecode/int.hh>
+> #include <gecode/set.hh>
+>
+> namespace {
+>
+>     using namespace Gecode;
+>
+>     const int rod_length[] = { 3, 2, 4, 5, 3 };
+>     const int bin_weight_limit[] = { 30 };
+>     const int bin_start[] = {0, 15};
+>
+>     inline int num_rods() {
+>         return static_cast<int>(
+>                    sizeof(rod_length) / sizeof(int)
+>                );
+>     }
+>
+>     inline int num_bins() {
+>         return static_cast<int>(
+>                    (sizeof(bin_weight_limit) / sizeof(int))
+>                );
+>     }
+>
+>     inline int box_start() {
+>         return bin_start[0];
+>     }
+>
+>     inline int box_end() {
+>         return bin_start[num_bins()];
+>     }
+>
+>     class Test : public Script {
+>       public:
+>
+>         SetVarArray rod_position;
+>         IntVarArray accum;
+>
+>         Test(const Options& opt)
+>             : Script(opt)
+>             , rod_position(*this,
+>                            num_rods(),
+>                            IntSet::empty,
+>                            IntSet(box_start(),
+>                                   box_end()))
+>             , accum(*this,
+>                     num_bins() * num_rods()) {
+>
+>             for (int i = 0; i < num_rods(); ++i) {
+>                 //
+>                 convex(*this, rod_position[i]);
+>                 //
+>                 cardinality(*this,
+>                             rod_position[i],
+>                             rod_length[i],
+>                             rod_length[i]);
+>             }
+>
+>             Matrix<IntVarArray> accum_matrix(accum,
+>                                              num_bins(),
+>                                              num_rods());
+>
+>             for (int i = 0; i < num_bins(); ++i) {
+>                 //
+>                 auto bin_interval = IntSet(bin_start[i] + 1,
+>                                            bin_start[i + 1]);
+>
+>                 //
+>                 for (int j = 0; j < num_rods(); ++j) {
+>                     rel(*this,
+>                         accum_matrix(i, j) ==
+>                         cardinality(rod_position[j] & bin_interval));
+>                 }
+>
+>                 //
+>                 rel(*this,
+>                     sum(accum_matrix.col(i)) <= bin_weight_limit[i]);
+>             }
+>         }
+>
+>         Test(bool share, Test& s)
+>             : Script(share, s) {
+>             rod_position.update(*this, share, s.rod_position);
+>             accum.update(*this, share, s.accum);
+>         }
+>
+>         virtual
+>         Space* copy(bool share) {
+>             return new Test(share, *this);
+>         }
+>     };
+> }
+>
+> I get an exception in <gecode>/int.hpp at this location:
+>
+> forceinline int
+>   IntVarImp::RangeList::min(void) const {
+>     return _min;
+>   }
+>
+> And here is my bin packing problem description (please check the image
+> attached):
+>
+> I would like to place *N* rods (the red ones) into a rectangle which is
+> divided into *M* contiguous bins with different sizes. The rods can move
+> through bins. That is, they don't need to be completely covered by a single
+> bin, but can be hold by more than one bin.
+>
+> My constraint is: for each bin, there is a specific weight capacity *W*
+> and total  weight of rod pieces falling into that bin cannot exceed *W*.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170601/3003b6fd/attachment-0001.html>
+

@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Remapping of BoolVar propagation conditions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Remapping%20of%20BoolVar%20propagation%20conditions&In-Reply-To=%3CEC611801-F253-421E-9897-18CF3AF864F4%40univ-angers.fr%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="002746.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Remapping of BoolVar propagation conditions</H1>
+    <B>Vincent Barichard</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Remapping%20of%20BoolVar%20propagation%20conditions&In-Reply-To=%3CEC611801-F253-421E-9897-18CF3AF864F4%40univ-angers.fr%3E"
+       TITLE="[gecode-users] Remapping of BoolVar propagation conditions">Vincent.Barichard at univ-angers.fr
+       </A><BR>
+    <I>Tue Dec  1 16:14:57 CET 2009</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="002746.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2745">[ date ]</a>
+              <a href="thread.html#2745">[ thread ]</a>
+              <a href="subject.html#2745">[ subject ]</a>
+              <a href="author.html#2745">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear Christian,
+
+Thank you very much for your mail. I'm sorry, I don't understand your  
+answer. Why having other BoolView classes will
+help me ? I added member functions in the BoolViews classes. I didn't  
+change the existing ones,
+I only added member functions which notify the ME_BOOL_SAME event.
+
+In my own propagator (let's call it M) I call the recently added  
+functions in the BoolViews. So the ME_BOOL_SAME
+event is sent.
+
+I also modified one propagator of Gecode (let's call it P') and make  
+it subscribe to the PC_BOOL_SAME propagation condition (I only added  
+&quot;x1.subscribe(home, *this, PC_BOOL_SAME)&quot; in constructor).
+In the &quot;propagate&quot; function of P' I added instructions which are only  
+relevant if a ME_BOOL_SAME event has been sent before.
+
+So when M is woke up (because it subscribe to PC_BOOL_VAL propagation  
+condition) it may call the new member functions in the BoolViews  
+classes which sent the ME_BOOL_SAME event. I would like that  
+propagators which subscribe to the PC_BOOL_SAME propagation condition  
+and only these ones, be scheduled to wake up (for example P' will be  
+scheduled if it shares a variable with M). As no assignment has been  
+made by the M propagator, I don't want that other propagators wake up  
+except if a ME_BOOL_VAL event has been sent from elsewhere.
+
+Unfortunately, as all propagation condition subscribings for Boleans  
+variables are remapped to PC_BOOL_VAL, P' will not awake if a  
+ME_BOOL_SAME event is sent.
+
+May have I another choice but to use the ME_BOOL_VAL event instead of  
+ME_BOOL_SAME in my new member functions of the BoolView classes ? As a  
+result, all propagators will be awaken even if they can't propagate  
+removal, indeed no assignment has been made.
+
+Don't hesitate to ask me if I'm not clear enough.
+
+Cheers,
+Vincent
+
+Le 30 nov. 09 &#224; 16:35, Christian Schulte a &#233;crit :
+
+&gt;<i> Actually what you have to do is the following: you define two  
+</I>&gt;<i> classes for
+</I>&gt;<i> Boolean views, one that rewrites its propagation conditions and the  
+</I>&gt;<i> other
+</I>&gt;<i> one that does not. Then your propagators can use the views without  
+</I>&gt;<i> rewriting
+</I>&gt;<i> while the other propagators can use the variables with rewriting.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On  
+</I>&gt;<i> Behalf
+</I>&gt;<i> Of Vincent Barichard
+</I>&gt;<i> Sent: Monday, November 30, 2009 9:33 AM
+</I>&gt;<i> To: Christian Schulte
+</I>&gt;<i> Cc: 'Guido Tack'; 'gecode list'
+</I>&gt;<i> Subject: Re: [gecode-users] Remapping of BoolVar propagation  
+</I>&gt;<i> conditions
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Thank you both for your answers. As I don't want to break all  
+</I>&gt;<i> propagators
+</I>&gt;<i> that are used for integer as well as boolean variables, I see no  
+</I>&gt;<i> choice but
+</I>&gt;<i> to use PC_BOOL_VAL.
+</I>&gt;<i>
+</I>&gt;<i> Maybe one of you may see another way ? I make new functions on Boolean
+</I>&gt;<i> variables (and associated views) which don't set domain to 1 or 0 (I  
+</I>&gt;<i> copied
+</I>&gt;<i> &quot;ModEvent  BoolVarImp::one_none(Space&amp; home)&quot; and removed the unwanted
+</I>&gt;<i> instructions). These functions notify new events (called  
+</I>&gt;<i> ME_BOOL_SAME in
+</I>&gt;<i> bool.vis file (see attached file)). I mapped this new event to the
+</I>&gt;<i> PC_BOOL_SAME propagation condition.
+</I>&gt;<i>
+</I>&gt;<i> Now I change an existing propagator (like the &quot;Or&quot; propagator), and  
+</I>&gt;<i> I want
+</I>&gt;<i> it to be awaken when ME_BOOL_SAME is emitted. As the variable is not  
+</I>&gt;<i> yet
+</I>&gt;<i> assigned, I didn't want to emit the ME_BOOL_VAL event because I  
+</I>&gt;<i> didn't want
+</I>&gt;<i> to wake up propagators which only subscribed to the PC_BOOL_VAL  
+</I>&gt;<i> condition.
+</I>&gt;<i>
+</I>&gt;<i> So during propagation, I call my new functions on Boolean variables,  
+</I>&gt;<i> the
+</I>&gt;<i> ME_BOOL_SAME event is sent and propagators which subscribe to the
+</I>&gt;<i> PC_BOOL_SAME condition are wake up. Other propagators are not awaken  
+</I>&gt;<i> (except
+</I>&gt;<i> if a ME_BOOL_VAL event has also been sent). Is it possible ?
+</I>&gt;<i> Should I use ME_BOOL_VAL ? If I use ME_BOOL_VAL other propagators  
+</I>&gt;<i> will be
+</I>&gt;<i> awaken for nothing.
+</I>&gt;<i>
+</I>&gt;<i> Thanks for your help.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Vincent
+</I>
+Vincent Barichard         Universit&#233; d'Angers (LERIA)
+Tel: 02 41 73 52 06      D&#233;partement Informatique
+Fax: 02 41 73 50 73     H203
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="002746.html">[gecode-users] Remapping of BoolVar propagation conditions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2745">[ date ]</a>
+              <a href="thread.html#2745">[ thread ]</a>
+              <a href="subject.html#2745">[ subject ]</a>
+              <a href="author.html#2745">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

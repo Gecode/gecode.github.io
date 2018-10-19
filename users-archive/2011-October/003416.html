@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Sum of IntVarArrays with changing array positions
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3C000501cc88c0%24647eed40%242d7cc7c0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003415.html">
+   <LINK REL="Next"  HREF="003417.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Sum of IntVarArrays with changing array positions</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Sum%20of%20IntVarArrays%20with%20changing%20array%20positions&In-Reply-To=%3C000501cc88c0%24647eed40%242d7cc7c0%24%40kth.se%3E"
+       TITLE="[gecode-users] Sum of IntVarArrays with changing array positions">cschulte at kth.se
+       </A><BR>
+    <I>Wed Oct 12 11:21:57 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003415.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+        <LI>Next message: <A HREF="003417.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3416">[ date ]</a>
+              <a href="thread.html#3416">[ thread ]</a>
+              <a href="subject.html#3416">[ subject ]</a>
+              <a href="author.html#3416">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+How about the following idea (just a sketch) based on the fact that the
+timeseries is short (hopefully that's right).
+
+Let me call the two arrays for the timeseries a and b and sum for the sum of
+a and b,
+
+1) Create variable arrays for a and b of the same length.
+
+2) Post for each element in a and b something like:
+	sum[i] = expr(home, a[i] + b[i])
+
+3) Post the resource patterns by using a regular expression together with an
+extensional constraint. Let's take as example the pattern for a (in a real
+application you might want to compute the regular expression
+programmatically, see for example the Kakuro case study in MPG):
+	REG ra = *REG(0) + REG(1) + REG(2) + REG(1) + REG(2) + REG(3) +
+*REG(0);
+ The regular expression says: the timeseries can appear somewhere in a,
+preceeded and succeeded by an arbitrary number of zeros. Create a DFA for it
+	DFA da(ra);
+  And post the extensional constraint on a
+	extensional(home, a, da);
+
+4) Now the constraints that enforce the relation between a and m (assuming m
+starts counting from zero):
+	for (int i=0; i&lt;a.size(); i++)
+		rel(home, (i &lt; m) == (a[i] == 0));
+  This does nothing but saying that for all positions less than m, the
+element in a must be zero.
+
+Of course, 3) and 4) must also be done for b.
+
+Not that great as it uses lots of reified constraints but maybe worth a shot
+(hopefully, I understood the problem allright). 4) Might be more efficient
+if you pre-compute lower and upper bounds for m based on the length of the
+pattern.
+
+Cheers
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mathias Dalheimer
+Sent: Wednesday, October 12, 2011 10:57 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Sum of IntVarArrays with changing array positions
+
+Hi,
+
+I'm having trouble expressing the following constraints: I have two
+IntVarArrays which contain short timeseries (i.e. consumption values for one
+hour, while the remaining hours of one day are empty/not constrained). The
+*position* of the constraints of the consumption can move within the day,
+this is governed by two IntVars (m, n) (which are my optimization goal, so
+the cost function is calculated depending on the position variables). The
+underlying question is where to place the consumption in order to optimize
+some cost function.
+
+Now I have some other constraints that depend on the position m and n of the
+consumption. I need to sum the timeseries. So, as an example, I have
+something like this (. denotes no constraint):
+
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+
+Now my question: How do I encode a constraint that depends on the sum of
+these two IntVarArrays while m and n (the position) can change?
+
+So, in the previous example, this would be:
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+. . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+
+In another example with different m and n:
+
+1 2 1 2 3 . . . . . . . . . . . .  // m=0 . . . . . . . 2 4 5 6 5 . . . . .
+// n=8
+1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+
+Different m's and n's are being evaluated and an optimal set of m and n is
+the result of the optimization.
+
+Thanks for any pointers,
+-Mathias
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003415.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+	<LI>Next message: <A HREF="003417.html">[gecode-users] Sum of IntVarArrays with changing array positions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3416">[ date ]</a>
+              <a href="thread.html#3416">[ thread ]</a>
+              <a href="subject.html#3416">[ subject ]</a>
+              <a href="author.html#3416">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

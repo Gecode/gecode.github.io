@@ -1,0 +1,220 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Writing Advisors
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Writing%20Advisors&In-Reply-To=%3C026901cd7f76%24cb5f47a0%24621dd6e0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003679.html">
+   <LINK REL="Next"  HREF="003681.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Writing Advisors</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Writing%20Advisors&In-Reply-To=%3C026901cd7f76%24cb5f47a0%24621dd6e0%24%40kth.se%3E"
+       TITLE="[gecode-users] Writing Advisors">cschulte at kth.se
+       </A><BR>
+    <I>Tue Aug 21 10:27:24 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003679.html">[gecode-users] Writing Advisors
+</A></li>
+        <LI>Next message: <A HREF="003681.html">[gecode-users] Writing Advisors
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3680">[ date ]</a>
+              <a href="thread.html#3680">[ thread ]</a>
+              <a href="subject.html#3680">[ subject ]</a>
+              <a href="author.html#3680">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Please read the examples in MPG again. It is not the old domain. It is the
+delta (as the name suggests).
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 21, 2012 10:12 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Writing Advisors
+
+ 
+
+Hi, i want to write an advisor for my propagator that gets notified when the
+watched variable changes it bounds.
+In the attached code, the advise method now prints the view min and max.
+According to the Gecode Documentation min(d)/max(d) return the old value of
+the variable,
+while min()/max() return the new value, is this correct?
+
+In my current test setting, i have only one variable &quot;a=[0..10]&quot;
+Then i add the constraint a&gt;5.
+The advisor is called properly.
+The first line prints:
+
+0 5 6 10
+
+This would mean that the domain of &quot;a&quot; before the progagation was [0..5] and
+now is [6..10].
+This of course can't be true (as they do not overlap).
+So how do I use the Delta Information correctly.
+I found no example actually using this information.
+
+2nd Question:
+With my two if statements in the advisor method,
+will i catch all changes of the bounds? Or is it possible to catch more.
+
+
+Best,
+Max
+
+PS: Thanks for the possibility to remove all propagators.
+
+class Waiter : public Propagator {
+
+        ...
+
+        class Watcher  : public Advisor {
+        public:
+            Int::IntView b_;
+            unsigned int lowerVar_;
+            Watcher(Space&amp; home, Propagator&amp; p,
+                    Council&lt;Watcher&gt;&amp; c, Int::IntView b, Clasp::Var lower)
+                : Advisor(home,p,c), b_(b), lowerVar_(lower)
+            {
+                b_.subscribe(home,*this);
+            }
+
+            Watcher(Space&amp; home, bool share, Watcher&amp; w)
+                : Advisor(home,share,w), lowerVar_(w.lowerVar_)
+            {
+                b_.update(home,share,w.b_);
+            }
+
+            void dispose(Space&amp; home, Council&lt;Watcher&gt;&amp; c)
+            {
+                b_.cancel(home,*this);
+                Advisor::dispose(home,c);
+            }
+        };
+        Council&lt;Watcher&gt; c_;
+    public:
+        Waiter(Space&amp; home) : Propagator(home), c_(home)
+        {
+            home.notice(*this,AP_DISPOSE);
+        }
+
+        Waiter(Space&amp; home, bool shared, Waiter&amp; p)
+            : Propagator(home,shared,p)
+        {
+            c_.update(home,shared,p.c_);
+        }
+
+        void init(Space&amp; home, GecodeSolver* csps, Int::IntView b, unsigned
+int varNumber)
+        {
+            solver = csps;
+            ...
+            (void) new (home) Watcher(home,*this,c_,b,varNumber);
+        }
+
+        /// Perform copying during cloning
+        virtual  Actor* copy(Space&amp; home, bool share) {
+            return new (home) Waiter(home,share,*this);
+        }
+
+        /// Const function (defined as low unary)
+        PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+            return PropCost::unary(PropCost::LO);
+        }
+
+        virtual size_t dispose(Space &amp;home) {
+            home.ignore(*this,AP_DISPOSE);
+            c_.dispose(home);
+            (void) Propagator::dispose(home);
+            return sizeof(*this);
+        }
+
+        virtual ExecStatus advise(Space &amp;home, Advisor &amp;a, const Delta &amp;d)
+        {
+            std::cout &lt;&lt; static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) &lt;&lt; &quot;\t&quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.min() &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max() &lt;&lt; std::endl;
+            Gecode::ModEvent e = static_cast&lt;Watcher&amp;&gt;(a).b_.modevent(d);
+//use this modevent
+            if (e == Gecode::Int::ME_INT_BND)
+            {
+                if (!static_cast&lt;Watcher&amp;&gt;(a).b_.any(d))
+                {
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.min()) // minimum has changed
+                    {
+                        ...
+                    }
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.max()) // maximum has changed
+                    {
+                        ...
+                    }
+                }
+            }
+            if (static_cast&lt;Watcher&amp;&gt;(a).b_.assigned())
+                return home.ES_FIX_DISPOSE(c_,static_cast&lt;Watcher&amp;&gt;(a));
+            else
+                return ES_FIX;
+        }
+
+
+        virtual ExecStatus propagate(Space &amp;home, const ModEventDelta &amp;med)
+        {
+            return ES_FIX;
+        }
+
+    }; 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/ba49ffac/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20120821/ba49ffac/attachment-0001.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003679.html">[gecode-users] Writing Advisors
+</A></li>
+	<LI>Next message: <A HREF="003681.html">[gecode-users] Writing Advisors
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3680">[ date ]</a>
+              <a href="thread.html#3680">[ thread ]</a>
+              <a href="subject.html#3680">[ subject ]</a>
+              <a href="author.html#3680">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

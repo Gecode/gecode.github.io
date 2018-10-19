@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Reachability in a graph structure.
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reachability%20in%20a%20graph%20structure.&In-Reply-To=%3C52CFEBCB.6040604%40it.uu.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004286.html">
+   <LINK REL="Next"  HREF="004288.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Reachability in a graph structure.</H1>
+    <B>Jean-No&#235;l Monette</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Reachability%20in%20a%20graph%20structure.&In-Reply-To=%3C52CFEBCB.6040604%40it.uu.se%3E"
+       TITLE="[gecode-users] Reachability in a graph structure.">jean-noel.monette at it.uu.se
+       </A><BR>
+    <I>Fri Jan 10 13:47:07 CET 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004286.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+        <LI>Next message: <A HREF="004288.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4287">[ date ]</a>
+              <a href="thread.html#4287">[ thread ]</a>
+              <a href="subject.html#4287">[ subject ]</a>
+              <a href="author.html#4287">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+I think that the element constraint does not exactly encode your 
+purpose. You write:
+
+y ? g1_reach[x] and z ? g1_reach[y] ==&gt;  z ? g1_reach[x]
+
+while your element constraint represents something like (if I am correct)
+
+y ? g1_reach[x] and z ? g1_reach[y] &lt;=&gt; z ? g1_reach[x]
+
+i.e., this is an equivalence.
+
+I do not know why you would have thousands of solution, though. Neither 
+why they do not respect the &quot;superset&quot; constraint.
+
+Hope it helps anyway,
+
+JN Monette
+
+
+On 01/10/2014 10:35 AM, Tobias Pankrath wrote:
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I'm quite new to constraint programming and gecode in particular and 
+</I>&gt;<i> ran into some issue
+</I>&gt;<i>
+</I>&gt;<i> I have to directed graphs G1=(V1,V1&#215;V1), G2=(V2, V2&#215;V2) and I am 
+</I>&gt;<i> searching for a mapping h: V1 ? V2, that mantains reachability. I.e. 
+</I>&gt;<i> if there is a path v1 -*&gt; v2 (v1,v2 ? V1) than there must also be a 
+</I>&gt;<i> path h(v1) -*&gt; h(v2).
+</I>&gt;<i>
+</I>&gt;<i> To model this using gecode, I am using 4 SetVarArrays:
+</I>&gt;<i>
+</I>&gt;<i> SetVarArray g1_edges; // y ? g1_edges[x]: there is an edge from v_x to 
+</I>&gt;<i> v_y in G1
+</I>&gt;<i> SetVarArray g2_edges; // like above for G2
+</I>&gt;<i>
+</I>&gt;<i> SetVarArray g1_reach; // y ? g1_reach[x]: there is a path from v_x to 
+</I>&gt;<i> v_y in G1
+</I>&gt;<i> SetVarArray g2_reach; // like above for G2.
+</I>&gt;<i>
+</I>&gt;<i> Now I want gecode to calculate the reachability of those graphs. Thus 
+</I>&gt;<i> I tried to fix the graph by the following domain constraints. A 
+</I>&gt;<i> picture of the desired graph is attached to this mail.
+</I>&gt;<i>
+</I>&gt;<i>  // define edges between nodes
+</I>&gt;<i>  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+</I>&gt;<i>  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+</I>&gt;<i>  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+</I>&gt;<i>  dom(*this, g1_edges[3],  SRT_EQ, 5);
+</I>&gt;<i>  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+</I>&gt;<i>  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+</I>&gt;<i>
+</I>&gt;<i> Then I want to encode the following relations:
+</I>&gt;<i>     * y ? g1_reach[x], if y ? g1_edges[x] (direct neighbours)
+</I>&gt;<i>     * if y ? g1_reach[x] and z ? g1_reach[y] then z ? g1_reach[x] 
+</I>&gt;<i> (transitivity)
+</I>&gt;<i>
+</I>&gt;<i> Thus I do:
+</I>&gt;<i> for(int x = 0; x &lt; 6; ++x)
+</I>&gt;<i> {
+</I>&gt;<i>     rel(*this, g1_reach[x] &gt;= g1_edges[x]); // superset
+</I>&gt;<i>     element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+</I>&gt;<i>     // call to element taken from the manual, section 5.2.4
+</I>&gt;<i>     // is it correct?
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Then I'll branch on g1_reach, like this:
+</I>&gt;<i> branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+</I>&gt;<i>
+</I>&gt;<i> However this gives me a &gt;1000 solutions and all look like
+</I>&gt;<i> g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+</I>&gt;<i> g1_reach {}
+</I>&gt;<i>
+</I>&gt;<i> What is the correct way to model this?
+</I>&gt;<i>
+</I>&gt;<i> With my best regards,
+</I>&gt;<i> Tobias
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/3256210c/attachment.html">http://www.gecode.org/pipermail/users/attachments/20140110/3256210c/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004286.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+	<LI>Next message: <A HREF="004288.html">[gecode-users] Reachability in a graph structure.
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4287">[ date ]</a>
+              <a href="thread.html#4287">[ thread ]</a>
+              <a href="subject.html#4287">[ subject ]</a>
+              <a href="author.html#4287">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

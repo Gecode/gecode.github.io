@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Copiling with gcc on OpenSuSE 10.0
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Copiling%20with%20gcc%20on%20OpenSuSE%2010.0&In-Reply-To=%3CALEPKBOHKGPLIGOCEGCBKEEHCEAA.neachem%40volny.cz%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000329.html">
+   <LINK REL="Next"  HREF="000331.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Copiling with gcc on OpenSuSE 10.0</H1>
+    <B>Vladim&#237;r Dusa</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Copiling%20with%20gcc%20on%20OpenSuSE%2010.0&In-Reply-To=%3CALEPKBOHKGPLIGOCEGCBKEEHCEAA.neachem%40volny.cz%3E"
+       TITLE="[gecode-users] Copiling with gcc on OpenSuSE 10.0">neachem at volny.cz
+       </A><BR>
+    <I>Tue Nov 29 12:33:55 CET 2005</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000329.html">[gecode-users] Copiling with gcc on OpenSuSE 10.0
+</A></li>
+        <LI>Next message: <A HREF="000331.html">[gecode-users] How to create distributing strategies
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#330">[ date ]</a>
+              <a href="thread.html#330">[ thread ]</a>
+              <a href="subject.html#330">[ subject ]</a>
+              <a href="author.html#330">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Thank you very much for your help. Now I can successfully compile the
+project and I would like to describe &quot;how did I made it&quot; for other users:
+
+I am using OpenSuSE 10.0 with KDevelop 3.2.2 as a tool for programming in
+C/C++.
+
+0. Install the gecode library:
+  a) ./configure
+  b) make install (examples will be not installed. It is needed to use only
+&quot;make&quot; for installing examples. But then will be the gecode library
+installed in the current folder. If &quot;make install&quot; is used, then was at me
+gecode installed in the directory /usr/local/lib/...,
+/usr/local/include/...)
+1. Create new C++ Project (e.g. Simple Hello World program).
+2. Compile this project.
+3. In Menu Project/Project Options is there a section &quot;Configure Options&quot;.
+  a) For debugging:
+    i) in &quot;C/C++ preprocessor flags (CPPFLAGS):&quot; should stay:
+	-I/usr/local/include/gecode (maybe -I$GPREFIX/include/gecode can be used)
+    ii) in &quot;Compiler flags (CXXFLAGS):&quot; should stay:
+	-L/usr/local/lib -O0 -g3 -lgecodeminimodel -
+lgecodeset -lgecodeint -lgecodesearch -lgecodekernel (maybe -I$GPREFIX/lib
+... can be used)
+    iii) Select OK and then in the message box &quot;Re-run configure for debug
+now?&quot; select Yes.
+4. As an example can be used following code (SEND+MORE=MONEY) in the main
+project cpp file instead of original code from the wizard:
+
+//begin of file **************************************
+#include &lt;iostream&gt;
+#include &lt;cstdlib&gt;
+
+#include &quot;minimodel.hh&quot;
+#include &quot;search.hh&quot;
+
+using namespace std;
+using namespace Gecode;
+
+class Money: public Space{
+	private:
+		static const int nl = 8;
+		IntVarArray le;
+	public:
+		Money();
+		Money(bool share, Money &amp;s): Space(share, s){
+			le.update(this, share, s.le);
+		}
+		Space* copy(bool share);
+		void print();
+};
+
+Money::Money(): le(this, nl, 0, 9)
+{
+	IntVar s(le[0]), e(le[1]), n(le[2]), d(le[3]), m(le[4]), o(le[5]),
+r(le[6]), y(le[7]); //variables
+
+	//s and m must not be = 0
+	rel(this, s, IRT_NQ, 0);
+	rel(this, m, IRT_NQ, 0);
+
+	//main money constraint
+
+post(this,1000*s+100*e+10*n+d+1000*m+100*o+10*r+e==10000*m+1000*o+100*n+10*e
++y);
+
+	//it must not be two variables with same value (all variables must be
+distinct)
+	distinct(this, le, ICL_DEF);
+
+	//search the tree
+	branch(this, le, BVAR_SIZE_MIN, BVAL_MIN);
+};
+
+Space* Money::copy(bool share){
+	return new Money(share,*this);
+}
+
+void Money::print() {
+	cout &lt;&lt; &quot;Solution:&quot; &lt;&lt; endl;
+	for (int i = 0; i &lt; nl; i++)
+		cout &lt;&lt; le[i] &lt;&lt; &quot; &quot;;
+
+	cout &lt;&lt; std::endl;
+}
+
+int main(int argc, char *argv[])
+{
+	Money* m = new Money;
+	DFS&lt;Money&gt; e(m, 1, 1);
+	delete(m);
+
+	Money* ex = e.next();
+
+	while(ex){
+		ex-&gt;print();
+		delete(ex);
+		ex = e.next();
+	}
+
+  return EXIT_SUCCESS;
+}
+//end of file **************************************
+
+After compiling this code should be everything ok. For compiling as
+&quot;optimized&quot; should be used some different flags in 3)a)i) and 3)a)ii). This
+flags for optimisation can be found in the makefile in the gecode directory.
+Now I do not need it :-). The moment I now what flags must be set for
+optimized compilation, I write it here.
+
+Thank you very much again.
+
+Best regards from Prag
+
+Vladimir Dusa
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>]
+Sent: Saturday, November 26, 2005 3:07 PM
+To: Vladim&#237;r Dusa
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Copiling with gcc on OpenSuSE 10.0
+
+
+Hi.
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> Maybe I have explained my problem not good. I would like to use gecode for
+</I>&gt;<i> solving my problems. If I try to include some gecode header file (e.g.
+</I>&gt;<i> #include &quot;minimodel.hh&quot;), I become similar errors as in previous email. I
+</I>&gt;<i> used the money.cc as an example. If I make an &quot;empty&quot; cpp file (let's say
+</I>&gt;<i> test.cpp):
+</I>
+Sorry, I should have read your first mail more carefully. I think there
+are two problems with the way you try to compile your example: you use
+gcc, which doesn't like .cc as input file name, and you don't link against
+the gecode library.
+
+The easiest way to try your own examples is to copy them into the examples
+folder. Assuming your example is called myexample.cc, just do
+make examples/myexample
+in the Gecode main directory. This will use our Makefile rules to build
+your example.
+If this works, you can look at the g++ invocation that built your example
+and use similar options for building your stuff in other directories.
+
+After installation, you should be able to use the options you saw when
+invoking make example/myexample, but add -I&lt;prefix&gt;/include
+-L&lt;prefix&gt;/lib.
+
+Hope this helps,
+   Guido
+
+
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000329.html">[gecode-users] Copiling with gcc on OpenSuSE 10.0
+</A></li>
+	<LI>Next message: <A HREF="000331.html">[gecode-users] How to create distributing strategies
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#330">[ date ]</a>
+              <a href="thread.html#330">[ thread ]</a>
+              <a href="subject.html#330">[ subject ]</a>
+              <a href="author.html#330">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

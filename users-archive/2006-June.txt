@@ -1,0 +1,2649 @@
+From zayenz at gmail.com  Fri Jun  2 09:52:19 2006
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 2 Jun 2006 09:52:19 +0200
+Subject: [gecode-users] constraint graphs via boolvars
+In-Reply-To: <447D9A18.1040103@informatik.uni-freiburg.de>
+References: <447D9A18.1040103@informatik.uni-freiburg.de>
+Message-ID: <63b5c8b00606020052k17bff230g83e9457fb5e2f5b9@mail.gmail.com>
+
+On 5/31/06, Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+> Greetings,
+>
+> I m currently thinking about an implementation of a more or less
+> bruteforce implementation of a binary constraint graph. my idea is like
+> that:
+>
+> 1) i ve got an array of n IntVars = D[0..n-1]
+>
+> 2) a BoolVar derived subclass EdgeVar manages 2 indices in (0..n-1) in
+> addition to the normal BoolVar data
+>
+> 3) for each binary constraint c I introduce an EdgeVar connected to a
+> corresponding reified constraint
+>
+> 4) i create an adjacency list to represent the constraint graph
+>
+> so far no prob..
+>
+> now i want that:
+> - if an EdgeVar becomes assigned, i remove the corresponding entries
+> from the adjancency list
+>
+> thats the point I m currently stucked ..
+>
+> whats the best way to do?
+> theoretically the constraint graph and therefor the adjacency list is an
+> n-ary constraint over the EdgeVars. So my first idea is to derive the
+> adjecency list from Gecode::Propagator, to get notified of the
+> assignments... but cant find a way to subscribe this "global" constraint
+> to the EdgeVars.
+
+In Gecode, there is a difference between a variable and a view. A view
+is the entity that propagators use, exposing a read-write interface to
+a variable (as opposed to a variable, which has a read-only
+interface).
+
+So to get you system to work, you should also create EdgeViews. The
+best is probably to look at how BoolViews are done.
+
+If you want to know more about views in general and what they can be
+used for, see [1].
+
+Cheers
+Mikael
+
+[1] http://web.it.kth.se/~schulte/paper.html?id=SchulteTack:Advances:2006
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From mmann at informatik.uni-freiburg.de  Fri Jun  2 15:28:15 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Fri, 02 Jun 2006 15:28:15 +0200
+Subject: [gecode-users] access to Space during branching?
+Message-ID: <44803CEF.30703@informatik.uni-freiburg.de>
+
+I know the weekend is near, but I ve got another question.
+
+what exactly is done in this private Space function?
+ist it possible to get some comments about that?
+
+============================
+   /*
+    * Performing branching after propagation
+    *
+    */
+
+   unsigned int
+   Space::branchings(void) {
+     while (b_fst != &a_actors) {
+       unsigned int alt = b_fst->branch();
+       if (alt > 0)
+	return alt;
+       Branching* b = b_fst;
+       b_fst = static_cast<Branching*>(b->next());
+       b->unlink();
+       b->unlink_delete();
+       delete b;
+       mm.reuse(reinterpret_cast<MemoryManager::ReuseChunk*>(b));
+     }
+     return 0;
+   }
+=============================
+
+the reason why i m diving so deep in the source code is that i try to 
+implement my own branching class derived from ViewValBranching.
+this class need the access to the space to branch not only to the variables.
+
+the only way i see at the moment to do something like that is to use the 
+calling space as parameter for the branching call...
+like
+
+unsigned int alt = b_fst->branch(this);
+
+but therefor i ve got to understand the mechanisms done in branchings().. ;)
+
+
+additionally .. if you see another possibility to get access to the home 
+Space from a Branching derived class e.g. via the ViewArray etc. please 
+let me know!
+
+the only thing i need is access in the "branch(void)" function in a 
+ViewValBranching derived class (e.g. MyBranching) to the calling 
+"fatherspace" (a Space derived class.. e.g. MySpace). for simplification 
+at the moment it is a preliminary that the calling space is an instance 
+of MySpace if MyBranching is used.
+
+hope you can help
+
+at the end just for sure: is there only one Branching instance for a 
+space? and this is not cloned etc?
+
+Thanks a lot
+
+Martin
+
+
+
+
+
+From schulte at imit.kth.se  Fri Jun  2 16:16:29 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 2 Jun 2006 16:16:29 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <44803CEF.30703@informatik.uni-freiburg.de>
+Message-ID: <001801c6864f$245386f0$acd4ed82@beule>
+
+Hmm, you are absolutely right: also branch should take a space argument.
+I'll do that right now on the trunk version.
+
+There is no other way to obtain a space...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Friday, June 02, 2006 3:28 PM
+To: gecode user list
+Subject: [gecode-users] access to Space during branching?
+
+
+I know the weekend is near, but I ve got another question.
+
+what exactly is done in this private Space function?
+ist it possible to get some comments about that?
+
+============================
+   /*
+    * Performing branching after propagation
+    *
+    */
+
+   unsigned int
+   Space::branchings(void) {
+     while (b_fst != &a_actors) {
+       unsigned int alt = b_fst->branch();
+       if (alt > 0)
+	return alt;
+       Branching* b = b_fst;
+       b_fst = static_cast<Branching*>(b->next());
+       b->unlink();
+       b->unlink_delete();
+       delete b;
+       mm.reuse(reinterpret_cast<MemoryManager::ReuseChunk*>(b));
+     }
+     return 0;
+   }
+=============================
+
+the reason why i m diving so deep in the source code is that i try to 
+implement my own branching class derived from ViewValBranching. this class
+need the access to the space to branch not only to the variables.
+
+the only way i see at the moment to do something like that is to use the 
+calling space as parameter for the branching call...
+like
+
+unsigned int alt = b_fst->branch(this);
+
+but therefor i ve got to understand the mechanisms done in branchings().. ;)
+
+
+additionally .. if you see another possibility to get access to the home 
+Space from a Branching derived class e.g. via the ViewArray etc. please 
+let me know!
+
+the only thing i need is access in the "branch(void)" function in a 
+ViewValBranching derived class (e.g. MyBranching) to the calling 
+"fatherspace" (a Space derived class.. e.g. MySpace). for simplification 
+at the moment it is a preliminary that the calling space is an instance 
+of MySpace if MyBranching is used.
+
+hope you can help
+
+at the end just for sure: is there only one Branching instance for a 
+space? and this is not cloned etc?
+
+Thanks a lot
+
+Martin
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From qyu at gmx.de  Fri Jun  2 17:02:26 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Fri, 02 Jun 2006 17:02:26 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <001801c6864f$245386f0$acd4ed82@beule>
+References: <001801c6864f$245386f0$acd4ed82@beule>
+Message-ID: <44805302.6010208@gmx.de>
+
+hui... that was fast..
+
+great! thanks a lot!
+
+i'll have a closer look next week! now my weekend is going to begin! ;)
+
+I had a lot of trouble with overwriting the Space::branchings() function 
+to get access and to call my own "branch(MySpace* h)" function.
+dont need it afterwards or? (if your new version of looks like "unsigned 
+int branch(Space* home)" ..?)
+Looking forward to your changes!
+
+Thanks a lot and have a nice Pentecost!
+
+Martin
+
+> Hmm, you are absolutely right: also branch should take a space argument.
+> I'll do that right now on the trunk version.
+> 
+> There is no other way to obtain a space...
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Friday, June 02, 2006 3:28 PM
+> To: gecode user list
+> Subject: [gecode-users] access to Space during branching?
+> 
+> 
+> I know the weekend is near, but I ve got another question.
+> 
+> what exactly is done in this private Space function?
+> ist it possible to get some comments about that?
+> 
+> ============================
+>    /*
+>     * Performing branching after propagation
+>     *
+>     */
+> 
+>    unsigned int
+>    Space::branchings(void) {
+>      while (b_fst != &a_actors) {
+>        unsigned int alt = b_fst->branch();
+>        if (alt > 0)
+> 	return alt;
+>        Branching* b = b_fst;
+>        b_fst = static_cast<Branching*>(b->next());
+>        b->unlink();
+>        b->unlink_delete();
+>        delete b;
+>        mm.reuse(reinterpret_cast<MemoryManager::ReuseChunk*>(b));
+>      }
+>      return 0;
+>    }
+> =============================
+> 
+> the reason why i m diving so deep in the source code is that i try to 
+> implement my own branching class derived from ViewValBranching. this class
+> need the access to the space to branch not only to the variables.
+> 
+> the only way i see at the moment to do something like that is to use the 
+> calling space as parameter for the branching call...
+> like
+> 
+> unsigned int alt = b_fst->branch(this);
+> 
+> but therefor i ve got to understand the mechanisms done in branchings().. ;)
+> 
+> 
+> additionally .. if you see another possibility to get access to the home 
+> Space from a Branching derived class e.g. via the ViewArray etc. please 
+> let me know!
+> 
+> the only thing i need is access in the "branch(void)" function in a 
+> ViewValBranching derived class (e.g. MyBranching) to the calling 
+> "fatherspace" (a Space derived class.. e.g. MySpace). for simplification 
+> at the moment it is a preliminary that the calling space is an instance 
+> of MySpace if MyBranching is used.
+> 
+> hope you can help
+> 
+> at the end just for sure: is there only one Branching instance for a 
+> space? and this is not cloned etc?
+> 
+> Thanks a lot
+> 
+> Martin
+> 
+
+
+
+From luque at info.ucl.ac.be  Fri Jun  2 17:27:39 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Fri, 02 Jun 2006 17:27:39 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <001801c6864f$245386f0$acd4ed82@beule>
+References: <001801c6864f$245386f0$acd4ed82@beule>
+Message-ID: <448058EB.9030003@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>Hmm, you are absolutely right: also branch should take a space argument.
+>I'll do that right now on the trunk version.
+>
+>There is no other way to obtain a space...
+>  
+>
+Please, let me see whether I am getting this right:  does this mean 
+that, as all the information on which the labeling strategy is based is 
+usually in the space, the only argument that needs to be passed to the 
+constructor of the branching is the space?
+
+What I have been doing so far is to pass this information through the 
+constructor and copy this information in the branching constructor for 
+cloning. But this would be no longer needed if the space is an argument 
+of branch.
+
+Luis
+
+
+
+
+From jeremie.vautard at laposte.net  Sun Jun  4 16:47:10 2006
+From: jeremie.vautard at laposte.net (=?ISO-8859-1?Q?J=E9r=E9mie_Vautard?=)
+Date: Sun, 04 Jun 2006 16:47:10 +0200
+Subject: [gecode-users] Disjunction of linear expressions
+Message-ID: <4482F26E.6030404@laposte.net>
+
+Hi !
+
+I want to modelise some disjunction of linear constraints on integers.
+In minimodel, I found this method :
+    Gecode::MiniModel::BoolExpr operator~ (const 
+Gecode::MiniModel::LinExpr &)
+    Reification of linear expression.
+
+
+So, for example, can I modelise the constraint : a == 0 OR b ==4 with 
+something like :
+
+post(s, tt( ~(a==0) || ~(b==4) ) );  (with a and b being IntVars 
+belonging to the space *s ) ?
+
+If not, what is the best way to do it ?
+
+
+Cheers,
+
+Jeremie Vautard
+
+
+
+From schulte at imit.kth.se  Mon Jun  5 09:38:40 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 5 Jun 2006 09:38:40 +0200
+Subject: [gecode-users] Disjunction of linear expressions
+In-Reply-To: <4482F26E.6030404@laposte.net>
+Message-ID: <000201c68873$113a2e40$0401a8c0@tiny>
+
+Yes,  that should work. Of course, you can also post the necessary
+constraints yourself: use reified linear constraints and then bool_or to
+connect them.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of J?r?mie Vautard
+Sent: Sunday, June 04, 2006 4:47 PM
+To: users at gecode.org
+Subject: [gecode-users] Disjunction of linear expressions
+
+
+Hi !
+
+I want to modelise some disjunction of linear constraints on integers. In
+minimodel, I found this method :
+    Gecode::MiniModel::BoolExpr operator~ (const 
+Gecode::MiniModel::LinExpr &)
+    Reification of linear expression.
+
+
+So, for example, can I modelise the constraint : a == 0 OR b ==4 with 
+something like :
+
+post(s, tt( ~(a==0) || ~(b==4) ) );  (with a and b being IntVars 
+belonging to the space *s ) ?
+
+If not, what is the best way to do it ?
+
+
+Cheers,
+
+Jeremie Vautard
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Mon Jun  5 09:40:24 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 5 Jun 2006 09:40:24 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <448058EB.9030003@info.ucl.ac.be>
+Message-ID: <000301c68873$4f2db550$0401a8c0@tiny>
+
+Yes, you got it right. It has been really a mistake to not pass a space
+argument to branch: everything is constructed in such a way that one never
+has to store a space anywhere: no Gecode data structure stores a space, all
+is passed as arguments.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Luis Quesada
+Sent: Friday, June 02, 2006 5:28 PM
+To: 'gecode user list'
+Subject: Re: [gecode-users] access to Space during branching?
+
+
+Christian Schulte wrote:
+
+>Hmm, you are absolutely right: also branch should take a space 
+>argument. I'll do that right now on the trunk version.
+>
+>There is no other way to obtain a space...
+>  
+>
+Please, let me see whether I am getting this right:  does this mean 
+that, as all the information on which the labeling strategy is based is 
+usually in the space, the only argument that needs to be passed to the 
+constructor of the branching is the space?
+
+What I have been doing so far is to pass this information through the 
+constructor and copy this information in the branching constructor for 
+cloning. But this would be no longer needed if the space is an argument 
+of branch.
+
+Luis
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Mon Jun  5 12:12:33 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 5 Jun 2006 12:12:33 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <448400C2.7040008@info.ucl.ac.be>
+Message-ID: <000601c68888$9032b590$0401a8c0@tiny>
+
+No, you always have to update views! If a propagator stores a view it must
+be updated. In the situation you describe it will be that the variable
+implementations to which the views stored in the space have already been
+updated (that is, a copy has been created). However, also the views in the
+propagators must be updated to point to the copied variable implementations.
+
+Christian
+
+-----Original Message-----
+From: Luis Quesada [mailto:luque at info.ucl.ac.be] 
+Sent: Monday, June 05, 2006 12:01 PM
+To: Christian Schulte
+Cc: 'gecode user list'
+Subject: Re: [gecode-users] access to Space during branching?
+
+
+Christian Schulte wrote:
+
+>Yes, you got it right. It has been really a mistake to not pass a space 
+>argument to branch: everything is constructed in such a way that one 
+>never has to store a space anywhere: no Gecode data structure stores a 
+>space, all is passed as arguments.
+>
+>  
+>
+Thanks for your confirmation.
+
+In fact, this made me remember another question: suppose that in my 
+program all the propagators are using the same views of the variables 
+(i.e., there is only one view per variable) and theses views are updated 
+in the constructor for cloning of the space. Is it correct to say that 
+there is no need of updating these views in the constructor for cloning 
+of the propagators (since these views are already updated in the 
+constructor for cloning of the space)?
+
+Luis
+
+
+
+
+From schulte at imit.kth.se  Mon Jun  5 12:46:09 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 5 Jun 2006 12:46:09 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <44840837.7010809@info.ucl.ac.be>
+Message-ID: <000901c6888d$42086310$0401a8c0@tiny>
+
+Of course you can do that! However: how do you know what are the views?
+Views are very cheap (just a pointer) so there should be no need to put
+anything globally into the space.
+
+Christian
+
+-----Original Message-----
+From: Luis Quesada [mailto:luque at info.ucl.ac.be] 
+Sent: Monday, June 05, 2006 12:32 PM
+To: Christian Schulte
+Cc: 'gecode user list'
+Subject: Re: [gecode-users] access to Space during branching?
+
+
+Christian Schulte wrote:
+
+>No, you always have to update views! If a propagator stores a view it 
+>must be updated. In the situation you describe it will be that the 
+>variable implementations to which the views stored in the space have 
+>already been updated (that is, a copy has been created). However, also 
+>the views in the propagators must be updated to point to the copied 
+>variable implementations.
+>
+>  
+>
+OK, I see your point! However, do the propagators (in the particular 
+situation I am describing) need to store the views (taking into account 
+that the space is an argument (and that I can have access to the views 
+through the space))?
+
+Luis
+
+>Christian
+>
+>-----Original Message-----
+>From: Luis Quesada [mailto:luque at info.ucl.ac.be]
+>Sent: Monday, June 05, 2006 12:01 PM
+>To: Christian Schulte
+>Cc: 'gecode user list'
+>Subject: Re: [gecode-users] access to Space during branching?
+>
+>
+>Christian Schulte wrote:
+>
+>  
+>
+>>Yes, you got it right. It has been really a mistake to not pass a 
+>>space
+>>argument to branch: everything is constructed in such a way that one 
+>>never has to store a space anywhere: no Gecode data structure stores a 
+>>space, all is passed as arguments.
+>>
+>> 
+>>
+>>    
+>>
+>Thanks for your confirmation.
+>
+>In fact, this made me remember another question: suppose that in my
+>program all the propagators are using the same views of the variables 
+>(i.e., there is only one view per variable) and theses views are updated 
+>in the constructor for cloning of the space. Is it correct to say that 
+>there is no need of updating these views in the constructor for cloning 
+>of the propagators (since these views are already updated in the 
+>constructor for cloning of the space)?
+>
+>Luis
+>
+>  
+>
+
+
+-- 
+Luis QUESADA
+Catholic University of Louvain 
+Department of Computing Science and Engineering 
+Place Sainte Barbe, 2 
+B-1348 Louvain-la-Neuve, Belgium 
+Phone:	(++32) (10) 47 90 13 
+Fax: 	(++32) (10) 45 03 45 
+Web: 	http://www.info.ucl.ac.be/~luque
+
+
+
+
+
+From luque at info.ucl.ac.be  Mon Jun  5 12:00:34 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Mon, 05 Jun 2006 12:00:34 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <000301c68873$4f2db550$0401a8c0@tiny>
+References: <000301c68873$4f2db550$0401a8c0@tiny>
+Message-ID: <448400C2.7040008@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>Yes, you got it right. It has been really a mistake to not pass a space
+>argument to branch: everything is constructed in such a way that one never
+>has to store a space anywhere: no Gecode data structure stores a space, all
+>is passed as arguments.
+>
+>  
+>
+Thanks for your confirmation.
+
+In fact, this made me remember another question: suppose that in my 
+program all the propagators are using the same views of the variables 
+(i.e., there is only one view per variable) and theses views are updated 
+in the constructor for cloning of the space. Is it correct to say that 
+there is no need of updating these views in the constructor for cloning 
+of the propagators (since these views are already updated in the 
+constructor for cloning of the space)?
+
+Luis
+
+
+
+From luque at info.ucl.ac.be  Mon Jun  5 12:32:23 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Mon, 05 Jun 2006 12:32:23 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <000601c68888$9032b590$0401a8c0@tiny>
+References: <000601c68888$9032b590$0401a8c0@tiny>
+Message-ID: <44840837.7010809@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>No, you always have to update views! If a propagator stores a view it must
+>be updated. In the situation you describe it will be that the variable
+>implementations to which the views stored in the space have already been
+>updated (that is, a copy has been created). However, also the views in the
+>propagators must be updated to point to the copied variable implementations.
+>
+>  
+>
+OK, I see your point! However, do the propagators (in the particular 
+situation I am describing) need to store the views (taking into account 
+that the space is an argument (and that I can have access to the views 
+through the space))?
+
+Luis
+
+>Christian
+>
+>-----Original Message-----
+>From: Luis Quesada [mailto:luque at info.ucl.ac.be] 
+>Sent: Monday, June 05, 2006 12:01 PM
+>To: Christian Schulte
+>Cc: 'gecode user list'
+>Subject: Re: [gecode-users] access to Space during branching?
+>
+>
+>Christian Schulte wrote:
+>
+>  
+>
+>>Yes, you got it right. It has been really a mistake to not pass a space 
+>>argument to branch: everything is constructed in such a way that one 
+>>never has to store a space anywhere: no Gecode data structure stores a 
+>>space, all is passed as arguments.
+>>
+>> 
+>>
+>>    
+>>
+>Thanks for your confirmation.
+>
+>In fact, this made me remember another question: suppose that in my 
+>program all the propagators are using the same views of the variables 
+>(i.e., there is only one view per variable) and theses views are updated 
+>in the constructor for cloning of the space. Is it correct to say that 
+>there is no need of updating these views in the constructor for cloning 
+>of the propagators (since these views are already updated in the 
+>constructor for cloning of the space)?
+>
+>Luis
+>
+>  
+>
+
+
+-- 
+Luis QUESADA
+Catholic University of Louvain 
+Department of Computing Science and Engineering 
+Place Sainte Barbe, 2 
+B-1348 Louvain-la-Neuve, Belgium 
+Phone:	(++32) (10) 47 90 13 
+Fax: 	(++32) (10) 45 03 45 
+Web: 	http://www.info.ucl.ac.be/~luque
+
+
+
+
+From luque at info.ucl.ac.be  Mon Jun  5 13:16:43 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Mon, 05 Jun 2006 13:16:43 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <000901c6888d$42086310$0401a8c0@tiny>
+References: <000901c6888d$42086310$0401a8c0@tiny>
+Message-ID: <4484129B.2000501@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>Of course you can do that! However: how do you know what are the views?
+>Views are very cheap (just a pointer) so there should be no need to put
+>anything globally into the space.
+>  
+>
+OK. I see. The point is that we want the propagator to be re-usable. Of 
+course, in the current case, I know what the views are. In general I 
+don't know.
+Thanks for the explanation.
+Luis
+
+>Christian
+>
+>-----Original Message-----
+>From: Luis Quesada [mailto:luque at info.ucl.ac.be] 
+>Sent: Monday, June 05, 2006 12:32 PM
+>To: Christian Schulte
+>Cc: 'gecode user list'
+>Subject: Re: [gecode-users] access to Space during branching?
+>
+>
+>Christian Schulte wrote:
+>
+>  
+>
+>>No, you always have to update views! If a propagator stores a view it 
+>>must be updated. In the situation you describe it will be that the 
+>>variable implementations to which the views stored in the space have 
+>>already been updated (that is, a copy has been created). However, also 
+>>the views in the propagators must be updated to point to the copied 
+>>variable implementations.
+>>
+>> 
+>>
+>>    
+>>
+>OK, I see your point! However, do the propagators (in the particular 
+>situation I am describing) need to store the views (taking into account 
+>that the space is an argument (and that I can have access to the views 
+>through the space))?
+>
+>Luis
+>
+>  
+>
+>>Christian
+>>
+>>-----Original Message-----
+>>From: Luis Quesada [mailto:luque at info.ucl.ac.be]
+>>Sent: Monday, June 05, 2006 12:01 PM
+>>To: Christian Schulte
+>>Cc: 'gecode user list'
+>>Subject: Re: [gecode-users] access to Space during branching?
+>>
+>>
+>>Christian Schulte wrote:
+>>
+>> 
+>>
+>>    
+>>
+>>>Yes, you got it right. It has been really a mistake to not pass a 
+>>>space
+>>>argument to branch: everything is constructed in such a way that one 
+>>>never has to store a space anywhere: no Gecode data structure stores a 
+>>>space, all is passed as arguments.
+>>>
+>>>
+>>>
+>>>   
+>>>
+>>>      
+>>>
+>>Thanks for your confirmation.
+>>
+>>In fact, this made me remember another question: suppose that in my
+>>program all the propagators are using the same views of the variables 
+>>(i.e., there is only one view per variable) and theses views are updated 
+>>in the constructor for cloning of the space. Is it correct to say that 
+>>there is no need of updating these views in the constructor for cloning 
+>>of the propagators (since these views are already updated in the 
+>>constructor for cloning of the space)?
+>>
+>>Luis
+>>
+>> 
+>>
+>>    
+>>
+>
+>
+>  
+>
+
+
+-- 
+Luis QUESADA
+Catholic University of Louvain 
+Department of Computing Science and Engineering 
+Place Sainte Barbe, 2 
+B-1348 Louvain-la-Neuve, Belgium 
+Phone:	(++32) (10) 47 90 13 
+Fax: 	(++32) (10) 45 03 45 
+Web: 	http://www.info.ucl.ac.be/~luque
+
+
+
+
+From qyu at gmx.de  Tue Jun  6 15:14:23 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Tue, 06 Jun 2006 15:14:23 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <001801c6864f$245386f0$acd4ed82@beule>
+References: <001801c6864f$245386f0$acd4ed82@beule>
+Message-ID: <44857FAF.3040502@gmx.de>
+
+Dear Christian,
+
+I checked the current trunk version and it's exactly what I needed! 
+Thanks a lot!
+
+One thing remains: the "make; make test; ./test/test" crashes for the 
+trunk version like that:
+
+===================================================
+...
+Stress::Exec: +++++
+Stress::MinSort: +++++
+Stress::Regular: Segmentation fault (core dumped)
+===================================================
+
+Doesnt matter for the moment. All of my stuff is still working well, but 
+I think it's worthy to tell you! (I'm using a cygwin system on winXP prof.)
+
+Cheers,
+
+Martin
+
+
+> Hmm, you are absolutely right: also branch should take a space argument.
+> I'll do that right now on the trunk version.
+> 
+> There is no other way to obtain a space...
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Friday, June 02, 2006 3:28 PM
+> To: gecode user list
+> Subject: [gecode-users] access to Space during branching?
+> 
+> 
+> I know the weekend is near, but I ve got another question.
+> 
+> what exactly is done in this private Space function?
+> ist it possible to get some comments about that?
+> 
+> ============================
+>    /*
+>     * Performing branching after propagation
+>     *
+>     */
+> 
+>    unsigned int
+>    Space::branchings(void) {
+>      while (b_fst != &a_actors) {
+>        unsigned int alt = b_fst->branch();
+>        if (alt > 0)
+> 	return alt;
+>        Branching* b = b_fst;
+>        b_fst = static_cast<Branching*>(b->next());
+>        b->unlink();
+>        b->unlink_delete();
+>        delete b;
+>        mm.reuse(reinterpret_cast<MemoryManager::ReuseChunk*>(b));
+>      }
+>      return 0;
+>    }
+> =============================
+> 
+> the reason why i m diving so deep in the source code is that i try to 
+> implement my own branching class derived from ViewValBranching. this class
+> need the access to the space to branch not only to the variables.
+> 
+> the only way i see at the moment to do something like that is to use the 
+> calling space as parameter for the branching call...
+> like
+> 
+> unsigned int alt = b_fst->branch(this);
+> 
+> but therefor i ve got to understand the mechanisms done in branchings().. ;)
+> 
+> 
+> additionally .. if you see another possibility to get access to the home 
+> Space from a Branching derived class e.g. via the ViewArray etc. please 
+> let me know!
+> 
+> the only thing i need is access in the "branch(void)" function in a 
+> ViewValBranching derived class (e.g. MyBranching) to the calling 
+> "fatherspace" (a Space derived class.. e.g. MySpace). for simplification 
+> at the moment it is a preliminary that the calling space is an instance 
+> of MySpace if MyBranching is used.
+> 
+> hope you can help
+> 
+> at the end just for sure: is there only one Branching instance for a 
+> space? and this is not cloned etc?
+> 
+> Thanks a lot
+> 
+> Martin
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+From schulte at imit.kth.se  Tue Jun  6 15:51:36 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 6 Jun 2006 15:51:36 +0200
+Subject: [gecode-users] access to Space during branching?
+In-Reply-To: <44857FAF.3040502@gmx.de>
+Message-ID: <001101c68970$54862de0$0401a8c0@tiny>
+
+Yes, please keep in mind we are talking a snapshot! So segfaults are to be
+expected: in particular we started to change how memory is released
+completely...
+
+Christian
+
+-----Original Message-----
+From: Martin Mann [mailto:qyu at gmx.de] 
+Sent: Tuesday, June 06, 2006 3:14 PM
+To: schulte at imit.kth.se
+Cc: 'gecode user list'
+Subject: Re: Re: [gecode-users] access to Space during branching?
+
+
+Dear Christian,
+
+I checked the current trunk version and it's exactly what I needed! 
+Thanks a lot!
+
+One thing remains: the "make; make test; ./test/test" crashes for the 
+trunk version like that:
+
+===================================================
+...
+Stress::Exec: +++++
+Stress::MinSort: +++++
+Stress::Regular: Segmentation fault (core dumped)
+===================================================
+
+Doesnt matter for the moment. All of my stuff is still working well, but 
+I think it's worthy to tell you! (I'm using a cygwin system on winXP prof.)
+
+Cheers,
+
+Martin
+
+
+> Hmm, you are absolutely right: also branch should take a space 
+> argument. I'll do that right now on the trunk version.
+> 
+> There is no other way to obtain a space...
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Martin Mann
+> Sent: Friday, June 02, 2006 3:28 PM
+> To: gecode user list
+> Subject: [gecode-users] access to Space during branching?
+> 
+> 
+> I know the weekend is near, but I ve got another question.
+> 
+> what exactly is done in this private Space function?
+> ist it possible to get some comments about that?
+> 
+> ============================
+>    /*
+>     * Performing branching after propagation
+>     *
+>     */
+> 
+>    unsigned int
+>    Space::branchings(void) {
+>      while (b_fst != &a_actors) {
+>        unsigned int alt = b_fst->branch();
+>        if (alt > 0)
+> 	return alt;
+>        Branching* b = b_fst;
+>        b_fst = static_cast<Branching*>(b->next());
+>        b->unlink();
+>        b->unlink_delete();
+>        delete b;
+>        mm.reuse(reinterpret_cast<MemoryManager::ReuseChunk*>(b));
+>      }
+>      return 0;
+>    }
+> =============================
+> 
+> the reason why i m diving so deep in the source code is that i try to
+> implement my own branching class derived from ViewValBranching. this class
+> need the access to the space to branch not only to the variables.
+> 
+> the only way i see at the moment to do something like that is to use 
+> the
+> calling space as parameter for the branching call...
+> like
+> 
+> unsigned int alt = b_fst->branch(this);
+> 
+> but therefor i ve got to understand the mechanisms done in 
+> branchings().. ;)
+> 
+> 
+> additionally .. if you see another possibility to get access to the 
+> home
+> Space from a Branching derived class e.g. via the ViewArray etc. please 
+> let me know!
+> 
+> the only thing i need is access in the "branch(void)" function in a
+> ViewValBranching derived class (e.g. MyBranching) to the calling 
+> "fatherspace" (a Space derived class.. e.g. MySpace). for simplification 
+> at the moment it is a preliminary that the calling space is an instance 
+> of MySpace if MyBranching is used.
+> 
+> hope you can help
+> 
+> at the end just for sure: is there only one Branching instance for a
+> space? and this is not cloned etc?
+> 
+> Thanks a lot
+> 
+> Martin
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 13:13:39 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 13:13:39 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+Message-ID: <44880663.20602@informatik.uni-freiburg.de>
+
+Hi,
+
+first of all: I am using the trunc version... but I checked and the 
+corresponding source for the stable version is the same!
+
+I found a strange behavior of the Gecode::rel function using IRT_NQ as 
+an reified constraint.
+
+I used 2 variables with the following domains:
+
+d1 = (1)
+d2 = (0,2)
+
+also I ve got a reified constraint like that
+
+rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+
+so isNQ should be true if d1 an d2 are unequal!
+
+BUT: isNQ is NOT assigned!
+
+i dived into the source and followed the my instance of the rel function:
+
+rel
+-> Rel::ReEqDom<IntView,NegBoolView>
+-> ReEqDom<View,CtrlView>::propagate()
+-> rtest_eq_dom()
+->
+and found this...
+===================================
+   template <class View>
+   forceinline RelTest
+   rtest_eq_dom(View x, View y) {
+     RelTest rt = rtest_eq_bnd(x,y);
+     if (rt != RT_MAYBE) return rt;
+     return (x.range() || y.range()) ? RT_MAYBE :
+        test_eq_dom_check(x,y);
+   }
+==================================
+   template <class View>
+   RelTest
+   rtest_eq_dom_check(View x, View y) {
+     ViewRanges<View> rx(x), ry(y);
+     while (rx() && ry()) {
+       if (rx.max() < ry.min()) {
+	++rx;
+       } else if (ry.max() < rx.min()) {
+	++ry;
+       } else return RT_MAYBE;
+     }
+     return RT_FALSE;
+   }
+==================================
+   template <class View>
+   forceinline RelTest
+   rtest_eq_bnd(View x, View y) {
+     if ((x.min() > y.max()) || (x.max() < y.min())) return RT_FALSE;
+     return (x.assigned() && y.assigned()) ? RT_TRUE : RT_MAYBE;
+   }
+==================================
+
+
+if I m right... rtest_eq_dom will never return RT_TRUE if this cant be 
+determinated via bound constraint.... ???
+this is because the called rtest_eq_dom_check() function will never 
+return RT_TRUE ...
+
+but this isnt what i expect if i am using ICL_DOM or?
+
+in my case non of the 2 called functions lead to RT_TRUE but at least 
+one should do ...
+
+is it a bug or a feature? ;)
+
+thanks for a closer look
+
+Martin
+
+
+
+
+From tack at ps.uni-sb.de  Thu Jun  8 13:25:04 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 8 Jun 2006 13:25:04 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+In-Reply-To: <44880663.20602@informatik.uni-freiburg.de>
+References: <44880663.20602@informatik.uni-freiburg.de>
+Message-ID: <200606081325.04718.tack@ps.uni-sb.de>
+
+Hi.
+
+> I found a strange behavior of the Gecode::rel function using IRT_NQ as
+> an reified constraint.
+>
+> I used 2 variables with the following domains:
+>
+> d1 = (1)
+> d2 = (0,2)
+>
+> also I ve got a reified constraint like that
+>
+> rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+>
+> so isNQ should be true if d1 an d2 are unequal!
+>
+> BUT: isNQ is NOT assigned!
+
+Giving ICL_DOM as a parameter does not always mean that domain consistency is 
+enforced. It only means that propagation will not be stronger than the level 
+given.
+For (dis)equality, of course domain propagation is easy - nevertheless, it is 
+significantly more expensive than bounds propagation. That's why it is 
+currently not implemented.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 13:35:55 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 13:35:55 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+In-Reply-To: <200606081325.04718.tack@ps.uni-sb.de>
+References: <44880663.20602@informatik.uni-freiburg.de>
+	<200606081325.04718.tack@ps.uni-sb.de>
+Message-ID: <44880B9B.4040106@informatik.uni-freiburg.de>
+
+Greetings,
+
+ok... i see, the costs for "normal" domain propagation is high. but if i 
+m right you are using several special cases during propagation too.
+
+also there exists already the function
+rtest_eq_dom(View x, int n)
+
+so why isnt it used for the special case that one of the variables is 
+bound in the rtest_eq_dom(View x, View y) function? this would directly 
+handle the problem using the fast bound or range handling.
+
+Thanks,
+Martin
+
+
+> Hi.
+> 
+>> I found a strange behavior of the Gecode::rel function using IRT_NQ as
+>> an reified constraint.
+>>
+>> I used 2 variables with the following domains:
+>>
+>> d1 = (1)
+>> d2 = (0,2)
+>>
+>> also I ve got a reified constraint like that
+>>
+>> rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+>>
+>> so isNQ should be true if d1 an d2 are unequal!
+>>
+>> BUT: isNQ is NOT assigned!
+> 
+> Giving ICL_DOM as a parameter does not always mean that domain consistency is 
+> enforced. It only means that propagation will not be stronger than the level 
+> given.
+> For (dis)equality, of course domain propagation is easy - nevertheless, it is 
+> significantly more expensive than bounds propagation. That's why it is 
+> currently not implemented.
+> 
+> Cheers,
+> 	Guido
+> 
+
+
+
+From tack at ps.uni-sb.de  Thu Jun  8 14:11:51 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 8 Jun 2006 14:11:51 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+In-Reply-To: <44880B9B.4040106@informatik.uni-freiburg.de>
+References: <44880663.20602@informatik.uni-freiburg.de>
+	<200606081325.04718.tack@ps.uni-sb.de>
+	<44880B9B.4040106@informatik.uni-freiburg.de>
+Message-ID: <200606081411.52009.tack@ps.uni-sb.de>
+
+Sorry, I didn't read carefully enough.
+
+In your case, rtest_eq_dom shouldn't return RT_TRUE but RT_FALSE (because of 
+IRT_NQ). This is indeed a bug, thanks a lot for the hint! I have fixed it in 
+the trunk.
+
+Cheers,
+	Guido
+
+> ok... i see, the costs for "normal" domain propagation is high. but if i
+> m right you are using several special cases during propagation too.
+>
+> also there exists already the function
+> rtest_eq_dom(View x, int n)
+>
+> so why isnt it used for the special case that one of the variables is
+> bound in the rtest_eq_dom(View x, View y) function? this would directly
+> handle the problem using the fast bound or range handling.
+>
+> Thanks,
+> Martin
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From schulte at imit.kth.se  Thu Jun  8 14:19:56 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 8 Jun 2006 14:19:56 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+In-Reply-To: <44880663.20602@informatik.uni-freiburg.de>
+Message-ID: <001501c68af5$da763b80$acd4ed82@beule>
+
+While you were right about the implementation, there is a problem in your
+setup: direectly after posting a constraint, you can not be sure that it has
+been propagated. That is, your first have to propagate the space with
+applying status() for example. Maybe you did that and just don't mentioned
+it.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Thursday, June 08, 2006 1:14 PM
+To: gecode user list
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+
+
+Hi,
+
+first of all: I am using the trunc version... but I checked and the 
+corresponding source for the stable version is the same!
+
+I found a strange behavior of the Gecode::rel function using IRT_NQ as 
+an reified constraint.
+
+I used 2 variables with the following domains:
+
+d1 = (1)
+d2 = (0,2)
+
+also I ve got a reified constraint like that
+
+rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+
+so isNQ should be true if d1 an d2 are unequal!
+
+BUT: isNQ is NOT assigned!
+
+i dived into the source and followed the my instance of the rel function:
+
+rel
+-> Rel::ReEqDom<IntView,NegBoolView>
+-> ReEqDom<View,CtrlView>::propagate()
+-> rtest_eq_dom()
+->
+and found this...
+===================================
+   template <class View>
+   forceinline RelTest
+   rtest_eq_dom(View x, View y) {
+     RelTest rt = rtest_eq_bnd(x,y);
+     if (rt != RT_MAYBE) return rt;
+     return (x.range() || y.range()) ? RT_MAYBE :
+        test_eq_dom_check(x,y);
+   }
+==================================
+   template <class View>
+   RelTest
+   rtest_eq_dom_check(View x, View y) {
+     ViewRanges<View> rx(x), ry(y);
+     while (rx() && ry()) {
+       if (rx.max() < ry.min()) {
+	++rx;
+       } else if (ry.max() < rx.min()) {
+	++ry;
+       } else return RT_MAYBE;
+     }
+     return RT_FALSE;
+   }
+==================================
+   template <class View>
+   forceinline RelTest
+   rtest_eq_bnd(View x, View y) {
+     if ((x.min() > y.max()) || (x.max() < y.min())) return RT_FALSE;
+     return (x.assigned() && y.assigned()) ? RT_TRUE : RT_MAYBE;
+   }
+==================================
+
+
+if I m right... rtest_eq_dom will never return RT_TRUE if this cant be 
+determinated via bound constraint.... ???
+this is because the called rtest_eq_dom_check() function will never 
+return RT_TRUE ...
+
+but this isnt what i expect if i am using ICL_DOM or?
+
+in my case non of the 2 called functions lead to RT_TRUE but at least 
+one should do ...
+
+is it a bug or a feature? ;)
+
+thanks for a closer look
+
+Martin
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 14:37:03 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 14:37:03 +0200
+Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+In-Reply-To: <001501c68af5$da763b80$acd4ed82@beule>
+References: <001501c68af5$da763b80$acd4ed82@beule>
+Message-ID: <448819EF.8050307@informatik.uni-freiburg.de>
+
+
+Yes thats right, I only gave you a sketch about the problem. sorry! I am 
+sure that the space and the variables are completly propagated when I 
+check my isNQ var.
+But Guido has been right about the RT_TRUE/RT_FALSE. I mixed it up due 
+to the NegBoolView used for IRT_NQ in the rel function.
+
+I updated my trunk version of Gecode and YESSS !!!!
+
+;) everything is fine now! my variable is propagated as expected!
+
+Thanks a lot for the fast help!
+
+Martin
+
+
+> While you were right about the implementation, there is a problem in your
+> setup: direectly after posting a constraint, you can not be sure that it has
+> been propagated. That is, your first have to propagate the space with
+> applying status() for example. Maybe you did that and just don't mentioned
+> it.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Thursday, June 08, 2006 1:14 PM
+> To: gecode user list
+> Subject: [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+> 
+> 
+> Hi,
+> 
+> first of all: I am using the trunc version... but I checked and the 
+> corresponding source for the stable version is the same!
+> 
+> I found a strange behavior of the Gecode::rel function using IRT_NQ as 
+> an reified constraint.
+> 
+> I used 2 variables with the following domains:
+> 
+> d1 = (1)
+> d2 = (0,2)
+> 
+> also I ve got a reified constraint like that
+> 
+> rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+> 
+> so isNQ should be true if d1 an d2 are unequal!
+> 
+> BUT: isNQ is NOT assigned!
+> 
+> i dived into the source and followed the my instance of the rel function:
+> 
+> rel
+> -> Rel::ReEqDom<IntView,NegBoolView>
+> -> ReEqDom<View,CtrlView>::propagate()
+> -> rtest_eq_dom()
+> ->
+> and found this...
+> ===================================
+>    template <class View>
+>    forceinline RelTest
+>    rtest_eq_dom(View x, View y) {
+>      RelTest rt = rtest_eq_bnd(x,y);
+>      if (rt != RT_MAYBE) return rt;
+>      return (x.range() || y.range()) ? RT_MAYBE :
+>         test_eq_dom_check(x,y);
+>    }
+> ==================================
+>    template <class View>
+>    RelTest
+>    rtest_eq_dom_check(View x, View y) {
+>      ViewRanges<View> rx(x), ry(y);
+>      while (rx() && ry()) {
+>        if (rx.max() < ry.min()) {
+> 	++rx;
+>        } else if (ry.max() < rx.min()) {
+> 	++ry;
+>        } else return RT_MAYBE;
+>      }
+>      return RT_FALSE;
+>    }
+> ==================================
+>    template <class View>
+>    forceinline RelTest
+>    rtest_eq_bnd(View x, View y) {
+>      if ((x.min() > y.max()) || (x.max() < y.min())) return RT_FALSE;
+>      return (x.assigned() && y.assigned()) ? RT_TRUE : RT_MAYBE;
+>    }
+> ==================================
+> 
+> 
+> if I m right... rtest_eq_dom will never return RT_TRUE if this cant be 
+> determinated via bound constraint.... ???
+> this is because the called rtest_eq_dom_check() function will never 
+> return RT_TRUE ...
+> 
+> but this isnt what i expect if i am using ICL_DOM or?
+> 
+> in my case non of the 2 called functions lead to RT_TRUE but at least 
+> one should do ...
+> 
+> is it a bug or a feature? ;)
+> 
+> thanks for a closer look
+> 
+> Martin
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 16:08:32 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 16:08:32 +0200
+Subject: [gecode-users] branch function as static member?
+Message-ID: <44882F60.4090605@informatik.uni-freiburg.de>
+
+Hi,
+
+currently the Gecode::branch() function is a global wrapper function for 
+the ViewValBranching class.
+Therefor is my question if it wouldnt be better to place it into the 
+corresponding class description as a static member?
+
+Doing it that way it would be clear which Branching subclass is used.
+
+If you agree maybe its nice to introduce the static branch function 
+virtual in the base Branching class.
+
+But it's just a suggestion...
+
+;)
+
+Cheers,
+Martin
+
+
+
+From schulte at imit.kth.se  Thu Jun  8 16:21:43 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 8 Jun 2006 16:21:43 +0200
+Subject: [gecode-users] branch function as static member?
+In-Reply-To: <44882F60.4090605@informatik.uni-freiburg.de>
+Message-ID: <001801c68b06$de019c70$acd4ed82@beule>
+
+No, as this is implementation defined. When modelling or interfacing one
+should not be forced to understand anything from what's under the hood.
+
+On the other hand side, we use overloading rather than static member
+functions: there is not single branch function! There are many, depending on
+the argument type.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Thursday, June 08, 2006 4:09 PM
+To: gecode user list
+Subject: [gecode-users] branch function as static member?
+
+
+Hi,
+
+currently the Gecode::branch() function is a global wrapper function for 
+the ViewValBranching class.
+Therefor is my question if it wouldnt be better to place it into the 
+corresponding class description as a static member?
+
+Doing it that way it would be clear which Branching subclass is used.
+
+If you agree maybe its nice to introduce the static branch function 
+virtual in the base Branching class.
+
+But it's just a suggestion...
+
+;)
+
+Cheers,
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 16:22:59 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 16:22:59 +0200
+Subject: [gecode-users] skipping alternative branchings during search?
+Message-ID: <448832C3.7030402@informatik.uni-freiburg.de>
+
+Me once more,
+
+I am interested in the following scenario:
+
+Given a CSP and a corresponding search tree (e.g. via DFS). During the 
+enumeration of all solutions I test the solution. If it fullfills a 
+certain criteria I would like to skip the alternatives of this solution 
+due to the last branching (== A). Or (B): skip until a specific branching.
+
+Think this is possible using the idea of the description stack of a 
+search engine.
+
+as a sketch in my mind it works like that:
+
+(A) : just pop and skip the topmost BranchingDesc object from the 
+description stack.
+
+(B) : it would be neccessarry to identify the BranchingDesc objects 
+(B.1) or to introduce a special tag that is placed on the stack (B.2)
+
+(B.1) : if the BranchingDesc objects can be identified they are popped 
+from stack until the searched one is reached. It's only neccessary to 
+know the identifier for the description you want to jump to.
+
+(B.2) : all are popped until the special tag description has been 
+reached. but for that a special function to introduce the tags is 
+neccessarry.
+
+So my first question: is it possible? I had a closer look into the DFS 
+implementation and thinking about to introduce the changes there, but I 
+m not sure if it is really possible there.
+
+Out of that my second question arises: what do you think about such a 
+feature? Is it worth to become part of Gecode, or do you think I m the 
+only one who would like to have it?
+
+Or, is it already available and I m blind? ;)
+
+Hope you arent bored ..
+
+Martin
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Jun  8 16:34:28 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Jun 2006 16:34:28 +0200
+Subject: [gecode-users] branch function as static member?
+In-Reply-To: <001801c68b06$de019c70$acd4ed82@beule>
+References: <001801c68b06$de019c70$acd4ed82@beule>
+Message-ID: <44883574.80702@informatik.uni-freiburg.de>
+
+Ah ok,
+
+yes seems to be better that way..
+
+Thanks for reponse!
+
+Martin
+
+
+Christian Schulte schrieb:
+> No, as this is implementation defined. When modelling or interfacing one
+> should not be forced to understand anything from what's under the hood.
+> 
+> On the other hand side, we use overloading rather than static member
+> functions: there is not single branch function! There are many, depending on
+> the argument type.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Thursday, June 08, 2006 4:09 PM
+> To: gecode user list
+> Subject: [gecode-users] branch function as static member?
+> 
+> 
+> Hi,
+> 
+> currently the Gecode::branch() function is a global wrapper function for 
+> the ViewValBranching class.
+> Therefor is my question if it wouldnt be better to place it into the 
+> corresponding class description as a static member?
+> 
+> Doing it that way it would be clear which Branching subclass is used.
+> 
+> If you agree maybe its nice to introduce the static branch function 
+> virtual in the base Branching class.
+> 
+> But it's just a suggestion...
+> 
+> ;)
+> 
+> Cheers,
+> Martin
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+From schulte at imit.kth.se  Thu Jun  8 18:35:19 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 8 Jun 2006 18:35:19 +0200
+Subject: [gecode-users] skipping alternative branchings during search?
+In-Reply-To: <448832C3.7030402@informatik.uni-freiburg.de>
+Message-ID: <000201c68b19$885c6e40$0401a8c0@tiny>
+
+I think it might be best to do your own search engine: that's the very
+reason why search is programmable in Gecode. To me it is not clear whether
+this will be generally useful.
+
+On a different note: it is better to not abuse (or reuse) a different
+concept such as a branching description. They are very very delicate beasts
+(actually, they are involved in the most tricky invariants in the Gecode
+kernel and it took as half a year to understand the right way to do it).
+
+Always remember: you have full access to a space inside a search engine, so
+maybe that's a direction.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Thursday, June 08, 2006 4:23 PM
+To: gecode user list
+Subject: [gecode-users] skipping alternative branchings during search?
+
+
+Me once more,
+
+I am interested in the following scenario:
+
+Given a CSP and a corresponding search tree (e.g. via DFS). During the 
+enumeration of all solutions I test the solution. If it fullfills a 
+certain criteria I would like to skip the alternatives of this solution 
+due to the last branching (== A). Or (B): skip until a specific branching.
+
+Think this is possible using the idea of the description stack of a 
+search engine.
+
+as a sketch in my mind it works like that:
+
+(A) : just pop and skip the topmost BranchingDesc object from the 
+description stack.
+
+(B) : it would be neccessarry to identify the BranchingDesc objects 
+(B.1) or to introduce a special tag that is placed on the stack (B.2)
+
+(B.1) : if the BranchingDesc objects can be identified they are popped 
+from stack until the searched one is reached. It's only neccessary to 
+know the identifier for the description you want to jump to.
+
+(B.2) : all are popped until the special tag description has been 
+reached. but for that a special function to introduce the tags is 
+neccessarry.
+
+So my first question: is it possible? I had a closer look into the DFS 
+implementation and thinking about to introduce the changes there, but I 
+m not sure if it is really possible there.
+
+Out of that my second question arises: what do you think about such a 
+feature? Is it worth to become part of Gecode, or do you think I m the 
+only one who would like to have it?
+
+Or, is it already available and I m blind? ;)
+
+Hope you arent bored ..
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From a_le_jo55 at yahoo.com  Thu Jun  8 19:04:58 2006
+From: a_le_jo55 at yahoo.com (Alejandro Arbelaez)
+Date: Thu, 8 Jun 2006 10:04:58 -0700 (PDT)
+Subject: [gecode-users] Nq - documentation
+Message-ID: <20060608170458.18006.qmail@web33003.mail.mud.yahoo.com>
+
+Hi all,
+   
+  I think that the documentation for post function in Nq class is wrong because it function do x1 \=: x0 and in the documentation say v1 =: v0
+   
+  http://www.gecode.org/gecode-doc-latest/classGecode_1_1Int_1_1Rel_1_1Nq.html#f7ff24ad8f2066e49bc1b9b3ab0b30a4
+   
+   
+  best, 
+  Alejandro Arbelaez
+
+ __________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
+ __________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060608/ef29acb1/attachment.htm>
+
+From tack at ps.uni-sb.de  Thu Jun  8 19:55:45 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 8 Jun 2006 19:55:45 +0200
+Subject: [gecode-users] Nq - documentation
+In-Reply-To: <20060608170458.18006.qmail@web33003.mail.mud.yahoo.com>
+References: <20060608170458.18006.qmail@web33003.mail.mud.yahoo.com>
+Message-ID: <8F6A40B1-809F-4DAF-B759-4A088E02231C@ps.uni-sb.de>
+
+> I think that the documentation for post function in Nq class is  
+> wrong because it function do x1 \=: x0 and in the documentation say  
+> v1 =: v0
+
+Thanks a lot. I've fixed it in the trunk, the online docs will be  
+updated soon with the next release.
+
+Cheers,
+	Guido
+
+
+
+
+
+From luque at info.ucl.ac.be  Thu Jun 15 15:02:01 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Thu, 15 Jun 2006 15:02:01 +0200
+Subject: [gecode-users] Re: Waiting for stability
+In-Reply-To: <4381A52C.7020708@info.ucl.ac.be>
+References: <4381A52C.7020708@info.ucl.ac.be>
+Message-ID: <44915A49.1090100@info.ucl.ac.be>
+
+Dear all,
+
+I am trying to use LinExpr in order to implement a (naive) order 
+propagator for graph variables.
+Is the following use of LinExpr correct?
+
+template <class SPACE>
+LinExpr
+graph_order(SPACE* space, OutAdjSetsGraphView g){
+    OutAdjSetsGraphView::LubNodeIterator g_ub = g.iter_nodes_UB();
+    LinExpr Sum(IntVar(space,0,0));
+    for (;g_ub();++g_ub){
+      int n=g_ub.val();
+      BoolVar a(space,0,1);
+      dom(space, g.nodes, SRT_SUP, n, a);
+      LinExpr BoolVarLinExpr(a);
+      Sum=LinExpr(Sum,BoolVarLinExpr,1);
+    }
+    return Sum;
+}
+
+In order to post the constraint, what I am doing is the following:
+
+    LinExpr SumBoolVars(graph_order(this,fg));
+    LinRel Order(SumBoolVars,IRT_LQ,fg_lubOrder);
+    Order.post(this,true,ICL_DOM);
+
+Where fg_lubOrde is an integer.
+
+However, it seems I am doing something wrong since there is no 
+propagation taking place.
+
+Thanks in advance for your answer,
+
+Luis
+
+
+
+From schulte at imit.kth.se  Fri Jun 16 02:13:01 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 16 Jun 2006 02:13:01 +0200
+Subject: [gecode-users] Re: Waiting for stability
+In-Reply-To: <44915A49.1090100@info.ucl.ac.be>
+Message-ID: <000b01c690d9$a3317bf0$cb22fa80@tiny>
+
+Please, don't use LinExpr as this is really something that is only to be
+used for modelling. A much simpler interface is to first create arrays of
+integer ceofficients and variables and then post a linear constraint on
+them.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Luis Quesada
+Sent: Thursday, June 15, 2006 3:02 PM
+To: users at gecode.org
+Subject: [gecode-users] Re: Waiting for stability
+
+
+Dear all,
+
+I am trying to use LinExpr in order to implement a (naive) order 
+propagator for graph variables.
+Is the following use of LinExpr correct?
+
+template <class SPACE>
+LinExpr
+graph_order(SPACE* space, OutAdjSetsGraphView g){
+    OutAdjSetsGraphView::LubNodeIterator g_ub = g.iter_nodes_UB();
+    LinExpr Sum(IntVar(space,0,0));
+    for (;g_ub();++g_ub){
+      int n=g_ub.val();
+      BoolVar a(space,0,1);
+      dom(space, g.nodes, SRT_SUP, n, a);
+      LinExpr BoolVarLinExpr(a);
+      Sum=LinExpr(Sum,BoolVarLinExpr,1);
+    }
+    return Sum;
+}
+
+In order to post the constraint, what I am doing is the following:
+
+    LinExpr SumBoolVars(graph_order(this,fg));
+    LinRel Order(SumBoolVars,IRT_LQ,fg_lubOrder);
+    Order.post(this,true,ICL_DOM);
+
+Where fg_lubOrde is an integer.
+
+However, it seems I am doing something wrong since there is no 
+propagation taking place.
+
+Thanks in advance for your answer,
+
+Luis
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Fri Jun 16 03:51:58 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 16 Jun 2006 03:51:58 +0200
+Subject: [gecode-users] CP-TOOLS-06: First International Day on Constraint
+	Programming Tools
+Message-ID: <001d01c690e7$d7b0ef60$cb22fa80@tiny>
+
+First International Day on Constraint Programming Tools (CP-TOOLS-06)
+	(In conjunction with CP'06)
+		September 24, 2006
+	URL: www.cptools.org
+
+Description
+===========
+
+Much of the success and recognition of constraint programming
+stems from constraint programming systems and their successful
+use for practical applications. By providing rich languages and
+sophisticated implementations, constraint programming tools model
+complex applications, shorten development time, and produce code
+that is easier to maintain and extend.
+
+The goal of CP-TOOLS series is to foster the development of
+constraint programming tools, to showcase their applications, to
+educate young researchers in the use of CP tools, and to
+encourage cross-fertilization in tool development. CP-TOOLS-06 is
+the first event in this series that will take place yearly in
+conjunction to a major conference.
+
+The theme of the first day in the series is to expose young
+researchers to a broad set of constraint-programming tools, to
+the system-oriented research process, and to research themes in
+the area. The CP-Tools program will consist of two invited talks
+exploring these issues from industrial and academic standpoints,
+presentations of the participating systems, and two panels. The
+system presentations will collectively present the spectrum of
+capabilities available in modern CP tools. The first panel will
+focus on promoting system research and will discuss what makes it
+so unique. The second panel will approach research themes and
+trends that participants are exploring or are poised to
+explore. Participating systems may be commercial or academic and
+are expected to be available.
+
+Up-to-date information is available at
+	www.cptools.org
+
+
+Invited Speakers
+================
+
+Jean-Fran?ois Puget, ILOG, France
+Christian Schulte, KTH, Sweden
+
+
+Submission of Abstracts
+=======================
+
+Abstracts of system descriptions are sollicited from all areas of
+constraint programming provided that the described system be
+available. We expect authors to address at least the following
+aspects in their abstract: system goals and area (research,
+industrial, education), technical contributions, distinguishing
+aspects, problematic aspects, relation to other systems,
+availability, applications, future development plans. Based on
+submitted abstracts, systems will be selected for presentation.
+
+
+Important Dates
+===============
+
+August  6, 2006		Deadline for submissions
+August 20, 2006 	Notification
+
+Abstracts should be sent to the three organizers.
+
+
+Organization
+============
+
+Laurent Michel (ldm at engr.uconn.edu)
+Christian Schulte (schulte at imit.kth.se?)
+Pascal Van Hentenryck (pvh at cs.brown.edu)
+
+
+Sponsors
+========
+
+SICS (Swedish Institute of Computer Science)
+4C (Cork Constraint Computation Centre, Ireland)
+
+
+Program Committee
+=================
+
+Mats Carlsson, SICS, Sweden
+Yves Colombani, Dash Optimization, UK
+Yan Georget, Koalog, France
+Laurent Granvilliers, U Nantes, France
+Narendra Jussien, EMN, LINA, France
+Fran?ois Laburthe, Bouygues, France
+Laurent Michel, U of Connecticut, USA
+Jean-Fran?ois Puget, ILOG, France
+Jean-Charles R?gin, ILOG, France
+Christian Schulte, KTH, Sweden
+Marc van Dongen, 4C, Ireland
+Pascal Van Hentenryck, Brown U, USA
+Mark Wallace, Monash U, Australia
+Roland Yap, NUS, Singapore
+
+
+
+
+From loteroc at gmail.com  Fri Jun 16 18:22:47 2006
+From: loteroc at gmail.com (Luis Otero)
+Date: Fri, 16 Jun 2006 18:22:47 +0200
+Subject: [gecode-users] memory management problem (newbie)
+Message-ID: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+
+Hi,
+I copied the sudoku-set example into a new class (inheriting directly
+from Space instead of Example).
+It works fine (shouldn't it) but I just discovered that in an endless
+loop (new and delete forever) the memory usage grows without limit.
+I attached the code just in case somebody can help me. Sure I am doing
+something wrong but I don't know what.
+
+Thanks, L.
+
+-- 
+No hay nada m?s cobarde que un mill?n de dolares.
+-- Dicho americano
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sudoku-set.C
+Type: application/octet-stream
+Size: 2006 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060616/86c4795c/attachment.obj>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: sudoku-set.h
+Type: application/octet-stream
+Size: 1231 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060616/86c4795c/attachment-0001.obj>
+
+From jeremie.vautard at laposte.net  Sat Jun 17 00:29:06 2006
+From: jeremie.vautard at laposte.net (=?ISO-8859-1?Q?J=E9r=E9mie_Vautard?=)
+Date: Sat, 17 Jun 2006 00:29:06 +0200
+Subject: [gecode-users] memory management problem (newbie)
+In-Reply-To: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+References: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+Message-ID: <449330B2.5050902@laposte.net>
+
+Hi !
+
+I had the same kind of problem a while ago. If I remember well, as the 
+~Space() method is virtual, it requires the destructor of the descendant 
+class (your SudokuSet class, in this case) to be explicitely declared as 
+virtual too, so that the Space destructor will be called too.
+
+So, if I'm not mistaken, simply adding
+virtual ~SudokuSet() {}
+
+in your class will do the trick...
+
+Cheers,
+
+J?r?mie Vautard
+
+Luis Otero a ?crit :
+> Hi,
+> I copied the sudoku-set example into a new class (inheriting directly
+> from Space instead of Example).
+> It works fine (shouldn't it) but I just discovered that in an endless
+> loop (new and delete forever) the memory usage grows without limit.
+> I attached the code just in case somebody can help me. Sure I am doing
+> something wrong but I don't know what.
+>
+> Thanks, L.
+>
+> ------------------------------------------------------------------------
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>   
+
+
+
+
+From schulte at imit.kth.se  Mon Jun 19 01:45:29 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 19 Jun 2006 09:45:29 +1000
+Subject: [gecode-users] memory management problem (newbie)
+In-Reply-To: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+Message-ID: <001501c69331$49cd26e0$cb22fa80@tiny>
+
+The problem is that you do not delete a! When a search engine is created it
+takes a copy, so the space from which the copy is taken must be deleted.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Luis Otero
+Sent: Saturday, June 17, 2006 2:23 AM
+To: users at gecode.org
+Subject: [gecode-users] memory management problem (newbie)
+
+
+Hi,
+I copied the sudoku-set example into a new class (inheriting directly from
+Space instead of Example). It works fine (shouldn't it) but I just
+discovered that in an endless loop (new and delete forever) the memory usage
+grows without limit. I attached the code just in case somebody can help me.
+Sure I am doing something wrong but I don't know what.
+
+Thanks, L.
+
+-- 
+No hay nada m?s cobarde que un mill?n de dolares.
+-- Dicho americano
+
+
+
+
+From loteroc at gmail.com  Mon Jun 19 10:31:50 2006
+From: loteroc at gmail.com (Luis Otero)
+Date: Mon, 19 Jun 2006 10:31:50 +0200
+Subject: [gecode-users] memory management problem (newbie)
+In-Reply-To: <001501c69331$49cd26e0$cb22fa80@tiny>
+References: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+	<001501c69331$49cd26e0$cb22fa80@tiny>
+Message-ID: <83dcf5830606190131r4f3f36cegcfe5deeec989e66e@mail.gmail.com>
+
+Christian,
+Thanks but I don't quite follow you.
+> The problem is that you do not delete a! When a search engine is created it
+> takes a copy, so the space from which the copy is taken must be deleted.
+I do not create any search engine, do I (the solve call is commented)?
+Probably I am missing the point.
+
+L.
+
+
+
+From tack at ps.uni-sb.de  Mon Jun 19 11:04:37 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 19 Jun 2006 11:04:37 +0200
+Subject: [gecode-users] memory management problem (newbie)
+In-Reply-To: <83dcf5830606190131r4f3f36cegcfe5deeec989e66e@mail.gmail.com>
+References: <83dcf5830606160922j5d2a3012u45bce4fdac3c2cc9@mail.gmail.com>
+	<001501c69331$49cd26e0$cb22fa80@tiny>
+	<83dcf5830606190131r4f3f36cegcfe5deeec989e66e@mail.gmail.com>
+Message-ID: <200606191104.37695.tack@ps.uni-sb.de>
+
+Hi.
+> Christian,
+> Thanks but I don't quite follow you.
+>
+> > The problem is that you do not delete a! When a search engine is created
+> > it takes a copy, so the space from which the copy is taken must be
+> > deleted.
+>
+> I do not create any search engine, do I (the solve call is commented)?
+> Probably I am missing the point.
+
+Not at all. You have discovered a memory leak in the distinct propagator for 
+sets. Thanks a lot! I have fixed it in the trunk.
+
+Cheers,
+	Guido
+
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From j.brongniart at laposte.net  Mon Jun 19 10:53:15 2006
+From: j.brongniart at laposte.net (j.brongniart at laposte.net)
+Date: Mon, 19 Jun 2006 10:53:15 +0200
+Subject: [gecode-users] Re:gecode with linear programming
+Message-ID: <J13NCR$D7403AF60105AD0C00B9B9EA2C4D85E8@laposte.net>
+
+Hi,
+
+First, sorry for my english...
+
+I have to implement a hybrid "Constraint Programming"/"Lin?ar
+Programming" algorithm and I want to known if it exist such a
+solution using gecode (Or maybe someone known a open-source
+project doing that) ?
+
+Jerome
+
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+
+
+From schulte at imit.kth.se  Tue Jun 20 01:31:27 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 20 Jun 2006 09:31:27 +1000
+Subject: [gecode-users] Re:gecode with linear programming
+In-Reply-To: <J13NCR$D7403AF60105AD0C00B9B9EA2C4D85E8@laposte.net>
+Message-ID: <000e01c693f8$7e3b3620$cb22fa80@tiny>
+
+No, very unfortunatey not. You might want to check Eclipse as a CP system (I
+do not know where and how it is currently available).
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of j.brongniart at laposte.net
+Sent: Monday, June 19, 2006 6:53 PM
+To: users
+Subject: [gecode-users] Re:gecode with linear programming
+
+
+Hi,
+
+First, sorry for my english...
+
+I have to implement a hybrid "Constraint Programming"/"Lin?ar Programming"
+algorithm and I want to known if it exist such a solution using gecode (Or
+maybe someone known a open-source project doing that) ?
+
+Jerome
+
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ; 
+3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From rafaparafernalia at gmail.com  Tue Jun 20 04:51:20 2006
+From: rafaparafernalia at gmail.com (Rafael Meneses)
+Date: Mon, 19 Jun 2006 22:51:20 -0400
+Subject: [gecode-users] Re:gecode with linear programming
+In-Reply-To: <J13NCR$D7403AF60105AD0C00B9B9EA2C4D85E8@laposte.net>
+References: <J13NCR$D7403AF60105AD0C00B9B9EA2C4D85E8@laposte.net>
+Message-ID: <d701e0390606191951y7f4ae874mf9e5692de12b6ba@mail.gmail.com>
+
+On 6/19/06, j.brongniart at laposte.net <j.brongniart at laposte.net> wrote:
+> Hi,
+>
+> First, sorry for my english...
+>
+> I have to implement a hybrid "Constraint Programming"/"Lin?ar
+> Programming" algorithm and I want to known if it exist such a
+> solution using gecode (Or maybe someone known a open-source
+> project doing that) ?
+>
+
+I don't know that project, but we implement a column generation method
+in Zeke. We use a lp_solve + gecode, the integration was beatiful. We
+make a branch and price algorithm.
+
+
+> Jerome
+>
+>
+> Acc?dez au courrier ?lectronique de La Poste : www.laposte.net ;
+> 3615 LAPOSTENET (0,34 ?/mn) ; t?l : 08 92 68 13 50 (0,34?/mn)
+>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Rafael Meneses
+http://www.zeke.cl
+http://www.labsd.inf.utfsm.cl/~rmeneses
+
+
+
+From tack at ps.uni-sb.de  Tue Jun 20 08:43:12 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 20 Jun 2006 08:43:12 +0200
+Subject: [gecode-users] Gecode 1.2.0 released
+Message-ID: <3073AED4-FB31-4A3D-8BA1-CF9A09728D6C@ps.uni-sb.de>
+
+We would like to announce the release of
+
+                 Gecode 1.2.0
+            http://www.gecode.org/
+
+This release makes quite some drastic changes to how propagators and  
+branchings are deleted: instead of using destructors they use a  
+dispose that allows to pass a home space during deletion (we will use  
+this infrastructure measure to speed up cloning considerably a little  
+later). Moreover the directory structure has changed on popular  
+request so that all include files are to be found in a gecode  
+subdirectory. Apart from that, some small fixes and extensions due to  
+requests.
+
+For a complete changelog, see
+http://www.gecode.org/gecode-doc-latest/PageChange.html
+
+Cheers,
+       The Gecode Team
+
+
+
+From j.brongniart at laposte.net  Tue Jun 20 09:11:24 2006
+From: j.brongniart at laposte.net (j.brongniart at laposte.net)
+Date: Tue, 20 Jun 2006 09:11:24 +0200
+Subject: [gecode-users] Re:gecode with linear programming
+Message-ID: <J15DB0$0263D712F6A8260427CCA5A5A73018F8@laposte.net>
+
+> On 6/19/06, j.brongniart at laposte.net
+<j.brongniart at laposte.net> wrote:
+> > Hi,
+> >
+> > First, sorry for my english...
+> >
+> > I have to implement a hybrid "Constraint Programming"/"Lin?ar
+> > Programming" algorithm and I want to known if it exist such a
+> > solution using gecode (Or maybe someone known a open-source
+> > project doing that) ?
+> >
+
+thanks for your propositions, I look at that
+
+Acc?dez au courrier ?lectronique de La Poste : www.laposte.net
+3615 LAPOSTENET (0,34 ?/mn)
+
+
+
+
+
+From stefano.gualandi at fastwebnet.it  Tue Jun 20 12:31:13 2006
+From: stefano.gualandi at fastwebnet.it (Stefano Gualandi)
+Date: Tue, 20 Jun 2006 12:31:13 +0200
+Subject: [gecode-users] Re:gecode with linear programming
+In-Reply-To: <d701e0390606191951y7f4ae874mf9e5692de12b6ba@mail.gmail.com>
+References: <J13NCR$D7403AF60105AD0C00B9B9EA2C4D85E8@laposte.net>
+	<d701e0390606191951y7f4ae874mf9e5692de12b6ba@mail.gmail.com>
+Message-ID: <709846E6-21F3-4E6B-97EE-E55EC65BCBDC@fastwebnet.it>
+
+>
+> I don't know that project, but we implement a column generation method
+> in Zeke. We use a lp_solve + gecode, the integration was beatiful. We
+> make a branch and price algorithm.
+>
+
+Hi, in Milan, we did a CP-based column generation too, but using the  
+Gnu Linear Programming Kit (GLPK) instead of the lp_solve.
+
+As long as you use a C/C++ library, it should be "easy" to develop a  
+hybrid CP/MILP solver.
+
+We have in plan to experiment with Gecode other hybrid CP/OR  
+techniques as well.
+
+cheers,
+Stefano
+
+
+
+
+From gualandi at elet.polimi.it  Wed Jun 28 12:41:39 2006
+From: gualandi at elet.polimi.it (Stefano Gualandi)
+Date: Wed, 28 Jun 2006 12:41:39 +0200
+Subject: [gecode-users] Linear constraint for boolean variables
+Message-ID: <B49EBCFA-89D0-4C87-9C01-6ADD56C6BA2E@elet.polimi.it>
+
+Hi,
+is there any plan to have in Gecode a linear propagator with boolean  
+variables and "float" coefficient as:
+
+void
+Gecode::linear (Space *home, const FloatArgs &a, const BoolVarArgs  
+&x, IntRelType r, float c, BoolVar b, IntConLevel=ICL_BND)
+                                                         
+---------------------                    
+------------------                                
+---------                                             --------------
+
+thanks in advance,
+Stefano
+
+
+
+From tack at ps.uni-sb.de  Wed Jun 28 13:50:17 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 28 Jun 2006 13:50:17 +0200
+Subject: [gecode-users] Linear constraint for boolean variables
+In-Reply-To: <B49EBCFA-89D0-4C87-9C01-6ADD56C6BA2E@elet.polimi.it>
+References: <B49EBCFA-89D0-4C87-9C01-6ADD56C6BA2E@elet.polimi.it>
+Message-ID: <200606281350.17500.tack@ps.uni-sb.de>
+
+> Hi,
+> is there any plan to have in Gecode a linear propagator with boolean
+> variables and "float" coefficient as:
+>
+> void
+> Gecode::linear (Space *home, const FloatArgs &a, const BoolVarArgs
+> &x, IntRelType r, float c, BoolVar b, IntConLevel=ICL_BND)
+
+No plan, currently. Do you have a concrete application for it? Or maybe do you 
+even intend to implement it yourself? Of course we'd be happy to include 
+contributed propagators, after a code review.
+
+On the other hand, if all the floats are constant anyway, do you think it 
+would be very inefficient to scale the equation such that the coefficients 
+are integer?
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From gualandi at elet.polimi.it  Wed Jun 28 14:06:13 2006
+From: gualandi at elet.polimi.it (Stefano Gualandi)
+Date: Wed, 28 Jun 2006 14:06:13 +0200
+Subject: [gecode-users] Linear constraint for boolean variables
+In-Reply-To: <200606281350.17500.tack@ps.uni-sb.de>
+References: <B49EBCFA-89D0-4C87-9C01-6ADD56C6BA2E@elet.polimi.it>
+	<200606281350.17500.tack@ps.uni-sb.de>
+Message-ID: <A77B6F07-C6DB-469E-A594-ACA2E5D97E24@elet.polimi.it>
+
+Hi Guido,
+
+> No plan, currently. Do you have a concrete application for it?
+
+Yes, I have two concrete applications I am working on for my phd.
+Moreover, I need it since I would like to "generalize" the CP-based  
+column generation we are working on.
+
+> Or maybe do you
+> even intend to implement it yourself?
+
+Yes, I would like to, but likely it will take longer :-)
+I will give it a try as soon as I can.
+
+> On the other hand, if all the floats are constant anyway, do you  
+> think it
+> would be very inefficient to scale the equation such that the  
+> coefficients
+> are integer?
+
+It is exactly what I am doing up to now, but I would like to have  
+something more elegant.
+
+thanks,
+Stefano
+
+
+
+From schulte at imit.kth.se  Thu Jun 29 02:43:59 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 29 Jun 2006 10:43:59 +1000
+Subject: [gecode-users] Linear constraint for boolean variables
+In-Reply-To: <A77B6F07-C6DB-469E-A594-ACA2E5D97E24@elet.polimi.it>
+Message-ID: <000401c69b15$292e0c60$cb22fa80@tiny>
+
+Actually, doing it should be very easy. You just define views similar to
+scale-views that take floats as coefficients rather than integers. Then you
+instantiate the already available propagators for linear equations with
+these views and voila!
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Stefano Gualandi
+Sent: Wednesday, June 28, 2006 10:06 PM
+To: Guido Tack
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Linear constraint for boolean variables
+
+
+Hi Guido,
+
+> No plan, currently. Do you have a concrete application for it?
+
+Yes, I have two concrete applications I am working on for my phd. Moreover,
+I need it since I would like to "generalize" the CP-based  
+column generation we are working on.
+
+> Or maybe do you
+> even intend to implement it yourself?
+
+Yes, I would like to, but likely it will take longer :-)
+I will give it a try as soon as I can.
+
+> On the other hand, if all the floats are constant anyway, do you
+> think it
+> would be very inefficient to scale the equation such that the  
+> coefficients
+> are integer?
+
+It is exactly what I am doing up to now, but I would like to have  
+something more elegant.
+
+thanks,
+Stefano
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+

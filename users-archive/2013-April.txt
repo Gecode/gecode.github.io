@@ -1,0 +1,5374 @@
+From cschulte at kth.se  Wed Apr  3 09:52:50 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 3 Apr 2013 09:52:50 +0200
+Subject: [gecode-users] Gecode BAB Questions
+In-Reply-To: <op.wunzlhbpvqe8uy@hiller-t60p>
+References: <op.wunzlhbpvqe8uy@hiller-t60p>
+Message-ID: <008001ce3040$3e755480$bb5ffd80$@se>
+
+Hi Dean,
+
+I tried to understand what you are doing but failed. This is not really a
+Gecode issue but an issue how you model your problem. In particular your
+statement that only six solutions are found while there are ten is a little
+strange. What you could try, though, is: take the values for the variables
+you believe are solutions which are missing and constrain your variables by
+hand to these values to verify whether they are solutions according to your
+model. Then try to remove some constraints to see which of the constraints
+rule out your intended solutions.
+
+Sorry for not being more helpful
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Dean Hiller
+Sent: Thursday, March 28, 2013 5:19 PM
+To: users at gecode.org
+Subject: [gecode-users] Gecode BAB Questions
+
+I am very new to constraint programming, but by using the MPG have been able
+to develop a fairly large Gecode application in a relatively short period of
+time. Due to my lack of constraint programming knowledge, I may not have
+selected the best methods for solving my particular problem, but what I have
+done appears to work with two exceptions which are shown in the attached
+program.
+This program is the minimum program I could generate to show what I am doing
+and to replicate my two problems.
+
+In the attached program, I have an IntVar X which is to receive ordered
+values from Y0, Y1, and Y2 along with an indication of from which Y the
+value came.
+
+The first problem I am having is that the program stops after finding 6 of
+the 10 possible solutions and I don't understand how to debug this problem.
+
+The second problem I am having is that the program fails to find any
+solutions if the constraints on one of the Y variables results in it not
+having any solutions even though there are other solutions for X.
+
+I have this problem with both the 3.7.3 release and the
+4.0.0 release.
+
+I would appreciate any assistance you can provide.
+
+Thanks,
+Dean
+
+#include <gecode/int.hh>
+#include <gecode/search.hh>
+#include <gecode/minimodel.hh>
+
+using namespace Gecode;
+
+typedef struct Y_s
+{
+	IntVar nY;
+} Y;
+
+class GecodeTest3 : public Space {
+protected:
+	int m_nMin;
+	int m_nMax;
+	int m_nNumY;
+	IntVar m_nX;
+	IntVarArray m_naX;
+	BoolVarArray m_baX;
+	int m_nYIndex;
+	IntVar m_nY0;
+	IntVar m_nY1;
+	IntVar m_nY2;
+	IntVar *m_vY[3];
+	IntVar m_nCost;
+	IntVarArray m_nValue;
+	IntArgs m_nC;
+
+public:
+	void AddY(int* naY, int nSize)
+	{
+		m_nYIndex++;
+		*m_vY[m_nYIndex] = IntVar(*this, m_nMin, m_nMax);
+		ConstrainY(naY, nSize);
+		rel(*this, m_naX[m_nYIndex] == *m_vY[m_nYIndex]);
+		rel(*this, m_baX[m_nYIndex] == (m_naX[m_nYIndex] == m_nX));
+		branch(*this, *m_vY[m_nYIndex], INT_VAL_MIN());
+	}
+
+	void ConstrainY(int *naY, int nSize)
+	{
+		IntArgs nTemp;
+		for (int i = 0; i < nSize; i++)
+		{
+			nTemp << naY[i];
+		}
+		IntSet nsTemp(nTemp);
+		dom(*this, *m_vY[m_nYIndex], nsTemp);
+	}
+
+	int GetX(void)
+	{
+		return m_nX.val();
+	}
+
+	int GetWhichY(void)
+	{
+		return m_nValue[0].val();
+	}
+
+	int GetCost(void)
+	{
+		return m_nCost.val();
+	}
+
+	GecodeTest3(int nMin, int nMax, int nNumY) :
+	m_nMin(nMin), m_nMax(nMax), m_nNumY(nNumY), m_nYIndex(-1)
+	{
+		if (m_nMin < 0)
+		{
+			std::cout << "m_nMin must not be negative" <<
+std::endl;
+		}
+		m_vY[0] = &m_nY0;
+		m_vY[1] = &m_nY1;
+		m_vY[2] = &m_nY2;
+		m_nX = IntVar(*this, m_nMin, m_nMax);
+		m_naX = IntVarArray(*this, m_nNumY, m_nMin, m_nMax);
+		m_baX = BoolVarArray(*this, m_nNumY, 0, 1);
+		m_nC << 1;
+		m_nC << m_nNumY;
+		int nTemp =  m_nNumY * m_nMax + m_nNumY;
+		m_nCost = IntVar(*this, 0, nTemp);
+		nTemp = m_nMax > nNumY ? m_nMax : nNumY;
+		m_nValue = IntVarArray(*this, 2, 0, nTemp);
+		rel(*this, m_nX == min(m_naX));
+		element(*this, m_baX, m_nValue[0], 1);
+		rel(*this, m_nValue[1] == m_nX);
+		linear(*this, m_nC, m_nValue, IRT_EQ, m_nCost);
+		branch(*this, m_naX, INT_VAR_MIN_MIN(), INT_VAL_MIN());
+		branch(*this, m_nX, INT_VAL_MIN());
+		branch(*this, m_nValue[0], INT_VAL_MIN());
+	}
+	// search support
+	GecodeTest3(bool share, GecodeTest3& s) : Space(share, s) {
+		// s.print(std::cout);
+		m_vY[0] = &m_nY0;
+		m_vY[1] = &m_nY1;
+		m_vY[2] = &m_nY2;
+		m_nX.update(*this, share, s.m_nX);
+		m_naX.update(*this, share, s.m_naX);
+		m_baX.update(*this, share, s.m_baX);
+		m_nCost.update(*this, share, s.m_nCost);
+		m_nY0.update(*this, share, s.m_nY0);
+		m_nY1.update(*this, share, s.m_nY1);
+		m_nY2.update(*this, share, s.m_nY2);
+		m_nValue.update(*this, share, s.m_nValue);
+		for (int i = 0; i < 2; i++)
+		{
+			m_nC << s.m_nC[i];
+		}
+	}
+	virtual Space* copy(bool share) {
+		return new GecodeTest3(share,*this);
+	}
+	virtual void constrain(const Space& _b)
+	{
+		const GecodeTest3& b = static_cast<const GecodeTest3&>(_b);
+		rel(*this, m_nCost > b.m_nCost);
+	}
+
+	// print solution
+	void print(std::ostream& os) const {
+		os << "m_nX:         " << m_nX << std::endl;
+		for (int i = 0;  i < m_naX.size(); i++)
+		{
+			os << "m_naX[" << i << "]:   " << m_naX[i] << "   ";
+               os << "m_baX[" << i << "]:   " << m_baX[i] << "   ";
+			os << std::endl;
+		}
+		for (int i = 0; i < m_nC.size(); i++)
+		{
+			os << "m_nC[" << i << "]:  " << m_nC[i] <<
+std::endl;
+		}
+		for (int i = 0; i < m_nValue.size(); i++)
+		{
+			os << "m_nValue[" << i << "]:  " << m_nValue[i] <<
+std::endl;
+		}
+		os << "m_nCost:  " << m_nCost << std::endl;
+	}
+};
+
+void BuildAndSolve(bool b2Y1)
+{
+	int Y0[3] = {1, 3, 7};
+	int Y1[3] = {2, 4, 5};
+	int Y2[4] = {4, 6, 8, 9};
+	int Y1a[3] = {1, 3, 8};
+
+	// create model and search engine
+	GecodeTest3 *m = new GecodeTest3(0, 20, 3);
+	m->AddY(Y0, sizeof(Y0)/sizeof(int));
+	m->AddY(Y1, sizeof(Y1)/sizeof(int));
+	if (b2Y1)
+	{
+		m->ConstrainY(Y1a, sizeof(Y1a)/sizeof(int));
+	}
+	m->AddY(Y2, sizeof(Y2)/sizeof(int));
+	// m->print(std::cout);
+	bool bFailed = true;
+	BAB<GecodeTest3> e(m);
+	GecodeTest3 *s;
+	while (((s = e.next()) != 0))
+	{
+		bFailed = false;
+		// s->print(std::cout);
+		int X = s->GetX();
+		int whichY = s->GetWhichY();
+		int nCost = s->GetCost();
+		std::cout << "X=" << X << " from Y" << whichY << ". Cost="
+<< nCost << std::endl;
+		// std::cout << std::endl;
+		delete s;
+	}
+	
+	if (bFailed)
+	{
+		std::cout << "Model failed" << std::endl;
+	}
+
+	Search::Statistics stat = e.statistics();
+	std::cout << "Search Statistics" << std::endl;
+	std::cout << "  Propagations: " << stat.propagate << std::endl;
+	std::cout << "  Nodes:        " << stat.node << std::endl;
+	std::cout << "  Failures:     " << stat.fail << std::endl;
+	std::cout << "  Depth:        " << stat.depth << std::endl;
+	int nPeakMemoryKB = static_cast<int>((stat.memory+1023) / 1024);
+	std::cout << "  Peak Memory   " << nPeakMemoryKB << "KB" <<
+std::endl;
+	std::cout << std::endl;
+	delete m;
+	return;
+}
+
+int GecodeTest3Main(int argc, char* argv[]) {
+	std::cout << "One Y1 constraint" << std::endl;
+	BuildAndSolve(false);
+	std::cout << "Two Y1 constraints" << std::endl;
+	BuildAndSolve(true);
+	return 0;
+}
+
+Sample output:
+One Y1 constraint
+X=1 from Y0. Cost=3
+X=2 from Y1. Cost=7
+X=3 from Y0. Cost=9
+X=4 from Y1. Cost=13
+X=4 from Y2. Cost=14
+X=5 from Y1. Cost=16
+Search Statistics
+     Propagations: 149
+     Nodes:        21
+     Failures:     5
+     Depth:        3
+     Peak Memory   8KB
+
+Two Y1 constraints
+Model failed
+Search Statistics
+     Propagations: 0
+     Nodes:        0
+     Failures:     1
+     Depth:        0
+     Peak Memory   4KB
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From jean-noel.monette at it.uu.se  Wed Apr  3 10:12:44 2013
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Wed, 03 Apr 2013 10:12:44 +0200
+Subject: [gecode-users] Gecode BAB Questions
+In-Reply-To: <008001ce3040$3e755480$bb5ffd80$@se>
+References: <op.wunzlhbpvqe8uy@hiller-t60p>
+	<008001ce3040$3e755480$bb5ffd80$@se>
+Message-ID: <515BE47C.4060300@it.uu.se>
+
+Hello Dean,
+
+I think that the problem is that you want to have a solution even if 
+some variables have an empty domain. Unfortunately(?), in constraint 
+programming and in Gecode in particular, as soon as any variable of the 
+model has an empty domain, the solver considers it as a failure. In your 
+model, if I understand correctly (I did not read the code), you want to 
+get a solution for X, even if one of the Y has an empty domain, which is 
+not possible as such.
+
+One workaround (maybe not the best one?) is to add a "dummy" value to 
+the domain of each of the Y, which is not in the domain of X, so that if 
+everything else is ruled out from the domain of some of the Y, they can 
+still take that value, to avoid triggering a failure. This has the 
+downside that all the constraints on Y (except the one linking Y and X) 
+must be modified so that they do not remove the dummy value.
+
+Regarding the number of solution, I think that if you care about all the 
+solutions, you should not use the BAB engine but the DFS. BAB is to look 
+for a best solution. The number of solutions visited before reaching the 
+best one may very well depend on the branching strategy. Using DFS and 
+looking for all solutions, you should find all the solutions, 
+independently from the cost (but again the order in which the solutions 
+are provided may depend on the branching strategy).
+
+Best,
+
+JN
+
+
+On 04/03/2013 09:52 AM, Christian Schulte wrote:
+> Hi Dean,
+>
+> I tried to understand what you are doing but failed. This is not really a
+> Gecode issue but an issue how you model your problem. In particular your
+> statement that only six solutions are found while there are ten is a little
+> strange. What you could try, though, is: take the values for the variables
+> you believe are solutions which are missing and constrain your variables by
+> hand to these values to verify whether they are solutions according to your
+> model. Then try to remove some constraints to see which of the constraints
+> rule out your intended solutions.
+>
+> Sorry for not being more helpful
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Dean Hiller
+> Sent: Thursday, March 28, 2013 5:19 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Gecode BAB Questions
+>
+> I am very new to constraint programming, but by using the MPG have been able
+> to develop a fairly large Gecode application in a relatively short period of
+> time. Due to my lack of constraint programming knowledge, I may not have
+> selected the best methods for solving my particular problem, but what I have
+> done appears to work with two exceptions which are shown in the attached
+> program.
+> This program is the minimum program I could generate to show what I am doing
+> and to replicate my two problems.
+>
+> In the attached program, I have an IntVar X which is to receive ordered
+> values from Y0, Y1, and Y2 along with an indication of from which Y the
+> value came.
+>
+> The first problem I am having is that the program stops after finding 6 of
+> the 10 possible solutions and I don't understand how to debug this problem.
+>
+> The second problem I am having is that the program fails to find any
+> solutions if the constraints on one of the Y variables results in it not
+> having any solutions even though there are other solutions for X.
+>
+> I have this problem with both the 3.7.3 release and the
+> 4.0.0 release.
+>
+> I would appreciate any assistance you can provide.
+>
+> Thanks,
+> Dean
+>
+> #include <gecode/int.hh>
+> #include <gecode/search.hh>
+> #include <gecode/minimodel.hh>
+>
+> using namespace Gecode;
+>
+> typedef struct Y_s
+> {
+> 	IntVar nY;
+> } Y;
+>
+> class GecodeTest3 : public Space {
+> protected:
+> 	int m_nMin;
+> 	int m_nMax;
+> 	int m_nNumY;
+> 	IntVar m_nX;
+> 	IntVarArray m_naX;
+> 	BoolVarArray m_baX;
+> 	int m_nYIndex;
+> 	IntVar m_nY0;
+> 	IntVar m_nY1;
+> 	IntVar m_nY2;
+> 	IntVar *m_vY[3];
+> 	IntVar m_nCost;
+> 	IntVarArray m_nValue;
+> 	IntArgs m_nC;
+>
+> public:
+> 	void AddY(int* naY, int nSize)
+> 	{
+> 		m_nYIndex++;
+> 		*m_vY[m_nYIndex] = IntVar(*this, m_nMin, m_nMax);
+> 		ConstrainY(naY, nSize);
+> 		rel(*this, m_naX[m_nYIndex] == *m_vY[m_nYIndex]);
+> 		rel(*this, m_baX[m_nYIndex] == (m_naX[m_nYIndex] == m_nX));
+> 		branch(*this, *m_vY[m_nYIndex], INT_VAL_MIN());
+> 	}
+>
+> 	void ConstrainY(int *naY, int nSize)
+> 	{
+> 		IntArgs nTemp;
+> 		for (int i = 0; i < nSize; i++)
+> 		{
+> 			nTemp << naY[i];
+> 		}
+> 		IntSet nsTemp(nTemp);
+> 		dom(*this, *m_vY[m_nYIndex], nsTemp);
+> 	}
+>
+> 	int GetX(void)
+> 	{
+> 		return m_nX.val();
+> 	}
+>
+> 	int GetWhichY(void)
+> 	{
+> 		return m_nValue[0].val();
+> 	}
+>
+> 	int GetCost(void)
+> 	{
+> 		return m_nCost.val();
+> 	}
+>
+> 	GecodeTest3(int nMin, int nMax, int nNumY) :
+> 	m_nMin(nMin), m_nMax(nMax), m_nNumY(nNumY), m_nYIndex(-1)
+> 	{
+> 		if (m_nMin < 0)
+> 		{
+> 			std::cout << "m_nMin must not be negative" <<
+> std::endl;
+> 		}
+> 		m_vY[0] = &m_nY0;
+> 		m_vY[1] = &m_nY1;
+> 		m_vY[2] = &m_nY2;
+> 		m_nX = IntVar(*this, m_nMin, m_nMax);
+> 		m_naX = IntVarArray(*this, m_nNumY, m_nMin, m_nMax);
+> 		m_baX = BoolVarArray(*this, m_nNumY, 0, 1);
+> 		m_nC << 1;
+> 		m_nC << m_nNumY;
+> 		int nTemp =  m_nNumY * m_nMax + m_nNumY;
+> 		m_nCost = IntVar(*this, 0, nTemp);
+> 		nTemp = m_nMax > nNumY ? m_nMax : nNumY;
+> 		m_nValue = IntVarArray(*this, 2, 0, nTemp);
+> 		rel(*this, m_nX == min(m_naX));
+> 		element(*this, m_baX, m_nValue[0], 1);
+> 		rel(*this, m_nValue[1] == m_nX);
+> 		linear(*this, m_nC, m_nValue, IRT_EQ, m_nCost);
+> 		branch(*this, m_naX, INT_VAR_MIN_MIN(), INT_VAL_MIN());
+> 		branch(*this, m_nX, INT_VAL_MIN());
+> 		branch(*this, m_nValue[0], INT_VAL_MIN());
+> 	}
+> 	// search support
+> 	GecodeTest3(bool share, GecodeTest3& s) : Space(share, s) {
+> 		// s.print(std::cout);
+> 		m_vY[0] = &m_nY0;
+> 		m_vY[1] = &m_nY1;
+> 		m_vY[2] = &m_nY2;
+> 		m_nX.update(*this, share, s.m_nX);
+> 		m_naX.update(*this, share, s.m_naX);
+> 		m_baX.update(*this, share, s.m_baX);
+> 		m_nCost.update(*this, share, s.m_nCost);
+> 		m_nY0.update(*this, share, s.m_nY0);
+> 		m_nY1.update(*this, share, s.m_nY1);
+> 		m_nY2.update(*this, share, s.m_nY2);
+> 		m_nValue.update(*this, share, s.m_nValue);
+> 		for (int i = 0; i < 2; i++)
+> 		{
+> 			m_nC << s.m_nC[i];
+> 		}
+> 	}
+> 	virtual Space* copy(bool share) {
+> 		return new GecodeTest3(share,*this);
+> 	}
+> 	virtual void constrain(const Space& _b)
+> 	{
+> 		const GecodeTest3& b = static_cast<const GecodeTest3&>(_b);
+> 		rel(*this, m_nCost > b.m_nCost);
+> 	}
+>
+> 	// print solution
+> 	void print(std::ostream& os) const {
+> 		os << "m_nX:         " << m_nX << std::endl;
+> 		for (int i = 0;  i < m_naX.size(); i++)
+> 		{
+> 			os << "m_naX[" << i << "]:   " << m_naX[i] << "   ";
+>                 os << "m_baX[" << i << "]:   " << m_baX[i] << "   ";
+> 			os << std::endl;
+> 		}
+> 		for (int i = 0; i < m_nC.size(); i++)
+> 		{
+> 			os << "m_nC[" << i << "]:  " << m_nC[i] <<
+> std::endl;
+> 		}
+> 		for (int i = 0; i < m_nValue.size(); i++)
+> 		{
+> 			os << "m_nValue[" << i << "]:  " << m_nValue[i] <<
+> std::endl;
+> 		}
+> 		os << "m_nCost:  " << m_nCost << std::endl;
+> 	}
+> };
+>
+> void BuildAndSolve(bool b2Y1)
+> {
+> 	int Y0[3] = {1, 3, 7};
+> 	int Y1[3] = {2, 4, 5};
+> 	int Y2[4] = {4, 6, 8, 9};
+> 	int Y1a[3] = {1, 3, 8};
+>
+> 	// create model and search engine
+> 	GecodeTest3 *m = new GecodeTest3(0, 20, 3);
+> 	m->AddY(Y0, sizeof(Y0)/sizeof(int));
+> 	m->AddY(Y1, sizeof(Y1)/sizeof(int));
+> 	if (b2Y1)
+> 	{
+> 		m->ConstrainY(Y1a, sizeof(Y1a)/sizeof(int));
+> 	}
+> 	m->AddY(Y2, sizeof(Y2)/sizeof(int));
+> 	// m->print(std::cout);
+> 	bool bFailed = true;
+> 	BAB<GecodeTest3> e(m);
+> 	GecodeTest3 *s;
+> 	while (((s = e.next()) != 0))
+> 	{
+> 		bFailed = false;
+> 		// s->print(std::cout);
+> 		int X = s->GetX();
+> 		int whichY = s->GetWhichY();
+> 		int nCost = s->GetCost();
+> 		std::cout << "X=" << X << " from Y" << whichY << ". Cost="
+> << nCost << std::endl;
+> 		// std::cout << std::endl;
+> 		delete s;
+> 	}
+> 	
+> 	if (bFailed)
+> 	{
+> 		std::cout << "Model failed" << std::endl;
+> 	}
+>
+> 	Search::Statistics stat = e.statistics();
+> 	std::cout << "Search Statistics" << std::endl;
+> 	std::cout << "  Propagations: " << stat.propagate << std::endl;
+> 	std::cout << "  Nodes:        " << stat.node << std::endl;
+> 	std::cout << "  Failures:     " << stat.fail << std::endl;
+> 	std::cout << "  Depth:        " << stat.depth << std::endl;
+> 	int nPeakMemoryKB = static_cast<int>((stat.memory+1023) / 1024);
+> 	std::cout << "  Peak Memory   " << nPeakMemoryKB << "KB" <<
+> std::endl;
+> 	std::cout << std::endl;
+> 	delete m;
+> 	return;
+> }
+>
+> int GecodeTest3Main(int argc, char* argv[]) {
+> 	std::cout << "One Y1 constraint" << std::endl;
+> 	BuildAndSolve(false);
+> 	std::cout << "Two Y1 constraints" << std::endl;
+> 	BuildAndSolve(true);
+> 	return 0;
+> }
+>
+> Sample output:
+> One Y1 constraint
+> X=1 from Y0. Cost=3
+> X=2 from Y1. Cost=7
+> X=3 from Y0. Cost=9
+> X=4 from Y1. Cost=13
+> X=4 from Y2. Cost=14
+> X=5 from Y1. Cost=16
+> Search Statistics
+>       Propagations: 149
+>       Nodes:        21
+>       Failures:     5
+>       Depth:        3
+>       Peak Memory   8KB
+>
+> Two Y1 constraints
+> Model failed
+> Search Statistics
+>       Propagations: 0
+>       Nodes:        0
+>       Failures:     1
+>       Depth:        0
+>       Peak Memory   4KB
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Apr  4 14:10:53 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 04 Apr 2013 14:10:53 +0200
+Subject: [gecode-users] ExecStatus : what to return in case of no propagation
+Message-ID: <515D6DCD.9070002@informatik.uni-freiburg.de>
+
+
+Hi Gecoders,
+
+I have written a computationally expensive binary propagator that should 
+be triggered only if one of the two constrained domains is smaller a 
+certain threshold.
+
+Currently, I am enforcing this behaviour by subclassing the propagator from
+
+Gecode::BinaryPropagator<Gecode::Int::IntView,Gecode::Int::PC_INT_DOM>
+
+and doing the following in my propagate function
+
+//////////////////////////////////////////////////////////////////
+propagate(Gecode::Space& home, const Gecode::ModEventDelta&) {
+  // check if domain size limits are exceeded
+if (x0.size() > maxDomainSize && x1.size() > maxDomainSize)  {
+  // domains are too large, dont propagate for now
+  return Gecode::ES_FIX;
+}
+... normal propagation starts here
+}
+//////////////////////////////////////////////////////////////////
+
+First question I have: do I have to return Gecode::ES_NOFIX or as I do 
+ES_FIX in case of no propagation?
+Since I dont wont the propagator not to be called again until the 
+domains are shrinked, I assume this to be a virtual fix point, right?
+
+Second question that came to me: is there a better way to get this 
+domain size specific call behaviour e.g. via Advisor implementation etc?
+
+
+Thanks for your help,
+Martin
+
+
+-- 
+Dr. Martin Mann, Postdoc assistant
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Thu Apr  4 17:23:35 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 4 Apr 2013 17:23:35 +0200
+Subject: [gecode-users] ExecStatus : what to return in case of no
+	propagation
+In-Reply-To: <515D6DCD.9070002@informatik.uni-freiburg.de>
+References: <515D6DCD.9070002@informatik.uni-freiburg.de>
+Message-ID: <009501ce3148$609818f0$21c84ad0$@kth.se>
+
+Hi Martin,
+
+It doesn't matter, both works: ES_FIX means that the propagator is at
+fixpoint wrt the current domain of the variables. ES_NOFIX differs only if
+the propagator performs some domain changes which it does not in your case:
+it means that the propagator is at fixpoint when it did not do any variable
+domain modifications otherwise it is not and will be re-executed at some
+point in time.
+
+And yes, you should use advisors as they are more efficient: you save that
+the propagator is actually scheduled and executed.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Thursday, April 04, 2013 2:11 PM
+To: gecode user list
+Subject: [gecode-users] ExecStatus : what to return in case of no
+propagation
+
+
+Hi Gecoders,
+
+I have written a computationally expensive binary propagator that should be
+triggered only if one of the two constrained domains is smaller a certain
+threshold.
+
+Currently, I am enforcing this behaviour by subclassing the propagator from
+
+Gecode::BinaryPropagator<Gecode::Int::IntView,Gecode::Int::PC_INT_DOM>
+
+and doing the following in my propagate function
+
+//////////////////////////////////////////////////////////////////
+propagate(Gecode::Space& home, const Gecode::ModEventDelta&) {
+  // check if domain size limits are exceeded if (x0.size() > maxDomainSize
+&& x1.size() > maxDomainSize)  {
+  // domains are too large, dont propagate for now
+  return Gecode::ES_FIX;
+}
+... normal propagation starts here
+}
+//////////////////////////////////////////////////////////////////
+
+First question I have: do I have to return Gecode::ES_NOFIX or as I do
+ES_FIX in case of no propagation?
+Since I dont wont the propagator not to be called again until the domains
+are shrinked, I assume this to be a virtual fix point, right?
+
+Second question that came to me: is there a better way to get this domain
+size specific call behaviour e.g. via Advisor implementation etc?
+
+
+Thanks for your help,
+Martin
+
+
+-- 
+Dr. Martin Mann, Postdoc assistant
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From mailing-list at francq.info  Fri Apr  5 16:03:03 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Fri, 05 Apr 2013 16:03:03 +0200
+Subject: [gecode-users] MaximizeSpace and FloatVar
+Message-ID: <515ED997.4050204@francq.info>
+
+Hi,
+How can I, with gecode 4.0.0, use a MaximizeSpace where the variable to
+maximize in s FloatVar. The problem is that the method cost() returns an
+IntVar.
+Thanks.
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From h.gerloff at tu-braunschweig.de  Wed Apr  3 00:49:48 2013
+From: h.gerloff at tu-braunschweig.de (Gerloff Hendrik)
+Date: Wed, 03 Apr 2013 00:49:48 +0200
+Subject: [gecode-users] Gecode::IntVarBranch cannot be used as a function
+Message-ID: <web-4983217@rz.tu-bs.de>
+
+Hi,
+
+I tried to compile the example "Send More Money" from the pdf 
+"Modeling and Programming with Gecode", page 14.
+
+The compiler stops with following errors:
+In constructor 'SendMoreMoney::SendMoreMoney()':
+error: '(Gecode::IntVarBranch)10u' cannot be used as a function
+error: '(Gecode::IntValBranch)0u' cannot be used as a function
+
+The line causing the error is (you can find the complete code at the 
+end of this mail):
+branch(*this, l, INT_VAR_SIZE_MIN(), INT_VAL_MIN()); // defined in 
+set.hh
+
+As far as I know this kind of error occurs when you use a variable 
+with the same name as the function, but there is no
+variable with this name. Searching with google didn't show any useful 
+results so I am asking here for help.
+
+I'm using qtcreator on ubuntu 12.04.
+
+Greets
+
+
+Example from the book:
+
+#include <gecode/int.hh>
+#include <gecode/gist.hh>
+
+using namespace Gecode;
+
+class SendMoreMoney : public Space {
+protected:
+   IntVarArray l;
+public:
+   SendMoreMoney(void) : l(*this, 8, 0, 9) {
+     IntVar s(l[0]), e(l[1]), n(l[2]), d(l[3]),
+            m(l[4]), o(l[5]), r(l[6]), y(l[7]);
+     rel(*this, s, IRT_NQ, 0);
+     rel(*this, m, IRT_NQ, 0);
+     distinct(*this, l);
+     IntArgs c(4+4+5); IntVarArgs x(4+4+5);
+     c[0]=1000; c[1]=100; c[2]=10; c[3]=1;
+     x[0]=s;    x[1]=e;   x[2]=n;  x[3]=d;
+     c[4]=1000; c[5]=100; c[6]=10; c[7]=1;
+     x[4]=m;    x[5]=o;   x[6]=r;  x[7]=e;
+     c[8]=-10000; c[9]=-1000; c[10]=-100; c[11]=-10; c[12]=-1;
+     x[8]=m;      x[9]=o;     x[10]=n;    x[11]=e;   x[12]=y;
+     linear(*this, c, x, IRT_EQ, 0);
+     branch(*this, l, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+   }
+   SendMoreMoney(bool share, SendMoreMoney& s) : Space(share, s) {
+     l.update(*this, share, s.l);
+   }
+   virtual Space* copy(bool share) {
+     return new SendMoreMoney(share,*this);
+   }
+   void print(void) const {
+     std::cout << l << std::endl;
+   }
+};
+
+int main(int argc, char* argv[]) {
+   SendMoreMoney* m = new SendMoreMoney;
+   Gist::dfs(m);
+   delete m;
+   return 0;
+}
+
+
+From alexis.cothenet at gmail.com  Thu Apr  4 11:14:57 2013
+From: alexis.cothenet at gmail.com (Alexis Cothenet)
+Date: Thu, 4 Apr 2013 11:14:57 +0200
+Subject: [gecode-users] Fwd: Windows x86 (32 bit,
+	MSVC 2010): Gecode-4.0.0-x86-2010.msi
+In-Reply-To: <CANBFYtb83GFxPwLvGLeOG=umm3h-hrxcdpoBFXKM9he-Ne0pgg@mail.gmail.com>
+References: <CANBFYtb83GFxPwLvGLeOG=umm3h-hrxcdpoBFXKM9he-Ne0pgg@mail.gmail.com>
+Message-ID: <CANBFYtYZDUXMpyHm4qwn9pHkrK2BOpJDRkKi2qebU5-tXyZetA@mail.gmail.com>
+
+Subject: Windows x86 (32 bit, MSVC 2010): Gecode-4.0.0-x86-2010.msi
+
+
+Hi,
+
+I heard about the new Gecode 4.0 version and decided to give a try with the
+version given in the title.
+Could you indicate me what is the QT version used for the compilation ?
+I have a crash launching my application when i create a Gist object or a
+GistMainWindow object.
+
+I use QtCreator with the QT5 version Windows 32 bits MS2010.
+
+This is the error message :
+
+QWidget: Must construct a QApplication before a QPaintDevice
+
+
+Thank you.
+Best regards,
+Alexis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130404/b4fc61a4/attachment.html>
+
+From christine.bouzant at gmail.com  Sat Apr  6 10:01:25 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Sat, 6 Apr 2013 10:01:25 +0200
+Subject: [gecode-users] Stop search
+Message-ID: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+
+Dear all,
+
+I am new to gecode and constraint programming, so sorry by advance for my
+questions.
+I'd like to stop search when in my model i have the condition
+sum(CanBeTaken) >=4 where CanBeTaken is a BoolVarArray.
+
+I have read about stop objects but as i understand, a stop object cannot
+take a model as argument since everything is copied in Gecode, right ?
+
+Would you have a solution to stop search, depending of the current state of
+the model ?
+
+Cheers,
+
+Christine.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130406/9eab3272/attachment.html>
+
+From cschulte at kth.se  Sun Apr  7 19:38:59 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 7 Apr 2013 19:38:59 +0200
+Subject: [gecode-users] Fwd: Windows x86 (32 bit,
+	MSVC 2010): Gecode-4.0.0-x86-2010.msi
+In-Reply-To: <CANBFYtYZDUXMpyHm4qwn9pHkrK2BOpJDRkKi2qebU5-tXyZetA@mail.gmail.com>
+References: <CANBFYtb83GFxPwLvGLeOG=umm3h-hrxcdpoBFXKM9he-Ne0pgg@mail.gmail.com>
+	<CANBFYtYZDUXMpyHm4qwn9pHkrK2BOpJDRkKi2qebU5-tXyZetA@mail.gmail.com>
+Message-ID: <003801ce33b6$ca8b14e0$5fa13ea0$@kth.se>
+
+Hi,
+
+ 
+
+All versions are built against Qt 4.8.4 compiled with the respective MSVC
+compiler.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alexis Cothenet
+Sent: Thursday, April 04, 2013 11:15 AM
+To: users at gecode.org
+Subject: [gecode-users] Fwd: Windows x86 (32 bit, MSVC 2010):
+Gecode-4.0.0-x86-2010.msi
+
+ 
+
+Subject: Windows x86 (32 bit, MSVC 2010): Gecode-4.0.0-x86-2010.msi
+
+ 
+
+Hi,
+
+I heard about the new Gecode 4.0 version and decided to give a try with the
+version given in the title.
+
+Could you indicate me what is the QT version used for the compilation ?
+
+I have a crash launching my application when i create a Gist object or a
+GistMainWindow object.
+
+I use QtCreator with the QT5 version Windows 32 bits MS2010.
+
+This is the error message : 
+
+QWidget: Must construct a QApplication before a QPaintDevice
+
+
+
+Thank you.
+
+Best regards,
+Alexis
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130407/b19ab32e/attachment.html>
+
+From cschulte at kth.se  Sun Apr  7 19:48:32 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 7 Apr 2013 19:48:32 +0200
+Subject: [gecode-users] Stop search
+In-Reply-To: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+References: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+Message-ID: <004701ce33b8$1f6ab910$5e402b30$@kth.se>
+
+Hi Christine,
+
+ 
+
+Hmm, no you can't use stop objects for that. 
+
+ 
+
+Why would adding the condition sum(CanBeTaken) >= 4 to the script as a
+constraint not work? Then you would know that any solution would satisfy
+this property?
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Saturday, April 06, 2013 10:01 AM
+To: users at gecode.org
+Subject: [gecode-users] Stop search
+
+ 
+
+Dear all,
+
+I am new to gecode and constraint programming, so sorry by advance for my
+questions.
+
+I'd like to stop search when in my model i have the condition
+
+sum(CanBeTaken) >=4 where CanBeTaken is a BoolVarArray.
+
+I have read about stop objects but as i understand, a stop object cannot
+take a model as argument since everything is copied in Gecode, right ?
+
+Would you have a solution to stop search, depending of the current state of
+the model ?
+
+Cheers,
+
+Christine.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130407/438762f5/attachment.html>
+
+From cschulte at kth.se  Sun Apr  7 19:53:08 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 7 Apr 2013 19:53:08 +0200
+Subject: [gecode-users] Gecode::IntVarBranch cannot be used as a function
+In-Reply-To: <web-4983217@rz.tu-bs.de>
+References: <web-4983217@rz.tu-bs.de>
+Message-ID: <005601ce33b8$c451b050$4cf510f0$@kth.se>
+
+Hi,
+
+I guess you are reading MPG for Gecode 4.* while using a Gecode version 3.*.
+Please make sure that the documentation and the Gecode version matches (MPG
+says on the second page to which Gecode version it corresponds to; you can
+find out the Gecode version you have installed  by running any example with
+-help on the commandline).
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Gerloff Hendrik
+> Sent: Wednesday, April 03, 2013 12:50 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Gecode::IntVarBranch cannot be used as a function
+> 
+> Hi,
+> 
+> I tried to compile the example "Send More Money" from the pdf "Modeling
+and
+> Programming with Gecode", page 14.
+> 
+> The compiler stops with following errors:
+> In constructor 'SendMoreMoney::SendMoreMoney()':
+> error: '(Gecode::IntVarBranch)10u' cannot be used as a function
+> error: '(Gecode::IntValBranch)0u' cannot be used as a function
+> 
+> The line causing the error is (you can find the complete code at the end
+of this
+> mail):
+> branch(*this, l, INT_VAR_SIZE_MIN(), INT_VAL_MIN()); // defined in set.hh
+> 
+> As far as I know this kind of error occurs when you use a variable with
+the same
+> name as the function, but there is no variable with this name. Searching
+with
+> google didn't show any useful results so I am asking here for help.
+> 
+> I'm using qtcreator on ubuntu 12.04.
+> 
+> Greets
+> 
+> 
+> Example from the book:
+> 
+> #include <gecode/int.hh>
+> #include <gecode/gist.hh>
+> 
+> using namespace Gecode;
+> 
+> class SendMoreMoney : public Space {
+> protected:
+>    IntVarArray l;
+> public:
+>    SendMoreMoney(void) : l(*this, 8, 0, 9) {
+>      IntVar s(l[0]), e(l[1]), n(l[2]), d(l[3]),
+>             m(l[4]), o(l[5]), r(l[6]), y(l[7]);
+>      rel(*this, s, IRT_NQ, 0);
+>      rel(*this, m, IRT_NQ, 0);
+>      distinct(*this, l);
+>      IntArgs c(4+4+5); IntVarArgs x(4+4+5);
+>      c[0]=1000; c[1]=100; c[2]=10; c[3]=1;
+>      x[0]=s;    x[1]=e;   x[2]=n;  x[3]=d;
+>      c[4]=1000; c[5]=100; c[6]=10; c[7]=1;
+>      x[4]=m;    x[5]=o;   x[6]=r;  x[7]=e;
+>      c[8]=-10000; c[9]=-1000; c[10]=-100; c[11]=-10; c[12]=-1;
+>      x[8]=m;      x[9]=o;     x[10]=n;    x[11]=e;   x[12]=y;
+>      linear(*this, c, x, IRT_EQ, 0);
+>      branch(*this, l, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+>    }
+>    SendMoreMoney(bool share, SendMoreMoney& s) : Space(share, s) {
+>      l.update(*this, share, s.l);
+>    }
+>    virtual Space* copy(bool share) {
+>      return new SendMoreMoney(share,*this);
+>    }
+>    void print(void) const {
+>      std::cout << l << std::endl;
+>    }
+> };
+> 
+> int main(int argc, char* argv[]) {
+>    SendMoreMoney* m = new SendMoreMoney;
+>    Gist::dfs(m);
+>    delete m;
+>    return 0;
+> }
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Sun Apr  7 19:57:25 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 7 Apr 2013 19:57:25 +0200
+Subject: [gecode-users] MaximizeSpace and FloatVar
+In-Reply-To: <515ED997.4050204@francq.info>
+References: <515ED997.4050204@francq.info>
+Message-ID: <005a01ce33b9$5dfc5f70$19f51e50$@kth.se>
+
+Hi,
+
+Right now there is now predefined class to do that. But it is
+straightforward to implement it yourself: have a look at gecode/minimodel.hh
+and gecode/minimodel/optimize.hpp.
+
+Do you think it would be worth to have a IntMaximizeSpace and
+FloatMaximizeSpace? I could add that for the next release.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Pascal Francq (Mailing lists)
+> Sent: Friday, April 05, 2013 4:03 PM
+> To: users at gecode.org
+> Subject: [gecode-users] MaximizeSpace and FloatVar
+> 
+> Hi,
+> How can I, with gecode 4.0.0, use a MaximizeSpace where the variable to
+> maximize in s FloatVar. The problem is that the method cost() returns an
+IntVar.
+> Thanks.
+> --
+> Dr. Pascal Francq
+> Belgium
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From mailing-list at francq.info  Sun Apr  7 23:19:58 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Sun, 07 Apr 2013 23:19:58 +0200
+Subject: [gecode-users] MaximizeSpace and FloatVar
+In-Reply-To: <005a01ce33b9$5dfc5f70$19f51e50$@kth.se>
+References: <515ED997.4050204@francq.info>
+	<005a01ce33b9$5dfc5f70$19f51e50$@kth.se>
+Message-ID: <5161E2FE.8090507@francq.info>
+
+It could be interesting to have the two class. I will try to create a
+FloatMaximizeSpace class based on MaximizeSpace. I send you the code.
+
+Le 07/04/13 19:57, Christian Schulte a ?crit :
+> Hi,
+> 
+> Right now there is now predefined class to do that. But it is
+> straightforward to implement it yourself: have a look at gecode/minimodel.hh
+> and gecode/minimodel/optimize.hpp.
+> 
+> Do you think it would be worth to have a IntMaximizeSpace and
+> FloatMaximizeSpace? I could add that for the next release.
+> 
+> Cheers
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Pascal Francq (Mailing lists)
+>> Sent: Friday, April 05, 2013 4:03 PM
+>> To: users at gecode.org
+>> Subject: [gecode-users] MaximizeSpace and FloatVar
+>>
+>> Hi,
+>> How can I, with gecode 4.0.0, use a MaximizeSpace where the variable to
+>> maximize in s FloatVar. The problem is that the method cost() returns an
+> IntVar.
+>> Thanks.
+>> --
+>> Dr. Pascal Francq
+>> Belgium
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From tias.guns at cs.kuleuven.be  Mon Apr  8 12:47:03 2013
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Mon, 8 Apr 2013 12:47:03 +0200
+Subject: [gecode-users] int2float in fzn parser
+Message-ID: <20130408104703.GJ29162@cs.kuleuven.be>
+
+Hi,
+
+I wanted to test gecode's new float vars using some minizinc
+formulations.
+
+It seems that gecode's fzn parser does not recognize int2float():
+Error: Registry: Constraint int2float not found in line ...
+
+even though gecode itself does have such a channel constraint:
+http://www.gecode.org/doc-latest/reference/group__TaskModelFloatChannel.html
+
+
+Here is a nonsense testcase:
+var 1..5: x;
+constraint int2float(x) > 1.2;
+solve satisfy;
+
+
+Would it be hard to add?
+
+Thanks in advance,
+Tias
+
+Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+
+
+From christine.bouzant at gmail.com  Mon Apr  8 16:45:45 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Mon, 8 Apr 2013 16:45:45 +0200
+Subject: [gecode-users] Stop search
+In-Reply-To: <004701ce33b8$1f6ab910$5e402b30$@kth.se>
+References: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+	<004701ce33b8$1f6ab910$5e402b30$@kth.se>
+Message-ID: <CAF2wyP0jNXODNS=1M+OPThFCK1x6eLJD9zpxCta+nuv5MYH_9A@mail.gmail.com>
+
+Hi Christian,
+
+Actually, i'd like to accept any solution, even if sum(CanBeTaken)<4.
+But if sum(CanBeTaken)>=4, i 'd like to stop search because i am not
+interested by other solutions.
+
+Cheers,
+Christine
+
+
+2013/4/7 Christian Schulte <cschulte at kth.se>
+
+> Hi Christine,****
+>
+> ** **
+>
+> Hmm, no you can?t use stop objects for that. ****
+>
+> ** **
+>
+> Why would adding the condition sum(CanBeTaken) >= 4 to the script as a
+> constraint not work? Then you would know that any solution would satisfy
+> this property?****
+>
+> ** **
+>
+> Best****
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *christine bouzant
+> *Sent:* Saturday, April 06, 2013 10:01 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Stop search****
+>
+> ** **
+>
+> Dear all,****
+>
+> I am new to gecode and constraint programming, so sorry by advance for my
+> questions.****
+>
+> I'd like to stop search when in my model i have the condition****
+>
+> sum(CanBeTaken) >=4 where CanBeTaken is a BoolVarArray.****
+>
+> I have read about stop objects but as i understand, a stop object cannot
+> take a model as argument since everything is copied in Gecode, right ?****
+>
+> Would you have a solution to stop search, depending of the current state
+> of the model ?****
+>
+> Cheers,****
+>
+> Christine.****
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130408/6e9d521d/attachment.html>
+
+From cschulte at kth.se  Mon Apr  8 18:05:17 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 8 Apr 2013 18:05:17 +0200
+Subject: [gecode-users] Stop search
+In-Reply-To: <CAF2wyP0jNXODNS=1M+OPThFCK1x6eLJD9zpxCta+nuv5MYH_9A@mail.gmail.com>
+References: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>	<004701ce33b8$1f6ab910$5e402b30$@kth.se>
+	<CAF2wyP0jNXODNS=1M+OPThFCK1x6eLJD9zpxCta+nuv5MYH_9A@mail.gmail.com>
+Message-ID: <005801ce3472$dd4955d0$97dc0170$@se>
+
+Then why not compute all solutions with a while loop and continue until you
+find a solution for which sum(canBeTaken) >= 4.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Monday, April 08, 2013 4:46 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Stop search
+
+ 
+
+Hi Christian,
+
+Actually, i'd like to accept any solution, even if sum(CanBeTaken)<4.
+
+But if sum(CanBeTaken)>=4, i 'd like to stop search because i am not
+interested by other solutions.
+
+ 
+
+Cheers,
+
+Christine
+
+ 
+
+2013/4/7 Christian Schulte <cschulte at kth.se>
+
+Hi Christine,
+
+ 
+
+Hmm, no you can't use stop objects for that. 
+
+ 
+
+Why would adding the condition sum(CanBeTaken) >= 4 to the script as a
+constraint not work? Then you would know that any solution would satisfy
+this property?
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Saturday, April 06, 2013 10:01 AM
+To: users at gecode.org
+Subject: [gecode-users] Stop search
+
+ 
+
+Dear all,
+
+I am new to gecode and constraint programming, so sorry by advance for my
+questions.
+
+I'd like to stop search when in my model i have the condition
+
+sum(CanBeTaken) >=4 where CanBeTaken is a BoolVarArray.
+
+I have read about stop objects but as i understand, a stop object cannot
+take a model as argument since everything is copied in Gecode, right ?
+
+Would you have a solution to stop search, depending of the current state of
+the model ?
+
+Cheers,
+
+Christine.
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130408/c847aa4b/attachment.html>
+
+From jorge.pelizzoni at gmail.com  Mon Apr  8 20:05:36 2013
+From: jorge.pelizzoni at gmail.com (Jorge Marques Pelizzoni)
+Date: Mon, 8 Apr 2013 15:05:36 -0300
+Subject: [gecode-users] Stop search
+In-Reply-To: <005801ce3472$dd4955d0$97dc0170$@se>
+References: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+	<004701ce33b8$1f6ab910$5e402b30$@kth.se>
+	<CAF2wyP0jNXODNS=1M+OPThFCK1x6eLJD9zpxCta+nuv5MYH_9A@mail.gmail.com>
+	<005801ce3472$dd4955d0$97dc0170$@se>
+Message-ID: <CALFdGUx=6dh5FXPveCJRXtJ1LA3sMwYjC-Cpd8zybgsEO-0XGw@mail.gmail.com>
+
+Why not add sum(canBeTaken) < 4 as a constraint?
+
+2013/4/8 Christian Schulte <cschulte at kth.se>
+>
+> Then why not compute all solutions with a while loop and continue until you find a solution for which sum(canBeTaken) >= 4.
+>
+>
+>
+> Best
+>
+> Christian
+
+
+From jorge.pelizzoni at gmail.com  Mon Apr  8 21:52:55 2013
+From: jorge.pelizzoni at gmail.com (Jorge Marques Pelizzoni)
+Date: Mon, 8 Apr 2013 16:52:55 -0300
+Subject: [gecode-users] Stop search
+In-Reply-To: <CALFdGUx=6dh5FXPveCJRXtJ1LA3sMwYjC-Cpd8zybgsEO-0XGw@mail.gmail.com>
+References: <CAF2wyP3fJA0U+uqg9y6uTqjzs=4eb98PnLaFQjp7hSNzMNd9gg@mail.gmail.com>
+	<004701ce33b8$1f6ab910$5e402b30$@kth.se>
+	<CAF2wyP0jNXODNS=1M+OPThFCK1x6eLJD9zpxCta+nuv5MYH_9A@mail.gmail.com>
+	<005801ce3472$dd4955d0$97dc0170$@se>
+	<CALFdGUx=6dh5FXPveCJRXtJ1LA3sMwYjC-Cpd8zybgsEO-0XGw@mail.gmail.com>
+Message-ID: <CALFdGUxsYKo3DNHQZO4yMWVUj_2XAjS=7_7Jc7QVV_M0aBxQqg@mail.gmail.com>
+
+At the worst, if that's a relaxable constraint, you can search first
+with sum(canBeTaken) < 4 imposed and then, only if you cannot find any
+solutions, you'd search again leaving that constraint out.
+
+2013/4/8 Jorge Marques Pelizzoni <jorge.pelizzoni at gmail.com>:
+> Why not add sum(canBeTaken) < 4 as a constraint?
+>
+> 2013/4/8 Christian Schulte <cschulte at kth.se>
+>>
+>> Then why not compute all solutions with a while loop and continue until you find a solution for which sum(canBeTaken) >= 4.
+>>
+>>
+>>
+>> Best
+>>
+>> Christian
+
+
+From tack at gecode.org  Tue Apr  9 02:21:23 2013
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 9 Apr 2013 10:21:23 +1000
+Subject: [gecode-users] int2float in fzn parser
+In-Reply-To: <20130408104703.GJ29162@cs.kuleuven.be>
+References: <20130408104703.GJ29162@cs.kuleuven.be>
+Message-ID: <A4599D75-56E1-44D0-B217-154D2015B640@gecode.org>
+
+Thanks, that was simply an oversight.  I just added it on the svn trunk.
+
+Cheers,
+Guido
+
+On 08/04/2013, at 8:47 PM, Tias Guns <tias.guns at cs.kuleuven.be> wrote:
+
+> Hi,
+> 
+> I wanted to test gecode's new float vars using some minizinc
+> formulations.
+> 
+> It seems that gecode's fzn parser does not recognize int2float():
+> Error: Registry: Constraint int2float not found in line ...
+> 
+> even though gecode itself does have such a channel constraint:
+> http://www.gecode.org/doc-latest/reference/group__TaskModelFloatChannel.html
+> 
+> 
+> Here is a nonsense testcase:
+> var 1..5: x;
+> constraint int2float(x) > 1.2;
+> solve satisfy;
+> 
+> 
+> Would it be hard to add?
+> 
+> Thanks in advance,
+> Tias
+> 
+> Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From christine.bouzant at gmail.com  Thu Apr 11 10:44:55 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Thu, 11 Apr 2013 10:44:55 +0200
+Subject: [gecode-users] Problem for modeling
+Message-ID: <CAF2wyP3fr6eK34T48+QDUy=cBZXQcP+g0BSeU2CRdm5ZQyiRjg@mail.gmail.com>
+
+Dear all,
+
+I am wondering if you could you help me to make my model ?
+I put in attachment a small document to explain what i would like to model.
+Here are some explanations:
+
+I would like to find 2 cars : Car1 and Car2.
+The domain for Car1 is [0,1].
+The car number 0 must have a conductor COND1 (people domain is [0,1,5]) and
+an other person OTHER1 (people domain is [0,1]).
+The car number 1 is not the same car model. It must have only the conductor
+COND1 (for this car number, the people domain is [0, 5]).
+
+
+The domain for Car2 is [2,3].
+The car number 2 must have a conductor COND2 (people domain is [7, 8]) and
+an other person OTHER2 (people domain is [6, 9]).
+The car number 3 is not exactly the same car model. It must have the
+conductor COND2 (for this car, the people domain is [7, 8, 12]) and the
+person OTHER2 (domain is [6, 15]).
+
+Moreother, i would like to have the constraint that each people chosen in
+cars are distinct.
+
+I have no idea how to model this since the car configuration (COND or/and
+OTHER) and the people domain depends of the car number selection...
+
+Many thanks for your help !
+
+Cheers,
+Christine
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130411/51432528/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: ModelPb.pdf
+Type: application/pdf
+Size: 16777 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20130411/51432528/attachment.pdf>
+
+From jean-noel.monette at it.uu.se  Thu Apr 11 11:04:24 2013
+From: jean-noel.monette at it.uu.se (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Thu, 11 Apr 2013 11:04:24 +0200
+Subject: [gecode-users] Problem for modeling
+In-Reply-To: <51667C73.9050401@it.uu.se>
+References: <51667C73.9050401@it.uu.se>
+Message-ID: <51667C98.7080702@it.uu.se>
+
+
+Hello,
+
+I would model the relations between a car model and a conductor or 
+passenger using table constraints. For instance for Car1, you might have 
+two tables:
+
+car1 - COND1
+0 - 0
+0 - 1
+0 - 5
+1 - 0
+1 - 5
+
+and
+
+car1 - OTHER1
+0 - 0
+0 - 1
+1 - -1
+
+where "-1" models the absence of another person. A table constraint 
+states that the values of the variables must be equal to one of the 
+lines of the table. In Gecode, the table constraint is called 
+"extensional" (the version with a TupleSet argument).
+
+Finally for the all distinct, you can use the "distinct" constraint on { 
+COND1, OTHER1, COND2, OTHER2 }. Note that giving the value "-1" for the 
+absence of person is fine with the distinct constraint as it is now. If 
+you have several cars where the other person might be absent, you should 
+give them other numbers (-2, -3, ...) to make sure the distinct 
+constraint does not remove solutions.
+
+Best,
+
+JN
+
+
+On 04/11/2013 10:44 AM, christine bouzant wrote:
+> Dear all,
+>
+> I am wondering if you could you help me to make my model ?
+> I put in attachment a small document to explain what i would like to 
+> model.
+> Here are some explanations:
+>
+> I would like to find 2 cars : Car1 and Car2.
+> The domain for Car1 is [0,1].
+> The car number 0 must have a conductor COND1 (people domain is 
+> [0,1,5]) and an other person OTHER1 (people domain is [0,1]).
+> The car number 1 is not the same car model. It must have only the 
+> conductor COND1 (for this car number, the people domain is [0, 5]).
+>
+>
+> The domain for Car2 is [2,3].
+> The car number 2 must have a conductor COND2 (people domain is [7, 8]) 
+> and an other person OTHER2 (people domain is [6, 9]).
+> The car number 3 is not exactly the same car model. It must have the 
+> conductor COND2 (for this car, the people domain is [7, 8, 12]) and 
+> the person OTHER2 (domain is [6, 15]).
+>
+> Moreother, i would like to have the constraint that each people chosen 
+> in cars are distinct.
+>
+> I have no idea how to model this since the car configuration (COND 
+> or/and OTHER) and the people domain depends of the car number selection...
+>
+> Many thanks for your help !
+>
+> Cheers,
+> Christine
+>
+>
+>
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130411/0f54ff9f/attachment-0001.html>
+
+From cschulte at kth.se  Thu Apr 11 11:15:31 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 11 Apr 2013 11:15:31 +0200
+Subject: [gecode-users] Problem for modeling
+In-Reply-To: <51667C98.7080702@it.uu.se>
+References: <51667C73.9050401@it.uu.se> <51667C98.7080702@it.uu.se>
+Message-ID: <005401ce3695$20041ad0$600c5070$@kth.se>
+
+Please, this users list is really about Gecode in particular and not about
+modeling with constraint programming in general.
+
+ 
+
+Please respect that
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jean-No?l Monette
+Sent: Thursday, April 11, 2013 11:04 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Problem for modeling
+
+ 
+
+ 
+
+Hello,
+
+I would model the relations between a car model and a conductor or passenger
+using table constraints. For instance for Car1, you might have two tables:
+
+car1 - COND1
+0 - 0
+0 - 1
+0 - 5
+1 - 0
+1 - 5
+
+and
+
+car1 - OTHER1
+0 - 0
+0 - 1
+1 - -1
+
+where "-1" models the absence of another person. A table constraint states
+that the values of the variables must be equal to one of the lines of the
+table. In Gecode, the table constraint is called "extensional" (the version
+with a TupleSet argument).
+
+Finally for the all distinct, you can use the "distinct" constraint on {
+COND1, OTHER1, COND2, OTHER2 }. Note that giving the value "-1" for the
+absence of person is fine with the distinct constraint as it is now. If you
+have several cars where the other person might be absent, you should give
+them other numbers (-2, -3, ...) to make sure the distinct constraint does
+not remove solutions.
+
+Best,
+
+JN
+
+
+
+On 04/11/2013 10:44 AM, christine bouzant wrote:
+
+Dear all,
+
+I am wondering if you could you help me to make my model ?
+
+I put in attachment a small document to explain what i would like to model.
+
+Here are some explanations:
+
+I would like to find 2 cars : Car1 and Car2.
+
+The domain for Car1 is [0,1].
+
+The car number 0 must have a conductor COND1 (people domain is [0,1,5]) and
+an other person OTHER1 (people domain is [0,1]).
+
+The car number 1 is not the same car model. It must have only the conductor
+COND1 (for this car number, the people domain is [0, 5]).
+
+
+
+The domain for Car2 is [2,3].
+The car number 2 must have a conductor COND2 (people domain is [7, 8]) and
+an other person OTHER2 (people domain is [6, 9]).
+The car number 3 is not exactly the same car model. It must have the
+conductor COND2 (for this car, the people domain is [7, 8, 12]) and the
+person OTHER2 (domain is [6, 15]).
+
+Moreother, i would like to have the constraint that each people chosen in
+cars are distinct.
+
+I have no idea how to model this since the car configuration (COND or/and
+OTHER) and the people domain depends of the car number selection...
+
+Many thanks for your help !
+
+Cheers,
+Christine
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130411/0118c9b8/attachment.html>
+
+From tias.guns at cs.kuleuven.be  Mon Apr 15 18:22:50 2013
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Mon, 15 Apr 2013 18:22:50 +0200
+Subject: [gecode-users] mzn-gecode search strategy
+Message-ID: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+
+Hi Guido,
+
+What is the default search strategy of gecode's fz interpreter?
+
+Its default search works really well on one group of variables, but less  
+on the other. I want to change it for the other, but whatever I do the  
+search is a lot slower (because of worse choices on the variables I do not  
+wish to change the order on)...
+
+I couldn't find it on http://www.gecode.org/flatzinc.html or MPG.
+
+
+Thanks,
+Tias
+
+Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+
+
+From victor.zverovich at gmail.com  Tue Apr 16 21:46:44 2013
+From: victor.zverovich at gmail.com (victor.zverovich at gmail.com)
+Date: Tue, 16 Apr 2013 12:46:44 -0700
+Subject: [gecode-users] checking consistency level
+Message-ID: <CANawtxbB35jM0TVi80bm0We3DB7gqmZxvwzQXL2BgbF+aunshA@mail.gmail.com>
+
+Hi,
+
+I'm implementing an option to set consistency level for integer propagators
+in Gecode AMPL driver<https://github.com/vitaut/ampl/tree/master/solvers/gecode>
+similar
+to the -icl option in the Gecode driver.
+
+While the option is quite straightforward to implement I was wondering how
+can I test it. To be more specific, suppose I have a Gecode::Space object
+and I post a constraint to it with some consistency level. How can I
+programmatically check whether a constraint has been posted with this
+consistency level?
+
+Thanks,
+Victor
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130416/cd0e2a54/attachment.html>
+
+From tack at gecode.org  Wed Apr 17 02:56:26 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 17 Apr 2013 10:56:26 +1000
+Subject: [gecode-users] Policy change for posts by non-members
+Message-ID: <22B24422-6647-44D4-9224-2D546D7D2661@gecode.org>
+
+Hi everyone,
+
+we've had to change the policy on this mailing list for posts by non-members.
+
+From now on, non-member posts will be automatically discarded, and you won't get a notification about this.  So if you post to the list and your email does not show up, you probably tried to post from an address other than the one you are registered with.
+
+Sorry if this causes any inconvenience.  If you don't want to receive emails from the list but still post, you can simply sign up and change your preferences in the web interface to not receive any messages.
+
+Cheers,
+Guido
+
+P.S.:  This change has become necessary because we have been blacklisted for sending mails to a spam trap, when in effect somebody posted to the mailing list using a spam trap address and the automatic bounce was regarded as spam from our server.
+
+
+
+From hgsosorio at gmail.com  Wed Apr 17 06:05:39 2013
+From: hgsosorio at gmail.com (Holmes Giovanny Salazar Osorio)
+Date: Tue, 16 Apr 2013 23:05:39 -0500
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+Message-ID: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+
+Hello all,
+
+I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with
+optmization, therefore, I'm using MaximizeScript and the cumulatives
+constraint.
+
+Right now, I'm having problems with the cumulatives constraint, because, It
+doesn't works properly. I have something like
+
+take into account that: size = listVarMachines.size = listVarTStarts =
+listVarTEnds = listDuration = listResources = listMachinesCapacity
+
+for(int i = 0; i < size; i++){
+    cumulatives(
+        *this,
+        listVarMachines[i],
+        listVarTStarts[i],
+        listDuration[i],
+        listVarTEnds[i],
+        listResources[i],
+        listMachinesCapacity[i],
+        true,
+        ICL_BND);
+}
+
+where listVarMachines, listVarTStarts, listVarTEnds are declared in this
+way -> vector<IntVarArray> listVar...
+
+And listDuration, listResources and listMachinesCapacity are declared in
+this way -> vector<IntArgs> list...
+
+When I force the elements in the vector listMachinesCapacity to take a
+value of 1. The program assign more than 1 task at the same time. This is
+wrong, because with the Limit of resource equals to 1, the cumulatives
+constraint should assign one and only one task in the same unit of time.
+
+I think that the problems is that the cumulatives constraint isn't being
+propagated for any reason. And I have doubts with the way in that the
+variables are being updated.
+
+In the update function I have something like this:
+
+MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+
+    listVarMachines = s.listVarMachines;
+    listVarTStarts = s.listVarTStarts;
+    listVarTEnds = s.listVarTEnds;
+    for( int i=0; i < size; i++)
+    {
+        listVarMachines.update(*this, share,  s.listVarMachines[i]);
+        listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+        listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+    }
+}
+
+Dou you think that the problem can be the way of I'm updating the
+variables, or do you have another idea?
+
+
+Thank you in advance!. Best regards,
+
+Holmes
+
+-- 
+*"El secreto del ?xito, est? en la disciplina"*
+Holmes Giovanny Salazar Osorio
+Ingenier?a de Sistemas
+Estudiante 10mo Semestre
+Universidad del Valle - Sede Tulu?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130416/0023554b/attachment.html>
+
+From tack at gecode.org  Wed Apr 17 08:47:10 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 17 Apr 2013 16:47:10 +1000
+Subject: [gecode-users] checking consistency level
+In-Reply-To: <CANawtxbB35jM0TVi80bm0We3DB7gqmZxvwzQXL2BgbF+aunshA@mail.gmail.com>
+References: <CANawtxbB35jM0TVi80bm0We3DB7gqmZxvwzQXL2BgbF+aunshA@mail.gmail.com>
+Message-ID: <72961A61-863A-48C4-950C-45AA1AE13762@gecode.org>
+
+Hi,
+
+unfortunately that is impossible to check (partly because the icl is only a hint, constraints are free to implement weaker consistency levels).
+
+Cheers,
+Guido
+
+On 17/04/2013, at 5:46 AM, victor.zverovich at gmail.com wrote:
+
+> Hi,
+> 
+> I'm implementing an option to set consistency level for integer propagators in Gecode AMPL driver similar to the -icl option in the Gecode driver.
+> 
+> While the option is quite straightforward to implement I was wondering how can I test it. To be more specific, suppose I have a Gecode::Space object and I post a constraint to it with some consistency level. How can I programmatically check whether a constraint has been posted with this consistency level?
+> 
+> Thanks,
+> Victor
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/78a49657/attachment.html>
+
+From cschulte at kth.se  Wed Apr 17 14:14:23 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Apr 2013 14:14:23 +0200
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+In-Reply-To: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+References: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+Message-ID: <000001ce3b65$1970c680$4c525380$@kth.se>
+
+Yes, the update is definitely wrong, the code you sent should not even
+compile, it must be:
+
+               listVarMachines[i].update(*this, share,
+s.listVarMachines[i]);
+
+instead of
+
+               listVarMachines.update(*this, share,  s.listVarMachines[i]);
+
+and so on.
+
+ 
+
+Then, do you initialize the variable and integer arrays properly?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+<http://www.ict.kth.se/~cschulte/> www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Holmes Giovanny Salazar Osorio
+Sent: Wednesday, April 17, 2013 6:06 AM
+To: users at gecode.org
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+
+ 
+
+Hello all,
+
+I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with
+optmization, therefore, I'm using MaximizeScript and the cumulatives
+constraint.
+
+Right now, I'm having problems with the cumulatives constraint, because, It
+doesn't works properly. I have something like 
+
+take into account that: size = listVarMachines.size = listVarTStarts =
+listVarTEnds = listDuration = listResources = listMachinesCapacity
+
+for(int i = 0; i < size; i++){
+    cumulatives(
+        *this,
+        listVarMachines[i],
+        listVarTStarts[i],
+        listDuration[i],
+        listVarTEnds[i],
+        listResources[i],
+        listMachinesCapacity[i],
+        true,
+        ICL_BND);
+}
+
+where listVarMachines, listVarTStarts, listVarTEnds are declared in this way
+-> vector<IntVarArray> listVar...
+
+And listDuration, listResources and listMachinesCapacity are declared in
+this way -> vector<IntArgs> list...
+
+When I force the elements in the vector listMachinesCapacity to take a value
+of 1. The program assign more than 1 task at the same time. This is wrong,
+because with the Limit of resource equals to 1, the cumulatives constraint
+should assign one and only one task in the same unit of time.
+
+I think that the problems is that the cumulatives constraint isn't being
+propagated for any reason. And I have doubts with the way in that the
+variables are being updated. 
+
+In the update function I have something like this:
+
+MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+
+    listVarMachines = s.listVarMachines;
+    listVarTStarts = s.listVarTStarts;
+    listVarTEnds = s.listVarTEnds;
+    for( int i=0; i < size; i++)
+    {
+        listVarMachines.update(*this, share,  s.listVarMachines[i]);
+        listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+        listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+    }
+}
+
+Dou you think that the problem can be the way of I'm updating the variables,
+or do you have another idea?
+
+
+Thank you in advance!. Best regards,
+
+Holmes
+
+-- 
+
+"El secreto del ?xito, est? en la disciplina"
+
+Holmes Giovanny Salazar Osorio
+
+Ingenier?a de Sistemas
+
+Estudiante 10mo Semestre
+
+Universidad del Valle - Sede Tulu?
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/f8c4c99b/attachment.html>
+
+From hgsosorio at gmail.com  Wed Apr 17 15:26:16 2013
+From: hgsosorio at gmail.com (Holmes Giovanny Salazar Osorio)
+Date: Wed, 17 Apr 2013 08:26:16 -0500
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+In-Reply-To: <000001ce3b65$1970c680$4c525380$@kth.se>
+References: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+	<000001ce3b65$1970c680$4c525380$@kth.se>
+Message-ID: <CAGB_=E837nA1EC7CqALDunNuG_cqU7hOQyNnGUhpgEmhSxovcQ@mail.gmail.com>
+
+Hello Christian,
+
+I wrote bad the code in the mail, but in my class I update the variables in
+this way,
+
+listVarMachines[i].update(*this, share,  s.listVarMachines[i]);
+
+I'm initializing the stl-vectors that contain IntArgs in this way:
+
+listResources.push_back(IntArgs(size, anIntegerArray));
+
+And the stl-vectors that contain IntVarArray in this way:
+
+for the machines:
+
+listaVarMachines.push_back(IntVarArray(*this, size, anIntSet));
+
+for the times of the tasks:
+
+listVarTStart.push_back(IntVarArray(*this, size, 0, MAX-MAKESPAN));
+
+MAX-MAKESPAN is an int. Take values > 500, it depends of the problem to
+solve.
+
+Thanks a lot for helping me. Best regards,
+
+Holmes
+
+
+2013/4/17 Christian Schulte <cschulte at kth.se>
+
+> Yes, the update is definitely wrong, the code you sent should not even
+> compile, it must be:****
+>
+>                listVarMachines[i].update(*this, share,
+> s.listVarMachines[i]);****
+>
+> instead of****
+>
+>                listVarMachines.update(*this, share,  s.listVarMachines[i])
+> ;****
+>
+> and so on.****
+>
+> ** **
+>
+> Then, do you initialize the variable and integer arrays properly?****
+>
+> ** **
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Holmes Giovanny Salazar Osorio
+> *Sent:* Wednesday, April 17, 2013 6:06 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Updating Variables stored in a STL-Vector****
+>
+> ** **
+>
+> Hello all,
+>
+> I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with
+> optmization, therefore, I'm using MaximizeScript and the cumulatives
+> constraint.
+>
+> Right now, I'm having problems with the cumulatives constraint, because,
+> It doesn't works properly. I have something like
+>
+> take into account that: size = listVarMachines.size = listVarTStarts =
+> listVarTEnds = listDuration = listResources = listMachinesCapacity
+>
+> for(int i = 0; i < size; i++){
+>     cumulatives(
+>         *this,
+>         listVarMachines[i],
+>         listVarTStarts[i],
+>         listDuration[i],
+>         listVarTEnds[i],
+>         listResources[i],
+>         listMachinesCapacity[i],
+>         true,
+>         ICL_BND);
+> }
+>
+> where listVarMachines, listVarTStarts, listVarTEnds are declared in this
+> way -> vector<IntVarArray> listVar...
+>
+> And listDuration, listResources and listMachinesCapacity are declared in
+> this way -> vector<IntArgs> list...
+>
+> When I force the elements in the vector listMachinesCapacity to take a
+> value of 1. The program assign more than 1 task at the same time. This is
+> wrong, because with the Limit of resource equals to 1, the cumulatives
+> constraint should assign one and only one task in the same unit of time.
+>
+> I think that the problems is that the cumulatives constraint isn't being
+> propagated for any reason. And I have doubts with the way in that the
+> variables are being updated.
+>
+> In the update function I have something like this:
+>
+> MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+>
+>     listVarMachines = s.listVarMachines;
+>     listVarTStarts = s.listVarTStarts;
+>     listVarTEnds = s.listVarTEnds;
+>     for( int i=0; i < size; i++)
+>     {
+>         listVarMachines.update(*this, share,  s.listVarMachines[i]);
+>         listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+>         listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+>     }
+> }
+>
+> Dou you think that the problem can be the way of I'm updating the
+> variables, or do you have another idea?
+>
+>
+> Thank you in advance!. Best regards,
+>
+> Holmes
+>
+> -- ****
+>
+> *"El secreto del ?xito, est? en la disciplina"*****
+>
+> Holmes Giovanny Salazar Osorio****
+>
+> Ingenier?a de Sistemas****
+>
+> Estudiante 10mo Semestre****
+>
+> Universidad del Valle - Sede Tulu?****
+>
+
+
+
+-- 
+*"El secreto del ?xito, est? en la disciplina"*
+Holmes Giovanny Salazar Osorio
+Ingenier?a de Sistemas
+Estudiante 10mo Semestre
+Universidad del Valle - Sede Tulu?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/d24835bb/attachment-0001.html>
+
+From andrecire at cmu.edu  Wed Apr 17 18:15:21 2013
+From: andrecire at cmu.edu (Andre Augusto Cire)
+Date: Wed, 17 Apr 2013 12:15:21 -0400
+Subject: [gecode-users] Resetting the AFC of a variable
+Message-ID: <CAO4nHpviBhx1NbU02Ltn+ivDhfcGRqc=E14m4sim1ZVFO5-puw@mail.gmail.com>
+
+Dear All,
+
+I am currently implementing a restart-based search in Gecode using
+accumulated failure count (AFC) as the variable selection criteria. Due to
+the particular structure of the problem I am solving, it would be quite
+advantageous to perturb the AFC of certain variables according to some
+other information I collect during search.
+
+Is there any simple way to forcefully change the AFC of certain variables
+before each restart (i.e., at the master(...) of a Space), or at least
+reset all of them to 0?
+
+(I couldn't find this in the documentation, and I'm really sorry if it is
+indeed there).
+
+Thanks a lot for your help,
+Andre
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/9a217759/attachment.html>
+
+From cschulte at kth.se  Wed Apr 17 20:37:44 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Apr 2013 20:37:44 +0200
+Subject: [gecode-users] Resetting the AFC of a variable
+In-Reply-To: <CAO4nHpviBhx1NbU02Ltn+ivDhfcGRqc=E14m4sim1ZVFO5-puw@mail.gmail.com>
+References: <CAO4nHpviBhx1NbU02Ltn+ivDhfcGRqc=E14m4sim1ZVFO5-puw@mail.gmail.com>
+Message-ID: <003201ce3b9a$a958e220$fc0aa660$@kth.se>
+
+Hi Andre,
+
+ 
+
+No, that's not possible (I thought that this would be not that useful). I
+just added a set() function to the trunk to do that for both AFC and
+Activity. If it is urgent (CP 2013?), you can use the attached patch.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Andre Augusto Cire
+Sent: Wednesday, April 17, 2013 6:15 PM
+To: users at gecode.org
+Subject: [gecode-users] Resetting the AFC of a variable
+
+ 
+
+Dear All,
+
+ 
+
+I am currently implementing a restart-based search in Gecode using
+accumulated failure count (AFC) as the variable selection criteria. Due to
+the particular structure of the problem I am solving, it would be quite
+advantageous to perturb the AFC of certain variables according to some other
+information I collect during search. 
+
+ 
+
+Is there any simple way to forcefully change the AFC of certain variables
+before each restart (i.e., at the master(...) of a Space), or at least reset
+all of them to 0?
+
+ 
+
+(I couldn't find this in the documentation, and I'm really sorry if it is
+indeed there).
+
+ 
+
+Thanks a lot for your help,
+
+Andre
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/740a4282/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: afc.patch
+Type: application/octet-stream
+Size: 4436 bytes
+Desc: not available
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/740a4282/attachment.obj>
+
+From cschulte at kth.se  Wed Apr 17 22:26:11 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Apr 2013 22:26:11 +0200
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+In-Reply-To: <CAGB_=E837nA1EC7CqALDunNuG_cqU7hOQyNnGUhpgEmhSxovcQ@mail.gmail.com>
+References: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>	<000001ce3b65$1970c680$4c525380$@kth.se>
+	<CAGB_=E837nA1EC7CqALDunNuG_cqU7hOQyNnGUhpgEmhSxovcQ@mail.gmail.com>
+Message-ID: <006701ce3ba9$cdf0df70$69d29e50$@kth.se>
+
+I can?t really see the error. What happens if you just use a single machine?
+
+ 
+
+Do you really have to use cumulatives? Would cumulative work instead?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: Holmes Giovanny Salazar Osorio [mailto:hgsosorio at gmail.com] 
+Sent: Wednesday, April 17, 2013 3:26 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Updating Variables stored in a STL-Vector
+
+ 
+
+Hello Christian,
+
+I wrote bad the code in the mail, but in my class I update the variables in
+this way,
+
+listVarMachines[i].update(*this, share,  s.listVarMachines[i]); 
+
+I'm initializing the stl-vectors that contain IntArgs in this way:
+
+listResources.push_back(IntArgs(size, anIntegerArray));
+
+And the stl-vectors that contain IntVarArray in this way:
+
+for the machines:
+
+listaVarMachines.push_back(IntVarArray(*this, size, anIntSet));
+
+for the times of the tasks:
+
+listVarTStart.push_back(IntVarArray(*this, size, 0, MAX-MAKESPAN));
+
+MAX-MAKESPAN is an int. Take values > 500, it depends of the problem to
+solve.
+
+Thanks a lot for helping me. Best regards,
+
+Holmes
+
+
+
+2013/4/17 Christian Schulte <cschulte at kth.se>
+
+Yes, the update is definitely wrong, the code you sent should not even
+compile, it must be:
+
+               listVarMachines[i].update(*this, share,
+s.listVarMachines[i]);
+
+instead of
+
+               listVarMachines.update(*this, share,  s.listVarMachines[i]);
+
+and so on.
+
+ 
+
+Then, do you initialize the variable and integer arrays properly?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Holmes Giovanny Salazar Osorio
+Sent: Wednesday, April 17, 2013 6:06 AM
+To: users at gecode.org
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+
+ 
+
+Hello all,
+
+I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with
+optmization, therefore, I'm using MaximizeScript and the cumulatives
+constraint.
+
+Right now, I'm having problems with the cumulatives constraint, because, It
+doesn't works properly. I have something like 
+
+take into account that: size = listVarMachines.size = listVarTStarts =
+listVarTEnds = listDuration = listResources = listMachinesCapacity
+
+for(int i = 0; i < size; i++){
+    cumulatives(
+        *this,
+        listVarMachines[i],
+        listVarTStarts[i],
+        listDuration[i],
+        listVarTEnds[i],
+        listResources[i],
+        listMachinesCapacity[i],
+        true,
+        ICL_BND);
+}
+
+where listVarMachines, listVarTStarts, listVarTEnds are declared in this way
+-> vector<IntVarArray> listVar...
+
+And listDuration, listResources and listMachinesCapacity are declared in
+this way -> vector<IntArgs> list...
+
+When I force the elements in the vector listMachinesCapacity to take a value
+of 1. The program assign more than 1 task at the same time. This is wrong,
+because with the Limit of resource equals to 1, the cumulatives constraint
+should assign one and only one task in the same unit of time.
+
+I think that the problems is that the cumulatives constraint isn't being
+propagated for any reason. And I have doubts with the way in that the
+variables are being updated. 
+
+In the update function I have something like this:
+
+MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+
+    listVarMachines = s.listVarMachines;
+    listVarTStarts = s.listVarTStarts;
+    listVarTEnds = s.listVarTEnds;
+    for( int i=0; i < size; i++)
+    {
+        listVarMachines.update(*this, share,  s.listVarMachines[i]);
+        listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+        listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+    }
+}
+
+Dou you think that the problem can be the way of I'm updating the variables,
+or do you have another idea?
+
+
+Thank you in advance!. Best regards,
+
+Holmes
+
+-- 
+
+"El secreto del ?xito, est? en la disciplina"
+
+Holmes Giovanny Salazar Osorio
+
+Ingenier?a de Sistemas
+
+Estudiante 10mo Semestre
+
+Universidad del Valle - Sede Tulu?
+
+
+
+
+-- 
+
+"El secreto del ?xito, est? en la disciplina"
+
+Holmes Giovanny Salazar Osorio
+
+Ingenier?a de Sistemas
+
+Estudiante 10mo Semestre
+
+Universidad del Valle - Sede Tulu?
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130417/cbed687e/attachment-0001.html>
+
+From tack at gecode.org  Thu Apr 18 09:36:13 2013
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 18 Apr 2013 17:36:13 +1000
+Subject: [gecode-users] mzn-gecode search strategy
+In-Reply-To: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+References: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+Message-ID: <F7F5402D-DBF6-4F8C-89D6-56B1F0545FB0@gecode.org>
+
+Hi Tias,
+
+it's slightly complicated (and it has changed in Gecode 4).  The default search is implemented in gecode/flatzinc/flatzinc.cpp in function createBranchers, and the defaults in 4.0.0 are
+
+    branch(*this, iv_sol, INT_VAR_AFC_SIZE_MAX(0.99), INT_VAL_MIN());
+    branch(*this, bv_sol, INT_VAR_AFC_MAX(0.99), INT_VAL_MIN());
+    branch(*this, fv_sol, FLOAT_VAR_SIZE_MIN(), FLOAT_VAL_SPLIT_MIN());
+    branch(*this, sv_sol, SET_VAR_AFC_SIZE_MAX(0.99), SET_VAL_MIN_INC());
+
+where iv_sol are the variables mentioned in the output statement and not mentioned in an explicit search annotation, and
+
+      branch(fzs,fzs.iv_aux,INT_VAR_AFC_SIZE_MAX(),INT_VAL_MIN());
+      branch(fzs,fzs.bv_aux,INT_VAR_AFC_MAX(),INT_VAL_MIN());
+      branch(fzs,fzs.sv_aux,SET_VAR_AFC_SIZE_MAX(),SET_VAL_MIN_INC());
+      branch(fzs,fzs.fv_aux,FLOAT_VAR_AFC_SIZE_MAX(),FLOAT_VAL_SPLIT_MIN());
+
+where iv_aux are variables introduced by mzn2fzn that are not functionally defined.
+
+I'm planning to introduce annotations default_{int,bool,set,float}_search that you can stick on the solve item to change the default for the different variable types - would that be useful?
+
+Cheers,
+Guido
+
+On 16/04/2013, at 2:22 AM, Tias Guns <tias.guns at cs.kuleuven.be> wrote:
+
+> Hi Guido,
+> 
+> What is the default search strategy of gecode's fz interpreter?
+> 
+> Its default search works really well on one group of variables, but less on the other. I want to change it for the other, but whatever I do the search is a lot slower (because of worse choices on the variables I do not wish to change the order on)...
+> 
+> I couldn't find it on http://www.gecode.org/flatzinc.html or MPG.
+> 
+> 
+> Thanks,
+> Tias
+> 
+> Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From christine.bouzant at gmail.com  Fri Apr 19 10:18:27 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Fri, 19 Apr 2013 10:18:27 +0200
+Subject: [gecode-users] Store a SharedHandle inside a Sharedhandle::object
+Message-ID: <CAF2wyP1F4MOctrBNKDxqKbXghUYOe5de56FKiYL0WEOQMh7gSA@mail.gmail.com>
+
+Hello all,
+
+Is there something wrong about storing a TupletSet inside a class
+CarProposition which inherits of SharedHandled::Object ?
+
+I would use the TupletSet copy constructor inside the CarProposition copy
+constructor instead of the TupletSet update method since it is space
+independant.
+
+Cheers,
+Christine.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130419/6b47b250/attachment.html>
+
+From cschulte at kth.se  Fri Apr 19 11:58:18 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 19 Apr 2013 11:58:18 +0200
+Subject: [gecode-users] Store a SharedHandle inside a
+	Sharedhandle::object
+In-Reply-To: <CAF2wyP1F4MOctrBNKDxqKbXghUYOe5de56FKiYL0WEOQMh7gSA@mail.gmail.com>
+References: <CAF2wyP1F4MOctrBNKDxqKbXghUYOe5de56FKiYL0WEOQMh7gSA@mail.gmail.com>
+Message-ID: <002501ce3ce4$6b840fb0$428c2f10$@kth.se>
+
+Hi,
+
+ 
+
+No, that should be just fine.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Friday, April 19, 2013 10:18 AM
+To: users at gecode.org
+Subject: [gecode-users] Store a SharedHandle inside a Sharedhandle::object
+
+ 
+
+Hello all,
+
+Is there something wrong about storing a TupletSet inside a class
+CarProposition which inherits of SharedHandled::Object ?
+
+I would use the TupletSet copy constructor inside the CarProposition copy
+constructor instead of the TupletSet update method since it is space
+independant.
+
+Cheers,
+
+Christine.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130419/13f42989/attachment.html>
+
+From hgsosorio at gmail.com  Mon Apr 22 04:43:11 2013
+From: hgsosorio at gmail.com (Holmes Giovanny Salazar Osorio)
+Date: Sun, 21 Apr 2013 21:43:11 -0500
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+In-Reply-To: <CAGB_=E9FypD1Kx-6uAa4Lcy=VcMZd=J73Ku-82=7WvTXzuXpYg@mail.gmail.com>
+References: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+	<000001ce3b65$1970c680$4c525380$@kth.se>
+	<CAGB_=E837nA1EC7CqALDunNuG_cqU7hOQyNnGUhpgEmhSxovcQ@mail.gmail.com>
+	<006701ce3ba9$cdf0df70$69d29e50$@kth.se>
+	<CAGB_=E9FypD1Kx-6uAa4Lcy=VcMZd=J73Ku-82=7WvTXzuXpYg@mail.gmail.com>
+Message-ID: <CAGB_=E-Aqpcss8UyKLbzk2QKU2qMO8i6hAA1ULiCROww0dPChg@mail.gmail.com>
+
+addin the list to the loop...
+
+---------- Forwarded message ----------
+From: Holmes Giovanny Salazar Osorio <hgsosorio at gmail.com>
+Date: 2013/4/21
+Subject: Re: [gecode-users] Updating Variables stored in a STL-Vector
+To: cschulte at kth.se
+
+
+Hello, I've changed some things in my code, and now, the program
+finishes unexpectedly when it is trying to update the variables stored in
+the STL-Vector.
+
+now, I have the update function in this way:
+
+MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+
+    listVarMachines = s.listVarMachines;
+    listVarTStarts = s.listVarTStarts;
+    listVarTEnds = s.listVarTEnds;
+    listDuration = s.listDuration;
+    listResources = s.listResources;
+    listMachinesCapacity = s.listMachinesCapacity;
+
+    for( int i=0; i < size; i++)
+    {
+        listVarMachines[i].update(*this, share,  s.listVarMachines[i])
+;
+        listVarTStarts[i].update(*this, share,  s.listVarTStarts[i]);
+        listVarTEnds[i].update(*this, share,  s.listVarTEnds[i]);
+        listDuration[i] = s.listDuration[i];
+        listResources[i] = s.listResources[i];
+        listMachinesCapacity[i] = s.listMachinesCapacity[i];
+    }
+}
+
+Debugging with eclipse, I could find that when Gecode is updating the first
+vector:
+
+listVarMachines[i].update(*this, share,  s.listVarMachines[i]);
+
+It finishes unexpectedly, exactly when Gecode is executing this code:
+
+  template<class Var>
+  forceinline void
+  VarArray<Var>::update(Space& home, bool share, VarArray<Var>& a) {
+    n = a.n;
+    if (n > 0) {
+      x = home.alloc<Var>(n);
+      for (int i = n; i--;)
+        x[i].update(home, share, a.x[i]);
+    } else {
+      x = NULL;
+    }
+  }
+
+in the file array.hpp (more or less between the lines 1052 and 1063).
+
+Thanks in advice for your help. Best regards,
+
+Holmes
+
+
+2013/4/17 Christian Schulte <cschulte at kth.se>
+
+> I can?t really see the error. What happens if you just use a single
+> machine?****
+>
+> ** **
+>
+> Do you really have to use cumulatives? Would cumulative work instead?****
+>
+> ** **
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* Holmes Giovanny Salazar Osorio [mailto:hgsosorio at gmail.com]
+> *Sent:* Wednesday, April 17, 2013 3:26 PM
+> *To:* cschulte at kth.se
+> *Cc:* users at gecode.org
+> *Subject:* Re: [gecode-users] Updating Variables stored in a STL-Vector***
+> *
+>
+> ** **
+>
+> Hello Christian,
+>
+> I wrote bad the code in the mail, but in my class I update the variables
+> in this way,
+>
+> listVarMachines[i].update(*this, share,  s.listVarMachines[i]);
+>
+> I'm initializing the stl-vectors that contain IntArgs in this way:
+>
+> listResources.push_back(IntArgs(size, anIntegerArray));
+>
+> And the stl-vectors that contain IntVarArray in this way:
+>
+> for the machines:
+>
+> listaVarMachines.push_back(IntVarArray(*this, size, anIntSet));
+>
+> for the times of the tasks:
+>
+> listVarTStart.push_back(IntVarArray(*this, size, 0, MAX-MAKESPAN));
+>
+> MAX-MAKESPAN is an int. Take values > 500, it depends of the problem to
+> solve.
+>
+> Thanks a lot for helping me. Best regards,
+>
+> Holmes
+>
+> ****
+>
+> 2013/4/17 Christian Schulte <cschulte at kth.se>****
+>
+> Yes, the update is definitely wrong, the code you sent should not even
+> compile, it must be:****
+>
+>                listVarMachines[i].update(*this, share,
+> s.listVarMachines[i]);****
+>
+> instead of****
+>
+>                listVarMachines.update(*this, share,  s.listVarMachines[i])
+> ;****
+>
+> and so on.****
+>
+>  ****
+>
+> Then, do you initialize the variable and integer arrays properly?****
+>
+>  ****
+>
+> Christian****
+>
+>  ****
+>
+> --****
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/****
+>
+>  ****
+>
+>  ****
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Holmes Giovanny Salazar Osorio
+> *Sent:* Wednesday, April 17, 2013 6:06 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Updating Variables stored in a STL-Vector****
+>
+>  ****
+>
+> Hello all,
+>
+> I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with
+> optmization, therefore, I'm using MaximizeScript and the cumulatives
+> constraint.
+>
+> Right now, I'm having problems with the cumulatives constraint, because,
+> It doesn't works properly. I have something like
+>
+> take into account that: size = listVarMachines.size = listVarTStarts =
+> listVarTEnds = listDuration = listResources = listMachinesCapacity
+>
+> for(int i = 0; i < size; i++){
+>     cumulatives(
+>         *this,
+>         listVarMachines[i],
+>         listVarTStarts[i],
+>         listDuration[i],
+>         listVarTEnds[i],
+>         listResources[i],
+>         listMachinesCapacity[i],
+>         true,
+>         ICL_BND);
+> }
+>
+> where listVarMachines, listVarTStarts, listVarTEnds are declared in this
+> way -> vector<IntVarArray> listVar...
+>
+> And listDuration, listResources and listMachinesCapacity are declared in
+> this way -> vector<IntArgs> list...
+>
+> When I force the elements in the vector listMachinesCapacity to take a
+> value of 1. The program assign more than 1 task at the same time. This is
+> wrong, because with the Limit of resource equals to 1, the cumulatives
+> constraint should assign one and only one task in the same unit of time.
+>
+> I think that the problems is that the cumulatives constraint isn't being
+> propagated for any reason. And I have doubts with the way in that the
+> variables are being updated.
+>
+> In the update function I have something like this:
+>
+> MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+>
+>     listVarMachines = s.listVarMachines;
+>     listVarTStarts = s.listVarTStarts;
+>     listVarTEnds = s.listVarTEnds;
+>     for( int i=0; i < size; i++)
+>     {
+>         listVarMachines.update(*this, share,  s.listVarMachines[i]);
+>         listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+>         listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+>     }
+> }
+>
+> Dou you think that the problem can be the way of I'm updating the
+> variables, or do you have another idea?
+>
+>
+> Thank you in advance!. Best regards,
+>
+> Holmes
+>
+> -- ****
+>
+> *"El secreto del ?xito, est? en la disciplina"*****
+>
+> Holmes Giovanny Salazar Osorio****
+>
+> Ingenier?a de Sistemas****
+>
+> Estudiante 10mo Semestre****
+>
+> Universidad del Valle - Sede Tulu?****
+>
+>
+>
+>
+> -- ****
+>
+> *"El secreto del ?xito, est? en la disciplina"*****
+>
+> Holmes Giovanny Salazar Osorio****
+>
+> Ingenier?a de Sistemas****
+>
+> Estudiante 10mo Semestre****
+>
+> Universidad del Valle - Sede Tulu?****
+>
+
+
+
+-- 
+*"El secreto del ?xito, est? en la disciplina"*
+Holmes Giovanny Salazar Osorio
+Ingenier?a de Sistemas
+Estudiante 10mo Semestre
+Universidad del Valle - Sede Tulu?
+
+
+
+-- 
+*"El secreto del ?xito, est? en la disciplina"*
+Holmes Giovanny Salazar Osorio
+Ingenier?a de Sistemas
+Estudiante 10mo Semestre
+Universidad del Valle - Sede Tulu?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130421/ab1695a0/attachment.html>
+
+From tack at gecode.org  Mon Apr 22 05:14:37 2013
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 22 Apr 2013 13:14:37 +1000
+Subject: [gecode-users] Updating Variables stored in a STL-Vector
+In-Reply-To: <CAGB_=E-Aqpcss8UyKLbzk2QKU2qMO8i6hAA1ULiCROww0dPChg@mail.gmail.com>
+References: <CAGB_=E8Bj+=g-oq9bQocH-mGdwHQBbFTecQ3SvyhSQL8JZ5VjA@mail.gmail.com>
+	<000001ce3b65$1970c680$4c525380$@kth.se>
+	<CAGB_=E837nA1EC7CqALDunNuG_cqU7hOQyNnGUhpgEmhSxovcQ@mail.gmail.com>
+	<006701ce3ba9$cdf0df70$69d29e50$@kth.se>
+	<CAGB_=E9FypD1Kx-6uAa4Lcy=VcMZd=J73Ku-82=7WvTXzuXpYg@mail.gmail.com>
+	<CAGB_=E-Aqpcss8UyKLbzk2QKU2qMO8i6hAA1ULiCROww0dPChg@mail.gmail.com>
+Message-ID: <8D433D86-F267-43BB-8930-C2A11D086B4C@gecode.org>
+
+Hi,
+
+I'm not sure why you're assigning the vectors from s to the vectors from this.  You should instead create new vectors with the same capacity, probably somewhat like this:
+
+listVarMachines = vector<IntVarArgs>(s.listVarMachines.size());
+
+Otherwise you're updating into the same data structures.
+
+Cheers,
+Guido
+
+On 22/04/2013, at 12:43 PM, Holmes Giovanny Salazar Osorio <hgsosorio at gmail.com> wrote:
+
+> addin the list to the loop...
+> 
+> ---------- Forwarded message ----------
+> From: Holmes Giovanny Salazar Osorio <hgsosorio at gmail.com>
+> Date: 2013/4/21
+> Subject: Re: [gecode-users] Updating Variables stored in a STL-Vector
+> To: cschulte at kth.se
+> 
+> 
+> Hello, I've changed some things in my code, and now, the program finishes unexpectedly when it is trying to update the variables stored in the STL-Vector.
+> 
+> now, I have the update function in this way:
+> 
+> MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+> 
+>     listVarMachines = s.listVarMachines;
+>     listVarTStarts = s.listVarTStarts;
+>     listVarTEnds = s.listVarTEnds;
+>     listDuration = s.listDuration;
+>     listResources = s.listResources;
+>     listMachinesCapacity = s.listMachinesCapacity;
+> 
+>     for( int i=0; i < size; i++)
+>     {
+>         listVarMachines[i].update(*this, share,  s.listVarMachines[i])
+> ;
+>         listVarTStarts[i].update(*this, share,  s.listVarTStarts[i]);
+>         listVarTEnds[i].update(*this, share,  s.listVarTEnds[i]);
+>         listDuration[i] = s.listDuration[i];
+>         listResources[i] = s.listResources[i];
+>         listMachinesCapacity[i] = s.listMachinesCapacity[i];
+>     }
+> }
+> 
+> Debugging with eclipse, I could find that when Gecode is updating the first vector:
+> 
+> listVarMachines[i].update(*this, share,  s.listVarMachines[i]);
+> 
+> It finishes unexpectedly, exactly when Gecode is executing this code:
+> 
+>   template<class Var>
+>   forceinline void
+>   VarArray<Var>::update(Space& home, bool share, VarArray<Var>& a) {
+>     n = a.n;
+>     if (n > 0) {
+>       x = home.alloc<Var>(n);
+>       for (int i = n; i--;)
+>         x[i].update(home, share, a.x[i]);
+>     } else {
+>       x = NULL;
+>     }
+>   }
+> 
+> in the file array.hpp (more or less between the lines 1052 and 1063).
+> 
+> Thanks in advice for your help. Best regards,
+> 
+> Holmes
+> 
+> 
+> 2013/4/17 Christian Schulte <cschulte at kth.se>
+> I can?t really see the error. What happens if you just use a single machine?
+> 
+>  
+> 
+> Do you really have to use cumulatives? Would cumulative work instead?
+> 
+>  
+> 
+> Christian
+> 
+>  
+> 
+> --
+> 
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+>  
+> 
+> From: Holmes Giovanny Salazar Osorio [mailto:hgsosorio at gmail.com] 
+> Sent: Wednesday, April 17, 2013 3:26 PM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Updating Variables stored in a STL-Vector
+> 
+>  
+> 
+> Hello Christian,
+> 
+> I wrote bad the code in the mail, but in my class I update the variables in this way,
+> 
+> listVarMachines[i].update(*this, share,  s.listVarMachines[i]); 
+> 
+> I'm initializing the stl-vectors that contain IntArgs in this way:
+> 
+> listResources.push_back(IntArgs(size, anIntegerArray));
+> 
+> And the stl-vectors that contain IntVarArray in this way:
+> 
+> for the machines:
+> 
+> listaVarMachines.push_back(IntVarArray(*this, size, anIntSet));
+> 
+> for the times of the tasks:
+> 
+> listVarTStart.push_back(IntVarArray(*this, size, 0, MAX-MAKESPAN));
+> 
+> MAX-MAKESPAN is an int. Take values > 500, it depends of the problem to solve.
+> 
+> Thanks a lot for helping me. Best regards,
+> 
+> Holmes
+> 
+> 
+> 2013/4/17 Christian Schulte <cschulte at kth.se>
+> 
+> Yes, the update is definitely wrong, the code you sent should not even compile, it must be:
+> 
+>                listVarMachines[i].update(*this, share,  s.listVarMachines[i]);
+> 
+> instead of
+> 
+>                listVarMachines.update(*this, share,  s.listVarMachines[i]);
+> 
+> and so on.
+> 
+>  
+> 
+> Then, do you initialize the variable and integer arrays properly?
+> 
+>  
+> 
+> Christian
+> 
+>  
+> 
+> --
+> 
+> Christian Schulte, Professor of Computer Science, KTH,  www.ict.kth.se/~cschulte/
+> 
+>  
+> 
+>  
+> 
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Holmes Giovanny Salazar Osorio
+> Sent: Wednesday, April 17, 2013 6:06 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Updating Variables stored in a STL-Vector
+> 
+>  
+> 
+> Hello all,
+> 
+> I have Gecode 3.7.3 on Ubuntu. I'm working in a scheduling problem with optmization, therefore, I'm using MaximizeScript and the cumulatives constraint.
+> 
+> Right now, I'm having problems with the cumulatives constraint, because, It doesn't works properly. I have something like 
+> 
+> take into account that: size = listVarMachines.size = listVarTStarts = listVarTEnds = listDuration = listResources = listMachinesCapacity
+> 
+> for(int i = 0; i < size; i++){
+>     cumulatives(
+>         *this,
+>         listVarMachines[i],
+>         listVarTStarts[i],
+>         listDuration[i],
+>         listVarTEnds[i],
+>         listResources[i],
+>         listMachinesCapacity[i],
+>         true,
+>         ICL_BND);
+> }
+> 
+> where listVarMachines, listVarTStarts, listVarTEnds are declared in this way -> vector<IntVarArray> listVar...
+> 
+> And listDuration, listResources and listMachinesCapacity are declared in this way -> vector<IntArgs> list...
+> 
+> When I force the elements in the vector listMachinesCapacity to take a value of 1. The program assign more than 1 task at the same time. This is wrong, because with the Limit of resource equals to 1, the cumulatives constraint should assign one and only one task in the same unit of time.
+> 
+> I think that the problems is that the cumulatives constraint isn't being propagated for any reason. And I have doubts with the way in that the variables are being updated. 
+> 
+> In the update function I have something like this:
+> 
+> MyClass(bool share, MyClasss) : MaximizeScript(share, s) {
+> 
+>     listVarMachines = s.listVarMachines;
+>     listVarTStarts = s.listVarTStarts;
+>     listVarTEnds = s.listVarTEnds;
+>     for( int i=0; i < size; i++)
+>     {
+>         listVarMachines.update(*this, share,  s.listVarMachines[i]);
+>         listVarTStarts.update(*this, share,  s.listVarTStarts[i]);
+>         listVarTEnds .update(*this, share,  s.listVarTEnds[i]);
+>     }
+> }
+> 
+> Dou you think that the problem can be the way of I'm updating the variables, or do you have another idea?
+> 
+> 
+> Thank you in advance!. Best regards,
+> 
+> Holmes
+> 
+> --
+> 
+> "El secreto del ?xito, est? en la disciplina"
+> 
+> Holmes Giovanny Salazar Osorio
+> 
+> Ingenier?a de Sistemas
+> 
+> Estudiante 10mo Semestre
+> 
+> Universidad del Valle - Sede Tulu?
+> 
+> 
+> 
+> 
+> --
+> 
+> "El secreto del ?xito, est? en la disciplina"
+> 
+> Holmes Giovanny Salazar Osorio
+> 
+> Ingenier?a de Sistemas
+> 
+> Estudiante 10mo Semestre
+> 
+> Universidad del Valle - Sede Tulu?
+> 
+> 
+> 
+> 
+> -- 
+> "El secreto del ?xito, est? en la disciplina"
+> Holmes Giovanny Salazar Osorio
+> Ingenier?a de Sistemas
+> Estudiante 10mo Semestre
+> Universidad del Valle - Sede Tulu?
+> 
+> 
+> 
+> -- 
+> "El secreto del ?xito, est? en la disciplina"
+> Holmes Giovanny Salazar Osorio
+> Ingenier?a de Sistemas
+> Estudiante 10mo Semestre
+> Universidad del Valle - Sede Tulu?
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130422/bbed869c/attachment-0001.html>
+
+From mmann at informatik.uni-freiburg.de  Mon Apr 22 16:59:31 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Mon, 22 Apr 2013 16:59:31 +0200
+Subject: [gecode-users] LDSB : value symmetry on subset of branching
+	variables ?
+Message-ID: <51755053.3090101@informatik.uni-freiburg.de>
+
+
+Hi Gecoders,
+
+a question concerning LDSB search breaking value symmetry.
+
+I have a CSP where the branching is done on a set of variables X = X_1 + 
+X_2 composed from two other sets X_1 and X_2.
+
+I have different value symmetries for X_1 and X_2 that I want to impose.
+
+As far as I see, I can only post the symmtries for a "full" branching.
+
+Thus, if I want to enforce different symmetry breakings for X_1 and X_2, 
+I have to split my branching into two successive branchings right? If 
+so, this might weaken the search compared to branching on whole X (which 
+is hopefully compensated by the symmetry breaking).
+
+Or is there another way around it to specify for which variables what 
+symmetry object is to be applied?
+
+Thanks for advice,
+Martin
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Apr 23 10:55:08 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 23 Apr 2013 10:55:08 +0200
+Subject: [gecode-users] LDSB : symmetries on value tuples and depending
+	symmetries
+Message-ID: <51764C6C.7070001@informatik.uni-freiburg.de>
+
+
+Hi,
+
+me again on LDSB.
+
+I played around with LDSB for my problem on two sets of variables X1 and 
+X2 that have different domains and symmetries. X1 and X2 are coupled by 
+some strong user defined constraints, so not independent.
+
+Actually, my situation is like that:
+
+I have a symmetry function "s" that can generate for each solution "a" 
+the set of symmetric assignments on X1 and on X2 (independently). The 
+problem is defined in a way that all symmetries from X1 are 
+theoretically combineable with symmetric assignments on X2.
+
+Thus I would like to do something like that:
+
+- for each assignment a1 on X1
+  + find assignment a2 on X2
+  + ensure during remaining search implication
+    if(a1) --> [X2 not s(a2)] for all symmetries of a2
+  + ensure during remaining search
+    [X1 not s(a1)] for all symmetries of a1
+  + continue search
+
+So I am basically looking for a symmetry breaking for value tuples since 
+I am not sure if simple value symmetry breaking is really doing the job 
+(at least my first tests dont give me the feeling).
+
+Is there a possibility with LDSB or do you see some way to build such a 
+framework? I did something similar years back for Gecode 1, but not sure 
+if I want to reengineer my own code.. ;)
+
+Thanks for any hints,
+Martin
+
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From christine.bouzant at gmail.com  Tue Apr 23 15:09:49 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Tue, 23 Apr 2013 15:09:49 +0200
+Subject: [gecode-users] IntVar class container as parameter for branchers
+Message-ID: <CAF2wyP2t=nO01s+k+RNuxsH662YW1M518unrwJWSVRvHZ53Pgw@mail.gmail.com>
+
+Hello all,
+
+In my script class, i have an array of CarDeparture pointer objects which
+class contains several IntVar variables and some data information.
+
+Inside the script copy constructor, i create a copy of the array of
+CarDeparture objects using a CarDeparture copy constructor which updates
+each of its IntVar variables and data.
+
+I am thinking to set a CarDeparture object as a parameter for a brancher.
+So, i should again do a copy of this object inside the brancher copy
+constructor.
+
+According to you, is it judicious to proceed like this concerning
+performance ?
+Or maybe, can i make the CarDeparture class inherit of LocalHandle (in
+order to be space dependant ?).
+
+Thank you all.
+Cheers,
+Christine
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130423/bc6a02f5/attachment.html>
+
+From cschulte at kth.se  Tue Apr 23 15:33:43 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 23 Apr 2013 15:33:43 +0200
+Subject: [gecode-users] IntVar class container as parameter for branchers
+In-Reply-To: <CAF2wyP2t=nO01s+k+RNuxsH662YW1M518unrwJWSVRvHZ53Pgw@mail.gmail.com>
+References: <CAF2wyP2t=nO01s+k+RNuxsH662YW1M518unrwJWSVRvHZ53Pgw@mail.gmail.com>
+Message-ID: <00ff01ce4027$2cd26050$867720f0$@se>
+
+Hi Christine,
+
+ 
+
+If the data structure is small then you do not have to share it by use of a
+LocalHandle. If it is maybe not so small then the use of LocalHandle might
+be useful.
+
+ 
+
+I personally always use LocalHandle when I can use it (that is, I have a
+data structure shared between several entities in a space).
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Tuesday, April 23, 2013 3:10 PM
+To: users at gecode.org
+Subject: [gecode-users] IntVar class container as parameter for branchers
+
+ 
+
+Hello all,
+
+In my script class, i have an array of CarDeparture pointer objects which
+class contains several IntVar variables and some data information.
+
+Inside the script copy constructor, i create a copy of the array of
+CarDeparture objects using a CarDeparture copy constructor which updates
+each of its IntVar variables and data.
+
+I am thinking to set a CarDeparture object as a parameter for a brancher.
+
+So, i should again do a copy of this object inside the brancher copy
+constructor.
+
+According to you, is it judicious to proceed like this concerning
+performance ?
+
+Or maybe, can i make the CarDeparture class inherit of LocalHandle (in order
+to be space dependant ?).
+
+ 
+
+Thank you all.
+
+Cheers,
+
+Christine
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130423/c30b0cd5/attachment.html>
+
+From christine.bouzant at gmail.com  Tue Apr 23 15:41:30 2013
+From: christine.bouzant at gmail.com (christine bouzant)
+Date: Tue, 23 Apr 2013 15:41:30 +0200
+Subject: [gecode-users] IntVar class container as parameter for branchers
+In-Reply-To: <00ff01ce4027$2cd26050$867720f0$@se>
+References: <CAF2wyP2t=nO01s+k+RNuxsH662YW1M518unrwJWSVRvHZ53Pgw@mail.gmail.com>
+	<00ff01ce4027$2cd26050$867720f0$@se>
+Message-ID: <CAF2wyP0M=dXbQsCQHaQ-JoGOHHxDOW9g7-ir3=m2oSMWZK1q=A@mail.gmail.com>
+
+Hello Christian,
+
+Thank you!
+Ok, then i will use a LocalHandle. Do you confirm that it is not a bad idea
+to pass such an object as a parameter of a brancher (knowing that it
+contains several IntVar variables) ?
+
+Cheers,
+Christine
+
+
+
+
+2013/4/23 Christian Schulte <cschulte at kth.se>
+
+> Hi Christine,****
+>
+> ** **
+>
+> If the data structure is small then you do not have to share it by use of
+> a LocalHandle. If it is maybe not so small then the use of LocalHandle
+> might be useful.****
+>
+> ** **
+>
+> I personally always use LocalHandle when I can use it (that is, I have a
+> data structure shared between several entities in a space).****
+>
+> ** **
+>
+> Best****
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *christine bouzant
+> *Sent:* Tuesday, April 23, 2013 3:10 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] IntVar class container as parameter for
+> branchers****
+>
+> ** **
+>
+> Hello all,****
+>
+> In my script class, i have an array of CarDeparture pointer objects which
+> class contains several IntVar variables and some data information.****
+>
+> Inside the script copy constructor, i create a copy of the array of
+> CarDeparture objects using a CarDeparture copy constructor which updates
+> each of its IntVar variables and data.****
+>
+> I am thinking to set a CarDeparture object as a parameter for a brancher.*
+> ***
+>
+> So, i should again do a copy of this object inside the brancher copy
+> constructor.****
+>
+> According to you, is it judicious to proceed like this concerning
+> performance ?****
+>
+> Or maybe, can i make the CarDeparture class inherit of LocalHandle (in
+> order to be space dependant ?).****
+>
+> ** **
+>
+> Thank you all.****
+>
+> Cheers,****
+>
+> Christine****
+>
+> ** **
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130423/0cf2289d/attachment.html>
+
+From cschulte at kth.se  Tue Apr 23 15:49:41 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 23 Apr 2013 15:49:41 +0200
+Subject: [gecode-users] IntVar class container as parameter for branchers
+In-Reply-To: <CAF2wyP0M=dXbQsCQHaQ-JoGOHHxDOW9g7-ir3=m2oSMWZK1q=A@mail.gmail.com>
+References: <CAF2wyP2t=nO01s+k+RNuxsH662YW1M518unrwJWSVRvHZ53Pgw@mail.gmail.com>	<00ff01ce4027$2cd26050$867720f0$@se>
+	<CAF2wyP0M=dXbQsCQHaQ-JoGOHHxDOW9g7-ir3=m2oSMWZK1q=A@mail.gmail.com>
+Message-ID: <012401ce4029$679bbea0$36d33be0$@se>
+
+That's fine. But have make sure to update the variables! Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: christine bouzant [mailto:christine.bouzant at gmail.com] 
+Sent: Tuesday, April 23, 2013 3:42 PM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] IntVar class container as parameter for
+branchers
+
+ 
+
+Hello Christian,
+
+Thank you!
+Ok, then i will use a LocalHandle. Do you confirm that it is not a bad idea
+to pass such an object as a parameter of a brancher (knowing that it
+contains several IntVar variables) ?
+
+Cheers,
+
+Christine
+
+ 
+
+ 
+
+2013/4/23 Christian Schulte <cschulte at kth.se>
+
+Hi Christine,
+
+ 
+
+If the data structure is small then you do not have to share it by use of a
+LocalHandle. If it is maybe not so small then the use of LocalHandle might
+be useful.
+
+ 
+
+I personally always use LocalHandle when I can use it (that is, I have a
+data structure shared between several entities in a space).
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of christine bouzant
+Sent: Tuesday, April 23, 2013 3:10 PM
+To: users at gecode.org
+Subject: [gecode-users] IntVar class container as parameter for branchers
+
+ 
+
+Hello all,
+
+In my script class, i have an array of CarDeparture pointer objects which
+class contains several IntVar variables and some data information.
+
+Inside the script copy constructor, i create a copy of the array of
+CarDeparture objects using a CarDeparture copy constructor which updates
+each of its IntVar variables and data.
+
+I am thinking to set a CarDeparture object as a parameter for a brancher.
+
+So, i should again do a copy of this object inside the brancher copy
+constructor.
+
+According to you, is it judicious to proceed like this concerning
+performance ?
+
+Or maybe, can i make the CarDeparture class inherit of LocalHandle (in order
+to be space dependant ?).
+
+ 
+
+Thank you all.
+
+Cheers,
+
+Christine
+
+ 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130423/b58cb57e/attachment-0001.html>
+
+From tommaso.urli at uniud.it  Wed Apr 24 10:43:13 2013
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Wed, 24 Apr 2013 10:43:13 +0200
+Subject: [gecode-users] Citing GECODE
+Message-ID: <51779B21.4050901@uniud.it>
+
+Dear all,
+     my group is about to submit a paper about a work based on GECODE 
+and I in doubt on how to cite it. I have found an old message (2006) on 
+this mailing list where the following citation is suggested:
+
+@misc{
+     gecode, author = "{Gecode Team}",
+     title = "Gecode: Generic Constraint Development Environment",
+     year = {2006},
+     note = {Available from \texttt{http://www.gecode.org}}
+}
+
+However, I'm wondering whether the citation is still up to date, or if 
+it's maybe better to refer to the most recent version of the MPG.
+
+All the best,
+Tommaso
+
+
+From tommaso.urli at uniud.it  Wed Apr 24 10:50:20 2013
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Wed, 24 Apr 2013 10:50:20 +0200
+Subject: [gecode-users] Citing GECODE
+In-Reply-To: <51779B21.4050901@uniud.it>
+References: <51779B21.4050901@uniud.it>
+Message-ID: <51779CCC.8060402@uniud.it>
+
+
+> have found an old message (2006)
+
+Actually, the mail is of 2009, the citation is of 2006. However, the 
+question is still valid.
+
+Thanks,
+Tommaso
+
+
+From cschulte at kth.se  Wed Apr 24 10:50:49 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 24 Apr 2013 10:50:49 +0200
+Subject: [gecode-users] Citing GECODE
+In-Reply-To: <51779B21.4050901@uniud.it>
+References: <51779B21.4050901@uniud.it>
+Message-ID: <001c01ce40c8$d1a0b450$74e21cf0$@kth.se>
+
+Just update the year ;-) If you refer to material in MPG also cite MPG and
+read in MPG how to cite it.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Tommaso Urli
+Sent: Wednesday, April 24, 2013 10:43 AM
+To: users at gecode.org
+Subject: [gecode-users] Citing GECODE
+
+Dear all,
+     my group is about to submit a paper about a work based on GECODE and I
+in doubt on how to cite it. I have found an old message (2006) on this
+mailing list where the following citation is suggested:
+
+@misc{
+     gecode, author = "{Gecode Team}",
+     title = "Gecode: Generic Constraint Development Environment",
+     year = {2006},
+     note = {Available from \texttt{http://www.gecode.org}} }
+
+However, I'm wondering whether the citation is still up to date, or if it's
+maybe better to refer to the most recent version of the MPG.
+
+All the best,
+Tommaso
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tias.guns at cs.kuleuven.be  Wed Apr 24 12:32:18 2013
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Wed, 24 Apr 2013 12:32:18 +0200
+Subject: [gecode-users] mzn-gecode search strategy
+In-Reply-To: <F7F5402D-DBF6-4F8C-89D6-56B1F0545FB0@gecode.org>
+References: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+	<F7F5402D-DBF6-4F8C-89D6-56B1F0545FB0@gecode.org>
+Message-ID: <op.wv1jj4p8qa8xjr@demerzel.cs.kuleuven.be>
+
+On Thu, 18 Apr 2013 09:36:13 +0200, Guido Tack <tack at gecode.org> wrote:
+
+> Hi Tias,
+>
+> it's slightly complicated (and it has changed in Gecode 4).  The default  
+> search is implemented in gecode/flatzinc/flatzinc.cpp in function  
+> createBranchers, and the defaults in 4.0.0 are
+>
+>     branch(*this, iv_sol, INT_VAR_AFC_SIZE_MAX(0.99), INT_VAL_MIN());
+>     branch(*this, bv_sol, INT_VAR_AFC_MAX(0.99), INT_VAL_MIN());
+>     branch(*this, fv_sol, FLOAT_VAR_SIZE_MIN(), FLOAT_VAL_SPLIT_MIN());
+>     branch(*this, sv_sol, SET_VAR_AFC_SIZE_MAX(0.99), SET_VAL_MIN_INC());
+>
+> where iv_sol are the variables mentioned in the output statement and not  
+> mentioned in an explicit search annotation, and
+>
+>       branch(fzs,fzs.iv_aux,INT_VAR_AFC_SIZE_MAX(),INT_VAL_MIN());
+>       branch(fzs,fzs.bv_aux,INT_VAR_AFC_MAX(),INT_VAL_MIN());
+>       branch(fzs,fzs.sv_aux,SET_VAR_AFC_SIZE_MAX(),SET_VAL_MIN_INC());
+>       branch(fzs,fzs.fv_aux,FLOAT_VAR_AFC_SIZE_MAX(),FLOAT_VAL_SPLIT_MIN());
+>
+> where iv_aux are variables introduced by mzn2fzn that are not  
+> functionally defined.
+>
+> I'm planning to introduce annotations  
+> default_{int,bool,set,float}_search that you can stick on the solve item  
+> to change the default for the different variable types - would that be  
+> useful?
+
+Yes.
+
+But since your asking, would there be a way to express the exact search  
+strategy (on the *_sols) in minizinc itself, instead of introducing a new  
+default_* annotation?
+
+For example:
+int_search(IntVars, size_afc_max(0.99), indomain_min, complete);
+
+(I guess the only difference with what is available now is adding the  
+0.99?)
+
+
+Kind regards,
+Tias
+
+Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+
+
+From tack at gecode.org  Wed Apr 24 15:02:13 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 24 Apr 2013 23:02:13 +1000
+Subject: [gecode-users] mzn-gecode search strategy
+In-Reply-To: <op.wv1jj4p8qa8xjr@demerzel.cs.kuleuven.be>
+References: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+	<F7F5402D-DBF6-4F8C-89D6-56B1F0545FB0@gecode.org>
+	<op.wv1jj4p8qa8xjr@demerzel.cs.kuleuven.be>
+Message-ID: <F5D30A24-4D66-4B62-99F6-1CE4C3DE7896@gecode.org>
+
+On 24/04/2013, at 20:32, Tias Guns <tias.guns at cs.kuleuven.be> wrote:
+
+> On Thu, 18 Apr 2013 09:36:13 +0200, Guido Tack <tack at gecode.org> wrote:
+> 
+>> Hi Tias,
+>> 
+>> it's slightly complicated (and it has changed in Gecode 4).  The default search is implemented in gecode/flatzinc/flatzinc.cpp in function createBranchers, and the defaults in 4.0.0 are
+>> 
+>>    branch(*this, iv_sol, INT_VAR_AFC_SIZE_MAX(0.99), INT_VAL_MIN());
+>>    branch(*this, bv_sol, INT_VAR_AFC_MAX(0.99), INT_VAL_MIN());
+>>    branch(*this, fv_sol, FLOAT_VAR_SIZE_MIN(), FLOAT_VAL_SPLIT_MIN());
+>>    branch(*this, sv_sol, SET_VAR_AFC_SIZE_MAX(0.99), SET_VAL_MIN_INC());
+>> 
+>> where iv_sol are the variables mentioned in the output statement and not mentioned in an explicit search annotation, and
+>> 
+>>      branch(fzs,fzs.iv_aux,INT_VAR_AFC_SIZE_MAX(),INT_VAL_MIN());
+>>      branch(fzs,fzs.bv_aux,INT_VAR_AFC_MAX(),INT_VAL_MIN());
+>>      branch(fzs,fzs.sv_aux,SET_VAR_AFC_SIZE_MAX(),SET_VAL_MIN_INC());
+>>      branch(fzs,fzs.fv_aux,FLOAT_VAR_AFC_SIZE_MAX(),FLOAT_VAL_SPLIT_MIN());
+>> 
+>> where iv_aux are variables introduced by mzn2fzn that are not functionally defined.
+>> 
+>> I'm planning to introduce annotations default_{int,bool,set,float}_search that you can stick on the solve item to change the default for the different variable types - would that be useful?
+> 
+> Yes.
+> 
+> But since your asking, would there be a way to express the exact search strategy (on the *_sols) in minizinc itself, instead of introducing a new default_* annotation?
+> 
+> For example:
+> int_search(IntVars, size_afc_max(0.99), indomain_min, complete);
+> 
+> (I guess the only difference with what is available now is adding the 0.99?)
+> 
+
+Yes, that's possible. I'll add support for this next week.
+
+Cheers,
+Guido
+
+
+> 
+> Kind regards,
+> Tias
+> 
+> Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From tack at gecode.org  Fri Apr 26 00:11:25 2013
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 26 Apr 2013 08:11:25 +1000
+Subject: [gecode-users] LDSB : value symmetry on subset of
+	branching	variables ?
+In-Reply-To: <51755053.3090101@informatik.uni-freiburg.de>
+References: <51755053.3090101@informatik.uni-freiburg.de>
+Message-ID: <060DABBB-D908-4E52-8F1B-81052EF0BF89@gecode.org>
+
+On 23/04/2013, at 0:59 , Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+
+> 
+> Hi Gecoders,
+> 
+> a question concerning LDSB search breaking value symmetry.
+> 
+> I have a CSP where the branching is done on a set of variables X = X_1 + X_2 composed from two other sets X_1 and X_2.
+> 
+> I have different value symmetries for X_1 and X_2 that I want to impose.
+> 
+> As far as I see, I can only post the symmtries for a "full" branching.
+
+Yes.
+
+> Thus, if I want to enforce different symmetry breakings for X_1 and X_2, I have to split my branching into two successive branchings right? If so, this might weaken the search compared to branching on whole X (which is hopefully compensated by the symmetry breaking).
+> 
+> Or is there another way around it to specify for which variables what symmetry object is to be applied?
+
+Just a workaround, but if you can "shift" the variables in one array, say X2,  so that their domains are disjoint from X1, then you could express this as one single symmetry.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130426/5514b242/attachment.html>
+
+From chris at cmears.id.au  Fri Apr 26 03:00:31 2013
+From: chris at cmears.id.au (Chris Mears)
+Date: Fri, 26 Apr 2013 11:00:31 +1000
+Subject: [gecode-users] LDSB : symmetries on value tuples and depending
+ symmetries
+In-Reply-To: <51764C6C.7070001@informatik.uni-freiburg.de>
+References: <51764C6C.7070001@informatik.uni-freiburg.de>
+Message-ID: <20130426110031.47c3ba86@boxer>
+
+On Tue, 23 Apr 2013 10:55:08 +0200
+Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+
+> I have a symmetry function "s" that can generate for each solution
+> "a" the set of symmetric assignments on X1 and on X2 (independently).
+> The problem is defined in a way that all symmetries from X1 are 
+> theoretically combineable with symmetric assignments on X2.
+> 
+> Thus I would like to do something like that:
+> 
+> - for each assignment a1 on X1
+>   + find assignment a2 on X2
+>   + ensure during remaining search implication
+>     if(a1) --> [X2 not s(a2)] for all symmetries of a2
+>   + ensure during remaining search
+>     [X1 not s(a1)] for all symmetries of a1
+>   + continue search
+
+Hi Martin,
+
+I'm not sure I understand exactly what you are trying to do.  Say you
+have a model like this:
+
+class TwoPhase : public Script {
+protected:
+  IntVarArray x;
+  IntVarArray y;
+public:
+  TwoPhase(const Options&)
+    : x(*this,2,1,2), y(*this,3,1,3) {
+
+    Symmetries sx;
+    sx << ValueSymmetry(IntArgs(2,1,2));
+
+    Symmetries sy;
+    sy << ValueSymmetry(IntArgs(3,1,2,3));
+
+    branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN(), sx);
+    branch(*this, y, INT_VAR_NONE(), INT_VAL_MIN(), sy);
+  }
+  // ...
+}
+
+You would get these solutions:
+
+x: 1 1	y: 1 1 1
+x: 1 1	y: 1 1 2
+x: 1 1	y: 1 2 1
+x: 1 1	y: 1 2 2
+x: 1 1	y: 1 2 3
+x: 1 2	y: 1 1 1
+x: 1 2	y: 1 1 2
+x: 1 2	y: 1 2 1
+x: 1 2	y: 1 2 2
+x: 1 2	y: 1 2 3
+
+i.e. the symmetry is broken within the "x" and "y" independently.  If
+this is not what you are looking for, could you please explain a bit
+more?
+
+Cheers,
+Chris
+
+
+From marco.v.correia at gmail.com  Sat Apr 27 11:06:00 2013
+From: marco.v.correia at gmail.com (Marco Correia)
+Date: Sat, 27 Apr 2013 10:06:00 +0100
+Subject: [gecode-users] hardcoded install path?
+Message-ID: <525E0119-B854-4D86-8BF6-686F35C7BC19@gmail.com>
+
+Hi,
+
+Hope I'm not doing any trivial mistake :)
+
+I just built Gecode-4.0.0 from source on Mac OS (12.3.0).
+
+I did:
+
+$ ./configure --disable-gist
+$ make
+
+and make told me:
+
+Compilation of Gecode finished successfully. To use Gecode, either add
+/Users/marco/other/cp/gecode-4.0.0
+to your search path for libraries, or install Gecode using
+make install
+
+which I did:
+
+$ export LD_LIBRARY_PATH=/Users/marco/other/cp/gecode-4.0.0
+$ echo $LD_LIBRARY_PATH
+/Users/marco/other/cp/gecode-4.0.0
+
+but then:
+
+$ examples/queens 
+dyld: Library not loaded: /usr/local/lib/libgecodeflatzinc.33.dylib
+  Referenced from: /Users/marco/other/cp/gecode-4.0.0/examples/queens
+  Reason: image not found
+Trace/BPT trap: 5
+
+
+I have some previous geocode version lying around (is there a way to "make uninstall" ?), but I guess that is not the problem.
+
+Thanks
+Marco
+
+
+
+
+From tack at gecode.org  Sat Apr 27 11:23:30 2013
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 27 Apr 2013 19:23:30 +1000
+Subject: [gecode-users] hardcoded install path?
+In-Reply-To: <525E0119-B854-4D86-8BF6-686F35C7BC19@gmail.com>
+References: <525E0119-B854-4D86-8BF6-686F35C7BC19@gmail.com>
+Message-ID: <ABAE9D4E-EC43-4EC6-A0C1-2DB68A5DA60E@gecode.org>
+
+Hi,
+
+try DYLD_LIBRARY_PATH instead.
+
+Cheers,
+Guido
+
+On 27/04/2013, at 19:06, Marco Correia <marco.v.correia at gmail.com> wrote:
+
+> Hi,
+> 
+> Hope I'm not doing any trivial mistake :)
+> 
+> I just built Gecode-4.0.0 from source on Mac OS (12.3.0).
+> 
+> I did:
+> 
+> $ ./configure --disable-gist
+> $ make
+> 
+> and make told me:
+> 
+> Compilation of Gecode finished successfully. To use Gecode, either add
+> /Users/marco/other/cp/gecode-4.0.0
+> to your search path for libraries, or install Gecode using
+> make install
+> 
+> which I did:
+> 
+> $ export LD_LIBRARY_PATH=/Users/marco/other/cp/gecode-4.0.0
+> $ echo $LD_LIBRARY_PATH
+> /Users/marco/other/cp/gecode-4.0.0
+> 
+> but then:
+> 
+> $ examples/queens 
+> dyld: Library not loaded: /usr/local/lib/libgecodeflatzinc.33.dylib
+>  Referenced from: /Users/marco/other/cp/gecode-4.0.0/examples/queens
+>  Reason: image not found
+> Trace/BPT trap: 5
+> 
+> 
+> I have some previous geocode version lying around (is there a way to "make uninstall" ?), but I guess that is not the problem.
+> 
+> Thanks
+> Marco
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+From marco.v.correia at gmail.com  Sat Apr 27 12:18:05 2013
+From: marco.v.correia at gmail.com (Marco Correia)
+Date: Sat, 27 Apr 2013 11:18:05 +0100
+Subject: [gecode-users] hardcoded install path?
+In-Reply-To: <ABAE9D4E-EC43-4EC6-A0C1-2DB68A5DA60E@gecode.org>
+References: <525E0119-B854-4D86-8BF6-686F35C7BC19@gmail.com>
+	<ABAE9D4E-EC43-4EC6-A0C1-2DB68A5DA60E@gecode.org>
+Message-ID: <612EB742-27D1-4E1F-ACC0-07640BFFD09D@gmail.com>
+
+Hi Guido,
+
+It worked. 
+
+Oddly, doing
+
+$ otool -L examples/queens
+
+still shows a number of dependencies (fallbacks?) on non existent files:
+examples/queens:
+	/usr/local/lib/libgecodeflatzinc.33.dylib (compatibility version 33.0.0, current version 33.0.0)
+etc..
+
+Anyway, thanks for the quick reply.
+
+Marco
+
+On Apr 27, 2013, at 10:23 , Guido Tack <tack at gecode.org> wrote:
+
+> Hi,
+> 
+> try DYLD_LIBRARY_PATH instead.
+> 
+> Cheers,
+> Guido
+> 
+> On 27/04/2013, at 19:06, Marco Correia <marco.v.correia at gmail.com> wrote:
+> 
+>> Hi,
+>> 
+>> Hope I'm not doing any trivial mistake :)
+>> 
+>> I just built Gecode-4.0.0 from source on Mac OS (12.3.0).
+>> 
+>> I did:
+>> 
+>> $ ./configure --disable-gist
+>> $ make
+>> 
+>> and make told me:
+>> 
+>> Compilation of Gecode finished successfully. To use Gecode, either add
+>> /Users/marco/other/cp/gecode-4.0.0
+>> to your search path for libraries, or install Gecode using
+>> make install
+>> 
+>> which I did:
+>> 
+>> $ export LD_LIBRARY_PATH=/Users/marco/other/cp/gecode-4.0.0
+>> $ echo $LD_LIBRARY_PATH
+>> /Users/marco/other/cp/gecode-4.0.0
+>> 
+>> but then:
+>> 
+>> $ examples/queens 
+>> dyld: Library not loaded: /usr/local/lib/libgecodeflatzinc.33.dylib
+>> Referenced from: /Users/marco/other/cp/gecode-4.0.0/examples/queens
+>> Reason: image not found
+>> Trace/BPT trap: 5
+>> 
+>> 
+>> I have some previous geocode version lying around (is there a way to "make uninstall" ?), but I guess that is not the problem.
+>> 
+>> Thanks
+>> Marco
+>> 
+>> 
+>> 
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Sat Apr 27 12:20:40 2013
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 27 Apr 2013 20:20:40 +1000
+Subject: [gecode-users] hardcoded install path?
+In-Reply-To: <612EB742-27D1-4E1F-ACC0-07640BFFD09D@gmail.com>
+References: <525E0119-B854-4D86-8BF6-686F35C7BC19@gmail.com>
+	<ABAE9D4E-EC43-4EC6-A0C1-2DB68A5DA60E@gecode.org>
+	<612EB742-27D1-4E1F-ACC0-07640BFFD09D@gmail.com>
+Message-ID: <984A4E93-F7D2-4416-80D8-1C66F6971990@gecode.org>
+
+Hi,
+/usr/local is the default installation location and those paths are indeed hard coded (as usual). If you did a make install that's where the files would end up.
+
+Cheers,
+Guido
+
+On 27/04/2013, at 20:18, Marco Correia <marco.v.correia at gmail.com> wrote:
+
+> Hi Guido,
+> 
+> It worked. 
+> 
+> Oddly, doing
+> 
+> $ otool -L examples/queens
+> 
+> still shows a number of dependencies (fallbacks?) on non existent files:
+> examples/queens:
+>    /usr/local/lib/libgecodeflatzinc.33.dylib (compatibility version 33.0.0, current version 33.0.0)
+> etc..
+> 
+> Anyway, thanks for the quick reply.
+> 
+> Marco
+> 
+> On Apr 27, 2013, at 10:23 , Guido Tack <tack at gecode.org> wrote:
+> 
+>> Hi,
+>> 
+>> try DYLD_LIBRARY_PATH instead.
+>> 
+>> Cheers,
+>> Guido
+>> 
+>> On 27/04/2013, at 19:06, Marco Correia <marco.v.correia at gmail.com> wrote:
+>> 
+>>> Hi,
+>>> 
+>>> Hope I'm not doing any trivial mistake :)
+>>> 
+>>> I just built Gecode-4.0.0 from source on Mac OS (12.3.0).
+>>> 
+>>> I did:
+>>> 
+>>> $ ./configure --disable-gist
+>>> $ make
+>>> 
+>>> and make told me:
+>>> 
+>>> Compilation of Gecode finished successfully. To use Gecode, either add
+>>> /Users/marco/other/cp/gecode-4.0.0
+>>> to your search path for libraries, or install Gecode using
+>>> make install
+>>> 
+>>> which I did:
+>>> 
+>>> $ export LD_LIBRARY_PATH=/Users/marco/other/cp/gecode-4.0.0
+>>> $ echo $LD_LIBRARY_PATH
+>>> /Users/marco/other/cp/gecode-4.0.0
+>>> 
+>>> but then:
+>>> 
+>>> $ examples/queens 
+>>> dyld: Library not loaded: /usr/local/lib/libgecodeflatzinc.33.dylib
+>>> Referenced from: /Users/marco/other/cp/gecode-4.0.0/examples/queens
+>>> Reason: image not found
+>>> Trace/BPT trap: 5
+>>> 
+>>> 
+>>> I have some previous geocode version lying around (is there a way to "make uninstall" ?), but I guess that is not the problem.
+>>> 
+>>> Thanks
+>>> Marco
+>>> 
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+From mmann at informatik.uni-freiburg.de  Mon Apr 29 17:39:17 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Mon, 29 Apr 2013 17:39:17 +0200
+Subject: [gecode-users] order of "wait" statements maintained?
+Message-ID: <517E9425.5030205@informatik.uni-freiburg.de>
+
+
+Hi everybody,
+
+for some processing, I post something like this in my Space constructor
+
+   wait( *this,   A, &checkA);
+   wait( *this,   B, &checkB);
+   wait( *this, A+B, &printAB);
+
+   branch( *this, A, .. );
+   branch( *this, B, .. );
+
+to do some dedicated successive checks on assignments of A, B and both A 
+and B.
+
+Since my last printAB depends on the outcome of both checkA and checkB 
+(both might make the CSP fail) I need to know if the processing order of 
+the wait statements the same as their posting order within the 
+constructor... :/
+
+Or is there a better solution to that as posting an according branching like
+
+   branch( *this, &checkA );
+
+where I first have to trigger constraint propagation in order to ensure 
+assignment... !??!
+
+Thanks for your help,
+Martin
+
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Mon Apr 29 20:06:02 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 29 Apr 2013 20:06:02 +0200
+Subject: [gecode-users] order of "wait" statements maintained?
+In-Reply-To: <517E9425.5030205@informatik.uni-freiburg.de>
+References: <517E9425.5030205@informatik.uni-freiburg.de>
+Message-ID: <007a01ce4504$36cf15d0$a46d4170$@kth.se>
+
+Hi Martin,
+
+There is no order among several waits. You could either use branch with a
+function as you suggested (calling status is in fact fine) or you could
+encode the order yourself. Make checkA and checkB assign a variable and then
+you wait on these variables as well. Would that do?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Martin Mann
+> Sent: Monday, April 29, 2013 5:39 PM
+> To: gecode user list
+> Subject: [gecode-users] order of "wait" statements maintained?
+> 
+> 
+> Hi everybody,
+> 
+> for some processing, I post something like this in my Space constructor
+> 
+>    wait( *this,   A, &checkA);
+>    wait( *this,   B, &checkB);
+>    wait( *this, A+B, &printAB);
+> 
+>    branch( *this, A, .. );
+>    branch( *this, B, .. );
+> 
+> to do some dedicated successive checks on assignments of A, B and both A
+and
+> B.
+> 
+> Since my last printAB depends on the outcome of both checkA and checkB
+(both
+> might make the CSP fail) I need to know if the processing order of the
+wait
+> statements the same as their posting order within the constructor... :/
+> 
+> Or is there a better solution to that as posting an according branching
+like
+> 
+>    branch( *this, &checkA );
+> 
+> where I first have to trigger constraint propagation in order to ensure
+> assignment... !??!
+> 
+> Thanks for your help,
+> Martin
+> 
+> 
+> --
+> Dr. Martin Mann, Postdoc
+> Bioinformatics - Inst. of Computer Science Albert-Ludwigs-University
+Freiburg
+> Tel: ++49-761-203-8254
+> Fax: ++49-761-203-7462
+> http://www.bioinf.uni-freiburg.de/~mmann/
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tommaso.urli at uniud.it  Mon Apr 29 21:09:51 2013
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Mon, 29 Apr 2013 21:09:51 +0200
+Subject: [gecode-users] Reifying constraints without posting them
+Message-ID: <517EC57F.9000706@uniud.it>
+
+Hello,
+     I'm trying to introduce the following constraint in my model: let x 
+be a set of variables (an IntVarArray) and y a proper subset (a slice) 
+of them, I want to know how many variables in y get values among a given 
+set of values. Problem is: I want to implement this as a "soft" 
+constraint, i.e. I want to minimize/maximize the number of times this 
+condition is satisfied, but without actually posting the constraint.
+     I have tried with reified membership constraints, but apart from 
+reification (that did exactly what I wanted it to do), they actually 
+post propagators and thus prune my search space. I have tried counting 
+constraints as well, but none of them matches the semantics I need, so I 
+suspect that this kind of constraint cannot simply be expressed, am I wrong?
+
+Thanks,
+Tommaso
+
+
+From cschulte at kth.se  Mon Apr 29 21:22:52 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 29 Apr 2013 21:22:52 +0200
+Subject: [gecode-users] Reifying constraints without posting them
+In-Reply-To: <517EC57F.9000706@uniud.it>
+References: <517EC57F.9000706@uniud.it>
+Message-ID: <00b001ce450e$f2563e00$d702ba00$@kth.se>
+
+Hi,
+
+Did you try the nvalues constraint? It sounds that this will do the trick
+for you.
+
+You might then be able to minimize/maximize based on the integer variable
+that nvalues uses for conting.
+
+I have to admit that I do not really understand what you mean by pruning: if
+you prune away solutions, this is just a bug in your model, isn't it?
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Tommaso Urli
+> Sent: Monday, April 29, 2013 9:10 PM
+> To: 'gecode user list'
+> Subject: [gecode-users] Reifying constraints without posting them
+> 
+> Hello,
+>      I'm trying to introduce the following constraint in my model: let x
+be a set of
+> variables (an IntVarArray) and y a proper subset (a slice) of them, I want
+to know
+> how many variables in y get values among a given set of values. Problem
+is: I
+> want to implement this as a "soft"
+> constraint, i.e. I want to minimize/maximize the number of times this
+condition
+> is satisfied, but without actually posting the constraint.
+>      I have tried with reified membership constraints, but apart from
+reification
+> (that did exactly what I wanted it to do), they actually post propagators
+and thus
+> prune my search space. I have tried counting constraints as well, but none
+of
+> them matches the semantics I need, so I suspect that this kind of
+constraint
+> cannot simply be expressed, am I wrong?
+> 
+> Thanks,
+> Tommaso
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From l.quesada at 4c.ucc.ie  Tue Apr 30 00:49:27 2013
+From: l.quesada at 4c.ucc.ie (Luis Quesada)
+Date: Mon, 29 Apr 2013 23:49:27 +0100
+Subject: [gecode-users] Specifying QT's location before compiling Gecode
+Message-ID: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+
+Dear all,
+
+I am using OS X 10.8 (with gcc version 4.2.1). I managed to build both QT
+5.0.2 and Gecode 4.0 successfully. However, I am getting the following
+error when adding -lgecodegist:
+
+dyld: Library not loaded: QtGui.framework/Versions/4/QtGui
+  Referenced from: /usr/local/lib/libgecodegist.33.dylib
+  Reason: image not found
+
+I guess I need to specify where my QT is before building geocode, but I
+don't know how to do that.... I did went through Section 2.3.3, but maybe
+I am missing something. I can compile examples that don't use Gist without
+any issue.
+
+Thanks in advance for your help!
+
+Cheers,
+Luis
+
+
+From tack at gecode.org  Tue Apr 30 01:47:06 2013
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 30 Apr 2013 09:47:06 +1000
+Subject: [gecode-users] Specifying QT's location before compiling Gecode
+In-Reply-To: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+References: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+Message-ID: <0CABA0B2-8B90-4CCD-8EA9-A1A1D3F20016@gecode.org>
+
+Hi Luis,
+
+I haven't tried to build Qt myself, I just used the binary packages.  It looks like the Qt framework is not on the default search path. Gecode's configure script uses qmake to figure out all the paths - did you install Qt in /Library/Frameworks or in some other location?
+
+Anyway, I'd suggest just trying the Qt binary package.
+
+Cheers,
+Guido
+
+On 30/04/2013, at 8:49 AM, Luis Quesada <l.quesada at 4c.ucc.ie> wrote:
+
+> Dear all,
+> 
+> I am using OS X 10.8 (with gcc version 4.2.1). I managed to build both QT
+> 5.0.2 and Gecode 4.0 successfully. However, I am getting the following
+> error when adding -lgecodegist:
+> 
+> dyld: Library not loaded: QtGui.framework/Versions/4/QtGui
+>  Referenced from: /usr/local/lib/libgecodegist.33.dylib
+>  Reason: image not found
+> 
+> I guess I need to specify where my QT is before building geocode, but I
+> don't know how to do that.... I did went through Section 2.3.3, but maybe
+> I am missing something. I can compile examples that don't use Gist without
+> any issue.
+> 
+> Thanks in advance for your help!
+> 
+> Cheers,
+> Luis
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From l.quesada at 4c.ucc.ie  Tue Apr 30 01:46:49 2013
+From: l.quesada at 4c.ucc.ie (Luis Quesada)
+Date: Tue, 30 Apr 2013 00:46:49 +0100
+Subject: [gecode-users] Specifying QT's location before compiling Gecode
+In-Reply-To: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+References: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+Message-ID: <c47806e19a610848d2c5af176cff19a7.squirrel@4c.ucc.ie>
+
+
+On Mon, April 29, 2013 11:49 pm, Luis Quesada wrote:
+> Dear all,
+>
+> I am using OS X 10.8 (with gcc version 4.2.1). I managed to build both QT
+> 5.0.2 and Gecode 4.0 successfully. However, I am getting the following
+> error when adding -lgecodegist:
+>
+> dyld: Library not loaded: QtGui.framework/Versions/4/QtGui
+>   Referenced from: /usr/local/lib/libgecodegist.33.dylib
+>   Reason: image not found
+>
+> I guess I need to specify where my QT is before building geocode, but I
+> don't know how to do that.... I did went through Section 2.3.3, but maybe
+> I am missing something.
+
+Indeed I was missing this bit:
+
+"After installing Qt, make sure that the qmake tool is in your shell path.
+The Gecode configure script will then detect the presence of Qt and
+automatically compile with support for Gist."
+
+Everything is perfect now.
+
+Cheers,
+Luis
+
+
+>I can compile examples that don't use Gist without
+> any issue.
+>
+> Thanks in advance for your help!
+>
+> Cheers,
+> Luis
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Luis Quesada
+Research Scientist
+Cork Constraint Computation Centre
+University College Cork
+Cork - Ireland
+Phone: 	(+353) 21 420 5376
+Fax:	(+353) 21 420 5369
+Web:	http://4c.ucc.ie/~lquesada
+
+
+From l.quesada at 4c.ucc.ie  Tue Apr 30 01:48:52 2013
+From: l.quesada at 4c.ucc.ie (Luis Quesada)
+Date: Tue, 30 Apr 2013 00:48:52 +0100
+Subject: [gecode-users] Specifying QT's location before compiling Gecode
+In-Reply-To: <0CABA0B2-8B90-4CCD-8EA9-A1A1D3F20016@gecode.org>
+References: <1300f81ad97374ef168b29a158915987.squirrel@4c.ucc.ie>
+	<0CABA0B2-8B90-4CCD-8EA9-A1A1D3F20016@gecode.org>
+Message-ID: <dc66aca3ebb968022abaaf1991fb86be.squirrel@4c.ucc.ie>
+
+Hi Guido,
+I was forgot to update PATH :-)
+Everything is fine now.
+Thanks anyway.
+Cheers,
+Luis
+On Tue, April 30, 2013 12:47 am, Guido Tack wrote:
+> Hi Luis,
+>
+> I haven't tried to build Qt myself, I just used the binary packages.  It
+> looks like the Qt framework is not on the default search path. Gecode's
+> configure script uses qmake to figure out all the paths - did you install
+> Qt in /Library/Frameworks or in some other location?
+>
+> Anyway, I'd suggest just trying the Qt binary package.
+>
+> Cheers,
+> Guido
+>
+> On 30/04/2013, at 8:49 AM, Luis Quesada <l.quesada at 4c.ucc.ie> wrote:
+>
+>> Dear all,
+>>
+>> I am using OS X 10.8 (with gcc version 4.2.1). I managed to build both
+>> QT
+>> 5.0.2 and Gecode 4.0 successfully. However, I am getting the following
+>> error when adding -lgecodegist:
+>>
+>> dyld: Library not loaded: QtGui.framework/Versions/4/QtGui
+>>  Referenced from: /usr/local/lib/libgecodegist.33.dylib
+>>  Reason: image not found
+>>
+>> I guess I need to specify where my QT is before building geocode, but I
+>> don't know how to do that.... I did went through Section 2.3.3, but
+>> maybe
+>> I am missing something. I can compile examples that don't use Gist
+>> without
+>> any issue.
+>>
+>> Thanks in advance for your help!
+>>
+>> Cheers,
+>> Luis
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+-- 
+Luis Quesada
+Research Scientist
+Cork Constraint Computation Centre
+University College Cork
+Cork - Ireland
+Phone: 	(+353) 21 420 5376
+Fax:	(+353) 21 420 5369
+Web:	http://4c.ucc.ie/~lquesada
+
+
+From tack at gecode.org  Tue Apr 30 02:41:58 2013
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 30 Apr 2013 10:41:58 +1000
+Subject: [gecode-users] mzn-gecode search strategy
+In-Reply-To: <F5D30A24-4D66-4B62-99F6-1CE4C3DE7896@gecode.org>
+References: <op.wvlbsc0nqa8xjr@demerzel.cs.kuleuven.be>
+	<F7F5402D-DBF6-4F8C-89D6-56B1F0545FB0@gecode.org>
+	<op.wv1jj4p8qa8xjr@demerzel.cs.kuleuven.be>
+	<F5D30A24-4D66-4B62-99F6-1CE4C3DE7896@gecode.org>
+Message-ID: <332F4922-9160-4741-B2F9-184EAEB550E8@gecode.org>
+
+This is available in the svn trunk now.  The AFC and activity searches can be specified using the following annotations:
+
+annotation afc_min;
+annotation afc_size_min;
+annotation afc_max;
+annotation afc_size_max;
+annotation activity_min;
+annotation activity_size_min;
+annotation activity_max;
+annotation activity_size_max;
+
+And we have annotations for default search:
+
+annotation int_default_search(ann: varsel, ann: valsel);
+annotation bool_default_search(ann: varsel, ann: valsel);
+annotation set_default_search(ann: varsel, ann: valsel);
+annotation float_default_search(ann: varsel, ann: valsel);
+
+The decay is set globally using the -decay command line option.
+
+Cheers,
+Guido
+
+On 24/04/2013, at 11:02 PM, Guido Tack <tack at gecode.org> wrote:
+
+> On 24/04/2013, at 20:32, Tias Guns <tias.guns at cs.kuleuven.be> wrote:
+> 
+>> On Thu, 18 Apr 2013 09:36:13 +0200, Guido Tack <tack at gecode.org> wrote:
+>> 
+>>> Hi Tias,
+>>> 
+>>> it's slightly complicated (and it has changed in Gecode 4).  The default search is implemented in gecode/flatzinc/flatzinc.cpp in function createBranchers, and the defaults in 4.0.0 are
+>>> 
+>>>   branch(*this, iv_sol, INT_VAR_AFC_SIZE_MAX(0.99), INT_VAL_MIN());
+>>>   branch(*this, bv_sol, INT_VAR_AFC_MAX(0.99), INT_VAL_MIN());
+>>>   branch(*this, fv_sol, FLOAT_VAR_SIZE_MIN(), FLOAT_VAL_SPLIT_MIN());
+>>>   branch(*this, sv_sol, SET_VAR_AFC_SIZE_MAX(0.99), SET_VAL_MIN_INC());
+>>> 
+>>> where iv_sol are the variables mentioned in the output statement and not mentioned in an explicit search annotation, and
+>>> 
+>>>     branch(fzs,fzs.iv_aux,INT_VAR_AFC_SIZE_MAX(),INT_VAL_MIN());
+>>>     branch(fzs,fzs.bv_aux,INT_VAR_AFC_MAX(),INT_VAL_MIN());
+>>>     branch(fzs,fzs.sv_aux,SET_VAR_AFC_SIZE_MAX(),SET_VAL_MIN_INC());
+>>>     branch(fzs,fzs.fv_aux,FLOAT_VAR_AFC_SIZE_MAX(),FLOAT_VAL_SPLIT_MIN());
+>>> 
+>>> where iv_aux are variables introduced by mzn2fzn that are not functionally defined.
+>>> 
+>>> I'm planning to introduce annotations default_{int,bool,set,float}_search that you can stick on the solve item to change the default for the different variable types - would that be useful?
+>> 
+>> Yes.
+>> 
+>> But since your asking, would there be a way to express the exact search strategy (on the *_sols) in minizinc itself, instead of introducing a new default_* annotation?
+>> 
+>> For example:
+>> int_search(IntVars, size_afc_max(0.99), indomain_min, complete);
+>> 
+>> (I guess the only difference with what is available now is adding the 0.99?)
+>> 
+> 
+> Yes, that's possible. I'll add support for this next week.
+> 
+> Cheers,
+> Guido
+> 
+> 
+>> 
+>> Kind regards,
+>> Tias
+>> 
+>> Disclaimer: http://www.kuleuven.be/cwis/email_disclaimer.htm
+>> 
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Apr 30 09:58:47 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 30 Apr 2013 09:58:47 +0200
+Subject: [gecode-users] order of "wait" statements maintained?
+In-Reply-To: <007a01ce4504$36cf15d0$a46d4170$@kth.se>
+References: <517E9425.5030205@informatik.uni-freiburg.de>
+	<007a01ce4504$36cf15d0$a46d4170$@kth.se>
+Message-ID: <517F79B7.6030000@informatik.uni-freiburg.de>
+
+
+Hi Christian,
+
+guessed as much.. mhh.. think the additional bool var wont be a problem 
+but I will give the branch call with &checkA a first try, since it keeps 
+the CSP small without further variables etc.
+
+Thanks for you help,
+Martin
+
+
+Am 29.04.2013 20:06, schrieb Christian Schulte:
+> Hi Martin,
+>
+> There is no order among several waits. You could either use branch with a
+> function as you suggested (calling status is in fact fine) or you could
+> encode the order yourself. Make checkA and checkB assign a variable and then
+> you wait on these variables as well. Would that do?
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Martin Mann
+>> Sent: Monday, April 29, 2013 5:39 PM
+>> To: gecode user list
+>> Subject: [gecode-users] order of "wait" statements maintained?
+>>
+>>
+>> Hi everybody,
+>>
+>> for some processing, I post something like this in my Space constructor
+>>
+>>     wait( *this,   A, &checkA);
+>>     wait( *this,   B, &checkB);
+>>     wait( *this, A+B, &printAB);
+>>
+>>     branch( *this, A, .. );
+>>     branch( *this, B, .. );
+>>
+>> to do some dedicated successive checks on assignments of A, B and both A
+> and
+>> B.
+>>
+>> Since my last printAB depends on the outcome of both checkA and checkB
+> (both
+>> might make the CSP fail) I need to know if the processing order of the
+> wait
+>> statements the same as their posting order within the constructor... :/
+>>
+>> Or is there a better solution to that as posting an according branching
+> like
+>>
+>>     branch( *this, &checkA );
+>>
+>> where I first have to trigger constraint propagation in order to ensure
+>> assignment... !??!
+>>
+>> Thanks for your help,
+>> Martin
+>>
+>>
+>> --
+>> Dr. Martin Mann, Postdoc
+>> Bioinformatics - Inst. of Computer Science Albert-Ludwigs-University
+> Freiburg
+>> Tel: ++49-761-203-8254
+>> Fax: ++49-761-203-7462
+>> http://www.bioinf.uni-freiburg.de/~mmann/
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Apr 30 10:26:41 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 30 Apr 2013 10:26:41 +0200
+Subject: [gecode-users] order of "wait" statements maintained?
+In-Reply-To: <517F79B7.6030000@informatik.uni-freiburg.de>
+References: <517E9425.5030205@informatik.uni-freiburg.de>
+	<007a01ce4504$36cf15d0$a46d4170$@kth.se>
+	<517F79B7.6030000@informatik.uni-freiburg.de>
+Message-ID: <517F8041.3010302@informatik.uni-freiburg.de>
+
+
+Another question arised when posting this
+
+
+	branch(*this, A, ..);
+	branch( *this, &checkA );
+	branch(*this, B, ..);
+	wait( *this, A+B, &checkB );
+
+I thought about replacing the wait with another branch call. But are 
+branchers always called even if all variables are assigned?
+Or is the given solution better than the "4-branch-option"?
+
+And where is the true difference also for performance etc.? Guess the 
+wait call does more checks on the domains?!?
+
+Thanks,
+Martin
+
+
+Am 30.04.2013 09:58, schrieb Martin Mann:
+>
+> Hi Christian,
+>
+> guessed as much.. mhh.. think the additional bool var wont be a problem
+> but I will give the branch call with &checkA a first try, since it keeps
+> the CSP small without further variables etc.
+>
+> Thanks for you help,
+> Martin
+>
+>
+> Am 29.04.2013 20:06, schrieb Christian Schulte:
+>> Hi Martin,
+>>
+>> There is no order among several waits. You could either use branch with a
+>> function as you suggested (calling status is in fact fine) or you could
+>> encode the order yourself. Make checkA and checkB assign a variable
+>> and then
+>> you wait on these variables as well. Would that do?
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>
+>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>>> Behalf Of Martin Mann
+>>> Sent: Monday, April 29, 2013 5:39 PM
+>>> To: gecode user list
+>>> Subject: [gecode-users] order of "wait" statements maintained?
+>>>
+>>>
+>>> Hi everybody,
+>>>
+>>> for some processing, I post something like this in my Space constructor
+>>>
+>>>     wait( *this,   A, &checkA);
+>>>     wait( *this,   B, &checkB);
+>>>     wait( *this, A+B, &printAB);
+>>>
+>>>     branch( *this, A, .. );
+>>>     branch( *this, B, .. );
+>>>
+>>> to do some dedicated successive checks on assignments of A, B and both A
+>> and
+>>> B.
+>>>
+>>> Since my last printAB depends on the outcome of both checkA and checkB
+>> (both
+>>> might make the CSP fail) I need to know if the processing order of the
+>> wait
+>>> statements the same as their posting order within the constructor... :/
+>>>
+>>> Or is there a better solution to that as posting an according branching
+>> like
+>>>
+>>>     branch( *this, &checkA );
+>>>
+>>> where I first have to trigger constraint propagation in order to ensure
+>>> assignment... !??!
+>>>
+>>> Thanks for your help,
+>>> Martin
+>>>
+>>>
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Tue Apr 30 10:30:01 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 30 Apr 2013 10:30:01 +0200
+Subject: [gecode-users] order of "wait" statements maintained?
+In-Reply-To: <517F8041.3010302@informatik.uni-freiburg.de>
+References: <517E9425.5030205@informatik.uni-freiburg.de>
+	<007a01ce4504$36cf15d0$a46d4170$@kth.se>
+	<517F79B7.6030000@informatik.uni-freiburg.de>
+	<517F8041.3010302@informatik.uni-freiburg.de>
+Message-ID: <009501ce457c$e9003810$bb00a830$@kth.se>
+
+Oh, don't worry about performance... That's miniscule compared to
+propagation.
+
+Branchers are always executed, even if all variables are assigned (but the
+might not generate any branches then).
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: Martin Mann [mailto:mmann at informatik.uni-freiburg.de] 
+Sent: Tuesday, April 30, 2013 10:27 AM
+To: cschulte at kth.se
+Cc: 'gecode user list'
+Subject: Re: [gecode-users] order of "wait" statements maintained?
+
+
+Another question arised when posting this
+
+
+	branch(*this, A, ..);
+	branch( *this, &checkA );
+	branch(*this, B, ..);
+	wait( *this, A+B, &checkB );
+
+I thought about replacing the wait with another branch call. But are
+branchers always called even if all variables are assigned?
+Or is the given solution better than the "4-branch-option"?
+
+And where is the true difference also for performance etc.? Guess the wait
+call does more checks on the domains?!?
+
+Thanks,
+Martin
+
+
+Am 30.04.2013 09:58, schrieb Martin Mann:
+>
+> Hi Christian,
+>
+> guessed as much.. mhh.. think the additional bool var wont be a 
+> problem but I will give the branch call with &checkA a first try, 
+> since it keeps the CSP small without further variables etc.
+>
+> Thanks for you help,
+> Martin
+>
+>
+> Am 29.04.2013 20:06, schrieb Christian Schulte:
+>> Hi Martin,
+>>
+>> There is no order among several waits. You could either use branch 
+>> with a function as you suggested (calling status is in fact fine) or 
+>> you could encode the order yourself. Make checkA and checkB assign a 
+>> variable and then you wait on these variables as well. Would that do?
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>
+>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>>> Behalf Of Martin Mann
+>>> Sent: Monday, April 29, 2013 5:39 PM
+>>> To: gecode user list
+>>> Subject: [gecode-users] order of "wait" statements maintained?
+>>>
+>>>
+>>> Hi everybody,
+>>>
+>>> for some processing, I post something like this in my Space 
+>>> constructor
+>>>
+>>>     wait( *this,   A, &checkA);
+>>>     wait( *this,   B, &checkB);
+>>>     wait( *this, A+B, &printAB);
+>>>
+>>>     branch( *this, A, .. );
+>>>     branch( *this, B, .. );
+>>>
+>>> to do some dedicated successive checks on assignments of A, B and 
+>>> both A
+>> and
+>>> B.
+>>>
+>>> Since my last printAB depends on the outcome of both checkA and 
+>>> checkB
+>> (both
+>>> might make the CSP fail) I need to know if the processing order of 
+>>> the
+>> wait
+>>> statements the same as their posting order within the constructor... 
+>>> :/
+>>>
+>>> Or is there a better solution to that as posting an according 
+>>> branching
+>> like
+>>>
+>>>     branch( *this, &checkA );
+>>>
+>>> where I first have to trigger constraint propagation in order to 
+>>> ensure assignment... !??!
+>>>
+>>> Thanks for your help,
+>>> Martin
+>>>
+>>>
+
+--
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science Albert-Ludwigs-University
+Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Apr 30 10:40:17 2013
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 30 Apr 2013 10:40:17 +0200
+Subject: [gecode-users] LDSB : symmetries on value tuples and depending
+ symmetries
+In-Reply-To: <20130426110031.47c3ba86@boxer>
+References: <51764C6C.7070001@informatik.uni-freiburg.de>
+	<20130426110031.47c3ba86@boxer>
+Message-ID: <517F8371.1070107@informatik.uni-freiburg.de>
+
+
+Dear Chris,
+
+thanks for your answer. Think the solution you provided wont do the 
+trick due to the following reason: say I have X=(x1,x2) where x1.x2 are 
+somehow specially dependent (also via constraints). So a symmetric 
+assignment of x1 directly defines an assignment of x2 and vice versa. It 
+is thus no simple value symmetry that can be independently applied to 
+any variable. I guess constraint propagation would ensure the symmetry 
+propagation from one to the other, but not sure if it does not actually 
+make the solver loose solutions.
+
+But I built a workaround via branch and wait statements and special 
+checks. As soon as this is running smooth I will give LDSB a second try. 
+Furthermore, I have some fixed order constraints on X that break some 
+symmetries. Will have to check how this influences the LDSB results.
+
+So long,
+Martin
+
+
+Am 26.04.2013 03:00, schrieb Chris Mears:
+> On Tue, 23 Apr 2013 10:55:08 +0200
+> Martin Mann <mmann at informatik.uni-freiburg.de> wrote:
+>
+>> I have a symmetry function "s" that can generate for each solution
+>> "a" the set of symmetric assignments on X1 and on X2 (independently).
+>> The problem is defined in a way that all symmetries from X1 are
+>> theoretically combineable with symmetric assignments on X2.
+>>
+>> Thus I would like to do something like that:
+>>
+>> - for each assignment a1 on X1
+>>    + find assignment a2 on X2
+>>    + ensure during remaining search implication
+>>      if(a1) --> [X2 not s(a2)] for all symmetries of a2
+>>    + ensure during remaining search
+>>      [X1 not s(a1)] for all symmetries of a1
+>>    + continue search
+>
+> Hi Martin,
+>
+> I'm not sure I understand exactly what you are trying to do.  Say you
+> have a model like this:
+>
+> class TwoPhase : public Script {
+> protected:
+>    IntVarArray x;
+>    IntVarArray y;
+> public:
+>    TwoPhase(const Options&)
+>      : x(*this,2,1,2), y(*this,3,1,3) {
+>
+>      Symmetries sx;
+>      sx << ValueSymmetry(IntArgs(2,1,2));
+>
+>      Symmetries sy;
+>      sy << ValueSymmetry(IntArgs(3,1,2,3));
+>
+>      branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN(), sx);
+>      branch(*this, y, INT_VAR_NONE(), INT_VAL_MIN(), sy);
+>    }
+>    // ...
+> }
+>
+> You would get these solutions:
+>
+> x: 1 1	y: 1 1 1
+> x: 1 1	y: 1 1 2
+> x: 1 1	y: 1 2 1
+> x: 1 1	y: 1 2 2
+> x: 1 1	y: 1 2 3
+> x: 1 2	y: 1 1 1
+> x: 1 2	y: 1 1 2
+> x: 1 2	y: 1 2 1
+> x: 1 2	y: 1 2 2
+> x: 1 2	y: 1 2 3
+>
+> i.e. the symmetry is broken within the "x" and "y" independently.  If
+> this is not what you are looking for, could you please explain a bit
+> more?
+>
+> Cheers,
+> Chris
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+

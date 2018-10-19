@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Memory management bug in 2.2.0?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Memory%20management%20bug%20in%202.2.0%3F&In-Reply-To=%3C35A263C3-1867-4DBB-9B9F-2C672E7582B3%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002342.html">
+   <LINK REL="Next"  HREF="002349.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Memory management bug in 2.2.0?</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Memory%20management%20bug%20in%202.2.0%3F&In-Reply-To=%3C35A263C3-1867-4DBB-9B9F-2C672E7582B3%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] Memory management bug in 2.2.0?">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Thu Mar 26 22:50:17 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002342.html">[gecode-users] Memory management bug in 2.2.0?
+</A></li>
+        <LI>Next message: <A HREF="002349.html">[gecode-users] Memory management bug in 2.2.0?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2347">[ date ]</a>
+              <a href="thread.html#2347">[ thread ]</a>
+              <a href="subject.html#2347">[ subject ]</a>
+              <a href="author.html#2347">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Filip,
+
+the idea was (and still is) to initially allocate all VarArrays from  
+the space, and only when they are resized (by using add), the array is  
+copied to the heap.  That way, most arrays are still efficiently  
+allocated in the space (e.g. copying an array always allocates it in  
+the space again).
+
+The invariant I had in mind (and which now actually works only since  
+3.0.0) is the following: the array has been allocated from the space  
+iff used==n (and we renamed used to n and n to capacity...).
+If you're interested in the correct invariants (or back-porting stuff  
+to 2.2.0), they are documented in gecode/kernel/array.hpp in the  
+current version.
+
+Cheers,
+	Guido
+
+Christian Schulte wrote:
+
+&gt;<i> Hi Filip,
+</I>&gt;<i>
+</I>&gt;<i> yes that was strange stuff and we fixed for 3.0.0... Guido knows  
+</I>&gt;<i> more about
+</I>&gt;<i> it.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On  
+</I>&gt;<i> Behalf
+</I>&gt;<i> Of Filip Konvicka
+</I>&gt;<i> Sent: Wednesday, March 25, 2009 2:18 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Memory management bug in 2.2.0?
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I know I'm probably late with this... I am hunting a memory leak in a
+</I>&gt;<i> program that uses Gecode 2.2.0. The script (space) constructor
+</I>&gt;<i> incrementally adds variables to a var-array (one by one). IMHO,
+</I>&gt;<i> VarArray::resize acts strangely:
+</I>&gt;<i>
+</I>&gt;<i>   VarArray&lt;Var&gt;::resize(Space* home, int m) {
+</I>&gt;<i> ...
+</I>&gt;<i>     x = static_cast&lt;Var*&gt;(Memory::malloc(sizeof(Var)*newsize));
+</I>&gt;<i> ...
+</I>&gt;<i>     if (used != n)
+</I>&gt;<i>       Memory::free(oldx);
+</I>&gt;<i>     else
+</I>&gt;<i>       home-&gt;reuse(oldx, n);
+</I>&gt;<i>     n = newsize; used = m;
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i> In my case, &quot;used==n&quot; always holds, so the allocated blocks are
+</I>&gt;<i> &quot;deallocated&quot; using Space::reuse(), not Memory::free().
+</I>&gt;<i>
+</I>&gt;<i> Originally, I was using the default constructor for the array. After I
+</I>&gt;<i> saw this I tried to initialize it with (this, 0) in the constructor
+</I>&gt;<i> initializer list, but this does not change anything.
+</I>&gt;<i>
+</I>&gt;<i> It seems to me that VarArray::add and VarArray::resize could never
+</I>&gt;<i> actually work... the only way the var-array allocates memory from  
+</I>&gt;<i> space
+</I>&gt;<i> is in the constructor and update(). Or did I miss something in the  
+</I>&gt;<i> docs?
+</I>&gt;<i> Is it forbidden to call add and resize?
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i> Filip
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002342.html">[gecode-users] Memory management bug in 2.2.0?
+</A></li>
+	<LI>Next message: <A HREF="002349.html">[gecode-users] Memory management bug in 2.2.0?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2347">[ date ]</a>
+              <a href="thread.html#2347">[ thread ]</a>
+              <a href="subject.html#2347">[ subject ]</a>
+              <a href="author.html#2347">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

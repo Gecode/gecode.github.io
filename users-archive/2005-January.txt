@@ -1,0 +1,200 @@
+From tack at ps.uni-sb.de  Sat Jan  8 19:06:18 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sat, 8 Jan 2005 19:06:18 +0100
+Subject: [Gecode] Java interface
+Message-ID: <FEFB9B92-619F-11D9-B5FA-001124308F04@ps.uni-sb.de>
+
+Hi everyone!
+
+I have just checked in a Java interface for Gecode. It uses SWIG 
+(http://www.swig.org) to automatically generate everything from a 
+relatively simple interface file.
+
+Things that still need to be done:
+* It must be thread safe. Java creates "real" threads for executing 
+native methods, so we either have to make the methods thread safe or 
+synchronize them globally. At the moment, threads seam to make it crash 
+:-(
+* Set constraints are missing (but easy to add).
+* At the moment, only the DFS search engine is available from Java. I 
+will soon add Branch and Bound - especially interesting because JNI 
+makes it easy to write callback functions in Java. This is really cool 
+;-)
+* The low-level representation of variables is the same as in Alice: 
+they're integer indices into an array of real Gecode variables. At the 
+moment, it is not checked whether a certain variable is valid in a 
+Space. I will either add checks or come up with a different scheme.
+* Lift all kinds of exceptions from C++ to Java.
+* Test it with Windows (as soon as I get my Sony notebook back...)
+* Do some benchmarks - there is probably some overhead in the 
+interface, but to me it seems to be reasonably low.
+* Implement the Java explorer ;-)
+
+To summarize: SWIG seems to be well suited for this task - it took me 
+just two days from learning the very basic things about SWIG to having 
+a rather complete interface. I hope it will be just as easy to create 
+O'Caml and Python interfaces.
+
+Cheers,
+
+	Guido
+
+
+
+From tack at ps.uni-sb.de  Thu Jan 20 16:17:32 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 20 Jan 2005 16:17:32 +0100
+Subject: [Gecode] Re: GECODE VarTypeId question
+In-Reply-To: <20050120140546.M25229@atlas.puj.edu.co>
+References: <20050120140546.M25229@atlas.puj.edu.co>
+Message-ID: <67E043F8-6AF6-11D9-84F9-001124308F04@ps.uni-sb.de>
+
+Hi.
+
+First of all, I think we should move the discussion to our mailing 
+list. Please subscribe to it via the web interface:
+http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+Gustavo Gutierrez:
+> I have been added some clases concerning with the real interval 
+> constraint
+> system to gecode sources and i have a question about the VarTypeId 
+> enum.
+>
+> First of all i think i need to modify this by adding a new definition 
+> like
+> VTI_RI = 2 , note that i use 2 because 0 represents FD and 1 
+> represents FS is
+> it ok?. I think VTI_MAX also needs to be modified and the new value is 
+> 2.
+>
+> Summarizing, the final enum should looks like:
+>
+> enum VarTypeId {
+>   VTI_INT   = 0,
+>   VTI_SET   = 1,
+>   VTI_RI    = 2,
+>   VTI_MAX   = 2,
+>   VTI_LIMIT = 7,
+> };
+>
+> Is it right or have I missed something?
+
+That looks ok.
+
+> This is the only modification i have made to gecode sources, are there 
+> other
+> files that need to be modified in order to adapt the new constraint 
+> system?
+
+That should be everything you need to change in the kernel. The 
+VarTypeId is used by the kernel to delegate all domain dependent 
+actions to the correct variable implementation.
+
+Guido
+
+
+
+From ggutierrez at atlas.puj.edu.co  Thu Jan 20 17:56:09 2005
+From: ggutierrez at atlas.puj.edu.co (Gustavo Gutierrez)
+Date: Thu, 20 Jan 2005 11:56:09 -0500
+Subject: [Gecode] IntVarProcessor question.
+Message-ID: <20050120163610.M94031@atlas.puj.edu.co>
+
+
+Hi all,
+
+
+I am trying to set up a constraint system over real numbers in gecode.  I need
+to implement a method like IntVarProcessor::process but according with the
+events of the new constraint system. Unfortunately i don't understand what is
+this method intended for. This method is closely related to
+Space::process_modified which takes the variable, two propagation conditions
+and a modification event as arguments, but a relationship between the event
+which caused variable modification and the two propagation conditions is not
+much clear to me.  
+
+Would it be possible for any of you to provide a short description of this?.
+In the following i list the propagation events declared for the new system:
+
+ME_RI_VAL -> when a variable gets instantiated.
+ME_RI_BND -> both, lower and upper bounds where modified.
+ME_RI_MIN -> the lower bound was modified.
+ME_RI_MAX -> the upper bound was modified.
+
+I have also defined the corresponding PC_RI_* propagation conditions!.
+
+Thanks in advance.
+
+Gustavo Gutierrez
+
+
+From tack at ps.uni-sb.de  Sun Jan 23 15:40:00 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Sun, 23 Jan 2005 15:40:00 +0100
+Subject: [Gecode] IntVarProcessor question.
+In-Reply-To: <20050120163610.M94031@atlas.puj.edu.co>
+References: <20050120163610.M94031@atlas.puj.edu.co>
+Message-ID: <A900C7F6-6D4C-11D9-84F9-001124308F04@ps.uni-sb.de>
+
+Hi.
+
+The VarProcessors are responsible for translating from Modification 
+Events (MEs) to Propagation Conditions (PCs) and putting all 
+propagators registered for certain PCs into the propagation queue.
+The Processor iterates over all variables of its VarTypeID and, 
+depending on a variable's ME, all propagators that are registered for 
+the corresponding PC are "processed". The propagators are organized in 
+an array that is sorted by the PCs they respond to. So for example, if 
+you have ME_INT_MAX, all propagators registered for PC_INT_BND, 
+PC_INT_MAX, and PC_INT_DOM have to be processed. The order of PCs for 
+Int is VAL, BND, MIN, MAX, DOM. process_modified takes two PCs as its 
+arguments. These are used as pointers into the propagator array: 
+process_modified(x,PC_INT_MAX,PC_INT_DOM,ME_INT_MAX) means to process 
+all propagators "between" DOM and MAX (incl.).
+So basically, for implementing process, you just have to know the order 
+of your PCs and which MEs should trigger which PCs. The rest can be 
+copied from the IntVarProcessor.
+
+Guido
+
+> Hi all,
+>
+>
+> I am trying to set up a constraint system over real numbers in gecode. 
+>  I need
+> to implement a method like IntVarProcessor::process but according with 
+> the
+> events of the new constraint system. Unfortunately i don't understand 
+> what is
+> this method intended for. This method is closely related to
+> Space::process_modified which takes the variable, two propagation 
+> conditions
+> and a modification event as arguments, but a relationship between the 
+> event
+> which caused variable modification and the two propagation conditions 
+> is not
+> much clear to me.
+>
+> Would it be possible for any of you to provide a short description of 
+> this?.
+> In the following i list the propagation events declared for the new 
+> system:
+>
+> ME_RI_VAL -> when a variable gets instantiated.
+> ME_RI_BND -> both, lower and upper bounds where modified.
+> ME_RI_MIN -> the lower bound was modified.
+> ME_RI_MAX -> the upper bound was modified.
+>
+> I have also defined the corresponding PC_RI_* propagation conditions!.
+>
+> Thanks in advance.
+>
+> Gustavo Gutierrez
+> _______________________________________________
+> Gecode mailing list
+> Gecode at ps.uni-sb.de
+> http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+

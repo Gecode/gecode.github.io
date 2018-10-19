@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Understanding cumulatives constraint
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Understanding%20cumulatives%20constraint&In-Reply-To=%3C22c11aa80607031017n4c17cd61y5d9b0706e94f9849%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000609.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Understanding cumulatives constraint</H1>
+    <B>Roberto Pinto</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Understanding%20cumulatives%20constraint&In-Reply-To=%3C22c11aa80607031017n4c17cd61y5d9b0706e94f9849%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Understanding cumulatives constraint">librarama at gmail.com
+       </A><BR>
+    <I>Mon Jul  3 19:17:57 CEST 2006</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000609.html">[gecode-users] Understanding cumulatives constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#608">[ date ]</a>
+              <a href="thread.html#608">[ thread ]</a>
+              <a href="subject.html#608">[ subject ]</a>
+              <a href="author.html#608">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear all,
+
+I'm trying to compile a really basic example using the cumulatives
+constraint, but I'm finding some problems that I hope you could help
+me to solve.
+My code is obtained starting from queens.cc, from which I inherited
+the main structure changing the constraints.
+I want to schedule 4 independent tasks on a single machine, which can
+work one task at a time.
+
+Hereby the complete and commented code:
+
+/// START CODE---------------------------------------------------------------------
+// Very basic scheduling problem.
+#include &quot;examples/support.hh&quot;
+#include &quot;gecode/minimodel.hh&quot;
+
+class BasicScheduling : public Example {
+protected:
+  IntVarArray q; //starting date
+  IntVarArray e; //ending date
+
+public:
+  /// The actual problem
+  BasicScheduling(const Options&amp; opt)
+    : q(this,4,0,20), e(this,4,0,20) ///for this example, I assumed only 4 tasks
+      {
+
+      IntArgs height(4);
+      IntArgs duration(4);
+      IntArgs limit(1);
+      IntArgs machine(4); ///let me understand: in this array, each
+element represents the
+///the machine assigned to a job, right?
+
+      for (int i = 0; i &lt; 4; i++)
+            {
+            height[i] = 1;    ///each task requires 1 unit of resource
+per period
+            duration[i] = 4;  /// each task lasts 4 periods
+                                   ///that is, each task requires 4
+resource units over 4 periods
+            machine[i] = 1;  ///all tasks are worked on machine 1
+            }
+
+            limit = 1;            ///the machine has only one resource
+unit per period
+
+      for(int i = 0; i&lt;4; i++)
+            post(this, e[i] - duration[i] = q[i] );
+///the ending date depends on the starting date and the duration
+
+/// that's all?
+            cumulatives(this, machine, q, duration, e, height,  limit, true);
+
+///Ok, in this case I could use cumulative constraint for a single
+machine, but I want to ///extend the problem to more than 1 machines
+
+    branch(this, q, BVAR_SIZE_MIN, BVAL_MIN);
+ }
+
+  /// Constructor for cloning
+///Indeed, I did not understand its purpose
+  BasicScheduling(bool share, BasicScheduling&amp; s) : Example(share,s) {
+    q.update(this, share, s.q);
+    e.update(this, share, s.e);
+  }
+
+  /// Perform copying during cloning
+/// same comment as above, I just cut&amp;paste from queens.cc
+  virtual Space*
+  copy(bool share) {
+    return new BasicScheduling(share,*this);
+  }
+
+  /// Print solution
+///doh, that's clear!!!
+  virtual void
+  print(void) {
+    std::cout &lt;&lt; &quot;\t&quot;;
+    for (int i = 0; i &lt; q.size(); i++) {
+      std::cout &lt;&lt; q[i] &lt;&lt; &quot;:&quot;&lt;&lt;e[i]&lt;&lt;&quot;, &quot;;
+      if ((i+1) % 10 == 0)
+	std::cout &lt;&lt; std::endl &lt;&lt; &quot;\t&quot;;
+    }
+    std::cout &lt;&lt; std::endl;
+    }
+};
+
+int
+main(int argc, char** argv) {
+  Options opt(&quot;BasicScheduling&quot;);
+  opt.iterations = 2000;
+  opt.size       = 4;
+  opt.c_d        = 5;
+  opt.parse(argc,argv);
+  Example::run&lt;BasicScheduling,DFS&gt;(opt);
+  return 0;
+}
+
+///END CODE--------------------------------------------------------
+
+I was expecting a solution like:
+0:4, 5:9, 10:14, 15:19
+
+instead I obtained:
+0:4, 0:4, 0:4, 0:4
+
+that is, it seems that all jobs are worked in parallel, while my
+intention was to work them serially. I concluded I misinterpreted the
+cumulatives constraint.
+Can you help me using this constraint? maybe, can you provide me with
+a working example (amending my code, for example :-) )
+
+Thank you for you help.
+
+Best wishes
+Libra
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000609.html">[gecode-users] Understanding cumulatives constraint
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#608">[ date ]</a>
+              <a href="thread.html#608">[ thread ]</a>
+              <a href="subject.html#608">[ subject ]</a>
+              <a href="author.html#608">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

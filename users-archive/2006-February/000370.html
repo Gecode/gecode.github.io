@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Value selection when branching
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Value%20selection%20when%20branching&In-Reply-To=%3C43E8C7B5.3000904%40student.chalmers.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000377.html">
+   <LINK REL="Next"  HREF="000371.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Value selection when branching</H1>
+    <B>Lars Otten</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Value%20selection%20when%20branching&In-Reply-To=%3C43E8C7B5.3000904%40student.chalmers.se%3E"
+       TITLE="[gecode-users] Value selection when branching">ottenl at student.chalmers.se
+       </A><BR>
+    <I>Tue Feb  7 17:15:49 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000377.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+        <LI>Next message: <A HREF="000371.html">[gecode-users] Value selection when branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#370">[ date ]</a>
+              <a href="thread.html#370">[ thread ]</a>
+              <a href="subject.html#370">[ subject ]</a>
+              <a href="author.html#370">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi and Hello,
+
+I still haven't solved the previous problem (about the strange propagation
+behaviour), but since for the moment there is a workaround, I have started
+to work on some other things at the same time, one of them random value
+selection when branching.
+
+By just looking at the existing classes in int/branch/select-val.icc (and
+int/branch.hh) I wrote with the following:
+
+  class ValRand {
+  public:
+   /// Return random value of view \a x, uniformly distributed
+   int val(IntView x);
+   /// Tell \f$x=n\f$ (\a a = 0) or \f$x\neq n\f$ (\a a = 1)
+   ModEvent tell(Space* home, unsigned int a, IntView x, int n);
+  };
+
+  forceinline int
+  ValRand::val(IntView x) {
+    ViewValues&lt;IntView&gt; vv(x);
+    int choice = (int) (x.size() * (rand() / (RAND_MAX + 1.0)));
+    while (choice--) { ++vv; }
+    return vv.val();
+  }
+  forceinline ModEvent
+  ValRand::tell(Space* home, unsigned int a, IntView x, int n) {
+    assert((a == 0) || (a == 1));
+    return (a == 0) ? x.eq(home,n) : x.nq(home,n);
+  }
+
+I've also added the value BVAL_RAND to BvalSel for the case distinction
+inside the create method in select-val.icc, everything compiles and runs
+without errors. Moreover I've added a command line parameter &quot;-seed&quot; to set
+the global random seed.
+
+To just test this new part I changed some existing examples to use
+BVAL_RAND, e.g. all-intervall.cc.
+
+Still using the default BVAL_MIN I obtain:
+$ /examples/all-interval 10 -solutions 200 | grep solutions
+	solutions:    74
+
+But then, after the change to BVAL_RAND:
+$ ./examples/all-interval 10 -solutions 200 -seed 1 | grep solutions
+	solutions:    3
+$ ./examples/all-interval 10 -solutions 200 -seed 2 | grep solutions
+	solutions:    118
+$ ./examples/all-interval 10 -solutions 200 -seed 3 | grep solutions
+	solutions:    100
+$ ./examples/all-interval 10 -solutions 200 -seed 37582 | grep solutions
+	solutions:    125
+
+...and so on, you get the idea. Clearly something is wrong here. ;) Even
+though values are chosen randomly, in the end the number of solutions should
+be the same. And since for this setting all that was changed/added are the
+things above, the error should be within there. Still I can't see the
+problem, esp. when comparing it to the existing value selection classes.
+
+Just to rule out other factors I've donwnloaded a fresh copy of the v1.0.0
+sources into a different folder and made just the changes described above,
+but to no avail...
+
+Any ideas?
+
+Thanks and best regards,
+
+/Lars
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000377.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+	<LI>Next message: <A HREF="000371.html">[gecode-users] Value selection when branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#370">[ date ]</a>
+              <a href="thread.html#370">[ thread ]</a>
+              <a href="subject.html#370">[ subject ]</a>
+              <a href="author.html#370">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

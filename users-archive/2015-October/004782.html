@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Best%20practice%3A%20accessing%20IntArgs/IntVarArgs%20from%0A%09multiple%20places%3F&In-Reply-To=%3C4F56071C-5A49-43F9-B288-EE5280943688%40monash.edu%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004781.html">
+   <LINK REL="Next"  HREF="004783.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Best%20practice%3A%20accessing%20IntArgs/IntVarArgs%20from%0A%09multiple%20places%3F&In-Reply-To=%3C4F56071C-5A49-43F9-B288-EE5280943688%40monash.edu%3E"
+       TITLE="[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?">guido.tack at monash.edu
+       </A><BR>
+    <I>Wed Oct 21 02:16:16 CEST 2015</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004781.html">[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?
+</A></li>
+        <LI>Next message: <A HREF="004783.html">[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4782">[ date ]</a>
+              <a href="thread.html#4782">[ thread ]</a>
+              <a href="subject.html#4782">[ subject ]</a>
+              <a href="author.html#4782">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+IntArgs will have to be copied deep, so you shouldn&#8217;t keep them in the space.  IntVarArgs are not supposed to be kept as members of spaces (that&#8217;s why they don&#8217;t have an update method), you should use IntVarArrays in that case.  If a brancher requires access to the variables, but you don&#8217;t want to store a copy of the IntVarArray inside the brancher (which would be the usual way to do it), you need to store it in the space and update it during copying (so that they point to the correct copy of the variables).
+
+For parameters there&#8217;s another option: use a SharedArray.  That one uses shallow copying (based on reference counting), so it&#8217;s cheap to keep a reference to a SharedArray in every space.  You can also create your own SharedObject if you need more than a single array.
+
+Cheers,
+Guido
+
+&gt;<i> On 21 Oct 2015, at 9:39 AM, tommaso.urli &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tommaso.urli at uniud.it</A>&gt; wrote:
+</I>&gt;<i> 
+</I>&gt;<i> Dear all,
+</I>&gt;<i> 
+</I>&gt;<i> I have a question about the memory handling of IntArgs and IntVarArgs, and I cannot find an answer in the MPG.
+</I>&gt;<i> 
+</I>&gt;<i> Let&#8217;s start with the IntArgs: when I write a model, I often copy the input data inside some IntArgs objects, so that I can then use them through the matrix interface, or post element constraints on them. This is fine, because I am in the constructor, and I can access them until the end of the scope which is enough to post the model. Sometimes, however, I need to access the same set of data in the print method, or in a custom brancher. I seem to have two choices here: either I build them from scratch by reading the input again (which is verbose, expensive, and clutters the code), or I can store them somewhere so that they stay accessible even out of the constructor&#8217;s scope. If I decide to store them, I can either store them as static members (which I don&#8217;t like, but allows me to forget about updating them throughout the space copies) or I can update them in the copy constructor. My doubt is: what is the memory footprint of keeping the IntArgs in the space? Will they be deep- or shallow-copied if I use their copy constructor? 
+</I>&gt;<i> 
+</I>&gt;<i> A similar question arises for IntVarArgs. I usually use them for temporary variables and the such, however sometimes I need to access them from a brancher. Should I just transform them in IntVarArrays in this case?
+</I>&gt;<i> 
+</I>&gt;<i> Thanks for the insight,
+</I>&gt;<i> 
+</I>&gt;<i> &#8212; 
+</I>&gt;<i> Dr. Tommaso Urli
+</I>&gt;<i> Researcher, Optimisation Research Group
+</I>&gt;<i> 
+</I>&gt;<i> DATA61 | CSIRO
+</I>&gt;<i> E <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tommaso.urli at nicta.com.au</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">name.surname at domain.au</A>&gt;
+</I>&gt;<i> M +61 403 464 731
+</I>&gt;<i> Tower A, Level 3 
+</I>&gt;<i> 7 London Circuit,  
+</I>&gt;<i> Canberra ACT 2601
+</I>&gt;<i> www.data61.csiro.au &lt;<A HREF="http://www.data61.csiro.au/">http://www.data61.csiro.au/</A>&gt;
+</I>&gt;<i> 
+</I>&gt;<i> CSIRO&#8217;s Digital Productivity business unit and NICTA have joined forces to create digital powerhouse Data61
+</I>&gt;<i> 
+</I>&gt;<i> &lt;CEB6FFF4-AD8B-4410-A802-D02DCB6D6512[1].png&gt;
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20151021/ea067f55/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20151021/ea067f55/attachment-0001.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004781.html">[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?
+</A></li>
+	<LI>Next message: <A HREF="004783.html">[gecode-users] Best practice: accessing IntArgs/IntVarArgs from	multiple places?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4782">[ date ]</a>
+              <a href="thread.html#4782">[ thread ]</a>
+              <a href="subject.html#4782">[ subject ]</a>
+              <a href="author.html#4782">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

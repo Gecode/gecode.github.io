@@ -1,0 +1,2471 @@
+From librarama at gmail.com  Mon Jul  3 19:17:57 2006
+From: librarama at gmail.com (Roberto Pinto)
+Date: Mon, 3 Jul 2006 19:17:57 +0200
+Subject: [gecode-users] Understanding cumulatives constraint
+Message-ID: <22c11aa80607031017n4c17cd61y5d9b0706e94f9849@mail.gmail.com>
+
+Dear all,
+
+I'm trying to compile a really basic example using the cumulatives
+constraint, but I'm finding some problems that I hope you could help
+me to solve.
+My code is obtained starting from queens.cc, from which I inherited
+the main structure changing the constraints.
+I want to schedule 4 independent tasks on a single machine, which can
+work one task at a time.
+
+Hereby the complete and commented code:
+
+/// START CODE---------------------------------------------------------------------
+// Very basic scheduling problem.
+#include "examples/support.hh"
+#include "gecode/minimodel.hh"
+
+class BasicScheduling : public Example {
+protected:
+  IntVarArray q; //starting date
+  IntVarArray e; //ending date
+
+public:
+  /// The actual problem
+  BasicScheduling(const Options& opt)
+    : q(this,4,0,20), e(this,4,0,20) ///for this example, I assumed only 4 tasks
+      {
+
+      IntArgs height(4);
+      IntArgs duration(4);
+      IntArgs limit(1);
+      IntArgs machine(4); ///let me understand: in this array, each
+element represents the
+///the machine assigned to a job, right?
+
+      for (int i = 0; i < 4; i++)
+            {
+            height[i] = 1;    ///each task requires 1 unit of resource
+per period
+            duration[i] = 4;  /// each task lasts 4 periods
+                                   ///that is, each task requires 4
+resource units over 4 periods
+            machine[i] = 1;  ///all tasks are worked on machine 1
+            }
+
+            limit = 1;            ///the machine has only one resource
+unit per period
+
+      for(int i = 0; i<4; i++)
+            post(this, e[i] - duration[i] = q[i] );
+///the ending date depends on the starting date and the duration
+
+/// that's all?
+            cumulatives(this, machine, q, duration, e, height,  limit, true);
+
+///Ok, in this case I could use cumulative constraint for a single
+machine, but I want to ///extend the problem to more than 1 machines
+
+    branch(this, q, BVAR_SIZE_MIN, BVAL_MIN);
+ }
+
+  /// Constructor for cloning
+///Indeed, I did not understand its purpose
+  BasicScheduling(bool share, BasicScheduling& s) : Example(share,s) {
+    q.update(this, share, s.q);
+    e.update(this, share, s.e);
+  }
+
+  /// Perform copying during cloning
+/// same comment as above, I just cut&paste from queens.cc
+  virtual Space*
+  copy(bool share) {
+    return new BasicScheduling(share,*this);
+  }
+
+  /// Print solution
+///doh, that's clear!!!
+  virtual void
+  print(void) {
+    std::cout << "\t";
+    for (int i = 0; i < q.size(); i++) {
+      std::cout << q[i] << ":"<<e[i]<<", ";
+      if ((i+1) % 10 == 0)
+	std::cout << std::endl << "\t";
+    }
+    std::cout << std::endl;
+    }
+};
+
+int
+main(int argc, char** argv) {
+  Options opt("BasicScheduling");
+  opt.iterations = 2000;
+  opt.size       = 4;
+  opt.c_d        = 5;
+  opt.parse(argc,argv);
+  Example::run<BasicScheduling,DFS>(opt);
+  return 0;
+}
+
+///END CODE--------------------------------------------------------
+
+I was expecting a solution like:
+0:4, 5:9, 10:14, 15:19
+
+instead I obtained:
+0:4, 0:4, 0:4, 0:4
+
+that is, it seems that all jobs are worked in parallel, while my
+intention was to work them serially. I concluded I misinterpreted the
+cumulatives constraint.
+Can you help me using this constraint? maybe, can you provide me with
+a working example (amending my code, for example :-) )
+
+Thank you for you help.
+
+Best wishes
+Libra
+
+
+
+From zayenz at gmail.com  Tue Jul  4 08:22:53 2006
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 4 Jul 2006 08:22:53 +0200
+Subject: [gecode-users] Understanding cumulatives constraint
+In-Reply-To: <22c11aa80607031017n4c17cd61y5d9b0706e94f9849@mail.gmail.com>
+References: <22c11aa80607031017n4c17cd61y5d9b0706e94f9849@mail.gmail.com>
+Message-ID: <63b5c8b00607032322j216f1c5dr7151859c78e8716c@mail.gmail.com>
+
+On 7/3/06, Roberto Pinto <librarama at gmail.com> wrote:
+> I'm trying to compile a really basic example using the cumulatives
+> constraint, but I'm finding some problems that I hope you could help
+> me to solve.
+
+The problem with your example is very simple to solve, machines are
+indexed starting from 0 and not from 1. I've added some comments on
+some parts of your code below.
+
+
+> /// START CODE---------------------------------------------------------------------
+>       for (int i = 0; i < 4; i++)
+>             {
+>             height[i] = 1;    ///each task requires 1 unit of resource
+> per period
+>             duration[i] = 4;  /// each task lasts 4 periods
+>                                    ///that is, each task requires 4
+> resource units over 4 periods
+>             machine[i] = 1;  ///all tasks are worked on machine 1
+
+should be: machine[i] = 0;
+
+
+>             }
+>
+>             limit = 1;            ///the machine has only one resource
+> unit per period
+
+should be: limit[0] = 1;
+
+
+>       for(int i = 0; i<4; i++)
+>             post(this, e[i] - duration[i] = q[i] );
+> ///the ending date depends on the starting date and the duration
+
+The above loop is not needed - making sure that start+duration=end is
+handled by the cumulatives interface.
+
+
+> ///Indeed, I did not understand its purpose
+>   BasicScheduling(bool share, BasicScheduling& s) : Example(share,s) {
+>     q.update(this, share, s.q);
+>     e.update(this, share, s.e);
+>   }
+>
+>   /// Perform copying during cloning
+> /// same comment as above, I just cut&paste from queens.cc
+>   virtual Space*
+>   copy(bool share) {
+>     return new BasicScheduling(share,*this);
+>   }
+
+These two functions are needed for keeping the q and e arrays
+consistent in all new copies of the Space and for enabling copying of
+the Space.
+
+
+> ///END CODE--------------------------------------------------------
+>
+> I was expecting a solution like:
+> 0:4, 5:9, 10:14, 15:19
+>
+> instead I obtained:
+> 0:4, 0:4, 0:4, 0:4
+
+Well, the actual solution one gets is
+    0:4, 4:8, 8:12, 12:16,
+This shows that a task may start and another task may begin at the same time.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From librarama at gmail.com  Tue Jul  4 10:57:17 2006
+From: librarama at gmail.com (Roberto Pinto)
+Date: Tue, 4 Jul 2006 10:57:17 +0200
+Subject: [gecode-users] Understanding cumulatives constraint
+In-Reply-To: <63b5c8b00607032322j216f1c5dr7151859c78e8716c@mail.gmail.com>
+References: <22c11aa80607031017n4c17cd61y5d9b0706e94f9849@mail.gmail.com>
+	<63b5c8b00607032322j216f1c5dr7151859c78e8716c@mail.gmail.com>
+Message-ID: <22c11aa80607040157w25be897dtc4bbb6a24e02953c@mail.gmail.com>
+
+On 7/4/06, Mikael Zayenz Lagerkvist <zayenz at gmail.com> wrote:
+> On 7/3/06, Roberto Pinto <librarama at gmail.com> wrote:
+> > I'm trying to compile a really basic example using the cumulatives
+> > constraint, but I'm finding some problems that I hope you could help
+> > me to solve.
+>
+> The problem with your example is very simple to solve, machines are
+> indexed starting from 0 and not from 1. I've added some comments on
+> some parts of your code below.
+> >             machine[i] = 1;  ///all tasks are worked on machine 1
+> should be: machine[i] = 0;
+
+Ok, now it's clear. I didn't get that the indexes of the machines must
+be sequential starting from 0. I thought that any kind of univoque id
+fits the needs.
+
+> Well, the actual solution one gets is
+>     0:4, 4:8, 8:12, 12:16,
+> This shows that a task may start and another task may begin at the same time.
+
+We could also interpret this solution as "the first task is finished
+at the beginning of the fourth day and the following task should start
+immediatly after"
+
+Thank you very much
+Libra (Roberto)
+
+> Cheers,
+> Mikael
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+
+
+
+From mmann at informatik.uni-freiburg.de  Fri Jul  7 16:24:33 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Fri, 07 Jul 2006 16:24:33 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+Message-ID: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+
+Hi again,
+
+I ve got a question about Branching..
+
+I implemented my own Branching inclusive a branching descriptor that 
+supports more than 2 alternatives.
+
+During my branching sometimes I would like to skip the remaining 
+alternatives.
+So my question:
+
+1) is it ok just to return ES_FAIL from MyBranching::commit(..) to skip 
+the corresponding branch? or will it lead to some strange behavior?
+
+2) is there a possibility for directly skipping the remaining 
+alternatives without implementing the whole search engine? I would like 
+to use DFS as it is.. ;)
+
+thanks lot and have a nice weekend
+
+Martin
+
+
+
+
+From luque at info.ucl.ac.be  Sat Jul  8 11:18:06 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Sat, 08 Jul 2006 11:18:06 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+Message-ID: <44AF784E.6010007@info.ucl.ac.be>
+
+I don't understand why you need to do this... To me, eliminating 
+branching alternatives is the very purpose of propagators. Why don't you 
+implement a propagator that removes the alternatives you want to skip? 
+As you build the branches at each branching step based on the current 
+domains of the variables, you wont try the alternatives that you want to 
+skip.
+
+Luis
+
+Martin Mann wrote:
+
+> Hi again,
+>
+> I ve got a question about Branching..
+>
+> I implemented my own Branching inclusive a branching descriptor that 
+> supports more than 2 alternatives.
+>
+> During my branching sometimes I would like to skip the remaining 
+> alternatives.
+> So my question:
+>
+> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to 
+> skip the corresponding branch? or will it lead to some strange behavior?
+>
+> 2) is there a possibility for directly skipping the remaining 
+> alternatives without implementing the whole search engine? I would 
+> like to use DFS as it is.. ;)
+>
+> thanks lot and have a nice weekend
+>
+> Martin
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+-- 
+Luis QUESADA
+Catholic University of Louvain 
+Department of Computing Science and Engineering 
+Place Sainte Barbe, 2 
+B-1348 Louvain-la-Neuve, Belgium 
+Phone:	(++32) (10) 47 90 13 
+Fax: 	(++32) (10) 45 03 45 
+Web: 	http://www.info.ucl.ac.be/~luque
+
+
+
+
+From qyu at gmx.de  Mon Jul 10 14:27:00 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Mon, 10 Jul 2006 14:27:00 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44AF784E.6010007@info.ucl.ac.be>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+	<44AF784E.6010007@info.ucl.ac.be>
+Message-ID: <44B24794.4070305@gmx.de>
+
+
+Hi Luis,
+
+the idea with the propagator is nice, but not possible in my situation i 
+think. i dont want a "static" alternative-skipping.. that's easy to do 
+with propagators, you are right. but i want to do a "dynamic" one. i am 
+not interested in all solutions of the search tree and i dont have a 
+real deterministic branch and bound strategy at hand. that's why i want 
+to do a dynamic skipping of branches during the search.
+
+e.g. the situation is like that: i find a special "interesting" solution 
+in this branch and and i dont want to have a look in the remaining 
+branches that belong to my specialised branching description (i mix them 
+with normal ViewValBranchingDescr during the branching). so i would like 
+to cut some subtrees of the the search tree that belong to my branching 
+descriptor.
+
+i tried the first idea i mentioned (just return ES_FAILED from the 
+commit(..) function) to skip the alternatives, but this results in 
+abnormal behavior. dont know why at the moment and didnt had a closer 
+look until now.
+
+so my question again, is there another possibility? or do i ve got to do 
+  it bruteforce via clearing one domain to let the propagators do the 
+work for me?
+anyway i m still interested in skipping the remaing more directly but 
+without reimplementing DFS myself.. ;)
+
+thanks a lot, i hope i made it a bit clearer
+
+martin
+
+
+Luis Quesada wrote:
+> I don't understand why you need to do this... To me, eliminating 
+> branching alternatives is the very purpose of propagators. Why don't you 
+> implement a propagator that removes the alternatives you want to skip? 
+> As you build the branches at each branching step based on the current 
+> domains of the variables, you wont try the alternatives that you want to 
+> skip.
+> 
+> Luis
+> 
+> Martin Mann wrote:
+> 
+>> Hi again,
+>>
+>> I ve got a question about Branching..
+>>
+>> I implemented my own Branching inclusive a branching descriptor that 
+>> supports more than 2 alternatives.
+>>
+>> During my branching sometimes I would like to skip the remaining 
+>> alternatives.
+>> So my question:
+>>
+>> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to 
+>> skip the corresponding branch? or will it lead to some strange behavior?
+>>
+>> 2) is there a possibility for directly skipping the remaining 
+>> alternatives without implementing the whole search engine? I would 
+>> like to use DFS as it is.. ;)
+>>
+>> thanks lot and have a nice weekend
+>>
+>> Martin
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+
+
+
+From tack at ps.uni-sb.de  Mon Jul 10 15:02:06 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 10 Jul 2006 15:02:06 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B24794.4070305@gmx.de>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+	<44AF784E.6010007@info.ucl.ac.be> <44B24794.4070305@gmx.de>
+Message-ID: <200607101502.07396.tack@ps.uni-sb.de>
+
+> i tried the first idea i mentioned (just return ES_FAILED from the
+> commit(..) function) to skip the alternatives, but this results in
+> abnormal behavior. dont know why at the moment and didnt had a closer
+> look until now.
+
+Branchings may return ES_FAILED, this should very simply fail the space. How 
+exactly did you detect you have to fail the space? Did you try using the 
+BranchingDesc as internal state, somehow setting a flag in there that says 
+that next time you branch with this description, you have to fail?
+
+> so my question again, is there another possibility? or do i ve got to do
+>   it bruteforce via clearing one domain to let the propagators do the
+> work for me?
+
+This won't change anything, as clearing a variable's domain always has to be 
+reported by returning ES_FAILED. Same problem as above.
+
+> anyway i m still interested in skipping the remaing more directly but
+> without reimplementing DFS myself.. ;)
+
+This is slightly against the general architecture of Gecode. One of the main 
+achievements in CP research was the clear separation of concerns between 
+propagation, branching, and search. Propagation does the inferences within 
+one space, branching determines the shape of the search tree, and search 
+explores the tree.
+Cutting off branches is normally considered part of exploration. The clean 
+solution would be to implement something like Branch&Bound or SBDS, which are 
+search strategies that take the already explored part of the tree into 
+account. In fact, what you describe sounds pretty similar to SBDS - the other 
+branches you don't want to explore are in a sense symmetric to the solution 
+you just found.
+
+I wouldn't be too scared about writing your own search engine. It's very well 
+understood, and you'll get great support from search experts here on the 
+list ;-)
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From luque at info.ucl.ac.be  Mon Jul 10 15:37:59 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Mon, 10 Jul 2006 15:37:59 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <200607101502.07396.tack@ps.uni-sb.de>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>	<44AF784E.6010007@info.ucl.ac.be>
+	<44B24794.4070305@gmx.de> <200607101502.07396.tack@ps.uni-sb.de>
+Message-ID: <44B25837.1010009@info.ucl.ac.be>
+
+Guido Tack wrote:
+
+> [...]
+>
+>This is slightly against the general architecture of Gecode. One of the main 
+>achievements in CP research was the clear separation of concerns between 
+>propagation, branching, and search. Propagation does the inferences within 
+>one space, branching determines the shape of the search tree, and search 
+>explores the tree.
+>Cutting off branches is normally considered part of exploration. [...]
+>
+I don't agree with this bit Guido. Cutting off branching (i.e. pruning) 
+is the very purpose of propagation. When you remove 5 from X's domain 
+you are cutting off the branch associated with X=5.
+
+Luis
+
+
+
+From tack at ps.uni-sb.de  Mon Jul 10 16:08:15 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 10 Jul 2006 16:08:15 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B25837.1010009@info.ucl.ac.be>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+	<200607101502.07396.tack@ps.uni-sb.de>
+	<44B25837.1010009@info.ucl.ac.be>
+Message-ID: <200607101608.15800.tack@ps.uni-sb.de>
+
+Am Montag, 10. Juli 2006 15:37 schrieb Luis Quesada:
+> >Cutting off branches is normally considered part of exploration. [...]
+>
+> I don't agree with this bit Guido. Cutting off branching (i.e. pruning)
+> is the very purpose of propagation. When you remove 5 from X's domain
+> you are cutting off the branch associated with X=5.
+
+Ok, maybe I wasn't clear enough. Typically, you specify your constraint 
+problem using propagators and branchings, and this totally determines the 
+shape of your search tree. Now, some sophisticated search engines prune the 
+tree during search, e.g. B&B and SBDS. Of course, these engines post new 
+constraints to do the actual pruning, which can be implemented as propagators 
+or may just be basic tells.
+
+Encoding a pruning of the tree into the initial model seems a bit weird - the 
+model doesn't define a unique search tree any more.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From zayenz at gmail.com  Mon Jul 10 16:07:28 2006
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 10 Jul 2006 16:07:28 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B25837.1010009@info.ucl.ac.be>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+	<44AF784E.6010007@info.ucl.ac.be> <44B24794.4070305@gmx.de>
+	<200607101502.07396.tack@ps.uni-sb.de>
+	<44B25837.1010009@info.ucl.ac.be>
+Message-ID: <63b5c8b00607100707y208de65ck1476c8e907e883e1@mail.gmail.com>
+
+On 7/10/06, Luis Quesada <luque at info.ucl.ac.be> wrote:
+> Guido Tack wrote:
+>
+> > [...]
+> >
+> >This is slightly against the general architecture of Gecode. One of the main
+> >achievements in CP research was the clear separation of concerns between
+> >propagation, branching, and search. Propagation does the inferences within
+> >one space, branching determines the shape of the search tree, and search
+> >explores the tree.
+> >Cutting off branches is normally considered part of exploration. [...]
+> >
+> I don't agree with this bit Guido. Cutting off branching (i.e. pruning)
+> is the very purpose of propagation. When you remove 5 from X's domain
+> you are cutting off the branch associated with X=5.
+
+While propagators do cut of branches through propagation, this is
+based on local information in the current Space only. The difference
+here is when we want to cut of branches based on some global property,
+like symmetries in the search-tree. These properties are probably best
+addressed by the exploration, since the exploration part is the only
+part that has a global view.
+
+Some of the common schemes for exploiting global properties do use
+propagators in their implementation (for example, Branch-and-bound and
+SBDS), since the global information can be localized. Posting these
+propagators is controlled by the exploration. Others, like SBDD for
+example, cuts off parts of the search tree without posting
+propagators.
+
+Cheers,
+Mikael Zayenz Lagerkvist
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From luque at info.ucl.ac.be  Mon Jul 10 16:33:41 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Mon, 10 Jul 2006 16:33:41 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <200607101608.15800.tack@ps.uni-sb.de>
+References: <44AE6EA1.1090507@informatik.uni-freiburg.de>
+	<200607101502.07396.tack@ps.uni-sb.de>
+	<44B25837.1010009@info.ucl.ac.be>
+	<200607101608.15800.tack@ps.uni-sb.de>
+Message-ID: <44B26545.6030700@info.ucl.ac.be>
+
+Guido Tack wrote:
+
+>Am Montag, 10. Juli 2006 15:37 schrieb Luis Quesada:
+>  
+>
+>>>Cutting off branches is normally considered part of exploration. [...]
+>>>      
+>>>
+>>I don't agree with this bit Guido. Cutting off branches (i.e. pruning)
+>>is the very purpose of propagation. When you remove 5 from X's domain
+>>you are cutting off the branch associated with X=5.
+>>    
+>>
+>
+>Ok, maybe I wasn't clear enough. Typically, you specify your constraint 
+>problem using propagators and branchings, and this totally determines the 
+>shape of your search tree. Now, some sophisticated search engines prune the 
+>tree during search, e.g. B&B and SBDS. Of course, these engines post new 
+>constraints to do the actual pruning, which can be implemented as propagators 
+>or may just be basic tells.
+>
+>Encoding a pruning of the tree into the initial model seems a bit weird - the 
+>model doesn't define a unique search tree any more.
+>
+>  
+>
+OK. I see the point that you, Mikael and Martin are making.
+
+Actually, what I had in mind is a  kind of adaptative branch and bound 
+where you update the order constraint on the fly based on the solution 
+you have just found (which  actually follows the same idea of SBDS).
+
+Cheers,
+
+Luis
+
+
+
+
+
+
+
+From schulte at imit.kth.se  Tue Jul 11 09:23:19 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Jul 2006 09:23:19 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B24794.4070305@gmx.de>
+Message-ID: <000101c6a4ba$e2872da0$acd4ed82@beule>
+
+I just reply to this email, even though I have read the discussion. I very
+much second Guido and Mikael and I have another bit to add as to why your
+idea of tinkering with branchings does not work.
+
+The entire setup of search in Gecode relies on recomputation: here, a commit
+operation using a branching description _must_ always tell the very same
+constraint when invoked with the same parameters. So by definition, it is
+not allowed to use state in the way you state it.  
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, July 10, 2006 2:27 PM
+Cc: gecode user list
+Subject: Re: Re: [gecode-users] Skipping branching alternatives?
+
+
+
+Hi Luis,
+
+the idea with the propagator is nice, but not possible in my situation i 
+think. i dont want a "static" alternative-skipping.. that's easy to do 
+with propagators, you are right. but i want to do a "dynamic" one. i am 
+not interested in all solutions of the search tree and i dont have a 
+real deterministic branch and bound strategy at hand. that's why i want 
+to do a dynamic skipping of branches during the search.
+
+e.g. the situation is like that: i find a special "interesting" solution 
+in this branch and and i dont want to have a look in the remaining 
+branches that belong to my specialised branching description (i mix them 
+with normal ViewValBranchingDescr during the branching). so i would like 
+to cut some subtrees of the the search tree that belong to my branching 
+descriptor.
+
+i tried the first idea i mentioned (just return ES_FAILED from the 
+commit(..) function) to skip the alternatives, but this results in 
+abnormal behavior. dont know why at the moment and didnt had a closer 
+look until now.
+
+so my question again, is there another possibility? or do i ve got to do 
+  it bruteforce via clearing one domain to let the propagators do the 
+work for me?
+anyway i m still interested in skipping the remaing more directly but 
+without reimplementing DFS myself.. ;)
+
+thanks a lot, i hope i made it a bit clearer
+
+martin
+
+
+Luis Quesada wrote:
+> I don't understand why you need to do this... To me, eliminating
+> branching alternatives is the very purpose of propagators. Why don't you 
+> implement a propagator that removes the alternatives you want to skip? 
+> As you build the branches at each branching step based on the current 
+> domains of the variables, you wont try the alternatives that you want to 
+> skip.
+> 
+> Luis
+> 
+> Martin Mann wrote:
+> 
+>> Hi again,
+>>
+>> I ve got a question about Branching..
+>>
+>> I implemented my own Branching inclusive a branching descriptor that
+>> supports more than 2 alternatives.
+>>
+>> During my branching sometimes I would like to skip the remaining
+>> alternatives.
+>> So my question:
+>>
+>> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to
+>> skip the corresponding branch? or will it lead to some strange behavior?
+>>
+>> 2) is there a possibility for directly skipping the remaining
+>> alternatives without implementing the whole search engine? I would 
+>> like to use DFS as it is.. ;)
+>>
+>> thanks lot and have a nice weekend
+>>
+>> Martin
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From luque at info.ucl.ac.be  Tue Jul 11 10:04:17 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Tue, 11 Jul 2006 10:04:17 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <000101c6a4ba$e2872da0$acd4ed82@beule>
+References: <000101c6a4ba$e2872da0$acd4ed82@beule>
+Message-ID: <44B35B81.1080705@info.ucl.ac.be>
+
+Christian Schulte wrote:
+
+>I just reply to this email, even though I have read the discussion. I very
+>much second Guido and Mikael and I have another bit to add as to why your
+>idea of tinkering with branchings does not work.
+>
+>The entire setup of search in Gecode relies on recomputation: here, a commit
+>operation using a branching description _must_ always tell the very same
+>constraint when invoked with the same parameters. So by definition, it is
+>not allowed to use state in the way you state it.  
+>
+>  
+>
+I confess that I still don't see why you need to implement another 
+search engine for dealing with Martin's problem. It seems to me that BAB 
+would do the job....Cannot Martin do what he wants to do by using the 
+constrain method? To me, that's the best place to address his global 
+property.
+
+Luis
+
+
+
+
+From schulte at imit.kth.se  Tue Jul 11 10:11:03 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Jul 2006 10:11:03 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B35B81.1080705@info.ucl.ac.be>
+Message-ID: <000501c6a4c1$8e29df30$acd4ed82@beule>
+
+I do not know whether BAB will be good enough as I do not know what Martin
+exactly needs. However I would also supsect that it will be BAB + X, where X
+might be to get more information from search so far.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Luis Quesada [mailto:luque at info.ucl.ac.be] 
+Sent: Tuesday, July 11, 2006 10:04 AM
+To: schulte at imit.kth.se
+Cc: 'Martin Mann'; 'gecode user list'
+Subject: Re: [gecode-users] Skipping branching alternatives?
+
+
+Christian Schulte wrote:
+
+>I just reply to this email, even though I have read the discussion. I 
+>very much second Guido and Mikael and I have another bit to add as to 
+>why your idea of tinkering with branchings does not work.
+>
+>The entire setup of search in Gecode relies on recomputation: here, a 
+>commit operation using a branching description _must_ always tell the 
+>very same constraint when invoked with the same parameters. So by 
+>definition, it is not allowed to use state in the way you state it.
+>
+>  
+>
+I confess that I still don't see why you need to implement another 
+search engine for dealing with Martin's problem. It seems to me that BAB 
+would do the job....Cannot Martin do what he wants to do by using the 
+constrain method? To me, that's the best place to address his global 
+property.
+
+Luis
+
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 11 10:25:53 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 11 Jul 2006 10:25:53 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <000501c6a4c1$8e29df30$acd4ed82@beule>
+References: <000501c6a4c1$8e29df30$acd4ed82@beule>
+Message-ID: <200607111025.53507.tack@ps.uni-sb.de>
+
+> I do not know whether BAB will be good enough as I do not know what Martin
+> exactly needs. However I would also supsect that it will be BAB + X, where
+> X might be to get more information from search so far.
+
+I thought about that a bit yesterday, and BAB seems to be not enough. The 
+problem is that you cannot express the pruning as a single constraint. E.g., 
+if you find some solution with x=4 and want to prune all branches one level 
+above that solution that have x!=4. Then you cannot simply say that x!=4 for 
+all nodes explored later.
+From what I understood, you need to limit the pruning to one particular choice 
+point, and I cannot see how to achieve that using BAB. Or, in Luis' terms, 
+the property Martin wants to express seems to be not global enough for BAB, 
+but not local enough to be addressed by branchings and/or propagators alone. 
+That's why you need a new search engine.
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From qyu at gmx.de  Tue Jul 11 11:12:07 2006
+From: qyu at gmx.de (Martin Mann)
+Date: Tue, 11 Jul 2006 11:12:07 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <200607111025.53507.tack@ps.uni-sb.de>
+References: <000501c6a4c1$8e29df30$acd4ed82@beule>
+	<200607111025.53507.tack@ps.uni-sb.de>
+Message-ID: <44B36B67.9010602@gmx.de>
+
+Uff... what a discussion!
+
+thanks a lot! to give you a deeper look about my setting and what i want 
+here a short description:
+
+i ve got a Branching "MartinsBranching" == MB.
+this produces 2 types of branching descriptions: the standard PosValDesc 
+== PVD and my own with multiple alternatives == MBD
+
+during the branching i decide on some special properties of the 
+subproblem if i will branch into 2 (via PVD) or more subtrees (MBD). the 
+corresponding branching description is returned.
+
+i ve got a global structure (accessible directly via my subclass of 
+Space i am using in my problem) that handles the solution recognition.
+
+my MBD is able to detect if it is asked to commit a new branching 
+alternative or is just doing recomputation. if asked for a new branch it 
+checks if in the last branch a special solution was found. if thats the 
+case it should skip this and the following alternatives of this MBD.
+
+you see i can detect very clear the choice point where i want to skip 
+the remaining. as discussed here, it is not possible to prune the 
+alternatives via propagation because during bracktracking and new 
+branching this values might be needed.
+also i dont think it is neccessary to rewrite the search engine, because 
+the branching can do. the problem that appear is the cloning of some 
+unneccessary Spaces in the search function that calls the 
+branching::commit(..).
+
+so i agree with guido: it is not global enough for a BAB and not local 
+enough for a propagator.
+but a new search engine? ;) i am not frightened about (i ve done it in 
+the beginning..) but hope i dont need it.. i want to keep the gecode 
+changes as small as possible!
+
+hope this makes it clear
+
+my current way:
+- currently my MB::commit(..) returns ES_FAILED, if it detects the 
+question for a new branching alternative and the last branchings have 
+leaded to a special solution.
+(i wrote it doesnt function but actually right now i found the bug in my 
+code.. ;) now it works fine)
+
+so the last open question is: any alternatives for skipping?
+
+the only one i see:
+a) writing a new search engine that tests for skipping itself and 
+removes the branching description directly
+
+anything else?
+
+so thanks for your patience and support, and that you ve read until here!
+
+martin
+
+
+
+Guido Tack schrieb:
+>> I do not know whether BAB will be good enough as I do not know what Martin
+>> exactly needs. However I would also supsect that it will be BAB + X, where
+>> X might be to get more information from search so far.
+> 
+> I thought about that a bit yesterday, and BAB seems to be not enough. The 
+> problem is that you cannot express the pruning as a single constraint. E.g., 
+> if you find some solution with x=4 and want to prune all branches one level 
+> above that solution that have x!=4. Then you cannot simply say that x!=4 for 
+> all nodes explored later.
+> From what I understood, you need to limit the pruning to one particular choice 
+> point, and I cannot see how to achieve that using BAB. Or, in Luis' terms, 
+> the property Martin wants to express seems to be not global enough for BAB, 
+> but not local enough to be addressed by branchings and/or propagators alone. 
+> That's why you need a new search engine.
+> 
+> Cheers,
+> 	Guido
+> 
+
+
+
+From luque at info.ucl.ac.be  Tue Jul 11 12:10:59 2006
+From: luque at info.ucl.ac.be (Luis Quesada)
+Date: Tue, 11 Jul 2006 12:10:59 +0200
+Subject: [gecode-users] Skipping branching alternatives?
+In-Reply-To: <44B36B67.9010602@gmx.de>
+References: <000501c6a4c1$8e29df30$acd4ed82@beule>	<200607111025.53507.tack@ps.uni-sb.de>
+	<44B36B67.9010602@gmx.de>
+Message-ID: <44B37933.7050703@info.ucl.ac.be>
+
+Martin Mann wrote:
+
+> Uff... what a discussion!
+>
+> thanks a lot! to give you a deeper look about my setting and what i 
+> want here a short description:
+>
+> i ve got a Branching "MartinsBranching" == MB.
+> this produces 2 types of branching descriptions: the standard 
+> PosValDesc == PVD and my own with multiple alternatives == MBD
+>
+> during the branching i decide on some special properties of the 
+> subproblem if i will branch into 2 (via PVD) or more subtrees (MBD). 
+> the corresponding branching description is returned.
+>
+> i ve got a global structure (accessible directly via my subclass of 
+> Space i am using in my problem) that handles the solution recognition.
+>
+> my MBD is able to detect if it is asked to commit a new branching 
+> alternative or is just doing recomputation. if asked for a new branch 
+> it checks if in the last branch a special solution was found. if thats 
+> the case it should skip this and the following alternatives of this MBD.
+>
+> you see i can detect very clear the choice point where i want to skip 
+> the remaining. as discussed here, it is not possible to prune the 
+> alternatives via propagation because during bracktracking and new 
+> branching this values might be needed.
+> also i dont think it is neccessary to rewrite the search engine, 
+> because the branching can do. the problem that appear is the cloning 
+> of some unneccessary Spaces in the search function that calls the 
+> branching::commit(..).
+>
+> so i agree with guido: it is not global enough for a BAB and not local 
+> enough for a propagator.
+> but a new search engine? ;) i am not frightened about (i ve done it in 
+> the beginning..) but hope i dont need it.. i want to keep the gecode 
+> changes as small as possible!
+>
+> hope this makes it clear
+>
+> my current way:
+> - currently my MB::commit(..) returns ES_FAILED, if it detects the 
+> question for a new branching alternative and the last branchings have 
+> leaded to a special solution.
+> (i wrote it doesnt function but actually right now i found the bug in 
+> my code.. ;) now it works fine)
+>
+> so the last open question is: any alternatives for skipping?
+>
+> the only one i see:
+> a) writing a new search engine that tests for skipping itself and 
+> removes the branching description directly
+>
+> anything else?
+>
+> so thanks for your patience and support, and that you ve read until here!
+>
+> martin
+>
+Dear Martin,
+
+The basic problem I have with the description of your problem is that it 
+is too attached to the implementation....If you describe your *problem* 
+without referring to your implementation, that would certainly help me.
+I thought that you simply wanted to impose conditional constraints 
+(e.g., W>2&Y>3 => X\=4 (because the solution you have involving X=4 
+under  W>2&Y>3 is already good enough)) each time you find a solution in 
+order to discard branches that (from your expert point of view) may not 
+lead to better solutions.
+But I now I realize that I have completely missed the point...
+Anyway, I have also enjoyed the discussion (and learned from it)!
+Cheers,
+Luis
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Jul 11 15:39:34 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 11 Jul 2006 15:39:34 +0200
+Subject: [gecode-users] Space access during ViewSelection?
+Message-ID: <44B3AA16.5000403@informatik.uni-freiburg.de>
+
+;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In 
+a function "int val(IntView &x)" the value to split on of the domain x 
+is determined.
+
+I would like to have access to the "father" Space of x...
+
+The reason is the usage of some further informations out of Space, to 
+select the value.
+Am I the only one who is interested in doing such things or may it be 
+interesting for others too? If that's the case may it be possible to add 
+the calling Space to the parameter list of "val(..)" in general? (I know 
+this would lead to some changes in the code.. and to incompatibilities 
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do 
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+
+
+From schulte at imit.kth.se  Tue Jul 11 15:50:41 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Jul 2006 15:50:41 +0200
+Subject: [gecode-users] Space access during ViewSelection?
+In-Reply-To: <44B3AA16.5000403@informatik.uni-freiburg.de>
+Message-ID: <003b01c6a4f0$ff8ced50$acd4ed82@beule>
+
+That's okay. We will do that anytime soon.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 3:40 PM
+To: gecode user list
+Subject: [gecode-users] Space access during ViewSelection?
+
+
+;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In 
+a function "int val(IntView &x)" the value to split on of the domain x 
+is determined.
+
+I would like to have access to the "father" Space of x...
+
+The reason is the usage of some further informations out of Space, to 
+select the value.
+Am I the only one who is interested in doing such things or may it be 
+interesting for others too? If that's the case may it be possible to add 
+the calling Space to the parameter list of "val(..)" in general? (I know 
+this would lead to some changes in the code.. and to incompatibilities 
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do 
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Tue Jul 11 16:00:43 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Jul 2006 16:00:43 +0200
+Subject: [gecode-users] Space access during ViewSelection?
+In-Reply-To: <003b01c6a4f0$ff8ced50$acd4ed82@beule>
+Message-ID: <004901c6a4f2$6657d170$acd4ed82@beule>
+
+Hmmm, I just had a look and it is not so obvious: would it be okay if the
+space would be passed as const? What does make more sense in this situation
+(I think const: because one should be able to ask the same space multiply
+for a description and always get the same description).
+
+Anyway, we are going to change the interface of branchings and branchin
+descriptions anyway: we decided to make branching descriptions mandatory
+given the huge importance they carry for efficient recomputation. This
+allows us to make the interfaces considerably simpler.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Christian Schulte
+Sent: Tuesday, July 11, 2006 3:51 PM
+To: 'Martin Mann'; 'gecode user list'
+Subject: RE: [gecode-users] Space access during ViewSelection?
+
+
+That's okay. We will do that anytime soon.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 3:40 PM
+To: gecode user list
+Subject: [gecode-users] Space access during ViewSelection?
+
+
+;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In 
+a function "int val(IntView &x)" the value to split on of the domain x 
+is determined.
+
+I would like to have access to the "father" Space of x...
+
+The reason is the usage of some further informations out of Space, to 
+select the value.
+Am I the only one who is interested in doing such things or may it be 
+interesting for others too? If that's the case may it be possible to add 
+the calling Space to the parameter list of "val(..)" in general? (I know 
+this would lead to some changes in the code.. and to incompatibilities 
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do 
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Jul 11 18:07:12 2006
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 11 Jul 2006 18:07:12 +0200
+Subject: [gecode-users] Space access during ViewSelection?
+In-Reply-To: <004901c6a4f2$6657d170$acd4ed82@beule>
+References: <004901c6a4f2$6657d170$acd4ed82@beule>
+Message-ID: <44B3CCB0.6020008@informatik.uni-freiburg.de>
+
+
+for me a const access is enough! (anyway better than static variables)
+
+also const makes sense for me, because it should be possible to get 
+further informations but not to change the space..
+
+is there any schedule for publication the changed interface?
+
+and maybe the same (space access) would be nice for view-selection too!?
+
+thanks
+
+Martin
+
+
+
+Christian Schulte schrieb:
+> Hmmm, I just had a look and it is not so obvious: would it be okay if the
+> space would be passed as const? What does make more sense in this situation
+> (I think const: because one should be able to ask the same space multiply
+> for a description and always get the same description).
+> 
+> Anyway, we are going to change the interface of branchings and branchin
+> descriptions anyway: we decided to make branching descriptions mandatory
+> given the huge importance they carry for efficient recomputation. This
+> allows us to make the interfaces considerably simpler.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Christian Schulte
+> Sent: Tuesday, July 11, 2006 3:51 PM
+> To: 'Martin Mann'; 'gecode user list'
+> Subject: RE: [gecode-users] Space access during ViewSelection?
+> 
+> 
+> That's okay. We will do that anytime soon.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Tuesday, July 11, 2006 3:40 PM
+> To: gecode user list
+> Subject: [gecode-users] Space access during ViewSelection?
+> 
+> 
+> ;)
+> 
+> the next ugly question is waiting:
+> 
+> This time I m fighting with value selection classes for my branching. In 
+> a function "int val(IntView &x)" the value to split on of the domain x 
+> is determined.
+> 
+> I would like to have access to the "father" Space of x...
+> 
+> The reason is the usage of some further informations out of Space, to 
+> select the value.
+> Am I the only one who is interested in doing such things or may it be 
+> interesting for others too? If that's the case may it be possible to add 
+> the calling Space to the parameter list of "val(..)" in general? (I know 
+> this would lead to some changes in the code.. and to incompatibilities 
+> with user defined value selections for older versions of gecode..)
+> 
+> Otherwise i ve got to do some static stuff I dont like, but that will do 
+> it for the moment.
+> 
+> Thanks for thinking about
+> 
+> Martin
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+From schulte at imit.kth.se  Tue Jul 11 19:55:07 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Jul 2006 19:55:07 +0200
+Subject: [gecode-users] Space access during ViewSelection?
+In-Reply-To: <44B3CCB0.6020008@informatik.uni-freiburg.de>
+Message-ID: <000601c6a513$261fae90$0401a8c0@tiny>
+
+Yes it will be also for views. The changes should appear in the svn trunk
+tomorrow.
+
+Christian 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 6:07 PM
+To: 'gecode user list'
+Subject: Re: [gecode-users] Space access during ViewSelection?
+
+
+
+for me a const access is enough! (anyway better than static variables)
+
+also const makes sense for me, because it should be possible to get 
+further informations but not to change the space..
+
+is there any schedule for publication the changed interface?
+
+and maybe the same (space access) would be nice for view-selection too!?
+
+thanks
+
+Martin
+
+
+
+Christian Schulte schrieb:
+> Hmmm, I just had a look and it is not so obvious: would it be okay if 
+> the space would be passed as const? What does make more sense in this 
+> situation (I think const: because one should be able to ask the same 
+> space multiply for a description and always get the same description).
+> 
+> Anyway, we are going to change the interface of branchings and 
+> branchin descriptions anyway: we decided to make branching 
+> descriptions mandatory given the huge importance they carry for 
+> efficient recomputation. This allows us to make the interfaces 
+> considerably simpler.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Christian Schulte
+> Sent: Tuesday, July 11, 2006 3:51 PM
+> To: 'Martin Mann'; 'gecode user list'
+> Subject: RE: [gecode-users] Space access during ViewSelection?
+> 
+> 
+> That's okay. We will do that anytime soon.
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Martin Mann
+> Sent: Tuesday, July 11, 2006 3:40 PM
+> To: gecode user list
+> Subject: [gecode-users] Space access during ViewSelection?
+> 
+> 
+> ;)
+> 
+> the next ugly question is waiting:
+> 
+> This time I m fighting with value selection classes for my branching. 
+> In
+> a function "int val(IntView &x)" the value to split on of the domain x 
+> is determined.
+> 
+> I would like to have access to the "father" Space of x...
+> 
+> The reason is the usage of some further informations out of Space, to
+> select the value.
+> Am I the only one who is interested in doing such things or may it be 
+> interesting for others too? If that's the case may it be possible to add 
+> the calling Space to the parameter list of "val(..)" in general? (I know 
+> this would lead to some changes in the code.. and to incompatibilities 
+> with user defined value selections for older versions of gecode..)
+> 
+> Otherwise i ve got to do some static stuff I dont like, but that will 
+> do
+> it for the moment.
+> 
+> Thanks for thinking about
+> 
+> Martin
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From schulte at imit.kth.se  Thu Jul 13 15:52:15 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 13 Jul 2006 15:52:15 +0200
+Subject: [gecode-users] CP 2006: Call for Participation
+Message-ID: <000501c6a683$8d2a6410$acd4ed82@beule>
+
+[sorry for multiple copies]
+
+                     Call for Participation
+
+                             CP 2006
+               Twelfth International Conference on
+        Principles and Practice of Constraint Programming
+
+
+                      September 24-29, 2006
+                Cit? des Congr?s - Nantes, France
+
+            http://www.sciences.univ-nantes.fr/cp06/
+
+
+Description
+
+The CP conference is the annual international conference on
+constraint programming, and it is concerned with all aspects of
+computing with constraints, including: algorithms, applications,
+environments, languages, models, and systems. CP 2006 includes a
+technical program, where presentations of theoretical and
+application papers, as well as invited talks and tutorials, aim
+at describing the best results and techniques in the
+state-of-the-art of constraint programming. Moreover, CP 2006
+continues the tradition of the CP doctoral program, in which PhD
+students can present their work, listen to tutorials on career
+and ethical issues, and discuss their work with senior
+researchers via a mentoring scheme. There will also be a number
+of workshops, where researchers will be able to meet in an
+informal setting and discuss their most recent ideas with their
+peers. 
+
+Special events
+
+CP 2006 will open on Sunday 24 September with CP-Tools-06, the
+first event in a yearly series addressing CP systems design and
+application development. During the conference, the 2006 ACP
+award will be given and a plenary half day workshop will be
+dedicated to the "next ten years of Constraint Programming".
+
+Conference site
+
+CP 2006 will be held at the Nantes Cit? des Congr?s. Nantes is a
+major center of the European West and the sixth largest town in
+France. The city, which is located on the Loire Estuary and 50km
+from the Atlantic coast, is famous for enjoying an exceptional
+quality of life. Nantes is at the heart of a highly efficient
+transportation network (high-speed trains from Paris, airport,
+motorways, tramway). The Nantes Cit? des Congr?s is directly
+accessible by shuttle from the airport, by bus from the city
+center, and is within ten-minute walking distance from the city
+center and the high-speed train station.
+
+Registration and accommodation
+
+We encourage you to register for the conference and make you
+hotel reservations.  All relevant information can be found on the
+conference's main web page,
+        http://www.sciences.univ-nantes.fr/cp06/
+
+Deadline for early registration:        August 15th, 2006 
+Deadline for accommodation:             August 30th, 2006
+
+
+We look forward to an exciting and inspiring conference in
+Nantes, France.
+
+CP 2006 Organizing Committee
+
+
+
+
+From schulte at imit.kth.se  Thu Jul 13 15:59:20 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 13 Jul 2006 15:59:20 +0200
+Subject: [gecode-users] CP 2006: Call for Demos
+Message-ID: <000601c6a684$8aba5900$acd4ed82@beule>
+
+[sorry for multiple copies]
+
+			 Call for Demos
+
+       To be held at the 12th International Conference on
+   Principles and Practice of Constraint Programming (CP 2006)
+			 Nantes, France
+
+		      25-29 September 2006
+
+The CP conference is the annual international conference on constraint
+programming and related areas. It is concerned with all aspects of
+computing with constraints, including: theory, algorithms, applications,
+environments, languages, models and systems.
+
+CP'06 will feature session(s) devoted to demos of either academic or
+industrial tools and applications. Demos are solicited from all
+disciplines related to constraints and from practitioners and academics
+alike. Demos that focus on innovative research ideas, actual systems or
+applications that critically depend on constraint technology are
+strongly encouraged. Specific topics of interest include (but are not
+limited to): Constraint Solvers (Finite Domain, Continuous, Local,
+Satisfiability based, etc); Modeling Tools / Environments; Applications
+in any area based on constraint technologies.
+
+SUBMISSION
+----------
+
+Send a one-page description of your demo to ldm at engr.uconn.edu in PDF
+format by the deadline listed below. The one page document should
+include
+
+* The contact person (affiliation and contact information)
+* The content of the demo: what will be shown.
+* Specific needs for the demo (you are expected to bring your own hardware)
+
+PARTICIPATION
+-------------
+
+At least one author of each accepted demo must attend the
+conference to demo his/her system.
+
+IMPORTANT DATES
+---------------
+
+One-page demo descriptions:	August 6, 2006
+Notification of acceptance:	August 13, 2006
+Conference dates:		September 24-29, 2006
+
+FURTHER INFORMATION
+-------------------
+
+CP'06 Conference:   http://www.sciences.univ-nantes.fr/cp06/
+
+
+
+
+From schulte at imit.kth.se  Thu Jul 13 16:06:36 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 13 Jul 2006 16:06:36 +0200
+Subject: [gecode-users] CP-TOOLS-06: First International Day on Constraint
+	Programming Tools
+Message-ID: <000a01c6a685$8e342100$acd4ed82@beule>
+
+First International Day on Constraint Programming Tools (CP-TOOLS-06)
+		   (In conjunction with CP'06)
+		       September 24, 2006
+		      URL: www.cptools.org
+
+Description
+===========
+
+Much of the success and recognition of constraint programming
+stems from constraint programming systems and their successful
+use for practical applications. By providing rich languages and
+sophisticated implementations, constraint programming tools model
+complex applications, shorten development time, and produce code
+that is easier to maintain and extend.
+
+The goal of CP-TOOLS series is to foster the development of
+constraint programming tools, to showcase their applications, to
+educate young researchers in the use of CP tools, and to
+encourage cross-fertilization in tool development. CP-TOOLS-06 is
+the first event in this series that will take place yearly in
+conjunction to a major conference.
+
+The theme of the first day in the series is to expose young
+researchers to a broad set of constraint-programming tools, to
+the system-oriented research process, and to research themes in
+the area. The CP-Tools program will consist of two invited talks
+exploring these issues from industrial and academic standpoints,
+presentations of the participating systems, and two panels. The
+system presentations will collectively present the spectrum of
+capabilities available in modern CP tools. The first panel will
+focus on promoting system research and will discuss what makes it
+so unique. The second panel will approach research themes and
+trends that participants are exploring or are poised to
+explore. Participating systems may be commercial or academic and
+are expected to be available.
+
+Up-to-date information is available at
+        www.cptools.org
+
+
+Invited Speakers
+================
+
+Jean-Fran?ois Puget, ILOG, France
+Christian Schulte, KTH, Sweden
+
+
+Submission of Abstracts
+=======================
+
+Abstracts of system descriptions are sollicited from all areas of
+constraint programming provided that the described system be
+available. We expect authors to address at least the following
+aspects in their abstract: system goals and area (research,
+industrial, education), technical contributions, distinguishing
+aspects, problematic aspects, relation to other systems,
+availability, applications, future development plans. Based on
+submitted abstracts, systems will be selected for presentation.
+
+
+Important Dates
+===============
+
+August  6, 2006         Deadline for submissions
+August 13, 2006         Notification
+
+Abstracts should be sent to the three organizers.
+
+
+Organization
+============
+
+Laurent Michel (ldm at engr.uconn.edu)
+Christian Schulte (schulte at imit.kth.se?)
+Pascal Van Hentenryck (pvh at cs.brown.edu)
+
+
+Sponsors
+========
+
+SICS (Swedish Institute of Computer Science)
+4C (Cork Constraint Computation Centre, Ireland)
+
+
+Program Committee
+=================
+
+Mats Carlsson, SICS, Sweden
+Yves Colombani, Dash Optimization, UK
+Yan Georget, Koalog, France
+Laurent Granvilliers, U Nantes, France
+Narendra Jussien, EMN, LINA, France
+Fran?ois Laburthe, Bouygues, France
+Laurent Michel, U of Connecticut, USA
+Jean-Fran?ois Puget, ILOG, France
+Jean-Charles R?gin, ILOG, France
+Christian Schulte, KTH, Sweden
+Marc van Dongen, 4C, Ireland
+Pascal Van Hentenryck, Brown U, USA
+Mark Wallace, Monash U, Australia
+Roland Yap, NUS, Singapore
+
+
+
+
+From tack at ps.uni-sb.de  Wed Jul 19 20:52:00 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 Jul 2006 20:52:00 +0200
+Subject: [gecode-users] Gecode 1.2.1 released
+Message-ID: <85E113B3-27F5-432E-ADDF-21D2E6547F7B@ps.uni-sb.de>
+
+We would like to announce the release of
+
+                 Gecode 1.2.1
+            http://www.gecode.org/
+
+In addition to the usual fixes and improvements, the biggest change  
+is that all branchings now must support branching descriptions. This  
+also entails straightforward changes (simplifications) to search- 
+related space operations and to the implementation of search engines.
+
+For a complete changelog, see
+http://www.gecode.org/gecode-doc-latest/PageChanges_1_2_1.html
+
+Cheers,
+	The Gecode Team
+
+
+
+
+From rafaparafernalia at gmail.com  Fri Jul 21 02:35:57 2006
+From: rafaparafernalia at gmail.com (Rafael Meneses)
+Date: Thu, 20 Jul 2006 20:35:57 -0400
+Subject: [gecode-users] Bug....
+Message-ID: <d701e0390607201735k40eec6c1k739f689a64ba514b@mail.gmail.com>
+
+Hi,
+
+In "lin-expr.icc", the operator:
+
+
+forceinline Gecode::MiniModel::LinExpr
+operator-(int c,
+         const Gecode::MiniModel::LinExpr& t) {
+return Gecode::MiniModel::LinExpr(t, c, -1);
+}
+
+IMHO is incorrect, I think that must be:
+
+return Gecode::MiniModel::LinExpr(t,-c,-1);
+
+
+Regards..
+
+-- 
+Rafael Meneses
+http://www.zeke.cl
+http://www.labsd.inf.utfsm.cl/~rmeneses
+
+
+
+From tack at ps.uni-sb.de  Fri Jul 21 10:21:22 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 21 Jul 2006 10:21:22 +0200
+Subject: [gecode-users] Bug....
+In-Reply-To: <d701e0390607201735k40eec6c1k739f689a64ba514b@mail.gmail.com>
+References: <d701e0390607201735k40eec6c1k739f689a64ba514b@mail.gmail.com>
+Message-ID: <200607211021.22700.tack@ps.uni-sb.de>
+
+Hi.
+> In "lin-expr.icc", the operator:
+> forceinline Gecode::MiniModel::LinExpr
+> operator-(int c,
+>          const Gecode::MiniModel::LinExpr& t) {
+> return Gecode::MiniModel::LinExpr(t, c, -1);
+> }
+>
+> IMHO is incorrect, I think that must be:
+>
+> return Gecode::MiniModel::LinExpr(t,-c,-1);
+
+No, this operator is correct. What is incorrect is the documentation of 
+
+LinExpr(const LinExpr& e, int c, int s);
+
+It should read 
+Create expression s*e+c (where s is the sign)
+
+Thanks for the report!
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+From tack at ps.uni-sb.de  Tue Jul 25 17:22:07 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 25 Jul 2006 17:22:07 +0200
+Subject: [gecode-users] Gecode 1.2.2 released
+Message-ID: <544C9E9A-A289-4B73-A603-E7D4341D0592@ps.uni-sb.de>
+
+We would like to announce the release of
+
+                 Gecode 1.2.2
+            http://www.gecode.org/
+
+This release switches recomputation back on and removes some  
+experimental code that had sneaked into the system.
+
+For a complete changelog, see
+http://www.gecode.org/gecode-doc-latest/PageChanges_1_2_2.html
+
+Cheers,
+	The Gecode Team
+
+
+
+
+From samehansary at gmail.com  Wed Jul 26 19:41:31 2006
+From: samehansary at gmail.com (Sameh El-Ansary)
+Date: Wed, 26 Jul 2006 20:41:31 +0300
+Subject: [gecode-users] Simple Reified relation
+Message-ID: <c2631af50607261041v12438c8boe4aa4ba28b8b9c30@mail.gmail.com>
+
+ Hi,
+I am trying to do something very simple in Gecode with reified constraints.
+I would like to do the follwoing:
+- x ranges from 4 to 6
+- b is a boolean variable
+- (x=:4) reified in  b
+- When I assign x to 5, I expect b to be equal to 0, but b still ranges from
+0..1 !!
+
+i.e. I am trying to do what I would write in Oz as:
+declare
+X B
+X :: 4#6
+B :: 0#1
+(X =:4)=B
+X=:5
+{Show [X B]}
+This shows: [5 0]
+
+I wrote that in Gecode by using unmanaged c++ in visual studio 2005 with the
+windows binaries provided on the Gecode website as follows:
+
+//--------------------------
+class Wires : public Space {
+public:
+ Wires(){
+  IntVar x(this,4,6);
+  BoolVar b(this,0,1);
+  rel(this,x,IRT_EQ,4,b);
+  rel(this,x,IRT_EQ,5);
+        cout << "x="<< x << " b= " << b << "\n";
+ }
+ Wires(bool share, Wires& e) : Space(share,e) {}
+ virtual Space*  copy(bool share)
+ { return new Wires(share,*this);
+ }
+};
+ //--------------------------
+This outputs:
+x=5 b= [0..1]
+I expected it to be
+ x=5 b= 0
+
+What am I missing here?
+
+I also believe there is a small typo in the documentation on relations
+void  Gecode::rel (Space *home, IntVar x, IntRelType r, int c, BoolVar b,
+IntConLevel icl=ICL_DEF)
+    Post propagator for .x  ~_r  c
+I think it was meant to be
+    Post propagator for .(x  ~_r  c)  <=> b
+Or there is something I am really not getting in reifying relations!!
+
+Sameh
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060726/bec09f1f/attachment.htm>
+
+From tack at ps.uni-sb.de  Wed Jul 26 21:11:30 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 26 Jul 2006 21:11:30 +0200
+Subject: [gecode-users] Simple Reified relation
+In-Reply-To: <c2631af50607261041v12438c8boe4aa4ba28b8b9c30@mail.gmail.com>
+References: <c2631af50607261041v12438c8boe4aa4ba28b8b9c30@mail.gmail.com>
+Message-ID: <3B336045-1721-4A4C-AF7E-01ABBFE9E702@ps.uni-sb.de>
+
+Hi.
+
+> Hi,
+> I am trying to do something very simple in Gecode with reified  
+> constraints.
+> I would like to do the follwoing:
+> - x ranges from 4 to 6
+> - b is a boolean variable
+> - (x=:4) reified in  b
+> - When I assign x to 5, I expect b to be equal to 0, but b still  
+> ranges from 0..1 !!
+
+What you experience here is one of the major differences between  
+Mozart and Gecode: Gecode does not compute a fixpoint unless you ask  
+for the status of a space, whereas Mozart will compute with the given  
+domains as early as possible. In the concrete example, this means  
+that b will only be constrained to 0 when you e.g. apply a search  
+engine to the space, or manually call its status member function.
+
+>  I also believe there is a small typo in the documentation on  
+> relations
+> void  Gecode::rel (Space *home, IntVar x, IntRelType r, int c,  
+> BoolVar b, IntConLevel icl=ICL_DEF)
+>     Post propagator for .x  ~_r  c
+> I think it was meant to be
+>     Post propagator for .(x  ~_r  c)  <=> b
+> Or there is something I am really not getting in reifying relations!!
+
+No, you're of course right. Thank you for the bug report, I've  
+changed the documentation accordingly.
+
+Cheers,
+	Guido
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060726/24b18135/attachment.htm>
+
+From librarama at gmail.com  Thu Jul 27 18:38:57 2006
+From: librarama at gmail.com (Roberto Pinto)
+Date: Thu, 27 Jul 2006 18:38:57 +0200
+Subject: [gecode-users] How do you debug your progam?
+Message-ID: <22c11aa80607270938o3d20f146y2746839ede092542@mail.gmail.com>
+
+Dear all,
+
+I'm not referring to the C++ code, but to the set of constraint that
+describe your problem:
+I don't know if my question will be relevant for most of you, anyway,
+I would ask how do you debug your constraint program?
+
+Of course, from a theoretical point of view, thinking before doing is
+a best-practice, but a bug could always occur and maybe you are not
+able to find it even after a deep analysis.
+
+In my case, I have e (theoretically) really simple involving two
+cumulatives constraints (just a bunch of code hereafter):
+
+[...]
+
+for(int i = 0; i < NUM_JOB; i++)
+		{
+		post(this, e_1[i] <= s_2[i], opt.icl);  //second stage starts after
+the end of the first
+		post(this, e_2[i] <= duedates[i], opt.icl); //meet the due-date
+		}
+
+	cumulatives(this, m_1, s_1, duration, e_1, requirements,  limit, true);
+              //cumulative constraint on the first stage machines
+	cumulatives(this, m_2, s_2, duration, e_2, requirements,  limit, true);
+              //cumulative constraint on the first stage machines
+[...]
+
+I think it is clear enough: it is just a job-shop scheduling problem
+with assigned due-date.
+If I fix the routing (that is, if I assign the machine variables m_1
+and m_2 to each job) the solution is immediate.
+With flexible routing (that is, the machines are not assigned a
+priori), even in little cases (5 job, 2 machines in each stage) the
+solver goes around without converging to any solution.
+
+Any idea where to look?
+
+I would also ask if it is somewhat possible to "follow" the variable
+assignment procedure step-by-step (of course, on very simple example
+with few variables) in order to "visualize" the propagation of
+constraints and the backtracking points.
+
+In other words, I would like to print out all the variable assignment,
+one by one, along with a message saying "Hey, I'm backtracking now!"
+or something like that.
+Why that? because this is the only way I know to understand where my
+simple programs stuck into.
+Maybe, I mistakenly posted a constraint and I'm not aware of that, but
+following the evolution of the assignment could be possible to
+highlight the  problem.
+
+Do you think it would be possible (easily) with Gecode?
+Or better, you could give me more clever hints in ordet to debug my programs.
+
+TIA
+Roberto
+
+
+
+From tack at ps.uni-sb.de  Thu Jul 27 22:18:08 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 27 Jul 2006 22:18:08 +0200
+Subject: [gecode-users] How do you debug your progam?
+In-Reply-To: <22c11aa80607270938o3d20f146y2746839ede092542@mail.gmail.com>
+References: <22c11aa80607270938o3d20f146y2746839ede092542@mail.gmail.com>
+Message-ID: <7AEDBC9C-0D37-4DE0-8B16-E768F2683002@ps.uni-sb.de>
+
+Hi Roberto.
+
+> I'm not referring to the C++ code, but to the set of constraint that
+> describe your problem:
+> I don't know if my question will be relevant for most of you, anyway,
+> I would ask how do you debug your constraint program?
+
+As you have already noticed, debugging constraint programs requires  
+different tools than debugging C++ programs.
+
+> Of course, from a theoretical point of view, thinking before doing is
+> a best-practice, but a bug could always occur and maybe you are not
+> able to find it even after a deep analysis.
+
+In many cases, there isn't even a real bug in your model, but it just  
+doesn't propagate enough and the search space is huge.
+
+> [...]
+>
+> Any idea where to look?
+>
+> I would also ask if it is somewhat possible to "follow" the variable
+> assignment procedure step-by-step (of course, on very simple example
+> with few variables) in order to "visualize" the propagation of
+> constraints and the backtracking points.
+
+This is basically what one would use a graphical tool such as the  
+Mozart Explorer for. You get a visualization of (a part of) the  
+search tree, and you can click on the nodes and get information about  
+the state of the search at that point.
+We don't have an explorer for Gecode yet, but we have one for our  
+Java interface Gecode/J. This is not officially released yet, but  
+quite functional. It has been used for teaching CP courses, and the  
+documentation and source code are available from the course pages, e.g.:
+http://www.imit.kth.se/courses/2G1515/software.html
+
+We are setting up web pages for Gecode/J at
+http://www.gecode.org/gecodej
+
+These are pretty preliminary right now, but you can expect to find  
+more content in a few days.
+
+The downside of using Gecode/J is that you would have to re-model  
+your problem in Java. This is however not too hard, as the interface  
+is nearly the same as in C++.
+
+> In other words, I would like to print out all the variable assignment,
+> one by one, along with a message saying "Hey, I'm backtracking now!"
+> or something like that.
+
+If you just want some debugging output during search, and you don't  
+want to switch to Java for debugging, you can write your own  
+instrumented search engine. Take one of the available search engines  
+as a starting point, and simply add debugging output at the  
+appropriate places.
+
+For instance, take the file gecode/search/dfs.icc and add some  
+debugging output to the DfsEngine::explore(void) function - you'll  
+immediately see the relevant parts.
+
+> Do you think it would be possible (easily) with Gecode?
+
+Gecode offers quite some flexibility, as it is easy to write your own  
+search engines. After all, something like the Gecode/J explorer is  
+written completely on top of the existing abstractions for search in  
+Gecode. I hope we can offer more debugging tools in the future, but  
+currently we are focusing on other issues.
+
+Hope this helps a bit,
+
+	Guido
+
+
+
+
+
+From librarama at gmail.com  Fri Jul 28 09:37:32 2006
+From: librarama at gmail.com (Roberto Pinto)
+Date: Fri, 28 Jul 2006 09:37:32 +0200
+Subject: [gecode-users] How do you debug your progam?
+In-Reply-To: <7AEDBC9C-0D37-4DE0-8B16-E768F2683002@ps.uni-sb.de>
+References: <22c11aa80607270938o3d20f146y2746839ede092542@mail.gmail.com>
+	<7AEDBC9C-0D37-4DE0-8B16-E768F2683002@ps.uni-sb.de>
+Message-ID: <22c11aa80607280037u249867e9xd7ac25b9ea365a27@mail.gmail.com>
+
+On 7/27/06, Guido Tack <tack at ps.uni-sb.de> wrote:
+
+> In many cases, there isn't even a real bug in your model, but it just
+> doesn't propagate enough and the search space is huge.
+
+I don't know, at the beginning I was more inclined to think that there
+was a bug in my program, since my example was so small that sounded
+very strange to
+me it could not be solved within a handful of seconds, at most.
+Anyway, after having read your reply, I have tried to give it another
+chance: "inspired" by your observation above, I simply tried to invert
+the branching order and it seems to work pretty well!!!!
+
+I figured out this "solution" trying to follow the assignment process
+in my mind and noticing that the branching order I assumed lead to too
+many backtracks.
+I still have to come a long way to clearly understand all the facets of CP...
+
+> We are setting up web pages for Gecode/J at
+> http://www.gecode.org/gecodej
+
+The Mozart-fashion Explorer is EXACTLY what I had in mind.
+
+> I hope we can offer more debugging tools in the future, but
+> currently we are focusing on other issues.
+
+Thank you very much for your reply, suggestions and work with Gecode
+improvements.
+Roberto
+
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From torstenanders at gmx.de  Fri Jul 28 13:10:53 2006
+From: torstenanders at gmx.de (Torsten Anders)
+Date: Fri, 28 Jul 2006 13:10:53 +0200
+Subject: [gecode-users] CSPs with bulky static data 
+Message-ID: <7d24157e336fddabbe4bf1a794eab20d@gmx.de>
+
+Dear all,
+
+I am an Oz programmer with no experience in Gecode yet, please forgive 
+my newbie question.
+
+Many of my Oz CSPs eat *very* much memory because I am using large data 
+structures. Still, most data does not change at all during the search 
+process, but is still copied because it is part of the script. I do 
+understand that the Oz constraint store _implicitly_ incorporates 
+whatever value is part of the script (computational spaces in Oz 
+encapsulate speculative computations on any Oz data and each variable 
+can cause a fail).
+
+I saw that in Gecode, on the other hand, variables are _explicitly_ 
+handed to the computational space. Does this mean that the Gecode user 
+has explicit control what variable is incorporated in the constraint 
+store (and is copied during the search process)? In other words, can a 
+Gecode CSP involve large (mainly static) data structures without 
+copying all the static data?
+
+Thank you very much!
+
+Best,
+Torsten
+
+PS: I figure I could at least reduce my problem also within Oz by 
+putting my data structure outside the script and communicating between 
+my script and this data only via a port. Yet, that complicates the 
+definition of the CSP. Moreover, I need potentially all information 
+contained in the data structure, e.g., to decide to which variables I 
+what to apply constraints. I do not know whether this communication via 
+a port also affects what is stored in the constraint store.
+
+--
+Torsten Anders
+Sonic Arts Research Centre ? Queen's University Belfast
+Frankstr. 49 ? D-50996 K?ln
+Tel: +49-221-3980750
+http://www.torsten-anders.de
+http://strasheela.sourceforge.net
+
+
+
+From schulte at imit.kth.se  Fri Jul 28 13:45:12 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 28 Jul 2006 13:45:12 +0200
+Subject: [gecode-users] CSPs with bulky static data 
+In-Reply-To: <7d24157e336fddabbe4bf1a794eab20d@gmx.de>
+Message-ID: <000701c6b23b$495d6570$0401a8c0@tiny>
+
+Dear Torsten,
+
+yes indeed you only need to copy data structures that contain variables
+(which are typically just arrays of variables). Anything else is under your
+control.
+
+A more general basline is: whatever you want to be specific to a space you
+have to copy yourself. The rest you just share among all spaces.
+
+Cheers
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Torsten Anders
+Sent: Friday, July 28, 2006 1:11 PM
+To: users at gecode.org
+Subject: [gecode-users] CSPs with bulky static data 
+
+
+Dear all,
+
+I am an Oz programmer with no experience in Gecode yet, please forgive 
+my newbie question.
+
+Many of my Oz CSPs eat *very* much memory because I am using large data 
+structures. Still, most data does not change at all during the search 
+process, but is still copied because it is part of the script. I do 
+understand that the Oz constraint store _implicitly_ incorporates 
+whatever value is part of the script (computational spaces in Oz 
+encapsulate speculative computations on any Oz data and each variable 
+can cause a fail).
+
+I saw that in Gecode, on the other hand, variables are _explicitly_ 
+handed to the computational space. Does this mean that the Gecode user 
+has explicit control what variable is incorporated in the constraint 
+store (and is copied during the search process)? In other words, can a 
+Gecode CSP involve large (mainly static) data structures without 
+copying all the static data?
+
+Thank you very much!
+
+Best,
+Torsten
+
+PS: I figure I could at least reduce my problem also within Oz by 
+putting my data structure outside the script and communicating between 
+my script and this data only via a port. Yet, that complicates the 
+definition of the CSP. Moreover, I need potentially all information 
+contained in the data structure, e.g., to decide to which variables I 
+what to apply constraints. I do not know whether this communication via 
+a port also affects what is stored in the constraint store.
+
+--
+Torsten Anders
+Sonic Arts Research Centre ? Queen's University Belfast Frankstr. 49 ?
+D-50996 K?ln
+Tel: +49-221-3980750
+http://www.torsten-anders.de
+http://strasheela.sourceforge.net
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From tack at ps.uni-sb.de  Fri Jul 28 13:47:38 2006
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 28 Jul 2006 13:47:38 +0200
+Subject: [gecode-users] CSPs with bulky static data 
+In-Reply-To: <7d24157e336fddabbe4bf1a794eab20d@gmx.de>
+References: <7d24157e336fddabbe4bf1a794eab20d@gmx.de>
+Message-ID: <1C6385C9-FBAB-4168-9CE8-D989879D4736@ps.uni-sb.de>
+
+Hi Torsten
+
+> I am an Oz programmer with no experience in Gecode yet, please  
+> forgive my newbie question.
+
+All questions welcome on this list ;-)
+
+> Many of my Oz CSPs eat *very* much memory because I am using large  
+> data structures. Still, most data does not change at all during the  
+> search process, but is still copied because it is part of the  
+> script. I do understand that the Oz constraint store _implicitly_  
+> incorporates whatever value is part of the script (computational  
+> spaces in Oz encapsulate speculative computations on any Oz data  
+> and each variable can cause a fail).
+>
+> I saw that in Gecode, on the other hand, variables are _explicitly_  
+> handed to the computational space. Does this mean that the Gecode  
+> user has explicit control what variable is incorporated in the  
+> constraint store (and is copied during the search process)? In  
+> other words, can a Gecode CSP involve large (mainly static) data  
+> structures without copying all the static data?
+
+You could make use of two mechanisms: either you have the data as  
+static members of your space, or you encapsulate the data in some  
+other object and store a pointer to that object in your space. When  
+copying a space, you merely copy the pointer. If you allocate the  
+object outside the search engine, you do not even need to use  
+reference counting for the data object, just delete it when you're  
+done with search.
+
+> PS: I figure I could at least reduce my problem also within Oz by  
+> putting my data structure outside the script and communicating  
+> between my script and this data only via a port. Yet, that  
+> complicates the definition of the CSP. Moreover, I need potentially  
+> all information contained in the data structure, e.g., to decide to  
+> which variables I what to apply constraints. I do not know whether  
+> this communication via a port also affects what is stored in the  
+> constraint store.
+
+You won't need any communication infrastructure (like ports) in  
+Gecode, as a space is nothing but a plain C++ object. Just keep your  
+data somewhere and access it "from within the space".
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20060728/136b01f5/attachment.htm>
+
+From torstenanders at gmx.de  Fri Jul 28 14:51:32 2006
+From: torstenanders at gmx.de (Torsten Anders)
+Date: Fri, 28 Jul 2006 14:51:32 +0200
+Subject: [gecode-users] CSPs with bulky static data 
+In-Reply-To: <000701c6b23b$495d6570$0401a8c0@tiny>
+References: <000701c6b23b$495d6570$0401a8c0@tiny>
+Message-ID: <7188600e4f24187e5378edb481b53e33@gmx.de>
+
+Dear Christian and Guido,
+
+Thank you both very much for your incredibly quick response. This is 
+indeed very encouraging to hear! Here is a related question.
+
+Currently, my bulky data structure in the CSP simply contains the 
+constrained variables. As the whole data is copied, the data structure 
+always reflects what is currently known about the variable values. In 
+the CSP definition, my constraint application mechanisms process the 
+data structure to know which constraint is applied to which set of 
+variables. Also my distribution (branching) strategies traverse this 
+data structure, exploit the current value of variables and what the 
+variables mean in the data structure to decide which variable to 
+distribute next.
+
+How would I reproduce something similar in Gecode such that I leave the 
+bulky static data outside the computational space? I need (i) the data 
+which is outside the space, (ii) the variables inside the space, and 
+(iii) also some bidirectional linking between both. For instance, every 
+variable might be 'tagged' with a unique integer such that I can access 
+the variable when I have the integer and vice versa (e.g. to get the ID 
+for some variable, every variable is put in some simple data structure 
+containing the variable and the ID; to get the variable for some ID, 
+all variables are also stored in an array).
+
+This linking would then allow to again traverse the data structure as 
+if it contains the variables, although the data structure is actually 
+outside and the variables are inside the space. I would perform such a 
+traversal to apply my constraints to the variables. Moreover, my Gecode 
+branching strategy would process a sequence with all the simple data 
+structures containing the variable and the ID (i.e. the branching 
+strategy has access to the present value of the variables and the data 
+outside the space to decide which variable to distribute next).
+
+Does such an approach sound plausible for you?
+
+Thank you very much indeed!
+
+Best,
+Torsten
+
+--
+Torsten Anders
+Sonic Arts Research Centre ? Queen's University Belfast
+Frankstr. 49 ? D-50996 K?ln
+Tel: +49-221-3980750
+http://www.torsten-anders.de
+http://strasheela.sourceforge.net
+
+
+
+
+From schulte at imit.kth.se  Mon Jul 31 09:53:12 2006
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 31 Jul 2006 09:53:12 +0200
+Subject: [gecode-users] CSPs with bulky static data 
+In-Reply-To: <7188600e4f24187e5378edb481b53e33@gmx.de>
+Message-ID: <000c01c6b476$5f8af280$acd4ed82@beule>
+
+Dear Torsten,
+
+Absolutely: your idea as a an instance of the common computer-science
+principle "if you have a problem, just introduce one more level of
+indirection". Here the level of indirection would be to make the bulky
+datastructure space independent by having identifiers rather than actual
+variables. The a space has a mapping of identifiers to variables (basically
+acting as a closure).
+
+Exactly the same thing I would try first and actuallt the Alice interface to
+Gecode uses a similar technique (if memory serves me right, Guido knows more
+here).
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Torsten Anders
+Sent: Friday, July 28, 2006 2:52 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] CSPs with bulky static data 
+
+
+Dear Christian and Guido,
+
+Thank you both very much for your incredibly quick response. This is 
+indeed very encouraging to hear! Here is a related question.
+
+Currently, my bulky data structure in the CSP simply contains the 
+constrained variables. As the whole data is copied, the data structure 
+always reflects what is currently known about the variable values. In 
+the CSP definition, my constraint application mechanisms process the 
+data structure to know which constraint is applied to which set of 
+variables. Also my distribution (branching) strategies traverse this 
+data structure, exploit the current value of variables and what the 
+variables mean in the data structure to decide which variable to 
+distribute next.
+
+How would I reproduce something similar in Gecode such that I leave the 
+bulky static data outside the computational space? I need (i) the data 
+which is outside the space, (ii) the variables inside the space, and 
+(iii) also some bidirectional linking between both. For instance, every 
+variable might be 'tagged' with a unique integer such that I can access 
+the variable when I have the integer and vice versa (e.g. to get the ID 
+for some variable, every variable is put in some simple data structure 
+containing the variable and the ID; to get the variable for some ID, 
+all variables are also stored in an array).
+
+This linking would then allow to again traverse the data structure as 
+if it contains the variables, although the data structure is actually 
+outside and the variables are inside the space. I would perform such a 
+traversal to apply my constraints to the variables. Moreover, my Gecode 
+branching strategy would process a sequence with all the simple data 
+structures containing the variable and the ID (i.e. the branching 
+strategy has access to the present value of the variables and the data 
+outside the space to decide which variable to distribute next).
+
+Does such an approach sound plausible for you?
+
+Thank you very much indeed!
+
+Best,
+Torsten
+
+--
+Torsten Anders
+Sonic Arts Research Centre ? Queen's University Belfast Frankstr. 49 ?
+D-50996 K?ln
+Tel: +49-221-3980750
+http://www.torsten-anders.de
+http://strasheela.sourceforge.net
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+

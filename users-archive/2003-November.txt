@@ -1,0 +1,1404 @@
+From schulte at imit.kth.se  Tue Nov  4 19:02:04 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 4 Nov 2003 19:02:04 +0100
+Subject: [Gecode] RE: PowerB
+In-Reply-To: <3F9E3685.5020506@ps.uni-sb.de>
+Message-ID: <003301c3a2fd$c40ba930$360fed82@mushu>
+
+Hej everybody,
+
+[Gabor: I am sending the answer to the gecode list as it might be of general
+interest]
+
+And of course my aplogies for delay.
+
+Christian
+
+> I added my first propagator, try examples/power1 and power2. 
+> Don't look at the "algorithm", I only care about using the interfaces 
+> properly for now.
+> I shamelessly copied everything from your code, and then spent 2 days 
+> trying to understand what I did :-)
+> 
+> Questions:
+> 0,
+> I used the eclipse.org IDE, did it do anything nasty to the 
+> source that 
+> bothers you? (CR/LFs, tabs to spaces, etc)
+> I can try to configure it more, or just ditch it and learn 
+> Emacs :-)
+
+As I am using Windows, the sources are mistreated anyway.
+ 
+> 1, If a propagator wants to replace itself with a 
+> simpler one, do you use 
+> the post functions from the API or create the propagator 
+> instance directly? 2, (dual of 1,) Do you put the "first 
+> time" smartness into the post functions or the 
+> propagator constructors?
+> I mean I've seen it in a post function, but was that by design?
+
+YOU CAN'T USE THE POST FUNCTIONS FROM THE API! The reason is that they
+actually work on different datastructures for passing arguments.
+
+The right architecture should be as follows:
+ 1. The API function does preprocessing on the arguments, creates the
+appropriate variable arrays to be passed to the propagators proper.
+    The last point happens automatically when implicitly casting a IntArgs
+to VarArray<IntVar>.
+    Then, a propagator-based (maybe a static method) post-method is invoked.
+
+ 2. Then the propagator-based post-method decides what is the right
+propagtor (typically some appropriate variant) to create.
+
+ 3. The propagator constructor does the real job of initializing a
+propagator.
+
+Unfortunately, quite often I have combined 2. and 3. This needs to be fixed
+eventually.
+
+Now getting back to your real question: Typically, you will go for 3. when
+replacing a propgator. You never go for 1. as you don't want to create new
+variable arrays (they are just resued for the newly created propagator). So,
+in a fixed system you would also have the choice between 2. and 3.
+
+> 3,
+> How would you "cast" an IntVar into a BoolVar?
+> My propagator wants to replace itself with a reified 
+> constraint: 0^b=c  <=>  c=(b==0) 4, (generalisation of 3,) Do 
+> you have a short summary or some easy to read code about the 
+> relationships of the different types related to domain 
+> variables and how 
+> to convert between them?
+> [Core](Int|Bool)Var ...
+> Something tells me a bool is just an int but you exploit knowing it's 
+> 0/1 valued statically :-)
+
+You are right, the difference is just in the static type-system.
+
+Hmmm, don't know. What needs to be done is adding an implicit constructor to
+BoolVar taking an IntVar as argument. If you like, you can try that. What
+will happen is easy: You just create a boolvar (and might even check by
+assertions that it satisifies the 0/1 restrictions). Remember it is just a
+pointer to a CoreIntVar.
+
+> 5,
+> I know this is a stupid question, maybe I just did not sleep 
+> enough: I don't understand why doing ceil/floor on integer 
+> valued floats works.  
+> Looks like the 100dB amplification of Braun noise to me, but 
+> I'm just an 
+> engineer... ;-)
+> I mean it's pot luck whether floor(ln(4.0)/ln(2.0))  is 1 or 
+> 2, right? 6, Do you have any preference in unit testing 
+> frameworks? Anything against 
+> CppUnit?
+
+Yes, might be. But maybe that means you have to resort to exact algorithms
+(integer-based) for log (ld). Why ln to start with?
+
+
+
+
+From duchier at ps.uni-sb.de  Tue Nov  4 20:36:20 2003
+From: duchier at ps.uni-sb.de (Denys Duchier)
+Date: Tue, 04 Nov 2003 20:36:20 +0100
+Subject: [Gecode] RE: PowerB
+In-Reply-To: <003301c3a2fd$c40ba930$360fed82@mushu> (Christian Schulte's
+	message of "Tue, 4 Nov 2003 19:02:04 +0100")
+References: <003301c3a2fd$c40ba930$360fed82@mushu>
+Message-ID: <8665i0lydn.fsf@speedy.ps.uni-sb.de>
+
+"Christian Schulte" <schulte at imit.kth.se> writes:
+
+> [Gabor: I am sending the answer to the gecode list as it might be of general
+> interest]
+
+Actually all gecode-related emails should go to this list.  This way,
+we all learn from the questions and answers, and we are kept up to
+date on what is happening.  That's the whole point.
+
+Cheers,
+
+-- 
+Dr. Denys Duchier
+?quipe Calligramme
+LORIA, Nancy, FRANCE
+
+
+From schulte at imit.kth.se  Wed Nov  5 10:26:35 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 5 Nov 2003 10:26:35 +0100
+Subject: [Gecode] FW: PowerB
+Message-ID: <000601c3a37e$eb35bc40$360fed82@mushu>
+
+>From Gabor...
+
+Gabor: Please use the Gecode list as Denys pointed out. Just direct
+questions there. It'll be most likely me for some time to come to answer
+most questions.
+
+I'll answer as soon as this message shows up on the list.
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Gabor Szokoli [mailto:szokoli at ps.uni-sb.de] 
+Sent: Wednesday, November 05, 2003 10:08
+To: Christian Schulte
+Subject: Re: PowerB
+
+
+Christian Schulte wrote:
+
+>>I added my first propagator, try examples/power1 and power2.
+>>Don't look at the "algorithm", I only care about using the interfaces 
+>>properly for now.
+>>I shamelessly copied everything from your code, and then spent 2 days 
+>>trying to understand what I did :-)
+>>
+>>Questions:
+>>0,
+>>I used the eclipse.org IDE, did it do anything nasty to the
+>>source that 
+>>bothers you? (CR/LFs, tabs to spaces, etc)
+>>I can try to configure it more, or just ditch it and learn 
+>>Emacs :-)
+>>    
+>>
+>
+>As I am using Windows, the sources are mistreated anyway.
+> 
+>  
+>
+Anyone else see any kind of degradation of coding style they think I 
+should address?
+
+>>1, If a propagator wants to replace itself with a
+>>simpler one, do you use 
+>>the post functions from the API or create the propagator 
+>>instance directly? 2, (dual of 1,) Do you put the "first 
+>>time" smartness into the post functions or the 
+>>propagator constructors?
+>>I mean I've seen it in a post function, but was that by design?
+>>    
+>>
+>
+>YOU CAN'T USE THE POST FUNCTIONS FROM THE API! The reason is that they 
+>actually work on different datastructures for passing arguments.
+>
+>  
+>
+Let me just say: Don't make a release in the next few hours until I do a 
+checkin... :-))
+
+>The right architecture should be as follows:
+> 1. The API function does preprocessing on the arguments, creates the 
+>appropriate variable arrays to be passed to the propagators proper.
+>    The last point happens automatically when implicitly casting a 
+>IntArgs to VarArray<IntVar>.
+>    Then, a propagator-based (maybe a static method) post-method is 
+>invoked.
+>
+> 2. Then the propagator-based post-method decides what is the right 
+>propagtor (typically some appropriate variant) to create.
+>  
+>
+Is there an existing propagator that has such a method?
+If not, what should be its signature?
+public static WhateverPropagator::post(VarArray<IntVar> vars) ? You can
+still check for variable equality on this level, right? So this layer 2.
+propagator-based post-function (PBPF :-) )  is 
+responsible for instanciating a propagator if it is indeed a subvariant, 
+or call the PBPF of a simpler propagator or one with less arguments if 
+apropriate.
+Right?
+
+> 3. The propagator constructor does the real job of initializing a 
+>propagator.
+>
+>Unfortunately, quite often I have combined 2. and 3. This needs to be 
+>fixed eventually.
+>  
+>
+I guess I could move all decision logic from plain post functions to 
+PBPFs, and get a good overview of all the propagators?
+
+>Now getting back to your real question: Typically, you will go for 3. 
+>when replacing a propgator. You never go for 1. as you don't want to 
+>create new variable arrays (they are just resued for the newly created 
+>propagator). So, in a fixed system you would also have the choice 
+>between 2. and 3.
+>
+>  
+>
+I'd go with 2 so I don't have to either duplicate its functionality, or 
+loose propagatoin power due to undiscovered variable equalities. And 
+using the most abstract type possible is so cool anyway :-)
+
+>>3,
+>>How would you "cast" an IntVar into a BoolVar?
+>>My propagator wants to replace itself with a reified
+>>constraint: 0^b=c  <=>  c=(b==0) 
+>>
+Guido has told me since:
+#define intvar2boolvar(intvar)  static_cast<BoolVar>(intvar.core())
+
+>>5,
+>>I know this is a stupid question, maybe I just did not sleep
+>>enough: I don't understand why doing ceil/floor on integer 
+>>valued floats works.  
+>>Looks like the 100dB amplification of Braun noise to me, but 
+>>I'm just an 
+>>engineer... ;-)
+>>I mean it's pot luck whether floor(ln(4.0)/ln(2.0))  is 1 or 
+>>2, right? 
+>>
+>Yes, might be. But maybe that means you have to resort to exact 
+>algorithms
+>(integer-based) for log (ld). Why ln to start with?
+>  
+>
+Dunno, it's probably an EE thing, we do everything theoretic in natural 
+base. Either 'cause it's one letter less, expresses well "it's not the 
+base you want", or easy to derivate :-)
+For practical stuff we use base 10.
+
+
+This one is still open:
+
+> 6, Do you have any preference in unit testing
+> frameworks? Anything against CppUnit?
+
+
+Gabor
+
+
+
+
+
+
+From szokoli at ps.uni-sb.de  Wed Nov  5 10:43:24 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Wed, 05 Nov 2003 10:43:24 +0100
+Subject: [Gecode] [Fwd: Re: PowerB]
+Message-ID: <3FA8C63C.7020008@ps.uni-sb.de>
+
+Sorry, I just hit "reply" without checking...
+
+-------- Original Message --------
+Subject: 	Re: PowerB
+Date: 	Wed, 05 Nov 2003 10:08:28 +0100
+From: 	Gabor Szokoli <szokoli at ps.uni-sb.de>
+To: 	Christian Schulte <schulte at imit.kth.se>
+References: 	<003301c3a2fd$c40ba930$360fed82 at mushu>
+
+
+
+Christian Schulte wrote:
+
+>>Questions:
+>>0,
+>>I used the eclipse.org IDE, did it do anything nasty to the 
+>>source that 
+>>bothers you? (CR/LFs, tabs to spaces, etc)
+>>I can try to configure it more, or just ditch it and learn 
+>>Emacs :-)
+>>    
+>>
+>
+>As I am using Windows, the sources are mistreated anyway.
+> 
+>  
+>
+Anyone else see any kind of degradation of coding style they think I 
+should address?
+
+>>1, If a propagator wants to replace itself with a 
+>>simpler one, do you use 
+>>the post functions from the API or create the propagator 
+>>instance directly? 2, (dual of 1,) Do you put the "first 
+>>time" smartness into the post functions or the 
+>>propagator constructors?
+>>I mean I've seen it in a post function, but was that by design?
+>>    
+>>
+>
+>YOU CAN'T USE THE POST FUNCTIONS FROM THE API! The reason is that they
+>actually work on different datastructures for passing arguments.
+>
+>  
+>
+Let me just say: Don't make a release in the next few hours until I do a 
+checkin... :-))
+
+>The right architecture should be as follows:
+> 1. The API function does preprocessing on the arguments, creates the
+>appropriate variable arrays to be passed to the propagators proper.
+>    The last point happens automatically when implicitly casting a IntArgs
+>to VarArray<IntVar>.
+>    Then, a propagator-based (maybe a static method) post-method is invoked.
+>
+> 2. Then the propagator-based post-method decides what is the right
+>propagtor (typically some appropriate variant) to create.
+>  
+>
+Is there an existing propagator that has such a method?
+If not, what should be its signature?
+public static WhateverPropagator::post(VarArray<IntVar> vars) ?
+You can still check for variable equality on this level, right?
+So this layer 2. propagator-based post-function (PBPF :-) )  is 
+responsible for instanciating a propagator if it is indeed a subvariant, 
+or call the PBPF of a simpler propagator or one with less arguments if 
+apropriate.
+Right?
+
+> 3. The propagator constructor does the real job of initializing a
+>propagator.
+>
+>Unfortunately, quite often I have combined 2. and 3. This needs to be fixed
+>eventually.
+>  
+>
+I guess I could move all decision logic from plain post functions to 
+PBPFs, and get a good overview of all the propagators?
+
+>Now getting back to your real question: Typically, you will go for 3. when
+>replacing a propgator. You never go for 1. as you don't want to create new
+>variable arrays (they are just resued for the newly created propagator). So,
+>in a fixed system you would also have the choice between 2. and 3.
+>
+>  
+>
+I'd go with 2 so I don't have to either duplicate its functionality, or 
+loose propagatoin power due to undiscovered variable equalities. And 
+using the most abstract type possible is so cool anyway :-)
+
+>>3,
+>>How would you "cast" an IntVar into a BoolVar?
+>>My propagator wants to replace itself with a reified 
+>>constraint: 0^b=c  <=>  c=(b==0) 
+>>
+Guido has told me since:
+#define intvar2boolvar(intvar)  static_cast<BoolVar>(intvar.core())
+
+>>5,
+>>I know this is a stupid question, maybe I just did not sleep 
+>>enough: I don't understand why doing ceil/floor on integer 
+>>valued floats works.  
+>>Looks like the 100dB amplification of Braun noise to me, but 
+>>I'm just an 
+>>engineer... ;-)
+>>I mean it's pot luck whether floor(ln(4.0)/ln(2.0))  is 1 or 
+>>2, right? 
+>>
+>Yes, might be. But maybe that means you have to resort to exact algorithms
+>(integer-based) for log (ld). Why ln to start with?
+>  
+>
+Dunno, it's probably an EE thing, we do everything theoretic in natural 
+base. Either 'cause it's one letter less, expresses well "it's not the 
+base you want", or easy to derivate :-)
+For practical stuff we use base 10.
+
+
+This one is still open:
+
+> 6, Do you have any preference in unit testing 
+> frameworks? Anything against CppUnit?
+
+
+Gabor
+
+
+
+
+
+
+
+From schulte at imit.kth.se  Wed Nov  5 17:53:37 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 5 Nov 2003 17:53:37 +0100
+Subject: [Gecode] FW: PowerB
+In-Reply-To: <000601c3a37e$eb35bc40$360fed82@mushu>
+Message-ID: <002f01c3a3bd$5e933d00$360fed82@mushu>
+
+> >The right architecture should be as follows:
+> > 1. The API function does preprocessing on the arguments, creates the
+> >appropriate variable arrays to be passed to the propagators proper.
+> >    The last point happens automatically when implicitly casting a 
+> >IntArgs to VarArray<IntVar>.
+> >    Then, a propagator-based (maybe a static method) post-method is 
+> >invoked.
+> >
+> > 2. Then the propagator-based post-method decides what is the right
+> >propagtor (typically some appropriate variant) to create.
+> >  
+> >
+> Is there an existing propagator that has such a method?
+
+To some extent the linear propagators do that. But this is rather
+complicated. Otherwise, not quite as I said.
+
+> If not, what should be its signature?
+
+Make it a static member of the class called post: return type void,
+arguments as required by the propagator.
+
+> public static WhateverPropagator::post(VarArray<IntVar> vars) 
+
+Yes.
+
+> ? You can still check for variable equality on this level, 
+> right? So this layer 2. propagator-based post-function (PBPF 
+> :-) )  is 
+> responsible for instanciating a propagator if it is indeed a 
+> subvariant, 
+> or call the PBPF of a simpler propagator or one with less 
+> arguments if 
+> apropriate.
+> Right?
+
+Yes.
+
+> > 3. The propagator constructor does the real job of initializing a
+> >propagator.
+> >
+> >Unfortunately, quite often I have combined 2. and 3. This needs to be
+> >fixed eventually.
+> >  
+> >
+> I guess I could move all decision logic from plain post functions to 
+> PBPFs, and get a good overview of all the propagators?
+
+Right, absolutely!
+
+> >Now getting back to your real question: Typically, you will go for 3.
+> >when replacing a propgator. You never go for 1. as you don't want to 
+> >create new variable arrays (they are just resued for the 
+> newly created 
+> >propagator). So, in a fixed system you would also have the choice 
+> >between 2. and 3.
+> >
+> >  
+> >
+> I'd go with 2 so I don't have to either duplicate its 
+> functionality, or 
+> loose propagatoin power due to undiscovered variable equalities. And 
+> using the most abstract type possible is so cool anyway :-)
+
+Exactly.
+
+> >>3,
+> >>How would you "cast" an IntVar into a BoolVar?
+> >>My propagator wants to replace itself with a reified
+> >>constraint: 0^b=c  <=>  c=(b==0)
+> >>
+> Guido has told me since:
+> #define intvar2boolvar(intvar)  static_cast<BoolVar>(intvar.core())
+
+DON'T! This makes assumptions on object outside methods. That's not C++. And
+look's wrong to me.
+
+It is just about a copy conbstructor, along the lines
+
+	explicit BoolVar::BoolVar(IntVar x) { core(x.core()); }
+
+or something similar. The you can use it as
+
+	BoolVar b(x)
+
+where x is an IntVar. Maybe I should add that.
+
+
+> >>5,
+> >>I know this is a stupid question, maybe I just did not sleep
+> >>enough: I don't understand why doing ceil/floor on integer
+> >>valued floats works.  
+> >>Looks like the 100dB amplification of Braun noise to me, but 
+> >>I'm just an 
+> >>engineer... ;-)
+> >>I mean it's pot luck whether floor(ln(4.0)/ln(2.0))  is 1 or 
+> >>2, right? 
+> >>
+> >Yes, might be. But maybe that means you have to resort to exact
+> >algorithms
+> >(integer-based) for log (ld). Why ln to start with?
+> >  
+> >
+> Dunno, it's probably an EE thing, we do everything theoretic 
+> in natural 
+> base. Either 'cause it's one letter less, expresses well 
+> "it's not the 
+> base you want", or easy to derivate :-)
+> For practical stuff we use base 10.
+
+Computer scientist use base 2, of course. Reason: exact and fast algorithms.
+
+> 
+> 
+> This one is still open:
+> 
+> > 6, Do you have any preference in unit testing
+> > frameworks? Anything against CppUnit?
+
+No real opinion yet. CppUnit seems not mature enough. And I have been
+thinking more on how to derive tests automatically as this appears a much
+harder task... The rest we can do whatever we like.
+
+
+Cheers
+Christian
+
+
+
+
+From szokoli at ps.uni-sb.de  Fri Nov  7 11:35:44 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Fri, 07 Nov 2003 11:35:44 +0100
+Subject: [Gecode] FW: PowerB
+In-Reply-To: <002f01c3a3bd$5e933d00$360fed82@mushu>
+References: <002f01c3a3bd$5e933d00$360fed82@mushu>
+Message-ID: <3FAB7580.6080303@ps.uni-sb.de>
+
+Is it possible to have the list server insert a reply-to header pointing 
+to the list into the messages?
+
+Christian Schulte wrote:
+
+>>I guess I could move all decision logic from plain post functions to 
+>>PBPFs, and get a good overview of all the propagators?
+>>    
+>>
+>
+>Right, absolutely!
+>
+>  
+>
+OK.
+All propagators get a static void post function.
+Most of the time it does nothing but instantiates the propagator object, 
+sometimes checks for equality among variables if special-case 
+propagators exist.
+All propagator object instantiations are replaced by calls to this function:
+-in API post functions
+-in propagate function PS_ENTAILED branches
+
+Question:
+You'll probably want these functions inlined (even though they are not 
+called in search :-) ), so I have to figure out more about your conding 
+conventions, is this about right?
+Declarations (class.hh) are collapsed by class families into familyName.hh
+Implementations (class.cc) are collapsed for all specail cases of a 
+propagator into propagatorName.cc
+Inline implementations (class.icc) go in propagatorName.hh
+
+
+>>Guido has told me since:
+>>#define intvar2boolvar(intvar)  static_cast<BoolVar>(intvar.core())
+>>    
+>>
+>
+>DON'T! This makes assumptions on object outside methods. That's not C++. 
+>
+After Java, C++ feels like ASM++ anyway :-/
+
+>And
+>look's wrong to me.
+>
+>  
+>
+Seems to work, I copied it from the alice binding...
+
+>It is just about a copy conbstructor
+>
+[...]
+
+>Maybe I should add that.
+>
+>  
+>
+Please do.
+
+>Computer scientist use base 2, of course. Reason: exact and fast algorithms.
+>
+>  
+>
+How do you squeeze it out of mlib?
+
+>>>6, Do you have any preference in unit testing
+>>>frameworks? Anything against CppUnit?
+>>>      
+>>>
+>
+>No real opinion yet. CppUnit seems not mature enough. And I have been
+>thinking more on how to derive tests automatically as this appears a much
+>harder task... The rest we can do whatever we like.
+>
+>  
+>
+I used JUnit a lot, it was nice and convinient. Without reflection, 
+CppUnit seems like more hassle, but I'll give it a try and report. It's 
+nice that it integrates with my IDE (eclipse.org), but the real question 
+is if it fits continous integration watchdogs like cruisecontrol or 
+tinderbox well.
+
+I've never used automatic test case derivation, but it sure sounds cool :-)
+
+
+
+From schulte at imit.kth.se  Tue Nov 11 11:08:12 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 11 Nov 2003 11:08:12 +0100
+Subject: [Gecode] FW: PowerB
+In-Reply-To: <3FAB7580.6080303@ps.uni-sb.de>
+Message-ID: <000c01c3a83b$babd70a0$360fed82@mushu>
+
+
+> Question:
+> You'll probably want these functions inlined (even though 
+> they are not 
+> called in search :-) ), so I have to figure out more about 
+> your conding 
+> conventions, is this about right?
+> Declarations (class.hh) are collapsed by class families into 
+> familyName.hh Implementations (class.cc) are collapsed for 
+> all specail cases of a 
+> propagator into propagatorName.cc
+> Inline implementations (class.icc) go in propagatorName.hh
+
+Correct. On top of that, there are two different inlines:
+
+	inline:	the normal one, reads as: inline if the compiler thinks it
+is worth it
+
+	forceinline: I KNOW FOR SURE THAT THIS MUST BE INLINED. To the
+compiler it means, do it or you'll be laid off. Unfortunately, gcc has no
+means to tell that. MSVC has it, though. But even if the compiler is not
+able to take advantage of that, it serves nicely as documentation.
+
+>
+> Please do.
+
+Okay.
+
+> >Computer scientist use base 2, of course. Reason: exact and fast 
+> >algorithms.
+> >
+> >  
+> >
+> How do you squeeze it out of mlib?
+
+Do you mean, libm? You can't, you have to do it yourself, which ought to be
+easy.
+
+> I've never used automatic test case derivation, but it sure 
+> sounds cool :-)
+
+It's not just cool, this is what has to be done as manual testing is not
+really providing sufficient coverage... But as said, I have no real idea
+myself.
+
+Cheers
+Christian
+
+
+
+From szokoli at ps.uni-sb.de  Tue Nov 18 16:55:01 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Tue, 18 Nov 2003 16:55:01 +0100
+Subject: [Gecode] int/count
+Message-ID: <3FBA40D5.8010605@ps.uni-sb.de>
+
+Hi!
+
+Is all that source code in int/count handwritten or generated? (I'd hate 
+to waste effort modifying it only to be overwritten when re-generated...)
+
+Gabor
+
+
+From schulte at imit.kth.se  Tue Nov 18 17:04:29 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 18 Nov 2003 17:04:29 +0100
+Subject: [Gecode] Some small quirks in abs and power
+Message-ID: <000001c3aded$a8bda0c0$590fed82@mushu>
+
+Hej Gabor,
+
+there is a small quirk in abs and some bigger in power:
+
+	abs: the post function for AbsBndEx is flawed. Just check what you
+did!
+
+	power: power is also defined on NEGATIVE numbers! Just to remind:
+numbers can be also negative here!
+
+There is another problem which has to do with tells in the constructor. The
+way it is done doesn't work (must be my fault) as failure is not signaled!
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Tue Nov 18 17:05:38 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 18 Nov 2003 17:05:38 +0100
+Subject: [Gecode] Added explicit BoolVar(IntVar&) constructor
+Message-ID: <000101c3aded$d20d7ea0$590fed82@mushu>
+
+The subject says it all, example is in power.cc (by the way the layout of
+the C++ code makes it unreadable for me, so there needs to something changed
+with Gabor's IDE).
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Tue Nov 18 17:12:00 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 18 Nov 2003 17:12:00 +0100
+Subject: [Gecode] Improved integer domain representation
+Message-ID: <000201c3adee$b5ed5f00$590fed82@mushu>
+
+Dear all,
+
+I improved the representation of integer domains. They are now implenmented
+using a bidirectional list. This gives the following complexity:
+
+	<=, >=			O(n) and O(1) amortized
+	!=, ==			O(n)
+	narrow			O(m) (where m is number of ranges for
+iterator argument)
+	inter, minus		O(n+m)
+
+In addition, for != and == the number of iterations performed is n/2 (in
+average).
+
+As you have seen I also have renamed the domain operations involving range
+iterators:
+	narrow(Iterator& i)	replaces the current domain of the variable
+with the ranges as defined by i,
+					the ranges for I must define a
+subset of the current domain
+	inter(Iterator& i)	intersection of current domain with I
+	minus(Iterator& i)	remove ranges from current domain as defined
+by I
+
+What still needs to be done is to make the iterators take advantage of the
+biderectional representation of integer domains. But I think I will not have
+any time in the short fututure.
+
+Cheers
+Christian
+ 
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From schulte at imit.kth.se  Wed Nov 19 10:51:41 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 19 Nov 2003 10:51:41 +0100
+Subject: [Gecode] Static post methods again...
+Message-ID: <000301c3ae82$bf3ad030$590fed82@mushu>
+
+Dear all,
+
+I am not yet convinced that the introduction for static post method for each
+class really makes sense: in many cases the simplification of propagators
+according to certain variable domains will be done anyway upon first
+invocation of the propagator. So putting this decision making again in the
+post method will lead to a code blowup while it is not likely that
+performance will noticable imptove (it might decrease do to increasing code
+size).
+
+So I suggest that while this is not yet clear we refrain from adding this
+stuff without feeling a clear necessitiy to do so.
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From dmo at cs.mu.oz.au  Thu Nov 20 05:59:44 2003
+From: dmo at cs.mu.oz.au (David Overton)
+Date: Thu, 20 Nov 2003 15:59:44 +1100
+Subject: [Gecode] gecode/Mercury/HAL interface
+In-Reply-To: <000901c3ad2c$7bdb6d10$570fed82@mushu>
+References: <20031113030656.GA29982@ceres.cs.mu.oz.au>
+	<000901c3ad2c$7bdb6d10$570fed82@mushu>
+Message-ID: <20031120045944.GA24801@ceres.cs.mu.oz.au>
+
+I tried to subscribe to the gecode mailing list, but I'm not sure if
+it's worked.
+
+On Mon, Nov 17, 2003 at 06:01:40PM +0100, Christian Schulte wrote:
+> before getting to the details I think the best way we can make progress is
+> that I take care of the more Gecode related stuff and that you take care of
+> the more HAL/Mercury related issues. On top of that I will help you to get
+> everything going from the Gecode perspective.
+> 
+> So, I think one way how we can make progress is that we agree on a couple of
+> interfaces capturing what you need and that we implement these interfaces.
+> You than do the necessary code for using the interfaces from HAL.
+
+Sounds good.
+
+> If you wish I could try to summarize the interface which I would like to
+> implement and where you check whether it is sufficient for your purpose.
+
+Yes, please do that.
+
+> As said, I'd really prefer to not get to that level of detail. But currently
+> I don't see how this can be brought together in the easisest way with what I
+> have been describing. One option (a rather na?ve one) would be that each
+> time the current cpi has changed, one will create an entire copy of Gecode's
+> current state (or something that allows to get back by recomputation). 
+
+Yes, this is the usual approach for interfacing with the Mercury trail.
+The question is whether it is likely to be feasible for gecode, and
+whether there is a better way to do it.
+
+> What worries me a little bit is to have to deal with the current cpi. Would
+> it be possible for you to do something for HAL which uses what I have been
+> describing in my previous Email.
+
+I am a bit unclear exactly what you meant by your previous description.
+I.e. who is is responsible for each of the steps you mention (create
+choice point and return cpi, check for failure, go back to a cpi)?
+
+> > What we want to be able to do is have a number of "delay 
+> > conditions" which can be used to delay a goal until a 
+> > condition is satisfied.  For a FD solver, we want (at least) 
+> > these conditions:
+> > 
+> > 	fixed(X):	The value of the variable X becomes fixed.
+> > 	ubc(X):		The upper bound of X changes.
+> > 	lbc(X):		The lower bound of X changes.
+> > 	dc(X):		The domain of X changes.
+> > 
+> > One way to do this would be to associate 4 lists of goals 
+> > with each variable (i.e. one list for each delay condition).  
+> > Each operation that constrains the variable would then need 
+> > to check these 4 lists and execute the relevant goals.
+> 
+> Okay, I think I get it. How about the following intermediate interface:
+> after Gecode has computed a fixpoint, it returns a list of modifed variables
+> together with how they have been modfied. From that list you then choose
+> which goals to run. Is that okay? Or do I miss something here?
+
+That is likely to be quite expensive, I think.  It would require
+scanning that list of variables to determine which ones have goals
+delayed on them.  Peter Stuckey's idea is to add a special kind of
+"propagator" which is responsible for calling the goals.  Is that
+approach likely to work?
+
+
+David
+-- 
+David Overton                  Uni of Melbourne     +61 3 8344 1354
+dmo at cs.mu.oz.au                Monash Uni (Clayton) +61 3 9905 9373
+http://www.cs.mu.oz.au/~dmo    Mobile Phone         +61 4 0337 4393
+
+
+From szokoli at ps.uni-sb.de  Thu Nov 20 10:45:07 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 20 Nov 2003 10:45:07 +0100
+Subject: [Gecode] Static post methods again...
+In-Reply-To: <000301c3ae82$bf3ad030$590fed82@mushu>
+References: <000301c3ae82$bf3ad030$590fed82@mushu>
+Message-ID: <3FBC8D23.7070905@ps.uni-sb.de>
+
+Hello! A weeks traffic just arrived :-/
+
+Christian Schulte wrote:
+
+>Dear all,
+>
+>I am not yet convinced that the introduction for static post method for each
+>class really makes sense: in many cases the simplification of propagators
+>according to certain variable domains will be done anyway upon first
+>invocation of the propagator.
+>
+I'm not sure myself sometimes...
+The justification was this:
+1,
+Propagators have to take advantage of variable equality among parameters 
+in a one-shot, posting time manner, because variables can not be unified 
+and it is a waste to check for this in the propagate method. It is often 
+possible to use a simpler propagator with less arguments based on the 
+equality information.
+Possible places to put this logic:
+-Constructor (dunno, why not?)
+-API function in post.cc (Christian was against calling those from 
+propagate methods for self-replacement)
+-something in between (static void post)
+
+2, If an inline static void  post does nothing just instantiates the 
+propagator, it'll be optimised away by the compiler.
+
+3, If there is a well-defined point to put the var_same based smartness, 
+that increases the chances of it being actually implemented :-)
+
+> So putting this decision making again in the
+>post method will lead to a code blowup while it is not likely that
+>performance will noticable imptove (it might decrease do to increasing code
+>size).
+>
+>  
+>
+Probably no performace gain for well-crafted examples, but real life 
+users sometimes formulate problems in some fsckd up ways :-)
+
+>So I suggest that while this is not yet clear we refrain from adding this
+>stuff without feeling a clear necessitiy to do so.
+>
+>  
+>
+Acknoledged. Too bad I added a dozen since you wrote this. Was the list 
+server down, or is it just me who got everything late?
+
+
+I'll look at the issues you mention in your previous mail.
+
+
+Gabor Szokoli
+
+
+
+From schulte at imit.kth.se  Thu Nov 20 11:15:12 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2003 11:15:12 +0100
+Subject: [Gecode] int/count
+In-Reply-To: <3FBA40D5.8010605@ps.uni-sb.de>
+Message-ID: <000a01c3af4f$324b03c0$590fed82@mushu>
+
+This is definitely handwritten and as said I see currently no need to change
+it in any way.
+
+While I do appreciate your enthusiasm I think that you should not try to do
+structural changes to Gecode at your current level of expertise on your own.
+It might be a good idea to seek discussion first.
+ 
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+> -----Original Message-----
+> From: gecode-bounces at ps.uni-sb.de 
+> [mailto:gecode-bounces at ps.uni-sb.de] On Behalf Of Gabor Szokoli
+> Sent: Tuesday, November 18, 2003 16:55
+> To: gecode at ps.uni-sb.de
+> Subject: [Gecode] int/count
+> 
+> 
+> Hi!
+> 
+> Is all that source code in int/count handwritten or 
+> generated? (I'd hate 
+> to waste effort modifying it only to be overwritten when 
+> re-generated...)
+> 
+> Gabor
+> _______________________________________________
+> Gecode mailing list
+> Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+> 
+
+
+
+From schulte at imit.kth.se  Thu Nov 20 11:42:35 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2003 11:42:35 +0100
+Subject: [Gecode] int/count
+In-Reply-To: <000a01c3af4f$324b03c0$590fed82@mushu>
+Message-ID: <000b01c3af53$05eed370$590fed82@mushu>
+
+I just updated from CVS and noticed that the modifications by Gabor broke
+the system badly (you forgot a method for Distinct::dom but still compiled
+as Dom is a subclass of Bnd so onlt Bnd propgators were created) as well as
+somethings were nonsensical. Things are delicate with distinct, if you don't
+know what purposes some flags serve, please don't touh it at all!
+
+I have fixed it but I think that the approach that I have to fix every
+morning things that shouldn't have been touched to start with is going
+nowhere.
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+> -----Original Message-----
+> From: gecode-bounces at ps.uni-sb.de 
+> [mailto:gecode-bounces at ps.uni-sb.de] On Behalf Of Christian Schulte
+> Sent: Thursday, November 20, 2003 11:15
+> To: gecode at ps.uni-sb.de
+> Subject: RE: [Gecode] int/count
+> 
+> 
+> This is definitely handwritten and as said I see currently no 
+> need to change it in any way.
+> 
+> While I do appreciate your enthusiasm I think that you should 
+> not try to do structural changes to Gecode at your current 
+> level of expertise on your own. It might be a good idea to 
+> seek discussion first.
+>  
+> Christian
+> 
+> -- 
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+> > -----Original Message-----
+> > From: gecode-bounces at ps.uni-sb.de
+> > [mailto:gecode-bounces at ps.uni-sb.de] On Behalf Of Gabor Szokoli
+> > Sent: Tuesday, November 18, 2003 16:55
+> > To: gecode at ps.uni-sb.de
+> > Subject: [Gecode] int/count
+> > 
+> > 
+> > Hi!
+> > 
+> > Is all that source code in int/count handwritten or
+> > generated? (I'd hate 
+> > to waste effort modifying it only to be overwritten when 
+> > re-generated...)
+> > 
+> > Gabor
+> > _______________________________________________
+> > Gecode mailing list
+> > Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+> > 
+> 
+> _______________________________________________
+> Gecode mailing list
+> Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+> 
+
+
+
+From szokoli at ps.uni-sb.de  Thu Nov 20 12:08:14 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 20 Nov 2003 12:08:14 +0100
+Subject: [Gecode] int/count
+In-Reply-To: <000b01c3af53$05eed370$590fed82@mushu>
+References: <000b01c3af53$05eed370$590fed82@mushu>
+Message-ID: <3FBCA09E.9030206@ps.uni-sb.de>
+
+It could have been something wrong on my end, but I did not receive the 
+messages from the gecode list for a week.
+Without feedback, I got carried away.
+
+
+Christian Schulte wrote:
+
+>I just updated from CVS and noticed that the modifications by Gabor broke
+>the system badly (you forgot a method for Distinct::dom but still compiled
+>as Dom is a subclass of Bnd so onlt Bnd propgators were created) as well as
+>somethings were nonsensical. Things are delicate with distinct, if you don't
+>know what purposes some flags serve, please don't touh it at all!
+>
+>I have fixed it but I think that the approach that I have to fix every
+>morning things that shouldn't have been touched to start with is going
+>nowhere.
+>
+>Cheers
+>Christian
+>
+>  
+>
+
+
+
+From szokoli at ps.uni-sb.de  Thu Nov 20 12:09:43 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 20 Nov 2003 12:09:43 +0100
+Subject: [Gecode] Some small quirks in abs and power
+In-Reply-To: <000001c3aded$a8bda0c0$590fed82@mushu>
+References: <000001c3aded$a8bda0c0$590fed82@mushu>
+Message-ID: <3FBCA0F7.9010500@ps.uni-sb.de>
+
+Christian Schulte wrote:
+
+>Hej Gabor,
+>
+>there is a small quirk in abs and some bigger in power:
+>
+>	abs: the post function for AbsBndEx is flawed. Just check what you
+>did!
+>
+>  
+>
+I can see it does not do the logic yet, it is  a mere placeholder. 
+Should have added the if... or at least a  //TODO tag.
+I can also see you replaced inline with forceinline. I assume this is to 
+avoid the possiblity of a linking error in the case a compiler would 
+decide not to perform the non-forced inlining?
+Am I still missing something?
+What else did I do wrong here?
+
+>	power: power is also defined on NEGATIVE numbers! Just to remind:
+>numbers can be also negative here!
+>  
+>
+Power is my little hello world propagator, it currently implements the 
+constraint a^b=c and {a,b,c}>=0. Badly.
+I'll add the sign-aware logic.
+
+
+Gabor
+
+
+From schulte at imit.kth.se  Thu Nov 20 12:11:53 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2003 12:11:53 +0100
+Subject: [Gecode] Some small quirks in abs and power
+In-Reply-To: <3FBCA0F7.9010500@ps.uni-sb.de>
+Message-ID: <000d01c3af57$1d4f55e0$590fed82@mushu>
+
+The quirk I already fixed. The static post function for AbsExBnd was just
+calling itself, a rather time consuming and not very interesting recursion
+;-) - CS
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+> -----Original Message-----
+> From: gecode-bounces at ps.uni-sb.de 
+> [mailto:gecode-bounces at ps.uni-sb.de] On Behalf Of Gabor Szokoli
+> Sent: Thursday, November 20, 2003 12:10
+> To: gecode at ps.uni-sb.de
+> Subject: Re: [Gecode] Some small quirks in abs and power
+> 
+> 
+> Christian Schulte wrote:
+> 
+> >Hej Gabor,
+> >
+> >there is a small quirk in abs and some bigger in power:
+> >
+> >	abs: the post function for AbsBndEx is flawed. Just 
+> check what you 
+> >did!
+> >
+> >  
+> >
+> I can see it does not do the logic yet, it is  a mere placeholder. 
+> Should have added the if... or at least a  //TODO tag.
+> I can also see you replaced inline with forceinline. I assume 
+> this is to 
+> avoid the possiblity of a linking error in the case a compiler would 
+> decide not to perform the non-forced inlining?
+> Am I still missing something?
+> What else did I do wrong here?
+> 
+> >	power: power is also defined on NEGATIVE numbers! Just 
+> to remind: 
+> >numbers can be also negative here!
+> >  
+> >
+> Power is my little hello world propagator, it currently 
+> implements the 
+> constraint a^b=c and {a,b,c}>=0. Badly.
+> I'll add the sign-aware logic.
+> 
+> 
+> Gabor
+> _______________________________________________
+> Gecode mailing list
+> Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+> 
+
+
+
+From tack at ps.uni-sb.de  Thu Nov 20 12:45:51 2003
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 20 Nov 2003 12:45:51 +0100
+Subject: [Gecode] Mailman problems
+Message-ID: <200311201245.51614.tack@ps.uni-sb.de>
+
+Hi everyone!
+
+The mailman daemon was down for a week, that's why no message appeared on the 
+list and subscription requests were not answered.
+I hope this didn't cause too much inconvenience.
+
+Regards,
+
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From szokoli at ps.uni-sb.de  Thu Nov 20 12:46:39 2003
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 20 Nov 2003 12:46:39 +0100
+Subject: [Gecode] Some small quirks in abs and power
+In-Reply-To: <000d01c3af57$1d4f55e0$590fed82@mushu>
+References: <000d01c3af57$1d4f55e0$590fed82@mushu>
+Message-ID: <3FBCA99F.805@ps.uni-sb.de>
+
+Christian Schulte wrote:
+
+>The quirk I already fixed. The static post function for AbsExBnd was just
+>calling itself, a rather time consuming and not very interesting recursion
+>  
+>
+Aaaa!
+
+OK, now that we have communications up and running, I hope I won't make 
+such a big mess anymore.
+I was happily checking crap in, seeing your "nods", small changes in CVS 
+without a word of disapproval :-)
+
+What do you do to check the consistency of the build?
+Compile with stricter flags?
+Run some tests?
+Whatever it is, I'd like to automate it to run against automatic 
+checkouts and send me mail when I break the build.
+I guess if I'd run make and some tests from ant,  CruiseControl could 
+take it from there.
+
+Or do you just spot bugs in the source?
+
+The indentation issue should go away if I configure my IDE to use 2 
+spaces instead of tabs, I hope.
+
+>;-) - CS
+>  
+>
+hmm, I should probably change my name to have EE as initials temporarily :-)
+
+Gabor
+
+
+
+From schulte at imit.kth.se  Thu Nov 20 13:55:55 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2003 13:55:55 +0100
+Subject: [Gecode] Some small quirks in abs and power
+In-Reply-To: <3FBCA99F.805@ps.uni-sb.de>
+Message-ID: <002401c3af65$a60b4520$590fed82@mushu>
+
+In order to check I run examples/bench.exe which captures a great deal ;-)
+But you have to be able to read the numbers, so time shoulkd not change.
+
+ > What do you do to check the consistency of the build?
+> Compile with stricter flags?
+> Run some tests?
+
+> Or do you just spot bugs in the source?
+
+Well, is also do that, rather obviously ;-)
+
+> The indentation issue should go away if I configure my IDE to use 2 
+> spaces instead of tabs, I hope.
+> 
+
+Great
+
+
+
+From tack at ps.uni-sb.de  Mon Nov 24 14:43:12 2003
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 24 Nov 2003 14:43:12 +0100
+Subject: [Gecode] Recomputation + BAB
+Message-ID: <200311241443.12078.tack@ps.uni-sb.de>
+
+Hi Christian!
+
+I just had a look at the new search engines in gecode, and it seems you once 
+more tried to get around implementing branch-and-bound with recomputation ;-)
+
+But here's my real question: What do I need to provide batch recomputation 
+through the Alice interface? Just the description() and commit(alt, desc) 
+functions? Can I simply regard a description as a value of an abstract type?
+
+Regards,
+
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Mon Nov 24 15:53:48 2003
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 24 Nov 2003 15:53:48 +0100
+Subject: [Gecode] RE: Recomputation + BAB
+In-Reply-To: <200311241443.12078.tack@ps.uni-sb.de>
+Message-ID: <000501c3b29a$c7770680$590fed82@mushu>
+
+I just completed (well but recomputation for BAB...) the cleanup of the
+search engines. The now reside in a namespace Search. Of particular intrest
+ought to be Search::DFS and Search::BAB (which now requires a method
+constraint to be implemented by the script to be run).
+
+As it comes to batch recomputation you are perfectly correct: what you can
+get as a description is an ADT. The only things of your concenr are then the
+two methods you mention. If you want to know who branching descriptions can
+be constructed and used, please check int/branching/branch.cc
+
+Cheers
+Christian
+
+-- 
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+> -----Original Message-----
+> From: Guido Tack [mailto:tack at ps.uni-sb.de] 
+> Sent: Monday, November 24, 2003 14:43
+> To: Christian Schulte; gecode at ps.uni-sb.de
+> Subject: Recomputation + BAB
+> 
+> 
+> Hi Christian!
+> 
+> I just had a look at the new search engines in gecode, and it 
+> seems you once 
+> more tried to get around implementing branch-and-bound with 
+> recomputation ;-)
+> 
+> But here's my real question: What do I need to provide batch 
+> recomputation 
+> through the Alice interface? Just the description() and 
+> commit(alt, desc) 
+> functions? Can I simply regard a description as a value of an 
+> abstract type?
+> 
+> Regards,
+> 
+> 	Guido
+> 
+> -- 
+> Guido Tack
+> Programming Systems Lab
+> http://www.ps.uni-sb.de/~tack
+> 
+
+
+

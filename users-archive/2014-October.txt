@@ -1,0 +1,4151 @@
+From genius_linda1987 at yahoo.fr  Wed Oct  1 11:38:51 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Wed, 1 Oct 2014 10:38:51 +0100
+Subject: [gecode-users] Combination of symmetries in LDSB.
+Message-ID: <1412156331.72599.YahooMailNeo@web171404.mail.ir2.yahoo.com>
+
+Hi,
+I have a question please about combination of symmetries:
+suppose th probleme have the symmetric groupe: Gn = Dn*Z2. 
+for example: 
+- Dn: Consist on n rotation of rows of a Matrix  and n  permutations of specified rows or specified columns of the Matrix .
+and
+- Z2 = {id, rev}= {+1, -1}. id = +1, rev = -1./ 
+rev represent the possibility of reflection of columns of the Matrix. 
+So my question is: How to do this combinaition ? how to post the combinaition of this 3 forms of symmetries in the branch function, i must post each one independently or i post them in the same time ?. it means in general, how to post this the combinaition of these forms of symmetries:
+examples: 
+combination of this form:     Combination A = (Sym a + Sym b).
+or combination of this form:  Combination B = (Sym a * Sym b).
+I hope that my question is clear.
+Thank you,
+
+Cordially.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141001/7d895af1/attachment.html>
+
+From chris at cmears.id.au  Thu Oct  2 02:32:20 2014
+From: chris at cmears.id.au (Chris Mears)
+Date: Thu, 2 Oct 2014 10:32:20 +1000
+Subject: [gecode-users] Breaking symmetries with LDSB in Matrix model.
+In-Reply-To: <1411982973.56769.YahooMailNeo@web171402.mail.ir2.yahoo.com>
+References: <1411982973.56769.YahooMailNeo@web171402.mail.ir2.yahoo.com>
+Message-ID: <20141002103220.6307a83d@boxer>
+
+On Mon, 29 Sep 2014 10:29:33 +0100
+Bouchene Sabrina <genius_linda1987 at yahoo.fr> wrote:
+
+> Symmetries s;
+> 
+> BoolVarArgs a;
+>     for (int i = 0 ; i < (opt.cols/2-1); i++) {
+>       a << p.col(i);
+>     }
+>     for (int i = (opt.col-1) ; i >= opt.col/2 ; i--) {
+>       a << p.col(i);
+>     }
+>     s << VariableSequenceSymmetry(a, opt.cols*opt.rows); 
+
+> if
+> this part of code is correct so his effect is aquivalent to this
+> function of Gecode: columns_reflect(): to specify that a matrix's
+> columns can be reflected.
+
+Yes, this should have the same effect as columns_reflect, but there are
+a couple of problems with your code above.  The second argument to
+VariableSequenceSymmetry should be the length of each sequence, not the
+total length (in your example above, it should be
+(opt.cols/2)*opt.rows).  Also, the bounds on your loops look wrong; I
+think they should be:
+
+  for (int i = 0 ; i < (opt.cols/2); i++) 
+and
+  for (int i = (opt.cols-1) ; i >= (opt.cols+1)/2 ; i--)
+
+
+As for the second question, you can post a combination of symmetries by
+adding another symmetry definition to the Symmetries object, e.g. in
+the bibd example:
+
+      Symmetries s;
+      s << rows_interchange(p);
+      s << columns_interchange(p);
+
+The effect is that each symmetry is applied until a fixed point is
+reached.  For example, if value "v" is deleted from the domain of the
+variable p(1,1) by search, then according to the rows-interchange
+symmetry "v" will be removed from p(1,2), p(1,3), p(1,4), etc.  Then
+because "v" has been deleted from p(1,2), according to the column
+symmetry "v" will be deleted from p(2,2), p(3,2), p(4,2), etc.  This
+continues until there are no more values to delete due to symmetry.
+
+This effect is an approximation of taking the product of the two
+symmetry groups.  It's not possible to have each symmetry definition
+act independently of the others, if that's what you mean by "Sym a +
+Sym b".
+
+
+From genius_linda1987 at yahoo.fr  Thu Oct  2 15:50:58 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Thu, 2 Oct 2014 14:50:58 +0100
+Subject: [gecode-users] Breaking symmetries with LDSB in Matrix model.
+Message-ID: <1412257858.91244.YahooMailNeo@web171403.mail.ir2.yahoo.com>
+
+Thank you Mr Mears, 
+If I understand correctly, to execute the combination of symmetries I must to add all the relevant declarations of symmetries to the same object Symmetries s. 
+and the execution of the combination is done sequentially, So, we have the execution of the first decalaration symmetry is done and next the second definition of symmetry is executed ...etc, but they do not run in parrallel. 
+
+So to apply the combination of the following symmetric group: 
+Gn = { sym 1: 'interchangeability of specified rows' + sym 2: 'interchangeability of specified columns' + sym 3: 'rotation of rows'} * { symmetry identity, sym 4: 'reflections of columns of a matrix' }.
+I have to execute the following pseudo code: ( post all definitions of symmetries to the same object s )
+Symmetries s;
+s << declaration_of_sym 1;
+branch (......,sym 1, ....);
+s << declaration_of_sym 2;
+branch (....., sym 2, ....);
+s << declaration_of_sym 3;
+branch (....., sym 3, ....);
+
+s << declaration_of_sym 4;
+branch (....., sym 4, ....);
+
+thank you sir,
+Best regards. sabrina.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141002/5deca334/attachment.html>
+
+From genius_linda1987 at yahoo.fr  Thu Oct  2 15:54:19 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Thu, 2 Oct 2014 14:54:19 +0100
+Subject: [gecode-users] Breaking symmetries with LDSB in Matrix model.
+Message-ID: <1412258059.46317.YahooMailNeo@web171403.mail.ir2.yahoo.com>
+
+Thank you Mr Mears, 
+If I understand correctly, to execute the combination of symmetries I must to add all the relevant declarations of symmetries to the same object Symmetries s. 
+and the execution of the combination is done sequentially, So, we have the execution of the first decalaration symmetry is done and next the second definition of symmetry is executed ...etc, but they do not run in parrallel. 
+
+So to apply the combination of the following symmetric group: 
+Gn = { sym 1: 'interchangeability of specified rows' + sym 2: 'interchangeability of specified columns' + sym 3: 'rotation of rows'} * { symmetry identity, sym 4: 'reflections of columns of a matrix' }.
+I have to execute the following pseudo code: ( post all definitions of symmetries to the same object s )
+Symmetries s;
+s << declaration_of_sym 1;
+branch (......,sym 1, ....);
+s << declaration_of_sym 2;
+branch (....., sym 2, ....);
+s << declaration_of_sym 3;
+branch (....., sym 3, ....);
+
+s << declaration_of_sym 4;
+branch (....., sym 4, ....);
+
+thank you sir,
+Best regards. sabrina.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141002/91c76319/attachment.html>
+
+From chris at cmears.id.au  Fri Oct  3 03:35:26 2014
+From: chris at cmears.id.au (Chris Mears)
+Date: Fri, 3 Oct 2014 11:35:26 +1000
+Subject: [gecode-users] Breaking symmetries with LDSB in Matrix model.
+In-Reply-To: <1412258059.46317.YahooMailNeo@web171403.mail.ir2.yahoo.com>
+References: <1412258059.46317.YahooMailNeo@web171403.mail.ir2.yahoo.com>
+Message-ID: <20141003113526.3513b231@boxer>
+
+On Thu, 2 Oct 2014 14:54:19 +0100
+Bouchene Sabrina <genius_linda1987 at yahoo.fr> wrote:
+
+> Thank you Mr Mears, 
+> If I understand correctly, to execute the combination of symmetries I
+> must to add all the relevant declarations of symmetries to the same
+> object Symmetries s. and the execution of the combination is done
+> sequentially, So, we have the execution of the first decalaration
+> symmetry is done and next the second definition of symmetry is
+> executed ...etc, but they do not run in parrallel. 
+
+Each symmetry is processed separately, but they are re-run repeatedly
+until there is no more work to be done.  In this sense they operate
+similarly to constraint propagators.
+
+For your example, I cannot see how posting multiple branchers over the
+same variables will do what you want.  I suggest that you put all the
+symmetry definitions into one Symmetries object, pass that to a single
+call to "branch", and see if that gives you the right behaviour.
+
+
+From frederic.ant.c at gmail.com  Fri Oct  3 19:33:32 2014
+From: frederic.ant.c at gmail.com (Frederic C)
+Date: Fri, 03 Oct 2014 19:33:32 +0200
+Subject: [gecode-users] First contact with gecode
+Message-ID: <542EDDEC.8030606@gmail.com>
+
+Hi,
+
+I am new to gecode and I have a simple question.
+
+I am trying to find one possible solution for the following system:
+
+1A + 1B >  0
+1A + 0B >  0
+1A + 1B >  0
+0A + 0B <= 0
+
+Obviously, there are many solutions. For instance, A=1 and B=1.
+
+My code is the following:
+
+class SolverSpace : public Gecode::Space
+{
+   IntVarArray s;
+
+public:
+   SolverSpace() :
+     s(*this, 2, -1000000, 1000000) // lots of possible values, to be on 
+the safe side
+   {
+     { // 1A + 1B >  0
+       IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 1A + 0B >  0
+       IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 1A + 1B >  0
+       IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 0A + 0B <= 0
+       IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+       linear(*this, coeffs, s, IRT_LE, int(0));
+     }
+
+     branch(*this, s, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+   }
+
+   SolverSpace(bool share, SolverSpace& e) :
+     Gecode::Space(share, e)
+   {
+     s.update(*this, share, e.s);
+   }
+
+   virtual Space *copy(bool share)
+   {
+     return new SolverSpace(share, *this);
+   }
+
+   void print()
+   {
+     for (int i = 0; i < 2; i++)
+       std::cout << s[i] << ", ";
+     std::cout << std::endl;
+   }
+}
+
+Calling code:
+
+SolverSpace*m = new SolverSpace();
+DFS<SolverSpace> e(m);
+delete m;
+if (SolverSpace *s = e.next()) {
+   s->print(); delete s;
+}
+
+To my surprise, no solution is found. What am I doing wrong?
+
+Thank you,
+
+Fred
+
+
+
+From chris at cmears.id.au  Mon Oct  6 00:29:40 2014
+From: chris at cmears.id.au (Chris Mears)
+Date: Mon, 6 Oct 2014 09:29:40 +1100
+Subject: [gecode-users] First contact with gecode
+In-Reply-To: <542EDDEC.8030606@gmail.com>
+References: <542EDDEC.8030606@gmail.com>
+Message-ID: <20141006092940.3979bb35@boxer>
+
+Hello Fred,
+
+>      { // 1A + 1B >  0
+>        IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+>        linear(*this, coeffs, s, IRT_GT, int(0));
+>      }
+
+I am not sure how you got this to compile, because this should be
+"IRT_GR".
+
+>      { // 1A + 0B >  0
+>        IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+>        linear(*this, coeffs, s, IRT_GT, int(0));
+>      }
+>      { // 1A + 1B >  0
+>        IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+>        linear(*this, coeffs, s, IRT_GT, int(0));
+>      }
+>      { // 0A + 0B <= 0
+>        IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+>        linear(*this, coeffs, s, IRT_LE, int(0));
+>      }
+
+Here you want IRT_LQ ( <= ) instead of IRT_LE ( < ).
+
+
+From frederic.ant.c at gmail.com  Mon Oct  6 08:19:21 2014
+From: frederic.ant.c at gmail.com (Frederic C)
+Date: Mon, 06 Oct 2014 08:19:21 +0200
+Subject: [gecode-users] First contact with gecode
+In-Reply-To: <20141006092940.3979bb35@boxer>
+References: <542EDDEC.8030606@gmail.com> <20141006092940.3979bb35@boxer>
+Message-ID: <54323469.2050301@gmail.com>
+
+I changed IRT_LE for IRT_LQ and it works, thank you. I'm silly, if 
+coefficients are all zeros, it helps if the right hand size can also be 
+zero!
+
+Fred
+
+Le 06/10/2014 00:29, Chris Mears a ?crit :
+> Hello Fred,
+>
+>>       { // 1A + 1B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+> I am not sure how you got this to compile, because this should be
+> "IRT_GR".
+>
+>>       { // 1A + 0B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+>>       { // 1A + 1B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+>>       { // 0A + 0B <= 0
+>>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+>>         linear(*this, coeffs, s, IRT_LE, int(0));
+>>       }
+> Here you want IRT_LQ ( <= ) instead of IRT_LE ( < ).
+
+
+
+From cschulte at kth.se  Mon Oct  6 09:38:15 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 6 Oct 2014 09:38:15 +0200
+Subject: [gecode-users] First contact with gecode
+In-Reply-To: <54323469.2050301@gmail.com>
+References: <542EDDEC.8030606@gmail.com> <20141006092940.3979bb35@boxer>
+	<54323469.2050301@gmail.com>
+Message-ID: <000001cfe138$7dbd2640$793772c0$@se>
+
+Just a tip: please read Sections 3.1 and 7.1 in MPG. It shows how to write
+normal C++ expressions for posting linear constraints.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Frederic C
+Sent: Monday, October 06, 2014 8:19 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] First contact with gecode
+
+I changed IRT_LE for IRT_LQ and it works, thank you. I'm silly, if
+coefficients are all zeros, it helps if the right hand size can also be
+zero!
+
+Fred
+
+Le 06/10/2014 00:29, Chris Mears a ?crit :
+> Hello Fred,
+>
+>>       { // 1A + 1B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+> I am not sure how you got this to compile, because this should be 
+> "IRT_GR".
+>
+>>       { // 1A + 0B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+>>       { // 1A + 1B >  0
+>>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+>>         linear(*this, coeffs, s, IRT_GT, int(0));
+>>       }
+>>       { // 0A + 0B <= 0
+>>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+>>         linear(*this, coeffs, s, IRT_LE, int(0));
+>>       }
+> Here you want IRT_LQ ( <= ) instead of IRT_LE ( < ).
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From vijay at saraswat.org  Mon Oct 13 16:50:59 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 13 Oct 2014 10:50:59 -0400
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+Message-ID: <543BE6D3.1060406@saraswat.org>
+
+Continuing with http://www.gecode.org/pipermail/users/2014-April/004368.html
+
+I am unable to get the basic example running from the tutorial.
+
+On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3 
+from the webpage
+http://www.gecode.org/download.html
+
+Downloaded source package, did a ./configure, make, make-install -- all 
+seemed to succeed.
+
+The following command succeeds:
+
+$g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+
+However, the next command fails -- what am I doing wrong?
+
+$g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++ 
+-lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport
+Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM 3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+  "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0 -syslibroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++ -lSystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+Undefined symbols for architecture x86_64:
+   "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::BaseOptions::help()", referenced from:
+       vtable for Gecode::Options in money.o
+   "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+       _main in money.o
+   "Gecode::BaseOptions::~BaseOptions()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, 
+Gecode::IntConLevel)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::CombinedStop::sigint", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, 
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, 
+Money*) in money.o
+       Gecode::Driver::CombinedStop::interrupt(int) in money.o
+       Gecode::Driver::CombinedStop::CombinedStop(unsigned int, unsigned 
+int, unsigned int) in money.o
+       Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics 
+const&, Gecode::Search::Options const&) in money.o
+   "Gecode::Driver::StringOption::add(int, char const*, char const*)", 
+referenced from:
+       _main in money.o
+   "Gecode::Driver::StringOption::~StringOption()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::StringValueOption::~StringValueOption()", referenced 
+from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::am(double*, int)", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, 
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, 
+Money*) in money.o
+   "Gecode::Driver::dev(double*, int)", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, 
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, 
+Money*) in money.o
+   "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)", 
+referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, 
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, 
+Money*) in money.o
+   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, 
+Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space 
+const&, Gecode::IntVar, int), void (*)(Gecode::Space const&, 
+Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int 
+const&, std::ostream&))", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::Options::Options(char const*)", referenced from:
+       _main in money.o
+   "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::BoolExpr::~BoolExpr()", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr 
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar const&)", 
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar 
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr 
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr 
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)", 
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "typeinfo for Gecode::BaseOptions", referenced from:
+       typeinfo for Gecode::Options in money.o
+ld: symbol(s) not found for architecture x86_64
+clang: error: linker command failed with exit code 1 (use -v to see 
+invocation)
+bash-3.2$
+
+
+From cschulte at kth.se  Mon Oct 13 16:52:56 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 13 Oct 2014 16:52:56 +0200
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <543BE6D3.1060406@saraswat.org>
+References: <543BE6D3.1060406@saraswat.org>
+Message-ID: <007501cfe6f5$606bb080$21431180$@se>
+
+Hi Vijay,
+
+Not being an Apple user, let me still try a guess: you need to add
+additional libraries:
+ -lgecodeminimodel -lgecodedriver -lgecodegist
+
+Please use the order as described in MPG.
+
+Good luck
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vijay Saraswat
+Sent: Monday, October 13, 2014 4:51 PM
+To: users at gecode.org
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+
+Continuing with http://www.gecode.org/pipermail/users/2014-April/004368.html
+
+I am unable to get the basic example running from the tutorial.
+
+On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3 from
+the webpage http://www.gecode.org/download.html
+
+Downloaded source package, did a ./configure, make, make-install -- all
+seemed to succeed.
+
+The following command succeeds:
+
+$g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+
+However, the next command fails -- what am I doing wrong?
+
+$g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++ -lgecodesearch
+-lgecodeint -lgecodekernel -lgecodesupport Apple LLVM version 5.1
+(clang-503.0.40) (based on LLVM 3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+ 
+"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+-syslibroot
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodesearch
+-lgecodeint -lgecodekernel -lgecodesupport -lstdc++ -lSystem
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+Undefined symbols for architecture x86_64:
+   "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::BaseOptions::help()", referenced from:
+       vtable for Gecode::Options in money.o
+   "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+       _main in money.o
+   "Gecode::BaseOptions::~BaseOptions()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+Gecode::IntConLevel)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::CombinedStop::sigint", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+       Gecode::Driver::CombinedStop::interrupt(int) in money.o
+       Gecode::Driver::CombinedStop::CombinedStop(unsigned int, unsigned
+int, unsigned int) in money.o
+       Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+const&, Gecode::Search::Options const&) in money.o
+   "Gecode::Driver::StringOption::add(int, char const*, char const*)",
+referenced from:
+       _main in money.o
+   "Gecode::Driver::StringOption::~StringOption()", referenced from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::StringValueOption::~StringValueOption()", referenced
+from:
+       Gecode::Options::~Options() in money.o
+   "Gecode::Driver::am(double*, int)", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+   "Gecode::Driver::dev(double*, int)", referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+   "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::Options::Options(char const*)", referenced from:
+       _main in money.o
+   "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::BoolExpr::~BoolExpr()", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar const&)",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar const&)",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+const&)", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr const&)",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+   "typeinfo for Gecode::BaseOptions", referenced from:
+       typeinfo for Gecode::Options in money.o
+ld: symbol(s) not found for architecture x86_64
+clang: error: linker command failed with exit code 1 (use -v to see
+invocation)
+bash-3.2$
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From vijay at saraswat.org  Mon Oct 13 17:11:00 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 13 Oct 2014 11:11:00 -0400
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <007501cfe6f5$606bb080$21431180$@se>
+References: <543BE6D3.1060406@saraswat.org>
+	<007501cfe6f5$606bb080$21431180$@se>
+Message-ID: <543BEB84.1020605@saraswat.org>
+
+OK that definitely helps -- I get fewer missing symbols from before.
+
+However, -lcodegist did not work:
+
+g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib 
+-lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint 
+-lgecodekernel -lgecodesupport
+Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM 3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+  "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0 -syslibroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport -lstdc++ -lSystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+ld: library not found for -lgecodegist
+clang: error: linker command failed with exit code 1 (use -v to see 
+invocation)
+
+This is odd -- there was no error when i did a make to make the system.
+
+Without lcodegist I do get a fewer set of missing symbols:
+
+g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib 
+-lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint 
+-lgecodekernel -lgecodesupport
+Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM 3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+  "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0 -syslibroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport -lstdc++ -lSystem /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+Undefined symbols for architecture x86_64:
+   "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)", 
+referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, 
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, 
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, 
+Money*) in money.o
+   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, 
+Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space 
+const&, Gecode::IntVar, int), void (*)(Gecode::Space const&, 
+Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int 
+const&, std::ostream&))", referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+ld: symbol(s) not found for architecture x86_64
+clang: error: linker command failed with exit code 1 (use -v to see 
+invocation)
+
+Best,
+Vijay
+
+On 10/13/14, 10:52 AM, Christian Schulte wrote:
+> Hi Vijay,
+>
+> Not being an Apple user, let me still try a guess: you need to add
+> additional libraries:
+>   -lgecodeminimodel -lgecodedriver -lgecodegist
+>
+> Please use the order as described in MPG.
+>
+> Good luck
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.gecode.org/~schulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Vijay Saraswat
+> Sent: Monday, October 13, 2014 4:51 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>
+> Continuing with http://www.gecode.org/pipermail/users/2014-April/004368.html
+>
+> I am unable to get the basic example running from the tutorial.
+>
+> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3 from
+> the webpage http://www.gecode.org/download.html
+>
+> Downloaded source package, did a ./configure, make, make-install -- all
+> seemed to succeed.
+>
+> The following command succeeds:
+>
+> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>
+> However, the next command fails -- what am I doing wrong?
+>
+> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++ -lgecodesearch
+> -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM version 5.1
+> (clang-503.0.40) (based on LLVM 3.4svn)
+> Target: x86_64-apple-darwin13.1.0
+> Thread model: posix
+>   
+> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+> -syslibroot
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodesearch
+> -lgecodeint -lgecodekernel -lgecodesupport -lstdc++ -lSystem
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+> Undefined symbols for architecture x86_64:
+>     "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::BaseOptions::help()", referenced from:
+>         vtable for Gecode::Options in money.o
+>     "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>         _main in money.o
+>     "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+> Gecode::IntConLevel)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::CombinedStop::sigint", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>         Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>         Gecode::Driver::CombinedStop::CombinedStop(unsigned int, unsigned
+> int, unsigned int) in money.o
+>         Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+> const&, Gecode::Search::Options const&) in money.o
+>     "Gecode::Driver::StringOption::add(int, char const*, char const*)",
+> referenced from:
+>         _main in money.o
+>     "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::StringValueOption::~StringValueOption()", referenced
+> from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::am(double*, int)", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::Driver::dev(double*, int)", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+> referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+> Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+> const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::Options::Options(char const*)", referenced from:
+>         _main in money.o
+>     "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar const&)",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar const&)",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr const&)",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "typeinfo for Gecode::BaseOptions", referenced from:
+>         typeinfo for Gecode::Options in money.o
+> ld: symbol(s) not found for architecture x86_64
+> clang: error: linker command failed with exit code 1 (use -v to see
+> invocation)
+> bash-3.2$
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+From cschulte at kth.se  Mon Oct 13 17:11:37 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 13 Oct 2014 17:11:37 +0200
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <543BEB84.1020605@saraswat.org>
+References: <543BE6D3.1060406@saraswat.org>	<007501cfe6f5$606bb080$21431180$@se>
+	<543BEB84.1020605@saraswat.org>
+Message-ID: <009a01cfe6f7$fc2c8380$f4858a80$@se>
+
+Apparently you did compile with Gist, that explains the first thing.
+
+The second I do not know and I will have to leave to an Apple user...
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vijay Saraswat
+Sent: Monday, October 13, 2014 5:11 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+
+OK that definitely helps -- I get fewer missing symbols from before.
+
+However, -lcodegist did not work:
+
+g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+-lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint
+-lgecodekernel -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40)
+(based on LLVM 3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+ 
+"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+-syslibroot
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+-lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel
+-lgecodesupport -lstdc++ -lSystem
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+ld: library not found for -lgecodegist
+clang: error: linker command failed with exit code 1 (use -v to see
+invocation)
+
+This is odd -- there was no error when i did a make to make the system.
+
+Without lcodegist I do get a fewer set of missing symbols:
+
+g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+-lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint -lgecodekernel
+-lgecodesupport Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM
+3.4svn)
+Target: x86_64-apple-darwin13.1.0
+Thread model: posix
+ 
+"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+-syslibroot
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+-lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+-lstdc++ -lSystem
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+Undefined symbols for architecture x86_64:
+   "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+referenced from:
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+referenced from:
+       Money::Money(Gecode::Options const&) in money.o
+ld: symbol(s) not found for architecture x86_64
+clang: error: linker command failed with exit code 1 (use -v to see
+invocation)
+
+Best,
+Vijay
+
+On 10/13/14, 10:52 AM, Christian Schulte wrote:
+> Hi Vijay,
+>
+> Not being an Apple user, let me still try a guess: you need to add 
+> additional libraries:
+>   -lgecodeminimodel -lgecodedriver -lgecodegist
+>
+> Please use the order as described in MPG.
+>
+> Good luck
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH, 
+> www.gecode.org/~schulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Vijay Saraswat
+> Sent: Monday, October 13, 2014 4:51 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>
+> Continuing with 
+> http://www.gecode.org/pipermail/users/2014-April/004368.html
+>
+> I am unable to get the basic example running from the tutorial.
+>
+> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3 
+> from the webpage http://www.gecode.org/download.html
+>
+> Downloaded source package, did a ./configure, make, make-install -- 
+> all seemed to succeed.
+>
+> The following command succeeds:
+>
+> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>
+> However, the next command fails -- what am I doing wrong?
+>
+> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++ 
+> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM 
+> version 5.1
+> (clang-503.0.40) (based on LLVM 3.4svn)
+> Target: x86_64-apple-darwin13.1.0
+> Thread model: posix
+>   
+> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xc
+> toolch ain/usr/bin/ld" -demangle -dynamic -arch x86_64 
+> -macosx_version_min 10.9.0 -syslibroot 
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/D
+> evelop er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o 
+> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++ 
+> -lSystem 
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xct
+> oolcha in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+> Undefined symbols for architecture x86_64:
+>     "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::BaseOptions::help()", referenced from:
+>         vtable for Gecode::Options in money.o
+>     "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>         _main in money.o
+>     "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&, 
+> Gecode::IntConLevel)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::CombinedStop::sigint", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>         Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>         Gecode::Driver::CombinedStop::CombinedStop(unsigned int, 
+> unsigned int, unsigned int) in money.o
+>         Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+> const&, Gecode::Search::Options const&) in money.o
+>     "Gecode::Driver::StringOption::add(int, char const*, char 
+> const*)", referenced from:
+>         _main in money.o
+>     "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::StringValueOption::~StringValueOption()", 
+> referenced
+> from:
+>         Gecode::Options::~Options() in money.o
+>     "Gecode::Driver::am(double*, int)", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::Driver::dev(double*, int)", referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)", 
+> referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, 
+> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space 
+> const&, Gecode::IntVar, int), void (*)(Gecode::Space const&, 
+> Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int 
+> const&, std::ostream&))", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::Options::Options(char const*)", referenced from:
+>         _main in money.o
+>     "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced
+from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr 
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar 
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar 
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr 
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr 
+> const&)", referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)", 
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+>     "typeinfo for Gecode::BaseOptions", referenced from:
+>         typeinfo for Gecode::Options in money.o
+> ld: symbol(s) not found for architecture x86_64
+> clang: error: linker command failed with exit code 1 (use -v to see
+> invocation)
+> bash-3.2$
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From vijay at saraswat.org  Mon Oct 13 19:03:58 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 13 Oct 2014 13:03:58 -0400
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <009a01cfe6f7$fc2c8380$f4858a80$@se>
+References: <543BE6D3.1060406@saraswat.org>	<007501cfe6f5$606bb080$21431180$@se>
+	<543BEB84.1020605@saraswat.org>
+	<009a01cfe6f7$fc2c8380$f4858a80$@se>
+Message-ID: <543C05FE.1080809@saraswat.org>
+
+FWIW, I did "make test", and ran test/test, and all tests pass.
+
+I am also able to run the examples.
+
+So in principle I could decode the make file for the examples and tests 
+and find out what to do :-)
+
+On 10/13/14, 11:11 AM, Christian Schulte wrote:
+> Apparently you did compile with Gist, that explains the first thing.
+>
+> The second I do not know and I will have to leave to an Apple user...
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.gecode.org/~schulte/
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Vijay Saraswat
+> Sent: Monday, October 13, 2014 5:11 PM
+> To: cschulte at kth.se; users at gecode.org
+> Subject: Re: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>
+> OK that definitely helps -- I get fewer missing symbols from before.
+>
+> However, -lcodegist did not work:
+>
+> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+> -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint
+> -lgecodekernel -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40)
+> (based on LLVM 3.4svn)
+> Target: x86_64-apple-darwin13.1.0
+> Thread model: posix
+>   
+> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+> -syslibroot
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+> -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel
+> -lgecodesupport -lstdc++ -lSystem
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+> ld: library not found for -lgecodegist
+> clang: error: linker command failed with exit code 1 (use -v to see
+> invocation)
+>
+> This is odd -- there was no error when i did a make to make the system.
+>
+> Without lcodegist I do get a fewer set of missing symbols:
+>
+> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+> -lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint -lgecodekernel
+> -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM
+> 3.4svn)
+> Target: x86_64-apple-darwin13.1.0
+> Thread model: posix
+>   
+> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+> -syslibroot
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop
+> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+> -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+> -lstdc++ -lSystem
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha
+> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+> Undefined symbols for architecture x86_64:
+>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+> referenced from:
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options,
+> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+> Money*) in money.o
+>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+> Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+> const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+> referenced from:
+>         Money::Money(Gecode::Options const&) in money.o
+> ld: symbol(s) not found for architecture x86_64
+> clang: error: linker command failed with exit code 1 (use -v to see
+> invocation)
+>
+> Best,
+> Vijay
+>
+> On 10/13/14, 10:52 AM, Christian Schulte wrote:
+>> Hi Vijay,
+>>
+>> Not being an Apple user, let me still try a guess: you need to add
+>> additional libraries:
+>>    -lgecodeminimodel -lgecodedriver -lgecodegist
+>>
+>> Please use the order as described in MPG.
+>>
+>> Good luck
+>> Christian
+>>
+>> --
+>> Christian Schulte, Professor of Computer Science, KTH,
+>> www.gecode.org/~schulte/
+>>
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Vijay Saraswat
+>> Sent: Monday, October 13, 2014 4:51 PM
+>> To: users at gecode.org
+>> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>
+>> Continuing with
+>> http://www.gecode.org/pipermail/users/2014-April/004368.html
+>>
+>> I am unable to get the basic example running from the tutorial.
+>>
+>> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3
+>> from the webpage http://www.gecode.org/download.html
+>>
+>> Downloaded source package, did a ./configure, make, make-install --
+>> all seemed to succeed.
+>>
+>> The following command succeeds:
+>>
+>> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>>
+>> However, the next command fails -- what am I doing wrong?
+>>
+>> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++
+>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM
+>> version 5.1
+>> (clang-503.0.40) (based on LLVM 3.4svn)
+>> Target: x86_64-apple-darwin13.1.0
+>> Thread model: posix
+>>    
+>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xc
+>> toolch ain/usr/bin/ld" -demangle -dynamic -arch x86_64
+>> -macosx_version_min 10.9.0 -syslibroot
+>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/D
+>> evelop er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o
+>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++
+>> -lSystem
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xct
+>> oolcha in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>> Undefined symbols for architecture x86_64:
+>>      "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::BaseOptions::help()", referenced from:
+>>          vtable for Gecode::Options in money.o
+>>      "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>>          _main in money.o
+>>      "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>>          Gecode::Options::~Options() in money.o
+>>      "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+>> Gecode::IntConLevel)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>>          Gecode::Options::~Options() in money.o
+>>      "Gecode::Driver::CombinedStop::sigint", referenced from:
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options,
+>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>> Money*) in money.o
+>>          Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>>          Gecode::Driver::CombinedStop::CombinedStop(unsigned int,
+>> unsigned int, unsigned int) in money.o
+>>          Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+>> const&, Gecode::Search::Options const&) in money.o
+>>      "Gecode::Driver::StringOption::add(int, char const*, char
+>> const*)", referenced from:
+>>          _main in money.o
+>>      "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>>          Gecode::Options::~Options() in money.o
+>>      "Gecode::Driver::StringValueOption::~StringValueOption()",
+>> referenced
+>> from:
+>>          Gecode::Options::~Options() in money.o
+>>      "Gecode::Driver::am(double*, int)", referenced from:
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options,
+>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>> Money*) in money.o
+>>      "Gecode::Driver::dev(double*, int)", referenced from:
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options,
+>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>> Money*) in money.o
+>>      "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>> referenced from:
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options,
+>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>> Money*) in money.o
+>>      "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space
+>> const&, Gecode::IntVar, int), void (*)(Gecode::Space const&,
+>> Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int
+>> const&, std::ostream&))", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::Options::Options(char const*)", referenced from:
+>>          _main in money.o
+>>      "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced
+> from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>> const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar
+>> const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar
+>> const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>> const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr
+>> const&)", referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+>> referenced from:
+>>          Money::Money(Gecode::Options const&) in money.o
+>>      "typeinfo for Gecode::BaseOptions", referenced from:
+>>          typeinfo for Gecode::Options in money.o
+>> ld: symbol(s) not found for architecture x86_64
+>> clang: error: linker command failed with exit code 1 (use -v to see
+>> invocation)
+>> bash-3.2$
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+
+From vijay at saraswat.org  Mon Oct 13 20:51:04 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 13 Oct 2014 14:51:04 -0400
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <543C05FE.1080809@saraswat.org>
+References: <543BE6D3.1060406@saraswat.org>	<007501cfe6f5$606bb080$21431180$@se>	<543BEB84.1020605@saraswat.org>	<009a01cfe6f7$fc2c8380$f4858a80$@se>
+	<543C05FE.1080809@saraswat.org>
+Message-ID: <543C1F18.1030406@saraswat.org>
+
+FWIW for others who might be in a similar predicament: Cutting and 
+pasting from the log files for make test yielded the following commands 
+that worked to compile and run my code:
+
+  g++ -I/usr/local/include -Qunused-arguments -fno-signaling-nans 
+-fno-rounding-math -ffinite-math-only -fno-math-errno 
+-fno-strict-aliasing -O3 -fvisibility=hidden -ggdb -pipe -Wall -Wextra 
+-fPIC -pthread -DNDEBUG   -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB 
+-DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB 
+-I${QTH}/5.3/clang_64/mkspecs/macx-clang 
+-I${QTH}/5.3/clang_64/lib/QtPrintSupport.framework/Versions/5/Headers 
+-I${QTH}/5.3/clang_64/lib/QtWidgets.framework/Versions/5/Headers 
+-I${QTH}/5.3/clang_64/lib/QtGui.framework/Versions/5/Headers 
+-I${QTH}/5.3/clang_64/lib/QtCore.framework/Versions/5/Headers 
+-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers 
+-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/AGL.framework/Headers 
+-F${QTH}/5.3/clang_64/lib -c -o money.o  money.cpp
+
+bash-3.2$ g++ -o money money.o -L/usr/local/lib -I/usr/local/include 
+-Qunused-arguments -fno-signaling-nans -fno-rounding-math 
+-ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3 
+-fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG 
+-lgecodeflatzinc -lgecodedriver -lgecodegist -lgecodesearch 
+-lgecodeminimodel -lgecodeset -lgecodefloat -lgecodeint -lgecodekernel 
+-lgecodesupport -F/Users/vijaysaraswat/Qt/5.3/clang_64/lib -framework 
+QtPrintSupport -framework QtWidgets -framework QtGui -framework QtCore 
+-framework OpenGL -framework AGL
+On 10/13/14, 1:03 PM, Vijay Saraswat wrote:
+> FWIW, I did "make test", and ran test/test, and all tests pass.
+>
+> I am also able to run the examples.
+>
+> So in principle I could decode the make file for the examples and 
+> tests and find out what to do :-)
+>
+> On 10/13/14, 11:11 AM, Christian Schulte wrote:
+>> Apparently you did compile with Gist, that explains the first thing.
+>>
+>> The second I do not know and I will have to leave to an Apple user...
+>>
+>> Cheers
+>> Christian
+>>
+>> -- 
+>> Christian Schulte, Professor of Computer Science, KTH,
+>> www.gecode.org/~schulte/
+>>
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>> Behalf
+>> Of Vijay Saraswat
+>> Sent: Monday, October 13, 2014 5:11 PM
+>> To: cschulte at kth.se; users at gecode.org
+>> Subject: Re: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>
+>> OK that definitely helps -- I get fewer missing symbols from before.
+>>
+>> However, -lcodegist did not work:
+>>
+>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>> -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint
+>> -lgecodekernel -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40)
+>> (based on LLVM 3.4svn)
+>> Target: x86_64-apple-darwin13.1.0
+>> Thread model: posix
+>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 
+>> 10.9.0
+>> -syslibroot
+>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>
+>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>> -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel
+>> -lgecodesupport -lstdc++ -lSystem
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>
+>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>> ld: library not found for -lgecodegist
+>> clang: error: linker command failed with exit code 1 (use -v to see
+>> invocation)
+>>
+>> This is odd -- there was no error when i did a make to make the system.
+>>
+>> Without lcodegist I do get a fewer set of missing symbols:
+>>
+>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>> -lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint 
+>> -lgecodekernel
+>> -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM
+>> 3.4svn)
+>> Target: x86_64-apple-darwin13.1.0
+>> Thread model: posix
+>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 
+>> 10.9.0
+>> -syslibroot
+>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>
+>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>> -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel 
+>> -lgecodesupport
+>> -lstdc++ -lSystem
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>
+>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>> Undefined symbols for architecture x86_64:
+>>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>> referenced from:
+>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options,
+>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>> Money*) in money.o
+>>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space 
+>> const&,
+>> Gecode::IntVar, int), void (*)(Gecode::Space const&, 
+>> Gecode::BrancherHandle
+>> const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+>> referenced from:
+>>         Money::Money(Gecode::Options const&) in money.o
+>> ld: symbol(s) not found for architecture x86_64
+>> clang: error: linker command failed with exit code 1 (use -v to see
+>> invocation)
+>>
+>> Best,
+>> Vijay
+>>
+>> On 10/13/14, 10:52 AM, Christian Schulte wrote:
+>>> Hi Vijay,
+>>>
+>>> Not being an Apple user, let me still try a guess: you need to add
+>>> additional libraries:
+>>>    -lgecodeminimodel -lgecodedriver -lgecodegist
+>>>
+>>> Please use the order as described in MPG.
+>>>
+>>> Good luck
+>>> Christian
+>>>
+>>> -- 
+>>> Christian Schulte, Professor of Computer Science, KTH,
+>>> www.gecode.org/~schulte/
+>>>
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>>> Behalf Of Vijay Saraswat
+>>> Sent: Monday, October 13, 2014 4:51 PM
+>>> To: users at gecode.org
+>>> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>>
+>>> Continuing with
+>>> http://www.gecode.org/pipermail/users/2014-April/004368.html
+>>>
+>>> I am unable to get the basic example running from the tutorial.
+>>>
+>>> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3
+>>> from the webpage http://www.gecode.org/download.html
+>>>
+>>> Downloaded source package, did a ./configure, make, make-install --
+>>> all seemed to succeed.
+>>>
+>>> The following command succeeds:
+>>>
+>>> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>>>
+>>> However, the next command fails -- what am I doing wrong?
+>>>
+>>> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++
+>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM
+>>> version 5.1
+>>> (clang-503.0.40) (based on LLVM 3.4svn)
+>>> Target: x86_64-apple-darwin13.1.0
+>>> Thread model: posix
+>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xc
+>>> toolch ain/usr/bin/ld" -demangle -dynamic -arch x86_64
+>>> -macosx_version_min 10.9.0 -syslibroot
+>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/D
+>>> evelop er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o
+>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++
+>>> -lSystem
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xct
+>>> oolcha in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>> Undefined symbols for architecture x86_64:
+>>>      "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::BaseOptions::help()", referenced from:
+>>>          vtable for Gecode::Options in money.o
+>>>      "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>>>          _main in money.o
+>>>      "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>>>          Gecode::Options::~Options() in money.o
+>>>      "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+>>> Gecode::IntConLevel)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>>>          Gecode::Options::~Options() in money.o
+>>>      "Gecode::Driver::CombinedStop::sigint", referenced from:
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options,
+>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>> money.o
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>> Money*) in money.o
+>>>          Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>>>          Gecode::Driver::CombinedStop::CombinedStop(unsigned int,
+>>> unsigned int, unsigned int) in money.o
+>>> Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+>>> const&, Gecode::Search::Options const&) in money.o
+>>>      "Gecode::Driver::StringOption::add(int, char const*, char
+>>> const*)", referenced from:
+>>>          _main in money.o
+>>>      "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>>>          Gecode::Options::~Options() in money.o
+>>> "Gecode::Driver::StringValueOption::~StringValueOption()",
+>>> referenced
+>>> from:
+>>>          Gecode::Options::~Options() in money.o
+>>>      "Gecode::Driver::am(double*, int)", referenced from:
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options,
+>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>> money.o
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>> Money*) in money.o
+>>>      "Gecode::Driver::dev(double*, int)", referenced from:
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options,
+>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>> money.o
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>> Money*) in money.o
+>>>      "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>>> referenced from:
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options,
+>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>> money.o
+>>>          void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>> Money*) in money.o
+>>>      "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space
+>>> const&, Gecode::IntVar, int), void (*)(Gecode::Space const&,
+>>> Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int
+>>> const&, std::ostream&))", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::Options::Options(char const*)", referenced from:
+>>>          _main in money.o
+>>>      "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced
+>> from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>> const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar
+>>> const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar
+>>> const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>> const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr
+>>> const&)", referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+>>> referenced from:
+>>>          Money::Money(Gecode::Options const&) in money.o
+>>>      "typeinfo for Gecode::BaseOptions", referenced from:
+>>>          typeinfo for Gecode::Options in money.o
+>>> ld: symbol(s) not found for architecture x86_64
+>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>> invocation)
+>>> bash-3.2$
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+From tack at gecode.org  Mon Oct 13 20:54:51 2014
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 13 Oct 2014 20:54:51 +0200
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <543C1F18.1030406@saraswat.org>
+References: <543BE6D3.1060406@saraswat.org>
+	<007501cfe6f5$606bb080$21431180$@se>
+	<543BEB84.1020605@saraswat.org>
+	<009a01cfe6f7$fc2c8380$f4858a80$@se>
+	<543C05FE.1080809@saraswat.org> <543C1F18.1030406@saraswat.org>
+Message-ID: <50BA9006-8D30-454E-B746-FABD2C0C428C@gecode.org>
+
+Hi Vijay,
+
+the main difference seems to be that you had -stdlib=libstdc++ on your command line.  The missing symbols were probably mismatches on std::ostream (all the linker errors referenced that symbol), so I guess that you compiled Gecode with libc++ but later tried to compile your example with libstdc++?  In particular if you link against Qt, you have to use the same standard library that was used to compile Qt.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 13 Oct 2014, at 8:51 pm, Vijay Saraswat <vijay at saraswat.org> wrote:
+
+> FWIW for others who might be in a similar predicament: Cutting and pasting from the log files for make test yielded the following commands that worked to compile and run my code:
+> 
+> g++ -I/usr/local/include -Qunused-arguments -fno-signaling-nans -fno-rounding-math -ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3 -fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG   -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I${QTH}/5.3/clang_64/mkspecs/macx-clang -I${QTH}/5.3/clang_64/lib/QtPrintSupport.framework/Versions/5/Headers -I${QTH}/5.3/clang_64/lib/QtWidgets.framework/Versions/5/Headers -I${QTH}/5.3/clang_64/lib/QtGui.framework/Versions/5/Headers -I${QTH}/5.3/clang_64/lib/QtCore.framework/Versions/5/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/AGL.framework/Headers -F${QTH}/5.3/clang_64/lib -c -o money.o  money.cpp
+> 
+> bash-3.2$ g++ -o money money.o -L/usr/local/lib -I/usr/local/include -Qunused-arguments -fno-signaling-nans -fno-rounding-math -ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3 -fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG -lgecodeflatzinc -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodefloat -lgecodeint -lgecodekernel -lgecodesupport -F/Users/vijaysaraswat/Qt/5.3/clang_64/lib -framework QtPrintSupport -framework QtWidgets -framework QtGui -framework QtCore -framework OpenGL -framework AGL
+> On 10/13/14, 1:03 PM, Vijay Saraswat wrote:
+>> FWIW, I did "make test", and ran test/test, and all tests pass.
+>> 
+>> I am also able to run the examples.
+>> 
+>> So in principle I could decode the make file for the examples and tests and find out what to do :-)
+>> 
+>> On 10/13/14, 11:11 AM, Christian Schulte wrote:
+>>> Apparently you did compile with Gist, that explains the first thing.
+>>> 
+>>> The second I do not know and I will have to leave to an Apple user...
+>>> 
+>>> Cheers
+>>> Christian
+>>> 
+>>> -- 
+>>> Christian Schulte, Professor of Computer Science, KTH,
+>>> www.gecode.org/~schulte/
+>>> 
+>>> 
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+>>> Of Vijay Saraswat
+>>> Sent: Monday, October 13, 2014 5:11 PM
+>>> To: cschulte at kth.se; users at gecode.org
+>>> Subject: Re: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>> 
+>>> OK that definitely helps -- I get fewer missing symbols from before.
+>>> 
+>>> However, -lcodegist did not work:
+>>> 
+>>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>>> -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint
+>>> -lgecodekernel -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40)
+>>> (based on LLVM 3.4svn)
+>>> Target: x86_64-apple-darwin13.1.0
+>>> Thread model: posix
+>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+>>> -syslibroot
+>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>>> -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel
+>>> -lgecodesupport -lstdc++ -lSystem
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>> ld: library not found for -lgecodegist
+>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>> invocation)
+>>> 
+>>> This is odd -- there was no error when i did a make to make the system.
+>>> 
+>>> Without lcodegist I do get a fewer set of missing symbols:
+>>> 
+>>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>>> -lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint -lgecodekernel
+>>> -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM
+>>> 3.4svn)
+>>> Target: x86_64-apple-darwin13.1.0
+>>> Thread model: posix
+>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 10.9.0
+>>> -syslibroot
+>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>>> -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+>>> -lstdc++ -lSystem
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>> Undefined symbols for architecture x86_64:
+>>>    "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>>> referenced from:
+>>>        void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options,
+>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>>        void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>> Money*) in money.o
+>>>    "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+>>> Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+>>> const&, unsigned int, Gecode::IntVar, int, int const&, std::ostream&))",
+>>> referenced from:
+>>>        Money::Money(Gecode::Options const&) in money.o
+>>> ld: symbol(s) not found for architecture x86_64
+>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>> invocation)
+>>> 
+>>> Best,
+>>> Vijay
+>>> 
+>>> On 10/13/14, 10:52 AM, Christian Schulte wrote:
+>>>> Hi Vijay,
+>>>> 
+>>>> Not being an Apple user, let me still try a guess: you need to add
+>>>> additional libraries:
+>>>>   -lgecodeminimodel -lgecodedriver -lgecodegist
+>>>> 
+>>>> Please use the order as described in MPG.
+>>>> 
+>>>> Good luck
+>>>> Christian
+>>>> 
+>>>> -- 
+>>>> Christian Schulte, Professor of Computer Science, KTH,
+>>>> www.gecode.org/~schulte/
+>>>> 
+>>>> 
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>>>> Behalf Of Vijay Saraswat
+>>>> Sent: Monday, October 13, 2014 4:51 PM
+>>>> To: users at gecode.org
+>>>> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>>> 
+>>>> Continuing with
+>>>> http://www.gecode.org/pipermail/users/2014-April/004368.html
+>>>> 
+>>>> I am unable to get the basic example running from the tutorial.
+>>>> 
+>>>> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3
+>>>> from the webpage http://www.gecode.org/download.html
+>>>> 
+>>>> Downloaded source package, did a ./configure, make, make-install --
+>>>> all seemed to succeed.
+>>>> 
+>>>> The following command succeeds:
+>>>> 
+>>>> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>>>> 
+>>>> However, the next command fails -- what am I doing wrong?
+>>>> 
+>>>> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++
+>>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM
+>>>> version 5.1
+>>>> (clang-503.0.40) (based on LLVM 3.4svn)
+>>>> Target: x86_64-apple-darwin13.1.0
+>>>> Thread model: posix
+>>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xc
+>>>> toolch ain/usr/bin/ld" -demangle -dynamic -arch x86_64
+>>>> -macosx_version_min 10.9.0 -syslibroot
+>>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/D
+>>>> evelop er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o
+>>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++
+>>>> -lSystem
+>>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xct
+>>>> oolcha in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>>> Undefined symbols for architecture x86_64:
+>>>>     "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::BaseOptions::help()", referenced from:
+>>>>         vtable for Gecode::Options in money.o
+>>>>     "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>>>>         _main in money.o
+>>>>     "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>>>>         Gecode::Options::~Options() in money.o
+>>>>     "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+>>>> Gecode::IntConLevel)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>>>>         Gecode::Options::~Options() in money.o
+>>>>     "Gecode::Driver::CombinedStop::sigint", referenced from:
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options,
+>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>> Money*) in money.o
+>>>>         Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>>>>         Gecode::Driver::CombinedStop::CombinedStop(unsigned int,
+>>>> unsigned int, unsigned int) in money.o
+>>>> Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+>>>> const&, Gecode::Search::Options const&) in money.o
+>>>>     "Gecode::Driver::StringOption::add(int, char const*, char
+>>>> const*)", referenced from:
+>>>>         _main in money.o
+>>>>     "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>>>>         Gecode::Options::~Options() in money.o
+>>>> "Gecode::Driver::StringValueOption::~StringValueOption()",
+>>>> referenced
+>>>> from:
+>>>>         Gecode::Options::~Options() in money.o
+>>>>     "Gecode::Driver::am(double*, int)", referenced from:
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options,
+>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>> Money*) in money.o
+>>>>     "Gecode::Driver::dev(double*, int)", referenced from:
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options,
+>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>> Money*) in money.o
+>>>>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>>>> referenced from:
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options,
+>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>> Money*) in money.o
+>>>>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>>>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space
+>>>> const&, Gecode::IntVar, int), void (*)(Gecode::Space const&,
+>>>> Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int
+>>>> const&, std::ostream&))", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::Options::Options(char const*)", referenced from:
+>>>>         _main in money.o
+>>>>     "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced
+>>> from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>>> const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar
+>>>> const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar
+>>>> const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>>> const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr
+>>>> const&)", referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+>>>> referenced from:
+>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>     "typeinfo for Gecode::BaseOptions", referenced from:
+>>>>         typeinfo for Gecode::Options in money.o
+>>>> ld: symbol(s) not found for architecture x86_64
+>>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>>> invocation)
+>>>> bash-3.2$
+>>>> 
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>> 
+>>>> 
+>>> 
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>> 
+>>> 
+>> 
+>> 
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141013/98a82c39/attachment-0001.html>
+
+From vijay at saraswat.org  Tue Oct 14 02:41:11 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 13 Oct 2014 20:41:11 -0400
+Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+In-Reply-To: <50BA9006-8D30-454E-B746-FABD2C0C428C@gecode.org>
+References: <543BE6D3.1060406@saraswat.org>
+	<007501cfe6f5$606bb080$21431180$@se>
+	<543BEB84.1020605@saraswat.org>
+	<009a01cfe6f7$fc2c8380$f4858a80$@se>
+	<543C05FE.1080809@saraswat.org> <543C1F18.1030406@saraswat.org>
+	<50BA9006-8D30-454E-B746-FABD2C0C428C@gecode.org>
+Message-ID: <543C7127.3070208@saraswat.org>
+
+Hi Guido --
+
+I had the -stdlib=libstdc++ line in there only because you had suggested 
+that it be so in 
+http://www.gecode.org/pipermail/users/2014-April/004368.html :-)
+
+So I went back and redid everything without Qt, to see what I would get.
+
+This time I was able to get the following to work. So perhaps I had just 
+gotten myself confused earlier... Any case, glad to have it working now! 
+(Note: unlike what the manual said, I did need to include the 
+-I/usr/local/include arg.)
+
+  g++ -I/usr/local/include -O3  -c -o money.o  money.cpp
+bash-3.2$ g++ -o money money.o -L/usr/local/lib    -O3 -lgecodeflatzinc 
+-lgecodedriver  -lgecodesearch -lgecodeminimodel -lgecodeset 
+-lgecodefloat -lgecodeint -lgecodekernel -lgecodesupport
+bash-3.2$ ./money
+SEND+MORE=MONEY
+     {9, 5, 6, 7, 1, 0, 8, 2}
+
+Initial
+     propagators: 2
+     branchers:   1
+
+Summary
+     runtime:      0.000 (0.252 ms)
+     solutions:    1
+     propagations: 14
+     nodes:        7
+     failures:     3
+     restarts:     0
+     no-goods:     0
+     peak depth:   1
+
+bash-3.2$
+
+On 10/13/14, 2:54 PM, Guido Tack wrote:
+> Hi Vijay,
+>
+> the main difference seems to be that you had -stdlib=libstdc++ on your 
+> command line.  The missing symbols were probably mismatches on 
+> std::ostream (all the linker errors referenced that symbol), so I 
+> guess that you compiled Gecode with libc++ but later tried to compile 
+> your example with libstdc++?  In particular if you link against Qt, 
+> you have to use the same standard library that was used to compile Qt.
+>
+> Cheers,
+> Guido
+>
+> -- 
+> Guido Tack
+> http://www.csse.monash.edu/~guidot/ 
+> <http://www.csse.monash.edu/%7Eguidot/>
+>
+>
+>
+> On 13 Oct 2014, at 8:51 pm, Vijay Saraswat <vijay at saraswat.org 
+> <mailto:vijay at saraswat.org>> wrote:
+>
+>> FWIW for others who might be in a similar predicament: Cutting and 
+>> pasting from the log files for make test yielded the following 
+>> commands that worked to compile and run my code:
+>>
+>> g++ -I/usr/local/include -Qunused-arguments -fno-signaling-nans 
+>> -fno-rounding-math -ffinite-math-only -fno-math-errno 
+>> -fno-strict-aliasing -O3 -fvisibility=hidden -ggdb -pipe -Wall 
+>> -Wextra -fPIC -pthread -DNDEBUG   -DQT_NO_DEBUG -DQT_PRINTSUPPORT_LIB 
+>> -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB 
+>> -I${QTH}/5.3/clang_64/mkspecs/macx-clang 
+>> -I${QTH}/5.3/clang_64/lib/QtPrintSupport.framework/Versions/5/Headers 
+>> -I${QTH}/5.3/clang_64/lib/QtWidgets.framework/Versions/5/Headers 
+>> -I${QTH}/5.3/clang_64/lib/QtGui.framework/Versions/5/Headers 
+>> -I${QTH}/5.3/clang_64/lib/QtCore.framework/Versions/5/Headers 
+>> -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers 
+>> -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/AGL.framework/Headers 
+>> -F${QTH}/5.3/clang_64/lib -c -o money.o  money.cpp
+>>
+>> bash-3.2$ g++ -o money money.o -L/usr/local/lib -I/usr/local/include 
+>> -Qunused-arguments -fno-signaling-nans -fno-rounding-math 
+>> -ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3 
+>> -fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG 
+>> -lgecodeflatzinc -lgecodedriver -lgecodegist -lgecodesearch 
+>> -lgecodeminimodel -lgecodeset -lgecodefloat -lgecodeint 
+>> -lgecodekernel -lgecodesupport 
+>> -F/Users/vijaysaraswat/Qt/5.3/clang_64/lib -framework QtPrintSupport 
+>> -framework QtWidgets -framework QtGui -framework QtCore -framework 
+>> OpenGL -framework AGL
+>> On 10/13/14, 1:03 PM, Vijay Saraswat wrote:
+>>> FWIW, I did "make test", and ran test/test, and all tests pass.
+>>>
+>>> I am also able to run the examples.
+>>>
+>>> So in principle I could decode the make file for the examples and 
+>>> tests and find out what to do :-)
+>>>
+>>> On 10/13/14, 11:11 AM, Christian Schulte wrote:
+>>>> Apparently you did compile with Gist, that explains the first thing.
+>>>>
+>>>> The second I do not know and I will have to leave to an Apple user...
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>> -- 
+>>>> Christian Schulte, Professor of Computer Science, KTH,
+>>>> www.gecode.org/~schulte/ <http://www.gecode.org/%7Eschulte/>
+>>>>
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>>>> Behalf
+>>>> Of Vijay Saraswat
+>>>> Sent: Monday, October 13, 2014 5:11 PM
+>>>> To: cschulte at kth.se; users at gecode.org
+>>>> Subject: Re: [gecode-users] Compilation problem on MacOs with 
+>>>> Gecode 4.3
+>>>>
+>>>> OK that definitely helps -- I get fewer missing symbols from before.
+>>>>
+>>>> However, -lcodegist did not work:
+>>>>
+>>>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>>>> -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel 
+>>>> -lgecodeint
+>>>> -lgecodekernel -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40)
+>>>> (based on LLVM 3.4svn)
+>>>> Target: x86_64-apple-darwin13.1.0
+>>>> Thread model: posix
+>>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>>>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 
+>>>> 10.9.0
+>>>> -syslibroot
+>>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>>>
+>>>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>>>> -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint 
+>>>> -lgecodekernel
+>>>> -lgecodesupport -lstdc++ -lSystem
+>>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>>>
+>>>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>>> ld: library not found for -lgecodegist
+>>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>>> invocation)
+>>>>
+>>>> This is odd -- there was no error when i did a make to make the system.
+>>>>
+>>>> Without lcodegist I do get a fewer set of missing symbols:
+>>>>
+>>>> g++ -v -o money money.o  -stdlib=libstdc++ -L/usr/local/lib
+>>>> -lgecodedriver -lgecodesearch -lgecodeminimodel  -lgecodeint 
+>>>> -lgecodekernel
+>>>> -lgecodesupport Apple LLVM version 5.1 (clang-503.0.40) (based on LLVM
+>>>> 3.4svn)
+>>>> Target: x86_64-apple-darwin13.1.0
+>>>> Thread model: posix
+>>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolch
+>>>> ain/usr/bin/ld" -demangle -dynamic -arch x86_64 -macosx_version_min 
+>>>> 10.9.0
+>>>> -syslibroot
+>>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Develop 
+>>>>
+>>>> er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o -lgecodedriver
+>>>> -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel 
+>>>> -lgecodesupport
+>>>> -lstdc++ -lSystem
+>>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolcha 
+>>>>
+>>>> in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>>> Undefined symbols for architecture x86_64:
+>>>>    "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>>>> referenced from:
+>>>>        void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options,
+>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>>> money.o
+>>>>        void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>> Money*) in money.o
+>>>>    "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>>>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space 
+>>>> const&,
+>>>> Gecode::IntVar, int), void (*)(Gecode::Space const&, 
+>>>> Gecode::BrancherHandle
+>>>> const&, unsigned int, Gecode::IntVar, int, int const&, 
+>>>> std::ostream&))",
+>>>> referenced from:
+>>>>        Money::Money(Gecode::Options const&) in money.o
+>>>> ld: symbol(s) not found for architecture x86_64
+>>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>>> invocation)
+>>>>
+>>>> Best,
+>>>> Vijay
+>>>>
+>>>> On 10/13/14, 10:52 AM, Christian Schulte wrote:
+>>>>> Hi Vijay,
+>>>>>
+>>>>> Not being an Apple user, let me still try a guess: you need to add
+>>>>> additional libraries:
+>>>>>   -lgecodeminimodel -lgecodedriver -lgecodegist
+>>>>>
+>>>>> Please use the order as described in MPG.
+>>>>>
+>>>>> Good luck
+>>>>> Christian
+>>>>>
+>>>>> -- 
+>>>>> Christian Schulte, Professor of Computer Science, KTH,
+>>>>> www.gecode.org/~schulte/
+>>>>>
+>>>>>
+>>>>> -----Original Message-----
+>>>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>>>>> Behalf Of Vijay Saraswat
+>>>>> Sent: Monday, October 13, 2014 4:51 PM
+>>>>> To: users at gecode.org
+>>>>> Subject: [gecode-users] Compilation problem on MacOs with Gecode 4.3
+>>>>>
+>>>>> Continuing with
+>>>>> http://www.gecode.org/pipermail/users/2014-April/004368.html
+>>>>>
+>>>>> I am unable to get the basic example running from the tutorial.
+>>>>>
+>>>>> On a MacBook, OS X 10.9.2, XCode 5.1.1, trying to install GECode 4.3
+>>>>> from the webpage http://www.gecode.org/download.html
+>>>>>
+>>>>> Downloaded source package, did a ./configure, make, make-install --
+>>>>> all seemed to succeed.
+>>>>>
+>>>>> The following command succeeds:
+>>>>>
+>>>>> $g++ -O3 -I/usr/local/include -stdlib=libstdc++ -c money.cpp
+>>>>>
+>>>>> However, the next command fails -- what am I doing wrong?
+>>>>>
+>>>>> $g++ -v -o money money.o  -L/usr/local/lib -stdlib=libstdc++
+>>>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport Apple LLVM
+>>>>> version 5.1
+>>>>> (clang-503.0.40) (based on LLVM 3.4svn)
+>>>>> Target: x86_64-apple-darwin13.1.0
+>>>>> Thread model: posix
+>>>>> "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xc
+>>>>> toolch ain/usr/bin/ld" -demangle -dynamic -arch x86_64
+>>>>> -macosx_version_min 10.9.0 -syslibroot
+>>>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/D
+>>>>> evelop er/SDKs/MacOSX10.9.sdk -o money -L/usr/local/lib money.o
+>>>>> -lgecodesearch -lgecodeint -lgecodekernel -lgecodesupport -lstdc++
+>>>>> -lSystem
+>>>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xct
+>>>>> oolcha in/usr/bin/../lib/clang/5.1/lib/darwin/libclang_rt.osx.a
+>>>>> Undefined symbols for architecture x86_64:
+>>>>>     "Gecode::LinIntExpr::~LinIntExpr()", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::BaseOptions::help()", referenced from:
+>>>>>         vtable for Gecode::Options in money.o
+>>>>>     "Gecode::BaseOptions::parse(int&, char**)", referenced from:
+>>>>>         _main in money.o
+>>>>>     "Gecode::BaseOptions::~BaseOptions()", referenced from:
+>>>>>         Gecode::Options::~Options() in money.o
+>>>>>     "Gecode::rel(Gecode::Home, Gecode::BoolExpr const&,
+>>>>> Gecode::IntConLevel)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::Driver::BaseOption::~BaseOption()", referenced from:
+>>>>>         Gecode::Options::~Options() in money.o
+>>>>>     "Gecode::Driver::CombinedStop::sigint", referenced from:
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options,
+>>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>>>> money.o
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>>> Money*) in money.o
+>>>>>         Gecode::Driver::CombinedStop::interrupt(int) in money.o
+>>>>>         Gecode::Driver::CombinedStop::CombinedStop(unsigned int,
+>>>>> unsigned int, unsigned int) in money.o
+>>>>> Gecode::Driver::CombinedStop::stop(Gecode::Search::Statistics
+>>>>> const&, Gecode::Search::Options const&) in money.o
+>>>>>     "Gecode::Driver::StringOption::add(int, char const*, char
+>>>>> const*)", referenced from:
+>>>>>         _main in money.o
+>>>>>     "Gecode::Driver::StringOption::~StringOption()", referenced from:
+>>>>>         Gecode::Options::~Options() in money.o
+>>>>> "Gecode::Driver::StringValueOption::~StringValueOption()",
+>>>>> referenced
+>>>>> from:
+>>>>>         Gecode::Options::~Options() in money.o
+>>>>>     "Gecode::Driver::am(double*, int)", referenced from:
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options,
+>>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>>>> money.o
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>>> Money*) in money.o
+>>>>>     "Gecode::Driver::dev(double*, int)", referenced from:
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options,
+>>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>>>> money.o
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>>> Money*) in money.o
+>>>>>     "Gecode::Driver::stop(Gecode::Support::Timer&, std::ostream&)",
+>>>>> referenced from:
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options,
+>>>>> Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in 
+>>>>> money.o
+>>>>>         void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+>>>>> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+>>>>> Money*) in money.o
+>>>>>     "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+>>>>> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space
+>>>>> const&, Gecode::IntVar, int), void (*)(Gecode::Space const&,
+>>>>> Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int
+>>>>> const&, std::ostream&))", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::Options::Options(char const*)", referenced from:
+>>>>>         _main in money.o
+>>>>>     "Gecode::BoolExpr::BoolExpr(Gecode::LinIntRel const&)", referenced
+>>>> from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::BoolExpr::~BoolExpr()", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator==(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>>>> const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator==(Gecode::IntVar const&, Gecode::IntVar
+>>>>> const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator*(int, Gecode::IntVar const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::IntVar
+>>>>> const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator+(Gecode::LinIntExpr const&, Gecode::LinIntExpr
+>>>>> const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator+(Gecode::IntVar const&, Gecode::LinIntExpr
+>>>>> const&)", referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "Gecode::operator+(Gecode::IntVar const&, Gecode::IntVar const&)",
+>>>>> referenced from:
+>>>>>         Money::Money(Gecode::Options const&) in money.o
+>>>>>     "typeinfo for Gecode::BaseOptions", referenced from:
+>>>>>         typeinfo for Gecode::Options in money.o
+>>>>> ld: symbol(s) not found for architecture x86_64
+>>>>> clang: error: linker command failed with exit code 1 (use -v to see
+>>>>> invocation)
+>>>>> bash-3.2$
+>>>>>
+>>>>> _______________________________________________
+>>>>> Gecode users mailing list
+>>>>> users at gecode.org
+>>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>>
+>>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org <mailto:users at gecode.org>
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org <mailto:users at gecode.org>
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141013/6ad53477/attachment-0001.html>
+
+From amnon.david at gmail.com  Thu Oct 16 00:20:06 2014
+From: amnon.david at gmail.com (Amnon David)
+Date: Thu, 16 Oct 2014 01:20:06 +0300
+Subject: [gecode-users] Setup problems with 4.3.0 on OS X
+Message-ID: <CAEEmEPqqX+VNMnryXtF-OKoGWqPOh=806OOdB2Wnf=J1sJa6qg@mail.gmail.com>
+
+Hello,
+
+I'm trying to compile examples from Gecode 4.3.0 on a Mac OS X (Mavericks
+10.9.5) with  g++ (Apple LLVM version 6.0 (clang-600.0.51) (based on LLVM
+3.5svn) Target: x86_64-apple-darwin13.4.0).
+
+I started with the simplest route, i.e download the 4.3.0 dmg file which
+according to the site contains everything needed (including Qt libs).
+
+Then, following the 'Modeling and Programming with Gecode' installation
+instructions for Apple Mac OS issued a:
+
+  g++ -O3 -c money.cpp
+
+so far, so good. Followed this with a
+
+g++ -framework gecode -o money money.cpp			
+
+At this point the linker got angry and threw this at me:
+
+  -----------------
+
+Undefined symbols for architecture x86_64:
+
+  "Gecode::Gist::TextOutput::TextOutput(std::__1::basic_string<char,
+std::__1::char_traits<char>, std::__1::allocator<char> > const&)",
+referenced from:
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options
+const&, Money*) in money.o
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)
+in money.o
+
+  "Gecode::Driver::stop(Gecode::Support::Timer&,
+std::__1::basic_ostream<char, std::__1::char_traits<char> >&)", referenced
+from:
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options
+const&, Money*) in money.o
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)
+in money.o
+
+  "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+const&, unsigned int, Gecode::IntVar, int, int const&,
+std::__1::basic_ostream<char, std::__1::char_traits<char> >&))", referenced
+from:
+
+      Money::Money(Gecode::Options const&) in money.o
+
+ld: symbol(s) not found for architecture x86_64
+
+-----------------
+
+Suspecting this is Qt related, I tried various things including compiling
+from XCode but to no avail, so at this point decided to try building it
+from the sources.
+
+At first I tried the ./configure, make path but after compiling a few files
+this failed with compilation error due to not finding some header file of
+Qt (I don't recall which now), though I have the latest Qt SDK installed.
+
+So I decided to try the cmake route. Here, the compilation completed with
+no errors. I then ollowed the last thread about problems compiling 4.3.0 on
+OS/X and used the following to link:
+
+g++ -o money money.o -L/Users/amnondavid/Downloads/gecode-4.3.0/ -O3
+-lgecodeflatzinc -lgecodedriver  -lgecodesearch -lgecodeminimodel
+-lgecodeset -lgecodefloat -lgecodeint -lgecodekernel -lgecodesupport
+but again, received a set of linking errors starting with:
+
+  "Gecode::Gist::Comparator::~Comparator()", referenced from:
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options,
+Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in
+money.o
+
+      void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&,
+Money*) in money.o
+
+      Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+
+      non-virtual thunk to
+Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+
+      Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+
+      non-virtual thunk to
+Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+
+  "Gecode::Gist::TextOutput::init()", referenced from:
+
+      Gecode::Gist::VarComparator<Money>::compare(Gecode::Space
+const&, Gecode::Space const&) in money.o
+
+      Gecode::Gist::Print<Money>::inspect(Gecode::Space const&) in money.o
+
+I figured what is needed is adding -lgecodegist, but looking at the
+generated libraries, I noticed the cmake process didn't generate it. Again,
+I assume due to not finding Qt (although I have the libraries installed).
+
+Having installed Gecode on my Mac a couple of years ago and doing some cool
+things with it , I'd like to get the latest version, though instead of
+spending a few more hours (or days) tracking this down, perhaps one of the
+gurus here could solve it in 5 minutes...
+
+Thanks,
+
+Amnon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/0b8633e4/attachment.html>
+
+From tack at gecode.org  Thu Oct 16 04:58:00 2014
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 16 Oct 2014 13:58:00 +1100
+Subject: [gecode-users] Setup problems with 4.3.0 on OS X
+In-Reply-To: <CAEEmEPqqX+VNMnryXtF-OKoGWqPOh=806OOdB2Wnf=J1sJa6qg@mail.gmail.com>
+References: <CAEEmEPqqX+VNMnryXtF-OKoGWqPOh=806OOdB2Wnf=J1sJa6qg@mail.gmail.com>
+Message-ID: <FD8D1D52-3943-43F8-89A7-167B8ED02104@gecode.org>
+
+Hi,
+
+this seems to be (yet another) problem with the two different standard C++ libraries on Mac OS X.  When using the binary package, the following should work:
+
+g++ -F/Library/Frameworks -stdlib=libstdc++ -o money money.cpp -framework gecode
+
+(tested with the same configuration as yours)
+
+I'm not sure what happens in your second example, where cmake doesn't find Qt.  In that case it should actually set (or unset) a preprocessor macro so that e.g. the driver does not contain any reference to Qt/Gist.  I'll have to check that.
+
+Cheers,
+Guido
+
+On 16 Oct 2014, at 9:20 am, Amnon David <amnon.david at gmail.com> wrote:
+
+> Hello,
+> 
+> I'm trying to compile examples from Gecode 4.3.0 on a Mac OS X (Mavericks 10.9.5) with  g++ (Apple LLVM version 6.0 (clang-600.0.51) (based on LLVM 3.5svn) Target: x86_64-apple-darwin13.4.0).
+> 
+> I started with the simplest route, i.e download the 4.3.0 dmg file which according to the site contains everything needed (including Qt libs).
+> 
+> Then, following the 'Modeling and Programming with Gecode' installation instructions for Apple Mac OS issued a:
+> 
+> 
+> g++ -O3 -c money.cpp
+> so far, so good. Followed this with a 
+> g++ -framework gecode -o money money.cpp			
+> At this point the linker got angry and threw this at me:
+> -----------------
+> 
+> Undefined symbols for architecture x86_64:
+> 
+>   "Gecode::Gist::TextOutput::TextOutput(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)", referenced from:
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*) in money.o
+> 
+>   "Gecode::Driver::stop(Gecode::Support::Timer&, std::__1::basic_ostream<char, std::__1::char_traits<char> >&)", referenced from:
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*) in money.o
+> 
+>   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&, Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&, Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle const&, unsigned int, Gecode::IntVar, int, int const&, std::__1::basic_ostream<char, std::__1::char_traits<char> >&))", referenced from:
+> 
+>       Money::Money(Gecode::Options const&) in money.o
+> 
+> ld: symbol(s) not found for architecture x86_64 
+> 
+> -----------------
+> 
+> Suspecting this is Qt related, I tried various things including compiling from XCode but to no avail, so at this point decided to try building it from the sources.
+> 
+> At first I tried the ./configure, make path but after compiling a few files this failed with compilation error due to not finding some header file of Qt (I don't recall which now), though I have the latest Qt SDK installed.
+> 
+> So I decided to try the cmake route. Here, the compilation completed with no errors. I then ollowed the last thread about problems compiling 4.3.0 on OS/X and used the following to link:
+> 
+> g++ -o money money.o -L/Users/amnondavid/Downloads/gecode-4.3.0/ -O3  -lgecodeflatzinc -lgecodedriver  -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodefloat -lgecodeint -lgecodekernel -lgecodesupport
+> 
+> 
+> but again, received a set of linking errors starting with:
+>   "Gecode::Gist::Comparator::~Comparator()", referenced from:
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+> 
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*) in money.o
+> 
+>       Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+> 
+>       non-virtual thunk to Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+> 
+>       Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+> 
+>       non-virtual thunk to Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+> 
+>   "Gecode::Gist::TextOutput::init()", referenced from:
+> 
+>       Gecode::Gist::VarComparator<Money>::compare(Gecode::Space const&, Gecode::Space const&) in money.o
+> 
+>       Gecode::Gist::Print<Money>::inspect(Gecode::Space const&) in money.o
+> 
+> I figured what is needed is adding -lgecodegist, but looking at the generated libraries, I noticed the cmake process didn't generate it. Again, I assume due to not finding Qt (although I have the libraries installed).
+> 
+> Having installed Gecode on my Mac a couple of years ago and doing some cool things with it , I'd like to get the latest version, though instead of spending a few more hours (or days) tracking this down, perhaps one of the gurus here could solve it in 5 minutes...
+> 
+> Thanks,
+> 
+> Amnon
+> 
+> 
+> 
+>  
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/a66fc591/attachment.html>
+
+From richard.portell at gmail.com  Thu Oct 16 10:52:06 2014
+From: richard.portell at gmail.com (Chd Orti)
+Date: Thu, 16 Oct 2014 10:52:06 +0200
+Subject: [gecode-users] Question about one type of constraint
+Message-ID: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>
+
+Hello,
+I have an array (size 10) of positive integers which can also take the
+value 0;
+I have a constraint on the sum of these numbers for example 10;
+Here is a solution for example :
+1 2 0 0 5 1 0 0 0 1
+I want to add a constraint : the sum of the 2 first integers with value
+different to 0 equals 4.
+How could I do that?
+Cheers,
+Richard
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/3f1385e9/attachment-0001.html>
+
+From amnon.david at gmail.com  Thu Oct 16 10:53:27 2014
+From: amnon.david at gmail.com (Amnon David)
+Date: Thu, 16 Oct 2014 11:53:27 +0300
+Subject: [gecode-users] Setup problems with 4.3.0 on OS X
+In-Reply-To: <FD8D1D52-3943-43F8-89A7-167B8ED02104@gecode.org>
+References: <CAEEmEPqqX+VNMnryXtF-OKoGWqPOh=806OOdB2Wnf=J1sJa6qg@mail.gmail.com>
+	<FD8D1D52-3943-43F8-89A7-167B8ED02104@gecode.org>
+Message-ID: <CAEEmEPorwWZceer30jWPjH+eXpvckvaEOp5RfG=vyE2yVU=AhA@mail.gmail.com>
+
+Perfect. Worked like a charm :)
+
+Thanks a lot,
+
+Amnon
+
+
+On Thu, Oct 16, 2014 at 5:58 AM, Guido Tack <tack at gecode.org> wrote:
+
+> Hi,
+>
+> this seems to be (yet another) problem with the two different standard C++
+> libraries on Mac OS X.  When using the binary package, the following should
+> work:
+>
+> g++ -F/Library/Frameworks -stdlib=libstdc++ -o money money.cpp
+> -framework gecode
+>
+> (tested with the same configuration as yours)
+>
+> I'm not sure what happens in your second example, where cmake doesn't find
+> Qt.  In that case it should actually set (or unset) a preprocessor macro so
+> that e.g. the driver does not contain any reference to Qt/Gist.  I'll have
+> to check that.
+>
+> Cheers,
+> Guido
+>
+> On 16 Oct 2014, at 9:20 am, Amnon David <amnon.david at gmail.com> wrote:
+>
+> Hello,
+>
+> I'm trying to compile examples from Gecode 4.3.0 on a Mac OS X (Mavericks
+> 10.9.5) with  g++ (Apple LLVM version 6.0 (clang-600.0.51) (based on LLVM
+> 3.5svn) Target: x86_64-apple-darwin13.4.0).
+>
+> I started with the simplest route, i.e download the 4.3.0 dmg file which
+> according to the site contains everything needed (including Qt libs).
+>
+> Then, following the 'Modeling and Programming with Gecode' installation
+> instructions for Apple Mac OS issued a:
+>
+>  g++ -O3 -c money.cpp
+>
+> so far, so good. Followed this with a
+>
+> g++ -framework gecode -o money money.cpp			
+>
+> At this point the linker got angry and threw this at me:
+>
+>  -----------------
+>
+> Undefined symbols for architecture x86_64:
+>
+>   "Gecode::Gist::TextOutput::TextOutput(std::__1::basic_string<char,
+> std::__1::char_traits<char>, std::__1::allocator<char> > const&)",
+> referenced from:
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options
+> const&, Money*) in money.o
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)
+> in money.o
+>
+>   "Gecode::Driver::stop(Gecode::Support::Timer&,
+> std::__1::basic_ostream<char, std::__1::char_traits<char> >&)", referenced
+> from:
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options
+> const&, Money*) in money.o
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money,
+> Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*)
+> in money.o
+>
+>   "Gecode::branch(Gecode::Home, Gecode::IntVarArgs const&,
+> Gecode::IntVarBranch, Gecode::IntValBranch, bool (*)(Gecode::Space const&,
+> Gecode::IntVar, int), void (*)(Gecode::Space const&, Gecode::BrancherHandle
+> const&, unsigned int, Gecode::IntVar, int, int const&,
+> std::__1::basic_ostream<char, std::__1::char_traits<char> >&))", referenced
+> from:
+>
+>       Money::Money(Gecode::Options const&) in money.o
+>
+> ld: symbol(s) not found for architecture x86_64
+>
+> -----------------
+>
+> Suspecting this is Qt related, I tried various things including compiling
+> from XCode but to no avail, so at this point decided to try building it
+> from the sources.
+>
+> At first I tried the ./configure, make path but after compiling a few
+> files this failed with compilation error due to not finding some header
+> file of Qt (I don't recall which now), though I have the latest Qt SDK
+> installed.
+>
+> So I decided to try the cmake route. Here, the compilation completed with
+> no errors. I then ollowed the last thread about problems compiling 4.3.0 on
+> OS/X and used the following to link:
+>
+> g++ -o money money.o -L/Users/amnondavid/Downloads/gecode-4.3.0/ -O3  -lgecodeflatzinc -lgecodedriver  -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodefloat -lgecodeint -lgecodekernel -lgecodesupport
+> but again, received a set of linking errors starting with:
+>
+>   "Gecode::Gist::Comparator::~Comparator()", referenced from:
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::Driver::EngineToMeta>(Gecode::Options const&, Money*) in money.o
+>
+>       void Gecode::Driver::ScriptBase<Gecode::Space>::runMeta<Money, Gecode::DFS, Gecode::Options, Gecode::RBS>(Gecode::Options const&, Money*) in money.o
+>
+>       Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+>
+>       non-virtual thunk to Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+>
+>       Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+>
+>       non-virtual thunk to Gecode::Gist::VarComparator<Money>::~VarComparator() in money.o
+>
+>   "Gecode::Gist::TextOutput::init()", referenced from:
+>
+>       Gecode::Gist::VarComparator<Money>::compare(Gecode::Space const&, Gecode::Space const&) in money.o
+>
+>       Gecode::Gist::Print<Money>::inspect(Gecode::Space const&) in money.o
+>
+> I figured what is needed is adding -lgecodegist, but looking at the
+> generated libraries, I noticed the cmake process didn't generate it. Again,
+> I assume due to not finding Qt (although I have the libraries installed).
+>
+> Having installed Gecode on my Mac a couple of years ago and doing some
+> cool things with it , I'd like to get the latest version, though instead of
+> spending a few more hours (or days) tracking this down, perhaps one of the
+> gurus here could solve it in 5 minutes...
+>
+> Thanks,
+>
+> Amnon
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/9f9be814/attachment.html>
+
+From cschulte at kth.se  Thu Oct 16 11:09:59 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 16 Oct 2014 11:09:59 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>
+Message-ID: <026001cfe920$f6a94f30$e3fbed90$@se>
+
+Hi,
+
+ 
+
+This is not really a Gecode question but a modeling question. This group should be really focused on Gecode.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.gecode.org/~schulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Chd Orti
+Sent: Thursday, October 16, 2014 10:52 AM
+To: users at gecode.org
+Subject: [gecode-users] Question about one type of constraint
+
+ 
+
+Hello,
+
+I have an array (size 10) of positive integers which can also take the value 0;
+
+I have a constraint on the sum of these numbers for example 10;
+
+Here is a solution for example :
+
+1 2 0 0 5 1 0 0 0 1
+
+I want to add a constraint : the sum of the 2 first integers with value different to 0 equals 4.
+
+How could I do that?
+
+Cheers,
+
+Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/40295391/attachment.html>
+
+From vijay at saraswat.org  Thu Oct 16 11:25:55 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Thu, 16 Oct 2014 05:25:55 -0400
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <026001cfe920$f6a94f30$e3fbed90$@se>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>
+	<026001cfe920$f6a94f30$e3fbed90$@se>
+Message-ID: <543F8F23.6080902@saraswat.org>
+
+Fair enough, can u recommend a list where modeling questions like this 
+can be asked?
+
+On 10/16/14, 5:09 AM, Christian Schulte wrote:
+>
+> Hi,
+>
+> This is not really a Gecode question but a modeling question. This 
+> group should be really focused on Gecode.
+>
+> Best
+>
+> Christian
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/a53ff456/attachment.html>
+
+From cschulte at kth.se  Thu Oct 16 11:25:30 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 16 Oct 2014 11:25:30 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <543F8F23.6080902@saraswat.org>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>	<026001cfe920$f6a94f30$e3fbed90$@se>
+	<543F8F23.6080902@saraswat.org>
+Message-ID: <027701cfe923$21480950$63d81bf0$@se>
+
+It used to be comp.constraints:
+
+                https://groups.google.com/forum/#!forum/comp.constraints
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vijay Saraswat
+Sent: Thursday, October 16, 2014 11:26 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Fair enough, can u recommend a list where modeling questions like this can
+be asked?
+
+On 10/16/14, 5:09 AM, Christian Schulte wrote:
+
+Hi,
+
+ 
+
+This is not really a Gecode question but a modeling question. This group
+should be really focused on Gecode.
+
+ 
+
+Best
+
+Christian
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/dda3a280/attachment-0001.html>
+
+From richard.portell at gmail.com  Thu Oct 16 11:28:43 2014
+From: richard.portell at gmail.com (Chd Orti)
+Date: Thu, 16 Oct 2014 11:28:43 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <027701cfe923$21480950$63d81bf0$@se>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>
+	<026001cfe920$f6a94f30$e3fbed90$@se>
+	<543F8F23.6080902@saraswat.org>
+	<027701cfe923$21480950$63d81bf0$@se>
+Message-ID: <CAPigQkempoATV+4u7J+w07_Vm_EBHtx5zrXeqLjkuEMop79ZwQ@mail.gmail.com>
+
+Thank you Vijay and Christian, I will ask my question there.
+Cheers,
+Richard
+
+2014-10-16 11:25 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+
+> It used to be comp.constraints:
+>
+>                 https://groups.google.com/forum/#!forum/comp.constraints
+>
+>
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.gecode.org/~schulte/
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Vijay Saraswat
+> *Sent:* Thursday, October 16, 2014 11:26 AM
+> *To:* users at gecode.org
+> *Subject:* Re: [gecode-users] Question about one type of constraint
+>
+>
+>
+> Fair enough, can u recommend a list where modeling questions like this can
+> be asked?
+>
+> On 10/16/14, 5:09 AM, Christian Schulte wrote:
+>
+> Hi,
+>
+>
+>
+> This is not really a Gecode question but a modeling question. This group
+> should be really focused on Gecode.
+>
+>
+>
+> Best
+>
+> Christian
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/a8804590/attachment.html>
+
+From cschulte at kth.se  Thu Oct 16 13:57:27 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 16 Oct 2014 13:57:27 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <CAPigQkempoATV+4u7J+w07_Vm_EBHtx5zrXeqLjkuEMop79ZwQ@mail.gmail.com>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>	<026001cfe920$f6a94f30$e3fbed90$@se>	<543F8F23.6080902@saraswat.org>	<027701cfe923$21480950$63d81bf0$@se>
+	<CAPigQkempoATV+4u7J+w07_Vm_EBHtx5zrXeqLjkuEMop79ZwQ@mail.gmail.com>
+Message-ID: <02b801cfe938$5bda3060$138e9120$@se>
+
+I just had a discussion that it might be a good idea to create a forum for general modeling questions in constraint programming. The OR community does that.
+
+ 
+
+I will contact the Association of Constraint Programming whether this is something that they would like to take on as a development activity.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.gecode.org/~schulte/
+
+ 
+
+From: Chd Orti [mailto:richard.portell at gmail.com] 
+Sent: Thursday, October 16, 2014 11:29 AM
+To: cschulte at kth.se
+Cc: Vijay Saraswat; users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Thank you Vijay and Christian, I will ask my question there.
+
+Cheers,
+
+Richard
+
+ 
+
+2014-10-16 11:25 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+
+It used to be comp.constraints:
+
+                https://groups.google.com/forum/#!forum/comp.constraints
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.gecode.org/~schulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Vijay Saraswat
+Sent: Thursday, October 16, 2014 11:26 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Fair enough, can u recommend a list where modeling questions like this can be asked?
+
+On 10/16/14, 5:09 AM, Christian Schulte wrote:
+
+Hi,
+
+ 
+
+This is not really a Gecode question but a modeling question. This group should be really focused on Gecode.
+
+ 
+
+Best
+
+Christian
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/18bfdd5a/attachment.html>
+
+From jean-noel.monette at it.uu.se  Thu Oct 16 14:20:37 2014
+From: jean-noel.monette at it.uu.se (=?windows-1252?Q?Jean-No=EBl_Monette?=)
+Date: Thu, 16 Oct 2014 14:20:37 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <02b801cfe938$5bda3060$138e9120$@se>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>	<026001cfe920$f6a94f30$e3fbed90$@se>	<543F8F23.6080902@saraswat.org>	<027701cfe923$21480950$63d81bf0$@se>	<CAPigQkempoATV+4u7J+w07_Vm_EBHtx5zrXeqLjkuEMop79ZwQ@mail.gmail.com>
+	<02b801cfe938$5bda3060$138e9120$@se>
+Message-ID: <543FB815.2060002@it.uu.se>
+
+Sorry, Christian, to use the Gecode list for this but...
+
+OR-Exchange (https://www.or-exchange.org/) has sometimes questions 
+related to CP.
+Depending on whether one believes CP is part of OR or not, it might or 
+might not be a good idea to create a parallel forum.
+In the meantime, Richard, you might ask your question there and see if 
+you get any answer...
+
+Best,
+
+Jean-No?l
+
+On 2014-10-16 13:57, Christian Schulte wrote:
+>
+> I just had a discussion that it might be a good idea to create a forum 
+> for general modeling questions in constraint programming. The OR 
+> community does that.
+>
+> I will contact the Association of Constraint Programming whether this 
+> is something that they would like to take on as a development activity.
+>
+> Cheers
+>
+> Christian
+>
+> --
+>
+> Christian Schulte, Professor of Computer Science, KTH, 
+> www.gecode.org/~schulte/
+>
+> *From:*Chd Orti [mailto:richard.portell at gmail.com]
+> *Sent:* Thursday, October 16, 2014 11:29 AM
+> *To:* cschulte at kth.se
+> *Cc:* Vijay Saraswat; users at gecode.org
+> *Subject:* Re: [gecode-users] Question about one type of constraint
+>
+> Thank you Vijay and Christian, I will ask my question there.
+>
+> Cheers,
+>
+> Richard
+>
+> 2014-10-16 11:25 GMT+02:00 Christian Schulte <cschulte at kth.se 
+> <mailto:cschulte at kth.se>>:
+>
+> It used to be comp.constraints:
+>
+> https://groups.google.com/forum/#!forum/comp.constraints 
+> <https://groups.google.com/forum/#%21forum/comp.constraints>
+>
+> Christian
+>
+> --
+>
+> Christian Schulte, Professor of Computer Science, KTH, 
+> www.gecode.org/~schulte/ <http://www.gecode.org/%7Eschulte/>
+>
+> *From:*users-bounces at gecode.org <mailto:users-bounces at gecode.org> 
+> [mailto:users-bounces at gecode.org <mailto:users-bounces at gecode.org>] 
+> *On Behalf Of *Vijay Saraswat
+> *Sent:* Thursday, October 16, 2014 11:26 AM
+> *To:* users at gecode.org <mailto:users at gecode.org>
+> *Subject:* Re: [gecode-users] Question about one type of constraint
+>
+> Fair enough, can u recommend a list where modeling questions like this 
+> can be asked?
+>
+> On 10/16/14, 5:09 AM, Christian Schulte wrote:
+>
+>     Hi,
+>
+>     This is not really a Gecode question but a modeling question. This
+>     group should be really focused on Gecode.
+>
+>     Best
+>
+>     Christian
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org <mailto:users at gecode.org>
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/a4214d4b/attachment-0001.html>
+
+From cschulte at kth.se  Thu Oct 16 14:26:17 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 16 Oct 2014 14:26:17 +0200
+Subject: [gecode-users] Question about one type of constraint
+In-Reply-To: <543FB815.2060002@it.uu.se>
+References: <CAPigQkcFTy=7OQBUT-Mt8sNAjLj2cZ3HSW_9D+e9oBvpJ98ERw@mail.gmail.com>	<026001cfe920$f6a94f30$e3fbed90$@se>	<543F8F23.6080902@saraswat.org>	<027701cfe923$21480950$63d81bf0$@se>	<CAPigQkempoATV+4u7J+w07_Vm_EBHtx5zrXeqLjkuEMop79ZwQ@mail.gmail.com>	<02b801cfe938$5bda3060$138e9120$@se>
+	<543FB815.2060002@it.uu.se>
+Message-ID: <02d201cfe93c$627f8e70$277eab50$@se>
+
+Yes, I know about or-exchange. I just suggested something like that to the
+ACP EC specific to CP.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jean-No?l Monette
+Sent: Thursday, October 16, 2014 2:21 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Sorry, Christian, to use the Gecode list for this but...
+
+OR-Exchange (https://www.or-exchange.org/) has sometimes questions related
+to CP. 
+Depending on whether one believes CP is part of OR or not, it might or might
+not be a good idea to create a parallel forum.
+In the meantime, Richard, you might ask your question there and see if you
+get any answer...
+
+Best,
+
+Jean-No?l
+
+On 2014-10-16 13:57, Christian Schulte wrote:
+
+I just had a discussion that it might be a good idea to create a forum for
+general modeling questions in constraint programming. The OR community does
+that.
+
+ 
+
+I will contact the Association of Constraint Programming whether this is
+something that they would like to take on as a development activity.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+ 
+
+From: Chd Orti [mailto:richard.portell at gmail.com] 
+Sent: Thursday, October 16, 2014 11:29 AM
+To: cschulte at kth.se
+Cc: Vijay Saraswat; users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Thank you Vijay and Christian, I will ask my question there.
+
+Cheers,
+
+Richard
+
+ 
+
+2014-10-16 11:25 GMT+02:00 Christian Schulte <cschulte at kth.se>:
+
+It used to be comp.constraints:
+
+                https://groups.google.com/forum/#!forum/comp.constraints
+<https://groups.google.com/forum/#%21forum/comp.constraints> 
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/ <http://www.gecode.org/%7Eschulte/> 
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vijay Saraswat
+Sent: Thursday, October 16, 2014 11:26 AM
+To: users at gecode.org
+Subject: Re: [gecode-users] Question about one type of constraint
+
+ 
+
+Fair enough, can u recommend a list where modeling questions like this can
+be asked?
+
+On 10/16/14, 5:09 AM, Christian Schulte wrote:
+
+Hi,
+
+ 
+
+This is not really a Gecode question but a modeling question. This group
+should be really focused on Gecode.
+
+ 
+
+Best
+
+Christian
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141016/e44a7f61/attachment.html>
+
+From Pierre.Flener at it.uu.se  Wed Oct 22 21:10:46 2014
+From: Pierre.Flener at it.uu.se (Pierre Flener)
+Date: Wed, 22 Oct 2014 21:10:46 +0200
+Subject: [gecode-users] bit-vector variables and constraints
+Message-ID: <331F0762-ADBA-48A0-81B5-0D4BF85F02C2@it.uu.se>
+
+Hi all,
+
+Kellen Dye has written a Gecode implementation of bit-vector variables and propagators for bit-vector constraints, including some of those of [MVH12], following the ideas of that paper.  The C++ source files and a benchmark are at https://github.com/kellen/bitvector-masters/ .  The implementation is provided as is, and does not fully comply yet with Gecode style, but we hope it will already be useful to some.
+
+Cheers,
+Pierre
+
+
+[MVH12] L. D. Michel and P. Van Hentenryck.  Constraint satisfaction over bit-vectors.  In: M. Milano (editor), CP 2012, pages 527-543.  Lecture Notes in Computer Science, volume 7514.  Springer, 2012.  (http://dx.doi.org/10.1007/978-3-642-33558-7_39)
+
+
+
+From kellen at cretin.net  Wed Oct 22 22:30:14 2014
+From: kellen at cretin.net (kellen at cretin.net)
+Date: Wed, 22 Oct 2014 21:30:14 +0100
+Subject: [gecode-users] bit-vector variables and constraints
+In-Reply-To: <331F0762-ADBA-48A0-81B5-0D4BF85F02C2@it.uu.se>
+References: <331F0762-ADBA-48A0-81B5-0D4BF85F02C2@it.uu.se>
+Message-ID: <20141022203014.GA5449@cretin.net>
+
+Hi everbody!
+
+As Pierre wrote, the code available at:
+https://github.com/kellen/bitvector-masters
+is a result of my master's thesis in Computer Science with Pierre and
+Jean-No?l Monette at Uppsala University. 
+
+If there is interest, I would be willing to do the work to make the code
+conform with Gecode style/convention/optimizations. I am, however, a relative
+novice C++ coder, as I have mostly been employed doing python and java. 
+
+There are some obvious improvements to be made to the code, some of which are
+detailed in my thesis, and probably other potential improvements which will be
+obvious to more seasoned C++/Gecode users. 
+
+Christian/Guido: please let me know if/how I should go about integrating the
+variable implementation into Gecode core.
+
+Cheers,
+Kellen
+
+
+From genius_linda1987 at yahoo.fr  Thu Oct 23 00:55:56 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Wed, 22 Oct 2014 22:55:56 +0000 (UTC)
+Subject: [gecode-users] How to post : distinct ( of absolute value of
+	values) constraint ?
+Message-ID: <87503460.15527.1414018556850.JavaMail.yahoo@jws11108.mail.ir2.yahoo.com>
+
+Hi,I want to use "alldifferent" constraint or a "distinct" constraint but in my case, i have a matrix M and i would that the elements (values) of the row of a matrix be different, but the variables of the row can have positive and negative values, so i would have a constraint that for example: if row = 1?then?the absolute values of M[1, j] could be all different, that means, if i have M[1,1]=(-3), i should not get M[1,j] =(+3) for j =1 to n.
+alldifferent (|M[i, j]|).
+My question is how to write this constraint in Gecode ?.Best regards. Sabrina?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141022/80fd431d/attachment.html>
+
+From genius_linda1987 at yahoo.fr  Thu Oct 23 01:01:14 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Wed, 22 Oct 2014 23:01:14 +0000 (UTC)
+Subject: [gecode-users] (if/ else) constraint.
+Message-ID: <2034049931.6287.1414018874912.JavaMail.yahoo@jws11161.mail.ir2.yahoo.com>
+
+Hello,
+I would to write an (if/ else) constraint. in gecode i find how to write a loop constraint, but how to write an (
+? ? ? ? ? ? ? ? ?if ......then? ? ? ? ? ? ? ? ? ? ? ? ? ? .....?? ? ? ? ? ? ? ? ? ? ? else......?? ? ? ? ? ? ? ? ?endif.) constraint ?.Cordially.Sabrina.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141022/fc04e125/attachment.html>
+
+From genius_linda1987 at yahoo.fr  Thu Oct 23 01:11:43 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Wed, 22 Oct 2014 23:11:43 +0000 (UTC)
+Subject: [gecode-users] Combining of LDSB with Branch and Bound algorithm.
+Message-ID: <565005867.9153.1414019503961.JavaMail.yahoo@jws11145.mail.ir2.yahoo.com>
+
+Hi,I have two questions please:
+1- I want to know the theoretical principle of LDSB for symmetry ? ?breaking.?
+
+2- if in an algorithm i would combine a branch and bound ?algorithm with the use of the LDSB layer for symmetry reduction ( declaration of symmetries), so how the solver (algorithm) works ? Can someone explain to me the sequential steps of the execution of the set (Branch and bound, LDSB).
+Thank you in advance.
+Cordially.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141022/e0c0e3d1/attachment.html>
+
+From tack at gecode.org  Thu Oct 23 08:54:03 2014
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 23 Oct 2014 17:54:03 +1100
+Subject: [gecode-users] Gecode 4.3.1 released
+Message-ID: <8D9D933A-E213-454B-9351-1D24BCEAF13D@gecode.org>
+
+Dear all,
+
+we are releasing the next version of Gecode:
+
+                      Gecode 4.3.1
+             http://www.gecode.org
+
+This release fixes some minor issues and a major bug for the FlatZinc interpreter. It considerably extends restart-based search so that it supports LNS (Large Neighborhood Search).
+
+On our web site, you find source packages, binary packages for Windows and Mac OS, and the full documentation.
+
+Cheers,
+Guido
+
+
+
+From cschulte at kth.se  Thu Oct 23 11:25:14 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 23 Oct 2014 11:25:14 +0200
+Subject: [gecode-users] bit-vector variables and constraints
+In-Reply-To: <20141022203014.GA5449@cretin.net>
+References: <331F0762-ADBA-48A0-81B5-0D4BF85F02C2@it.uu.se>
+	<20141022203014.GA5449@cretin.net>
+Message-ID: <006801cfeea3$40d89750$c289c5f0$@kth.se>
+
+Dear Kellen,
+
+Yes, I think that would be interesting. However, I word of warning: while
+the stuff that remains to do is all easy, it might actually take some time
+to get the stuff ready so that we could accept it as a contribution.
+
+What remains to be done is (I am not 100% whether you might already have
+done part of it):
+ - Each file must be under the Gecode license. Easy: just add the standard
+header with your name to each file.
+ - The structure of the contribution should be the same as for the other
+variable types in Gecode (files, folders, file extensions, includes,
+namespaces, no using clauses apart from individual functions, etc). Easy:
+just have a look at any of the variable types that come with Gecode.
+ - The set of branchers must be the same as for the other variable types to
+get a uniform interface. Easy: just cut and paste will do (beware that you
+have to retain the original licenses when you do stuff like this).
+ - The set of propagators must be sufficiently complete to be useful.
+ - We need some examples that use the variables.
+ - We need tests! Here again, the easiest is to start from the tests for
+some other variable type in Gecode.
+
+Some of the things sound like we are nitpickers. We are as we have to be:
+after all, when we accept a contribution we promise that we will try to keep
+it alive (unless we find out later that nobody wants it).
+
+The good news is, we are physically close. If you want to visit me in Kista
+after you thought the stuff through and have a draft of your contribution
+you are more than welcome. I'd even buy lunch ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of kellen at cretin.net
+> Sent: Wednesday, October 22, 2014 10:30 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] bit-vector variables and constraints
+> 
+> Hi everbody!
+> 
+> As Pierre wrote, the code available at:
+> https://github.com/kellen/bitvector-masters
+> is a result of my master's thesis in Computer Science with Pierre and
+Jean-No?l
+> Monette at Uppsala University.
+> 
+> If there is interest, I would be willing to do the work to make the code
+conform
+> with Gecode style/convention/optimizations. I am, however, a relative
+novice
+> C++ coder, as I have mostly been employed doing python and java.
+> 
+> There are some obvious improvements to be made to the code, some of which
+> are detailed in my thesis, and probably other potential improvements which
+will
+> be obvious to more seasoned C++/Gecode users.
+> 
+> Christian/Guido: please let me know if/how I should go about integrating
+the
+> variable implementation into Gecode core.
+> 
+> Cheers,
+> Kellen
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Thu Oct 23 11:28:56 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 23 Oct 2014 11:28:56 +0200
+Subject: [gecode-users] bit-vector variables and constraints
+In-Reply-To: <006801cfeea3$40d89750$c289c5f0$@kth.se>
+References: <331F0762-ADBA-48A0-81B5-0D4BF85F02C2@it.uu.se>	<20141022203014.GA5449@cretin.net>
+	<006801cfeea3$40d89750$c289c5f0$@kth.se>
+Message-ID: <007701cfeea3$c4d6b8c0$4e842a40$@kth.se>
+
+Oh, then there is one more thing which I think you did not do: for bit
+vectors support for modelling such as for integer variables (|, &, etc)
+would be cool.
+
+It can also be done by cut-and-paste but might be a bit harder.
+
+Anyway, consider coming over.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Christian Schulte
+> Sent: Thursday, October 23, 2014 11:25 AM
+> To: kellen at cretin.net; users at gecode.org
+> Subject: Re: [gecode-users] bit-vector variables and constraints
+> 
+> Dear Kellen,
+> 
+> Yes, I think that would be interesting. However, I word of warning: while
+the
+> stuff that remains to do is all easy, it might actually take some time to
+get the
+> stuff ready so that we could accept it as a contribution.
+> 
+> What remains to be done is (I am not 100% whether you might already have
+> done part of it):
+>  - Each file must be under the Gecode license. Easy: just add the standard
+header
+> with your name to each file.
+>  - The structure of the contribution should be the same as for the other
+variable
+> types in Gecode (files, folders, file extensions, includes, namespaces, no
+using
+> clauses apart from individual functions, etc). Easy:
+> just have a look at any of the variable types that come with Gecode.
+>  - The set of branchers must be the same as for the other variable types
+to get a
+> uniform interface. Easy: just cut and paste will do (beware that you have
+to
+> retain the original licenses when you do stuff like this).
+>  - The set of propagators must be sufficiently complete to be useful.
+>  - We need some examples that use the variables.
+>  - We need tests! Here again, the easiest is to start from the tests for
+some
+> other variable type in Gecode.
+> 
+> Some of the things sound like we are nitpickers. We are as we have to be:
+> after all, when we accept a contribution we promise that we will try to
+keep it
+> alive (unless we find out later that nobody wants it).
+> 
+> The good news is, we are physically close. If you want to visit me in
+Kista after
+> you thought the stuff through and have a draft of your contribution you
+are
+> more than welcome. I'd even buy lunch ;-)
+> 
+> Cheers
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> > -----Original Message-----
+> > From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> > Behalf Of kellen at cretin.net
+> > Sent: Wednesday, October 22, 2014 10:30 PM
+> > To: users at gecode.org
+> > Subject: Re: [gecode-users] bit-vector variables and constraints
+> >
+> > Hi everbody!
+> >
+> > As Pierre wrote, the code available at:
+> > https://github.com/kellen/bitvector-masters
+> > is a result of my master's thesis in Computer Science with Pierre and
+> Jean-No?l
+> > Monette at Uppsala University.
+> >
+> > If there is interest, I would be willing to do the work to make the
+> > code
+> conform
+> > with Gecode style/convention/optimizations. I am, however, a relative
+> novice
+> > C++ coder, as I have mostly been employed doing python and java.
+> >
+> > There are some obvious improvements to be made to the code, some of
+> > which are detailed in my thesis, and probably other potential
+> > improvements which
+> will
+> > be obvious to more seasoned C++/Gecode users.
+> >
+> > Christian/Guido: please let me know if/how I should go about
+> > integrating
+> the
+> > variable implementation into Gecode core.
+> >
+> > Cheers,
+> > Kellen
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From jean-noel.monette at it.uu.se  Fri Oct 24 13:26:36 2014
+From: jean-noel.monette at it.uu.se (=?UTF-8?B?SmVhbi1Ob8OrbCBNb25ldHRl?=)
+Date: Fri, 24 Oct 2014 13:26:36 +0200
+Subject: [gecode-users] Segmentation Fault with fzn-gecode
+Message-ID: <544A376C.50004@it.uu.se>
+
+Hi,
+
+I get a Segmentation Fault with the fzn-gecode compiled with Gecode 
+4.3.1 when running, for instance, the file 
+"minizinc-1.6/tests/evaluation/flatzinc/queens4.fzn" from the official 
+MiniZinc distribution. Some other files (I only checked 
+"minizinc-1.6/tests/evaluation/flatzinc/bool_clause.fzn") work fine.
+
+I am running Linux Mint 17 on 64 bits but I know that Pierre Flener has 
+also encountered the bug on his Mac (don't know the exact version) with 
+different FlatZinc models. I did "./configure", "make", and "make 
+install" without any arguments.
+
+Cheers,
+
+Jean-No?l
+
+
+From tack at gecode.org  Sat Oct 25 03:08:15 2014
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 25 Oct 2014 12:08:15 +1100
+Subject: [gecode-users] Segmentation Fault with fzn-gecode
+In-Reply-To: <544A376C.50004@it.uu.se>
+References: <544A376C.50004@it.uu.se>
+Message-ID: <A9126B70-AED4-4835-BED3-9D488AF8EB15@gecode.org>
+
+Hi,
+
+thanks for the bug report.  Unfortunately the flatzinc interpreter wasn't tested enough and has a major bug.  It's (hopefully) fixed in the svn now, but I'll have to do some thorough testing next week.  For the time being, I've put up a notice to downgrade to 4.2.1 or upgrade to the svn trunk for a working FlatZinc.
+
+Sorry for wasting everybody's time...
+
+Cheers,
+Guido
+
+> On 24 Oct 2014, at 10:26 pm, Jean-No?l Monette <jean-noel.monette at it.uu.se> wrote:
+> 
+> Hi,
+> 
+> I get a Segmentation Fault with the fzn-gecode compiled with Gecode 4.3.1 when running, for instance, the file "minizinc-1.6/tests/evaluation/flatzinc/queens4.fzn" from the official MiniZinc distribution. Some other files (I only checked "minizinc-1.6/tests/evaluation/flatzinc/bool_clause.fzn") work fine.
+> 
+> I am running Linux Mint 17 on 64 bits but I know that Pierre Flener has also encountered the bug on his Mac (don't know the exact version) with different FlatZinc models. I did "./configure", "make", and "make install" without any arguments.
+> 
+> Cheers,
+> 
+> Jean-No?l
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From genius_linda1987 at yahoo.fr  Sat Oct 25 11:25:19 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Sat, 25 Oct 2014 09:25:19 +0000 (UTC)
+Subject: [gecode-users] How to write with Gecode a constraint similar to
+ distinct but with absolute value of values : distinct ( |variables|).
+Message-ID: <1636087645.881618.1414229119615.JavaMail.yahoo@jws11121.mail.ir2.yahoo.com>
+
+Hi,
+I want to use "alldifferent" constraint or a "distinct" constraint but in my case, i have a matrix M and i would that the elements (values) of the row of a matrix be different, but the variables of the row can have positive and negative values, so i would have a constraint that for example:?
+if row = 1?then?the absolute values of M[1, j] could be all different, that means, if i have M[1,1]=(-3), i should not get M[1,j] =(+3) for j =1 to n. so in the same row or in the same column if i have (val) i must not have (-val) or if i have (-val) i mast not have (val).
+alldifferent (|M[i, j]|).
+My question is how to write this constraint in Gecode ?.I hope my question was clear.
+
+Best regards. Sabrina
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141025/9aa3757e/attachment.html>
+
+From vijay at saraswat.org  Sat Oct 25 14:56:06 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Sat, 25 Oct 2014 08:56:06 -0400
+Subject: [gecode-users] How to write with Gecode a constraint similar to
+ distinct but with absolute value of values : distinct ( |variables|).
+In-Reply-To: <1636087645.881618.1414229119615.JavaMail.yahoo@jws11121.mail.ir2.yahoo.com>
+References: <1636087645.881618.1414229119615.JavaMail.yahoo@jws11121.mail.ir2.yahoo.com>
+Message-ID: <544B9DE6.8010904@saraswat.org>
+
+Use a view on the integer variables?
+
+On 10/25/14, 5:25 AM, Bouchene Sabrina wrote:
+> Hi,
+>
+> I want to use "alldifferent" constraint or a "distinct" constraint but 
+> in my case, i have a matrix M and i would that the elements (values) 
+> of the row of a matrix be different, but the variables of the row can 
+> have positive and negative values, so i would have a constraint that 
+> for example:
+>
+> if row = 1 thenthe absolute values of M[1, j] could be all different, 
+> that means, if i have M[1,1]=(-3), i should not get M[1,j] =(+3) for j 
+> =1 to n. so in the same row or in the same column if i have (val) i 
+> must not have (-val) or if i have (-val) i mast not have (val).
+>
+> alldifferent (|M[i, j]|).
+>
+> My question is how to write this constraint in Gecode ?.
+> I hope my question was clear.
+>
+> Best regards. Sabrina
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141025/17514c2b/attachment.html>
+
+From genius_linda1987 at yahoo.fr  Sat Oct 25 16:00:10 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Sat, 25 Oct 2014 14:00:10 +0000 (UTC)
+Subject: [gecode-users] How to write with Gecode a constraint similar to
+ distinct but with absolute value of values : distinct ( |variables|).
+Message-ID: <781445019.899332.1414245610705.JavaMail.yahoo@jws11143.mail.ir2.yahoo.com>
+
+Hi,
+
+Please, can you explain me what do you mean by using view on integer variables to write the folowing constraint : distinct(*this, |l?|) ?.
+thank you in advance.
+Best regards.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141025/813f53df/attachment.html>
+
+From vijay at saraswat.org  Sat Oct 25 16:38:19 2014
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Sat, 25 Oct 2014 10:38:19 -0400
+Subject: [gecode-users] How to write with Gecode a constraint similar to
+ distinct but with absolute value of values : distinct ( |variables|).
+In-Reply-To: <781445019.899332.1414245610705.JavaMail.yahoo@jws11143.mail.ir2.yahoo.com>
+References: <781445019.899332.1414245610705.JavaMail.yahoo@jws11143.mail.ir2.yahoo.com>
+Message-ID: <544BB5DB.7010208@saraswat.org>
+
+Views are described in
+
+http://www.gecode.org/papers/SchulteTack_Advances_2006.pdf
+http://www.gecode.org/~schulte/paper.html?id=SchulteTack:CP:2014
+
+It should be possible to define an absolute value view on an integer 
+variable, and specify allDifferent on an array of such views. Don't yet 
+know enough about the specific syntax in Gecode to help you, but others 
+on this list will...
+
+On 10/25/14, 10:00 AM, Bouchene Sabrina wrote:
+> Hi,
+>
+>
+> Please, can you explain me what do you mean by using view on integer 
+> variables to write the folowing constraint : distinct(*this, |/l /|) ?.
+>
+> thank you in advance.
+>
+> Best regards.
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141025/de95c479/attachment.html>
+
+From tack at gecode.org  Sun Oct 26 00:02:52 2014
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 26 Oct 2014 09:02:52 +1100
+Subject: [gecode-users] How to write with Gecode a constraint similar to
+	distinct but with absolute value of values : distinct (
+	|variables|).
+In-Reply-To: <1636087645.881618.1414229119615.JavaMail.yahoo@jws11121.mail.ir2.yahoo.com>
+References: <1636087645.881618.1414229119615.JavaMail.yahoo@jws11121.mail.ir2.yahoo.com>
+Message-ID: <45FD8B03-DC27-493F-8E8F-DA91F058A437@gecode.org>
+
+Hi,
+
+to model this kind of constraint in Gecode you need to decompose it, i.e., you create an auxiliary matrix M' and post the constraints M'[i,j] = abs(M[i,j]), and then post the distinct constraints on M'.
+
+Views, as suggested by Vijay, can't be used for modelling in Gecode, only for implementing your own propagator.
+
+Cheers,
+Guido
+
+> On 25 Oct 2014, at 8:25 pm, Bouchene Sabrina <genius_linda1987 at yahoo.fr> wrote:
+> 
+> Hi,
+> 
+> I want to use "alldifferent" constraint or a "distinct" constraint but in my case, i have a matrix M and i would that the elements (values) of the row of a matrix be different, but the variables of the row can have positive and negative values, so i would have a constraint that for example: 
+> 
+> if row = 1 then the absolute values of M[1, j] could be all different, that means, if i have M[1,1]=(-3), i should not get M[1,j] =(+3) for j =1 to n. so in the same row or in the same column if i have (val) i must not have (-val) or if i have (-val) i mast not have (val).
+> 
+> alldifferent (|M[i, j]|).
+> 
+> My question is how to write this constraint in Gecode ?.
+> I hope my question was clear.
+> 
+> Best regards. Sabrina
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141026/81a35083/attachment.html>
+
+From tack at gecode.org  Sun Oct 26 00:26:49 2014
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 26 Oct 2014 09:26:49 +1100
+Subject: [gecode-users] (if/ else) constraint.
+In-Reply-To: <2034049931.6287.1414018874912.JavaMail.yahoo@jws11161.mail.ir2.yahoo.com>
+References: <2034049931.6287.1414018874912.JavaMail.yahoo@jws11161.mail.ir2.yahoo.com>
+Message-ID: <0DDB58DE-7563-4B0F-8742-8C90D67CB68D@gecode.org>
+
+You need to use reification to express if-then-else.  E.g. if for the constraint if b then c1 else c2 you need to essentially implement "b implies c1" and "not b implies c2". Reification is explained in the documentation.
+
+Cheers,
+Guido
+
+> On 23 Oct 2014, at 10:01 am, Bouchene Sabrina <genius_linda1987 at yahoo.fr> wrote:
+> 
+> Hello,
+> 
+> I would to write an (if/ else) constraint. in gecode i find how to write a loop constraint, but how to write an (
+> 
+>                  if ......then
+>                             ..... 
+>                       else...... 
+>                  endif.) constraint ?.
+> Cordially.
+> Sabrina.
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141026/f61cfa1b/attachment-0001.html>
+
+From chris.mears at monash.edu  Wed Oct 29 01:21:49 2014
+From: chris.mears at monash.edu (Chris Mears)
+Date: Wed, 29 Oct 2014 11:21:49 +1100
+Subject: [gecode-users] Combining of LDSB with Branch and Bound
+ algorithm.
+In-Reply-To: <565005867.9153.1414019503961.JavaMail.yahoo@jws11145.mail.ir2.yahoo.com>
+References: <565005867.9153.1414019503961.JavaMail.yahoo@jws11145.mail.ir2.yahoo.com>
+Message-ID: <20141029112149.3ff06e50@boxer>
+
+Hello,
+
+> Hi,I have two questions please:
+> 1- I want to know the theoretical principle of LDSB for symmetry
+> ?breaking.?
+
+The principle and inner workings of LDSB are described in this paper:
+
+Lightweight dynamic symmetry breaking.
+Christopher Mears, Maria Garcia de la Banda, Bart Demoen, Mark Wallace.
+Constraints 19(3), pp. 195-242. 2014.
+
+You can get a copy from Springer
+(http://link.springer.com/article/10.1007/s10601-013-9154-2)
+or from here (http://www.cmears.id.au/files/papers/2013-LDSB.pdf).
+
+> 2- if in an algorithm i would combine a branch and bound ?algorithm
+> with the use of the LDSB layer for symmetry reduction ( declaration
+> of symmetries), so how the solver (algorithm) works ? Can someone
+> explain to me the sequential steps of the execution of the set
+> (Branch and bound, LDSB).
+
+For LDSB there's no difference between DFS and branch-and-bound.  LDSB
+adds some extra constraints at certain choice points; it doesn't
+interact directly with the solver engine (DFS/BAB).  In the Gecode
+sense, it's just a special kind of Brancher.
+
+
+From genius_linda1987 at yahoo.fr  Thu Oct 30 10:46:25 2014
+From: genius_linda1987 at yahoo.fr (Bouchene Sabrina)
+Date: Thu, 30 Oct 2014 09:46:25 +0000 (UTC)
+Subject: [gecode-users] Constraints in Gecode for unconstrained instances.
+Message-ID: <1125138141.331653.1414662385943.JavaMail.yahoo@jws11163.mail.ir2.yahoo.com>
+
+Hi,
+I want to write a program in Gecode for tow types of instances: the constrained instances (where all constraints must be satisfied) and the unconstrained instances (where one constraint or more can be not satisfied if the solution is optimal).
+The question is how th do for the second type of constraint. ie, not necessarly all constraints be satisfied. ( ie, if exists an operator like "OR" to write between constraints or how to do ?).
+Thank you in advance.Best regards.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141030/318adfec/attachment.html>
+
+From cschulte at kth.se  Thu Oct 30 10:49:49 2014
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 30 Oct 2014 10:49:49 +0100
+Subject: [gecode-users] Constraints in Gecode for unconstrained
+	instances.
+In-Reply-To: <1125138141.331653.1414662385943.JavaMail.yahoo@jws11163.mail.ir2.yahoo.com>
+References: <1125138141.331653.1414662385943.JavaMail.yahoo@jws11163.mail.ir2.yahoo.com>
+Message-ID: <007801cff426$d89a01e0$89ce05a0$@se>
+
+Dear Sabrina,
+
+ 
+
+As has been discussed recently on the mailing list, this list is really reserved for Gecode-specific issues and not general modeling questions. Please do respect this policy.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH, www.gecode.org/~schulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Bouchene Sabrina
+Sent: Thursday, October 30, 2014 10:46 AM
+To: users at gecode.org
+Subject: [gecode-users] Constraints in Gecode for unconstrained instances.
+
+ 
+
+Hi,
+
+ 
+
+I want to write a program in Gecode for tow types of instances: the constrained instances (where all constraints must be satisfied) and the unconstrained instances (where one constraint or more can be not satisfied if the solution is optimal).
+
+ 
+
+The question is how th do for the second type of constraint. ie, not necessarly all constraints be satisfied. ( ie, if exists an operator like "OR" to write between constraints or how to do ?).
+
+ 
+
+Thank you in advance.
+
+Best regards.
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20141030/7dd87519/attachment.html>
+

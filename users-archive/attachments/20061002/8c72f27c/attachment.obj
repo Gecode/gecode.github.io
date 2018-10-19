@@ -1,0 +1,159 @@
+/*
+ *  Main authors:
+ *     Guido Tack <tack@gecode.org>
+ *
+ *  Copyright:
+ *     Guido Tack, 2003-2006
+ *
+ *  Last modified:
+ *     $Date: 2006-02-09 17:28:21 +0100 (Thu, 09 Feb 2006) $ by $Author: tack $
+ *     $Revision: 2944 $
+ *
+ *  This file is part of Gecode, the generic constraint
+ *  development environment:
+ *     http://www.gecode.org
+ *
+ *  See the file "LICENSE" for information on usage and
+ *  redistribution of this file, and for a
+ *     DISCLAIMER OF ALL WARRANTIES.
+ *
+ */
+
+#include "explorer.hh"
+
+#include <jni.h>
+
+#ifdef _WIN32
+#define PATH_SEPARATOR ';'
+#else /* UNIX */
+#define PATH_SEPARATOR ':'
+#endif
+
+#define USER_CLASSPATH "." /* where Prog.class is */
+
+#include "GecodeSpace.hh"
+
+#ifdef _WIN32
+#include <windows.h>
+void *JNU_FindCreateJavaVM(char *vmlibpath) {
+  HINSTANCE hVM = LoadLibrary(vmlibpath);
+  if (hVM == NULL)
+    return NULL;
+  return GetProcAddress(hVM, "JNI_CreateJavaVM");
+}
+#else
+#include <dlfcn.h>
+
+void *JNU_FindCreateJavaVM(char *vmlibpath) {
+  void *libVM = dlopen(vmlibpath, RTLD_LAZY);
+  if (libVM == NULL)
+    return NULL;
+  return dlsym(libVM, "JNI_CreateJavaVM");
+}
+#endif
+
+static char* jvmnames[] = { 
+			    "java.dll",
+			    "javai.dll",
+			    "jvm.dll",
+			    "libjvm.dylib",
+			    "libjava.jnilib",
+			    "libjava.so",
+			    0 };
+
+Explorer::Explorer(GecodeSpace* s) {
+
+  JNIEnv *env;
+  JavaVM *jvm;
+  jint res;
+  jclass cls;
+  jmethodID mid;
+  jobject space;
+  jobject explorer;
+  long pproblem;
+
+  JavaVMInitArgs vm_args;
+  JavaVMOption options[2];
+  options[0].optionString = "-Djava.class.path=.";
+  options[1].optionString = "-Djava.library.path=.:./org/gecode";
+  vm_args.version = 0x00010002;
+  vm_args.options = options;
+  vm_args.nOptions = 2;
+  vm_args.ignoreUnrecognized = JNI_TRUE;
+  // Create the JVM
+
+  jint (*createvm)(JavaVM**, void**, void*) = NULL;
+
+  char **jn = jvmnames;
+  while (*jn != NULL && createvm == NULL) {
+    createvm = (jint (*)(JavaVM**, void**, void*))
+      JNU_FindCreateJavaVM(*jn);
+    ++jn;
+  }
+
+  if (createvm == NULL) {
+    std::cout << "Can't find JNI_CreateJavaVM." << std::endl;
+    exit(1);
+  }
+
+  res = createvm(&jvm, (void**)&env, &vm_args);
+
+  if (res < 0) {
+    std::cout << "Can't create Java VM." << std::endl;
+    exit(1);
+  }
+
+  cls = env->FindClass("org/gecode/Gecode");
+  if (cls == 0) {
+    fprintf(stderr, "Can't find Gecode class\n");
+    goto destroy;
+  }
+
+  mid = (env)->GetMethodID(cls, "<init>", "(JZ)V");
+  if (mid == 0) {
+    fprintf(stderr, "Can't find Gecode constructor\n");
+    goto destroy;
+  }
+
+  pproblem = (long)(s);
+  
+  space = (env)->NewObject(cls, mid, pproblem, 0);
+
+  if (space == 0) {
+    fprintf(stderr, "Out of memory\n");
+    goto destroy;
+  }
+
+  cls = env->FindClass("org/gecode/explorer/Explorer");
+  if (cls == 0) {
+    fprintf(stderr, "Can't find Explorer class\n");
+    goto destroy;
+  }
+  
+  mid = (env)->GetMethodID(cls, "<init>", "(Lorg/gecode/Gecode;)V");
+  if (mid == 0) {
+    fprintf(stderr, "Can't find Explorer constructor\n");
+    goto destroy;
+  }
+
+  explorer = env->NewObject(cls, mid, space);
+  if (explorer==NULL) {
+    fprintf(stderr, "Can't construct explorer\n");
+    goto destroy;
+  }
+
+  mid = env->GetMethodID(cls, "openUI", "()V");
+  if (mid == NULL) {
+    fprintf(stderr, "Can't find openUI method\n");
+    goto destroy;
+  }
+
+  env->CallVoidMethod(explorer, mid);
+
+ destroy:
+  if ((env)->ExceptionOccurred()) {
+    (env)->ExceptionDescribe();
+  }
+  (jvm)->DestroyJavaVM();  
+
+}

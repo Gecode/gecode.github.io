@@ -1,0 +1,486 @@
+From dirk.obermann67 at gmail.com  Tue Apr 11 13:34:00 2017
+From: dirk.obermann67 at gmail.com (Dirk Obermann)
+Date: Tue, 11 Apr 2017 13:34:00 +0200
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there any
+	example code?
+Message-ID: <CAFtkpkjYBCQSPJ_qUNyAJJwQOYT-qfZU=Y0Q6KgJj104U8tLrQ@mail.gmail.com>
+
+Hello -
+
+
+I am trying to do program up a search engine that performs sequential
+refinement by adding more and more constraints to a model. In the first
+run, I am happy with a solution at all, but then I want to add increasingly
+complex constraints until there is no more solution (or the search engine
+times out).
+
+
+Now, I first run a model with a single constraint. If DFS can find a
+solution, then I run a completely new model with two constraints and from
+scratch. If this model is feasible, then I run the model with three
+constraints, etc.
+
+
+In principle, this solution works, but it is a very inefficient: a lot of
+time is spent generating the first feasible solution when restarting the
+search (especially as the problem becomes more constrained).
+
+
+It seems to me that this should be doable with RBS or a variation of the
+LDS engine, as described in the MPG. But there are very few examples to
+follow (the closest I found was this question posted on stack overflow
+http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search
+but unfortunately it does not contain any answer). I simply cannot
+understand how to do it right. In particular, where do I post additional
+constraint on the model (in the master space, the slave space or
+elsewhere)?
+
+
+Any leads on how to do it, or links to code that adds constraints or
+changes branching order in RBS would be appreciated!
+
+
+Cheers,
+
+
+Dirk
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170411/20ea486d/attachment.html>
+
+From cschulte at kth.se  Tue Apr 11 13:49:00 2017
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 11 Apr 2017 13:49:00 +0200
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there
+	any	example code?
+In-Reply-To: <CAFtkpkjYBCQSPJ_qUNyAJJwQOYT-qfZU=Y0Q6KgJj104U8tLrQ@mail.gmail.com>
+References: <CAFtkpkjYBCQSPJ_qUNyAJJwQOYT-qfZU=Y0Q6KgJj104U8tLrQ@mail.gmail.com>
+Message-ID: <00ae01d2b2b9$9ca7eb30$d5f7c190$@kth.se>
+
+Hi,
+
+ 
+
+First, I am not so sure that your idea works in principle: you say that the problem is that you spend a lot of time to find a first feasible solution, especially after adding additional constraints. However, that would not change with restarts: after all, you would restart the search and would have to do the same search in order to find the first feasible solution. The only benefit I could see is adding no-goods from restarts.
+
+ 
+
+Anyway, what you want to do (I guess) is that you accumulate additional constraints which each restart. This you can only do by adding constraints to the master (remember, the slave will always be initialized fresh from the master for each restart). LNS is different as you want try different constraints each time you restart, hence you have to do it on the slave.
+
+ 
+
+Hence, you will have to reimplement the master function, there you just add the additional constraints.
+
+ 
+
+Have you thought about using BAB? There, each time you find a solution you can add new constraints based on that solution _without_ restarting search. Sounds more like it to me.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, RISE SICS,  <mailto:christian.schulte at ri.se> christian.schulte at ri.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Dirk Obermann
+Sent: Tuesday, April 11, 2017 13:34
+To: users at gecode.org
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there any example code?
+
+ 
+
+Hello - 
+
+ 
+
+I am trying to do program up a search engine that performs sequential refinement by adding more and more constraints to a model. In the first run, I am happy with a solution at all, but then I want to add increasingly complex constraints until there is no more solution (or the search engine times out).
+
+ 
+
+Now, I first run a model with a single constraint. If DFS can find a solution, then I run a completely new model with two constraints and from scratch. If this model is feasible, then I run the model with three constraints, etc.
+
+ 
+
+In principle, this solution works, but it is a very inefficient: a lot of time is spent generating the first feasible solution when restarting the search (especially as the problem becomes more constrained). 
+
+ 
+
+It seems to me that this should be doable with RBS or a variation of the LDS engine, as described in the MPG. But there are very few examples to follow (the closest I found was this question posted on stack overflow  <http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search> http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search but unfortunately it does not contain any answer). I simply cannot understand how to do it right. In particular, where do I post additional constraint on the model (in the master space, the slave space or elsewhere)? 
+
+ 
+
+Any leads on how to do it, or links to code that adds constraints or changes branching order in RBS would be appreciated!
+
+ 
+
+Cheers,
+
+ 
+
+Dirk
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170411/08b9e3c0/attachment.html>
+
+From dirk.obermann67 at gmail.com  Wed Apr 12 22:27:31 2017
+From: dirk.obermann67 at gmail.com (Dirk Obermann)
+Date: Wed, 12 Apr 2017 22:27:31 +0200
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there
+ any example code?
+In-Reply-To: <00ae01d2b2b9$9ca7eb30$d5f7c190$@kth.se>
+References: <CAFtkpkjYBCQSPJ_qUNyAJJwQOYT-qfZU=Y0Q6KgJj104U8tLrQ@mail.gmail.com>
+	<00ae01d2b2b9$9ca7eb30$d5f7c190$@kth.se>
+Message-ID: <CAFtkpkiC=psf=FYpV8QXTjMwRbmOcw8BYL7AmZ8=3yX-vx_wMg@mail.gmail.com>
+
+Thanks, Christian.
+
+You were, of course, correct. BAB does the job and my code is now much more
+elegant than before. It also works well to combine with RBS.
+
+However, my earlier code was sometimes faster. The reason is that I could
+take "large steps", adding constraints in chunks until the search failed. I
+ could then go back to the last feasible model and add constraints one by
+one instead of in chunks.
+
+Is something similar possible in the gecode search engines? What I would
+like do is  the following: I run BAB until fail, and then "reset the state
+of the engine" to where it was when it produced the last feasible solution
+("before my last call to the constrain function", so to speak). I would
+then re-run the search from there (with another behavior of the constrain
+function).
+
+Thanks,
+Dirk
+
+On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi,
+>
+>
+>
+> First, I am not so sure that your idea works in principle: you say that
+> the problem is that you spend a lot of time to find a first feasible
+> solution, especially after adding additional constraints. However, that
+> would not change with restarts: after all, you would restart the search and
+> would have to do the same search in order to find the first feasible
+> solution. The only benefit I could see is adding no-goods from restarts.
+>
+>
+>
+> Anyway, what you want to do (I guess) is that you accumulate additional
+> constraints which each restart. This you can only do by adding constraints
+> to the master (remember, the slave will always be initialized fresh from
+> the master for each restart). LNS is different as you want try different
+> constraints each time you restart, hence you have to do it on the slave.
+>
+>
+>
+> Hence, you will have to reimplement the master function, there you just
+> add the additional constraints.
+>
+>
+>
+> Have you thought about using BAB? There, each time you find a solution you
+> can add new constraints based on that solution _*without*_ restarting
+> search. Sounds more like it to me.
+>
+>
+>
+> Cheers
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, RISE SICS, christian.schulte at ri.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Dirk Obermann
+> *Sent:* Tuesday, April 11, 2017 13:34
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Adding constraints to model in <RBS>: is there
+> any example code?
+>
+>
+>
+> Hello -
+>
+>
+>
+> I am trying to do program up a search engine that performs sequential
+> refinement by adding more and more constraints to a model. In the first
+> run, I am happy with a solution at all, but then I want to add increasingly
+> complex constraints until there is no more solution (or the search engine
+> times out).
+>
+>
+>
+> Now, I first run a model with a single constraint. If DFS can find a
+> solution, then I run a completely new model with two constraints and from
+> scratch. If this model is feasible, then I run the model with three
+> constraints, etc.
+>
+>
+>
+> In principle, this solution works, but it is a very inefficient: a lot of
+> time is spent generating the first feasible solution when restarting the
+> search (especially as the problem becomes more constrained).
+>
+>
+>
+> It seems to me that this should be doable with RBS or a variation of the
+> LDS engine, as described in the MPG. But there are very few examples to
+> follow (the closest I found was this question posted on stack overflow
+> http://stackoverflow.com/questions/34182681/how-to-
+> change-the-variable-value-ordering-in-gecodes-restart-based-search but
+> unfortunately it does not contain any answer). I simply cannot understand
+> how to do it right. In particular, where do I post additional constraint on
+> the model (in the master space, the slave space or elsewhere)?
+>
+>
+>
+> Any leads on how to do it, or links to code that adds constraints or
+> changes branching order in RBS would be appreciated!
+>
+>
+>
+> Cheers,
+>
+>
+>
+> Dirk
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170412/b031a4a0/attachment.html>
+
+From ssolonets at gmail.com  Mon Apr 17 19:41:08 2017
+From: ssolonets at gmail.com (=?UTF-8?B?0KHQtdGA0LPQtdC5INCh0L7Qu9C+0L3QtdGG?=)
+Date: Mon, 17 Apr 2017 17:41:08 +0000
+Subject: [gecode-users] "Mapping" constraint
+Message-ID: <CABnemvyQ10f29pen8a67hY2APL7dD+C3HNADPR0x5CWWeE=iBQ@mail.gmail.com>
+
+Is there are any solution for such a constraint:  for 2 integer Arrays of
+the same size
+
+x_i = x_j => y_i = y_j
+
+in other words, there is an integer function such
+
+x = f(y)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170417/e9069afb/attachment.html>
+
+From cschulte at kth.se  Tue Apr 18 09:55:50 2017
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 18 Apr 2017 09:55:50 +0200
+Subject: [gecode-users] "Mapping" constraint
+In-Reply-To: <CABnemvyQ10f29pen8a67hY2APL7dD+C3HNADPR0x5CWWeE=iBQ@mail.gmail.com>
+References: <CABnemvyQ10f29pen8a67hY2APL7dD+C3HNADPR0x5CWWeE=iBQ@mail.gmail.com>
+Message-ID: <018101d2b819$32dec880$989c5980$@kth.se>
+
+Hi,
+
+ 
+
+Unfortunately not, you will have to resort to reification to model that.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, RISE SICS, christian.schulte at ri.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of ?????? ???????
+Sent: Monday, April 17, 2017 19:41
+To: users at gecode.org
+Subject: [gecode-users] "Mapping" constraint
+
+ 
+
+Is there are any solution for such a constraint:  for 2 integer Arrays of the same size
+
+x_i = x_j => y_i = y_j
+
+in other words, there is an integer function such
+
+x = f(y)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170418/f6e61a7b/attachment.html>
+
+From cschulte at kth.se  Tue Apr 18 13:52:17 2017
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 18 Apr 2017 13:52:17 +0200
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there
+	any example code?
+In-Reply-To: <CAFtkpkiC=psf=FYpV8QXTjMwRbmOcw8BYL7AmZ8=3yX-vx_wMg@mail.gmail.com>
+References: <CAFtkpkjYBCQSPJ_qUNyAJJwQOYT-qfZU=Y0Q6KgJj104U8tLrQ@mail.gmail.com>
+	<00ae01d2b2b9$9ca7eb30$d5f7c190$@kth.se>
+	<CAFtkpkiC=psf=FYpV8QXTjMwRbmOcw8BYL7AmZ8=3yX-vx_wMg@mail.gmail.com>
+Message-ID: <023301d2b83a$3a9bd1f0$afd375d0$@kth.se>
+
+Hi Dirk,
+
+ 
+
+Yes, I see your motivation but the Gecode engines cannot do that. Have you ever had a look at the part in MPG about search? Building a BAB engine with this additional feature might be not that hard?
+
+ 
+
+Good luck
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, RISE SICS,  <mailto:christian.schulte at ri.se> christian.schulte at ri.se
+
+ 
+
+From: Dirk Obermann [mailto:dirk.obermann67 at gmail.com] 
+Sent: Wednesday, April 12, 2017 22:28
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Adding constraints to model in <RBS>: is there any example code?
+
+ 
+
+Thanks, Christian.
+
+ 
+
+You were, of course, correct. BAB does the job and my code is now much more elegant than before. It also works well to combine with RBS.  
+
+ 
+
+However, my earlier code was sometimes faster. The reason is that I could take "large steps", adding constraints in chunks until the search failed. I  could then go back to the last feasible model and add constraints one by one instead of in chunks.
+
+Is something similar possible in the gecode search engines? What I would like do is  the following: I run BAB until fail, and then "reset the state of the engine" to where it was when it produced the last feasible solution ("before my last call to the constrain function", so to speak). I would then re-run the search from there (with another behavior of the constrain function). 
+
+Thanks,
+
+Dirk
+
+ 
+
+On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+Hi,
+
+ 
+
+First, I am not so sure that your idea works in principle: you say that the problem is that you spend a lot of time to find a first feasible solution, especially after adding additional constraints. However, that would not change with restarts: after all, you would restart the search and would have to do the same search in order to find the first feasible solution. The only benefit I could see is adding no-goods from restarts.
+
+ 
+
+Anyway, what you want to do (I guess) is that you accumulate additional constraints which each restart. This you can only do by adding constraints to the master (remember, the slave will always be initialized fresh from the master for each restart). LNS is different as you want try different constraints each time you restart, hence you have to do it on the slave.
+
+ 
+
+Hence, you will have to reimplement the master function, there you just add the additional constraints.
+
+ 
+
+Have you thought about using BAB? There, each time you find a solution you can add new constraints based on that solution _without_ restarting search. Sounds more like it to me.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, RISE SICS, christian.schulte at ri.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Dirk Obermann
+Sent: Tuesday, April 11, 2017 13:34
+To: users at gecode.org
+Subject: [gecode-users] Adding constraints to model in <RBS>: is there any example code?
+
+ 
+
+Hello - 
+
+ 
+
+I am trying to do program up a search engine that performs sequential refinement by adding more and more constraints to a model. In the first run, I am happy with a solution at all, but then I want to add increasingly complex constraints until there is no more solution (or the search engine times out).
+
+ 
+
+Now, I first run a model with a single constraint. If DFS can find a solution, then I run a completely new model with two constraints and from scratch. If this model is feasible, then I run the model with three constraints, etc.
+
+ 
+
+In principle, this solution works, but it is a very inefficient: a lot of time is spent generating the first feasible solution when restarting the search (especially as the problem becomes more constrained). 
+
+ 
+
+It seems to me that this should be doable with RBS or a variation of the LDS engine, as described in the MPG. But there are very few examples to follow (the closest I found was this question posted on stack overflow  <http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search> http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search but unfortunately it does not contain any answer). I simply cannot understand how to do it right. In particular, where do I post additional constraint on the model (in the master space, the slave space or elsewhere)? 
+
+ 
+
+Any leads on how to do it, or links to code that adds constraints or changes branching order in RBS would be appreciated!
+
+ 
+
+Cheers,
+
+ 
+
+Dirk
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20170418/0243b12b/attachment.html>
+

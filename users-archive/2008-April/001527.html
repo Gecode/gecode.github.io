@@ -1,0 +1,223 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Controlling memory use
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Controlling%20memory%20use&In-Reply-To=%3CE30601CF-396B-4F31-9B2D-20FD88159F9E%40cse.unsw.edu.au%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001530.html">
+   <LINK REL="Next"  HREF="001531.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Controlling memory use</H1>
+    <B>Malcolm Ryan</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Controlling%20memory%20use&In-Reply-To=%3CE30601CF-396B-4F31-9B2D-20FD88159F9E%40cse.unsw.edu.au%3E"
+       TITLE="[gecode-users] Controlling memory use">malcolmr at cse.unsw.edu.au
+       </A><BR>
+    <I>Wed Apr  9 02:14:32 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001530.html">[gecode-users] Subclassing JavaBrancingDesc
+</A></li>
+        <LI>Next message: <A HREF="001531.html">[gecode-users] Controlling memory use
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1527">[ date ]</a>
+              <a href="thread.html#1527">[ thread ]</a>
+              <a href="subject.html#1527">[ subject ]</a>
+              <a href="author.html#1527">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On 09/04/2008, at 1:57 AM, Christian Schulte wrote:
+&gt;<i> Malcolm,
+</I>&gt;<i>
+</I>&gt;<i> That's a lot of constraints!
+</I>
+Is it? I have no idea what constitutes &quot;a lot&quot; in this area.
+
+Many of the constraints are actually redundant and are only used to  
+improve propagation. The whole problem could just be expressed as a  
+concrete plan with only the first four constraints, but this would  
+require a lot more search to solve.
+
+&gt;<i> But what is n?
+</I>
+Typical values:
+
+Nv	100-1000
+Ns	50-100
+Nr	20 or more (the more we can handle the better)
+
+Nb and Lmax depend on the problem. I usually start Nb small (around 5)  
+and increase it if this value fails. Lmax depends on the size and  
+types of subgraphs. I'm currently working with Lmax = 40.
+
+I have found that I am getting much better memory usage by setting C_d  
+very large (around 200). What am I trading off in this case? I presume  
+this means that failures are more expensive in terms of computation  
+time. Is that right?
+
+&gt;<i> Is it intentional to just send
+</I>&gt;<i> it to me? Normally I do not reply to personal messages on Gecode.
+</I>
+Sorry, my mail program doesn't have a &quot;reply to list&quot; option, and I  
+don't always remember to change the 'To' field.
+
+Malcolm
+
+&gt;<i> On 4/8/08 9:08 AM, &quot;Malcolm Ryan&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">malcolmr at cse.unsw.edu.au</A>&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> On 08/04/2008, at 5:52 AM, Christian Schulte wrote:
+</I>&gt;&gt;&gt;<i> As I have no idea what's inside your model I can't say a thing. Do
+</I>&gt;&gt;&gt;<i> you store
+</I>&gt;&gt;&gt;<i> BExpr somewhere? What other datastructures do you use? How many and
+</I>&gt;&gt;&gt;<i> which
+</I>&gt;&gt;&gt;<i> propagators?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I've outlined the problem description below. All the boolean
+</I>&gt;&gt;<i> expressions are constructed from BExprs. The only ones that are
+</I>&gt;&gt;<i> expressly reified as BoolVars are those noted in the Variables
+</I>&gt;&gt;<i> section. These are created because there is no BExpr which tests set
+</I>&gt;&gt;<i> membership.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Constants:
+</I>&gt;&gt;<i> G = (V, E)  graph   The map
+</I>&gt;&gt;<i> V   {1, Nv}   The vertices are numbered
+</I>&gt;&gt;<i> E   in V^2   The edges are stored as a table
+</I>&gt;&gt;<i> Nr    # robots  The number of robots
+</I>&gt;&gt;<i> Ns   # subgraphs  The number of subgraphs
+</I>&gt;&gt;<i> Si    subset of V, Subgraphs are sets of consecutive vertices
+</I>&gt;&gt;<i> Si_min &lt;= v &lt;= Si_max
+</I>&gt;&gt;<i> ES   in {1..Ns}^2 The adjacency betweem subgraphs as a table
+</I>&gt;&gt;<i> Nb   # subplans  The size of the abstract plan
+</I>&gt;&gt;<i> Lmax  maximum plan length
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Variables
+</I>&gt;&gt;<i> ---------
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Concrete plans:
+</I>&gt;&gt;<i> P[b][r][t] in V   The position of robot r at time t in subplan b
+</I>&gt;&gt;<i> L[b]  {1, Lmax}  The length of subplan b
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Abstract Plan:
+</I>&gt;&gt;<i> A[b][r]  in {1,Ns}  The subgraph occupied by robot r in subplan b
+</I>&gt;&gt;<i> L_total  {1, Lmax * Nb} The total length of the plan
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> In[b][r][i] bool   True if robot r is in subgraph i in subplan b
+</I>&gt;&gt;<i> Pop[b][i] {0, |Si|}  The number of robots in subgraph i in subplan b
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> IsHall[b][r] bool  True if robot r is in a hall subgraph in subplan b
+</I>&gt;&gt;<i> HOrd[b][ri][rj] {-1, 0, 1} The ordering of ri and rj in the hall in
+</I>&gt;&gt;<i> subplan b
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> IsRing[b][r] bool  True if robot r is in a ring subgraph in subplan b
+</I>&gt;&gt;<i> ROrd[b][ri][rj][rk] {-1,0,1} The ordering or ri, rj, rk in the ring
+</I>&gt;&gt;<i> in subplan b
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Constraints
+</I>&gt;&gt;<i> -----------
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Concrete plans: for all b:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * No two robots can occupy the same vertex at the same time:
+</I>&gt;&gt;<i> distinct(P[b][1][t], P[b][2][t], ..., P[b][Nr][t]) for all t
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * No two robots can occupy the same vertex on subsequent time steps:
+</I>&gt;&gt;<i> distinct(P[b][1][t], ..., P[b][r][t+1], ... P[b][Nr][t]) for allt,r
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Robots can only move between adjacent positions
+</I>&gt;&gt;<i> (P[b][r][t], P[b][r][t+1]) \in E or P[b][r][t] == P[b][r][t+1]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * No-ops can only occur at the end of the plan
+</I>&gt;&gt;<i> (L[b] &gt; t &lt;=&gt; \exists r : P[b][r][t-1] == Pos[b][r][t])
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Abstract plans:
+</I>&gt;&gt;<i> ---------------
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> for all b (except b=0 or b=Nb where appropriate)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Robots can only transition between adjacent subgraphs
+</I>&gt;&gt;<i> (A[b][r], A[b+1][r]) \in ES
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * No-ops can only occur at the end of the plan
+</I>&gt;&gt;<i> \exists r A[b+1][r] != A[b][r] --&gt; \exists r A[b][r] != A[b-1][r]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Subplans are linked
+</I>&gt;&gt;<i> (P[b][r][Lmax], P[b+1][r][1]) \in E or P[b][r][Lmax] == P[b+1][r][1]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * No two robots can occupy the same vertex on subsequent time steps:
+</I>&gt;&gt;<i> distinct(P[b][1][Lmax], ..., P[b+1][r][1], ... P[b][Nr][Lmax]) for
+</I>&gt;&gt;<i> all r
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * The abstract plan step constrains the domain of the corresponding
+</I>&gt;&gt;<i> subplan
+</I>&gt;&gt;<i> (A[b][r] == i) &lt;=&gt; (P[b][r][t] \in Si)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * When a subgraph is full, none of its inhabitants can move
+</I>&gt;&gt;<i> Pop[b][s] == count(r, A[b][r] == s)
+</I>&gt;&gt;<i> Pop[b][s] = |Si| and A[b][r] == s --&gt; P[b][r][t] == P[b][r][0]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Robots in halls must maintain their ordering
+</I>&gt;&gt;<i> A[b][ri] == A[b][rj] &amp;&amp; isHall(A[b][ri]) &lt;=&gt; HOrd[b][ri][rj] != 0
+</I>&gt;&gt;<i> HOrd[b][ri][rj] == -1 --&gt; P[b][ri][t] &lt; P[b][rj][t] for all t
+</I>&gt;&gt;<i> HOrd[b][ri][rj] ==  1 --&gt; P[b][ri][t] &gt; P[b][rj][t] for all t
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Hall orderings persist across subplans if neither robot  
+</I>&gt;&gt;<i> transitions.
+</I>&gt;&gt;<i> A[b-1][ri] == A[b][ri] &amp;&amp; A[b-1][rj] == A[b][rj]
+</I>&gt;&gt;<i> --&gt; HOrd[b-1][ri][rj] == HOrd[b][ri][rj]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Robots in rings must maintain their ordering (clockwise or
+</I>&gt;&gt;<i> anticlockwise)
+</I>&gt;&gt;<i> A[b][ri] == A[b][rj] &amp;&amp; A[b][ri] == A[b][rk] &amp;&amp; isRing(A[b][ri])
+</I>&gt;&gt;<i> &lt;=&gt; Ord[b][ri][rj][rk] != 0
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Ord[b][ri][rj] == -1 =&gt; RingOrder(rk, rj, ri) for all t
+</I>&gt;&gt;<i> Ord[b][ri][rj] ==  1 =&gt; RingOrder(ri, rj, rk) for all t
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> where:
+</I>&gt;&gt;<i> RingOrder(ri, rj, rk) &lt;=&gt; (ri &lt; rj &amp;&amp; rj &lt; rk)
+</I>&gt;&gt;<i> or (rk &lt; ri &amp;&amp; ri &lt; rj)
+</I>&gt;&gt;<i> or (rj &lt; rk &amp;&amp; rk &lt; ri)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> * Ring orderings persist across subplans if neither robot  
+</I>&gt;&gt;<i> transitions.
+</I>&gt;&gt;<i> A[b-1][ri] == A[b][ri]  &amp;&amp; A[b-1][rj] == A[b][rj] &amp;&amp; A[b-1][rk] ==
+</I>&gt;&gt;<i> A[b][rk]
+</I>&gt;&gt;<i> --&gt; Ord[b-1][ri][rj][rk] == Ord[b][ri][rj][rk]
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, web.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001530.html">[gecode-users] Subclassing JavaBrancingDesc
+</A></li>
+	<LI>Next message: <A HREF="001531.html">[gecode-users] Controlling memory use
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1527">[ date ]</a>
+              <a href="thread.html#1527">[ thread ]</a>
+              <a href="subject.html#1527">[ subject ]</a>
+              <a href="author.html#1527">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

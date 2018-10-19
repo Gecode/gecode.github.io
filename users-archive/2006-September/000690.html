@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Newbie: space/solution copying &amp; dynamically added	constraints
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Newbie%3A%20space/solution%20copying%20%26%20dynamically%20added%0A%09constraints&In-Reply-To=%3C450FEE92.1040409%40ugent.be%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000686.html">
+   <LINK REL="Next"  HREF="000692.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Newbie: space/solution copying &amp; dynamically added	constraints</H1>
+    <B>Pieter Thysebaert</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Newbie%3A%20space/solution%20copying%20%26%20dynamically%20added%0A%09constraints&In-Reply-To=%3C450FEE92.1040409%40ugent.be%3E"
+       TITLE="[gecode-users] Newbie: space/solution copying &amp; dynamically added	constraints">pieter.thysebaert at ugent.be
+       </A><BR>
+    <I>Tue Sep 19 15:20:18 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000686.html">[gecode-users] Disjunctions in gecode
+</A></li>
+        <LI>Next message: <A HREF="000692.html">[gecode-users] Newbie: space/solution copying &amp; dynamically	addedconstraints
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#690">[ date ]</a>
+              <a href="thread.html#690">[ thread ]</a>
+              <a href="subject.html#690">[ subject ]</a>
+              <a href="author.html#690">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello,
+
+I'm currently running Gecode 1.2.2 on debian Sarge and am using its
+built-in BAB engine to solve a constraint optimization problem.
+
+As I want to parallelize the search procedure (by using concurrent
+distributed components) but haven't discovered such a solution in gecode
+(does it exist already?), I have been entertaining myself by
+implementing a prototype of such a concurrent distributed search
+procedure using MPICH2, in which the concurrent components perform load
+distribution by dynamically splitting up their assigned search space.
+
+As it's just a prototype, I don't mind it being slightly naive.
+Therefore, I use the Gecode-provided BAB search engine in each of the
+components. When some component has finished its search, it will request
+work from a busy component. Work consists of a description of variables
+to be bound, so the querying component will start a new search in the
+problem space constrained by these bound variables. These variable
+bindings can easily be passed on using MPI messages.
+
+My main problem, however, lies with controlling the BAB search engine
+dynamically. Consider this (naive) approach:
+
+BAB&lt;solution&gt; engine(...);
+do {
+   solution* currentSolution =  engine.next()
+
+   currentSolution-&gt;getWorkToDistribute();
+} while ...
+
+The goal of the getWorkToDistribute call is to split the remaining
+search space to be explored by engine.next() in two parts by a binary
+split on some variable: one part will be assigned to a worker process
+asking for work (and thus, the description of this part of the search
+space will be distributed using MPI calls), and the  remainder will be
+explored by this process's engine.next().
+
+My problem lies with the latter.  Assuming that we have split the search
+space on variable X, and that X=1 will be explored by the remote
+process, I now want to &quot;dynamically&quot; constrain this process's search
+space by adding &quot;X &lt;&gt; 1&quot;.
+
+Is there a way to achieve this without recreating the whole problem,
+adding the extra constraint &quot;X &lt;&gt; 1&quot; and starting a new search engine
+(probably revisiting lots of nodes)?
+
+I'm asking because I'm really not sure how and when the search engine
+copies solution objects.  It seems that naively  &quot;adding&quot; a constraint
+to the currentSolution object does not have the effect I want.
+
+Then I thought of the &quot;constrain&quot; function called by the BAB engine,
+used to dynamically constrain the cost function. However, I'm not sure
+when it is called, nor what the relationship is between the argument
+passed to this function and previous values of currentSolution in the loop.
+That is, I tried currentSolution-&gt;setSomeMemberData hoping that
+currentSolution would be passed as argument to the constrain() function
+of another node, but upon examination in the constrain() function the
+envisioned member data does not have said member data. (My idea was to
+read this member data - representing the constraint to be added &quot;X &lt;&gt; 1&quot;
+- from the argument to constrain() : Space *s  - and add this constraint
+to &quot;this&quot; just like reading the value of the cost function from Space s
+and then adding a constraint requiring the cost to be less)
+
+Can anyone enlighten me and tell me where my ideas are just plain wrong
+or what I should try instead?
+
+As an additional question: in the above code snippet, useful things
+(aside from searching, that is) can only be performed when engine.next()
+returns. Are there Pause/Resume objects or operators that will interrupt
+the search procedure more timely but still allow the search engine to
+continue afterwards?
+
+Thanks
+Pieter
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000686.html">[gecode-users] Disjunctions in gecode
+</A></li>
+	<LI>Next message: <A HREF="000692.html">[gecode-users] Newbie: space/solution copying &amp; dynamically	addedconstraints
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#690">[ date ]</a>
+              <a href="thread.html#690">[ thread ]</a>
+              <a href="subject.html#690">[ subject ]</a>
+              <a href="author.html#690">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

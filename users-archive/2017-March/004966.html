@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20with%20linear%20constraint%20over%20integers%0A%20using%20minimodel%20%28%22undef%20ref%22%29&In-Reply-To=%3Ctrinity-f51facbb-a202-4524-8055-72f057c027d4-1490670507047%403capp-webde-bs07%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004965.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)</H1>
+    <B>Sascha Schnug</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20with%20linear%20constraint%20over%20integers%0A%20using%20minimodel%20%28%22undef%20ref%22%29&In-Reply-To=%3Ctrinity-f51facbb-a202-4524-8055-72f057c027d4-1490670507047%403capp-webde-bs07%3E"
+       TITLE="[gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)">saschaschnug at web.de
+       </A><BR>
+    <I>Tue Mar 28 05:08:27 CEST 2017</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004965.html">[gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4966">[ date ]</a>
+              <a href="thread.html#4966">[ thread ]</a>
+              <a href="subject.html#4966">[ subject ]</a>
+              <a href="author.html#4966">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>First of all: much apologies for the noise!
+&#160;
+I did solve my problem:
+&#160;
+While the stuff i presented was right (probably not the most natural CP-usage; but i'm still learning),
+i made a mistake when i modified my Makefile (= my own steps deviated from the presentation in this mail).
+
+The problem was indeed the ordering of linking, which is explained at the guide under 2.3.3.
+My wrongly used Makefile did link to float before minimodel, which seems to be the problem.
+(the original gist i used did not link to float and my first attempt adding -lgecodefloat was ignoring
+the ordering-rules mentioned in the guide; maybe a simple schematic Makefile could be added)
+
+The Makefile presented in my question at this mailing-list was correct (-lgecodefloat between -lgecodeset
+and -lgecodeint) and compiles.
+
+-&#160;
+Sascha-Dominic Schnug&#160;
+&#160;
+
+Gesendet:&#160;Dienstag, 28. M&#228;rz 2017 um 02:14 Uhr
+Von:&#160;&quot;Sascha Schnug&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">saschaschnug at web.de</A>&gt;
+An:&#160;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff:&#160;[gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)
+Hi,
+
+i'm a new user of Gecode and i have some trouble.
+
+I'm using Gecode 5.0, compiled with the defaults plus gmp &amp; mpfr (although i don't think it's
+needed for my case) under Windows using Cygwin (gcc/g++: 5.4). (If i recall correctly;
+i needed to manually modify the 3rd-party code where the rounding-mode is selected).
+
+While i made good progress at first (despite the fact that i'm rediscovering C++), the following
+part of my code is not working:
+
+Excerpt:
+--------
+
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+#include &lt;gecode/float.hh&gt; // for later use
+
+using Gecode;
+
+protected:
+
+IntVarArray q_start;
+IntVarArray q_end;
+IntVarArray q_length;
+
+public:
+
+IntVarArgs q_start_;
+IntVarArgs q_end_;
+IntVarArgs q_length_;
+
+..........
+
+for(int i=0; i&lt;n_q; i++)
+{
+q_start_ &lt;&lt; IntVar(*this, 0, 95);
+q_end_ &lt;&lt; IntVar(*this, 0, 95);
+q_length_ &lt;&lt; IntVar(*this, 0, 95);
+}
+
+q_start = IntVarArray(*this, q_start_);
+q_end = IntVarArray(*this, q_end_);
+q_length = IntVarArray(*this, q_length_);
+
+..........
+
+for(int q=0; q&lt;n_q; ++q)
+{
+// get length of window / THIS SEEMS TO BE THE PROBLEM!
+rel(*this, 1*q_length[q] == 1*q_end[q] - 1*q_start[q]); // minimodel-like
+}
+
+I think this follows the examples in the guide as well as other resources.
+
+My Makefile looks like this (following <A HREF="https://gist.github.com/fepa/2187179;">https://gist.github.com/fepa/2187179;</A> also uses the order mentioned in guide):
+
+# Configure this makefile if needed then run
+# $ make all
+# to compile and link
+
+# What files to compile
+OBJS=problem.cpp solver.cpp
+# What file to compile to
+MAINFILE=solver
+# What compiler to use
+CC=g++
+# Where is your gecode library?
+# (Gecode's default 'make install' behavior installs gecode libraries and headers under /usr/local)
+GECODEDIR=/usr/local
+
+# 'make all' does both compiling and link (i.e 'make compile link')
+all: compile link
+
+# 'make compile' compiles files
+compile: $(OBJS)
+$(CC) -I$(GECODEDIR)/include -c $(OBJS)
+
+# 'make link' links compiled files
+link: $(OBJS)
+$(CC) -o $(MAINFILE) -L$(GECODEDIR)/lib $(MAINFILE).o \
+-lgecodeflatzinc -lgecodedriver \
+-lgecodesearch -lgecodeminimodel -lgecodeset \
+-lgecodefloat \
+-lgecodeint -lgecodekernel -lgecodesupport
+
+# 'make clean' cleans up generated files from make commands
+clean:
+rm -rf *o $(MAINFILE)
+
+Now this is the ugly output i receive:
+
+$ make
+g++ -I/usr/local/include -c solver_v4.cpp -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC
+g++ -o solver_v4 -L/usr/local/lib solver_v4.o \
+-lgecodeflatzinc -lgecodedriver -lgecodefloat \
+-lgecodesearch -lgecodeminimodel -lgecodeset \
+-lgecodeint -lgecodekernel -lgecodesupport
+/usr/local/lib/libgecodeminimodel.a(float-expr.o): In function `Gecode::LinFloatExpr::post(Gecode::Home) const':
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:220: undefined reference to `Gecode::Float::Linear::estimate(Gecode::Float::Linear::Term*, int, Gecode::FloatVal, double&amp;, double&amp;)'
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:220:(.text+0x3df3): relocation truncated to fit: R_X86_64_PC32 against undefined symbol `Gecode::Float::Linear::estimate(Gecode::Float::Linear::Term*, int, Gecode::FloatVal, double&amp;, double&amp;)'
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:223: undefined reference to `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal)'
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:223:(.text+0x4029): relocation truncated to fit: R_X86_64_PC32 against undefined symbol `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal)'
+/usr/local/lib/libgecodeminimodel.a(float-expr.o): In function `Gecode::LinFloatExpr::post(Gecode::Home, Gecode::FloatRelType, Gecode::BoolVar const&amp;) const':
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:205: undefined reference to `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal, Gecode::Reify)'
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:205:(.text+0x4277): relocation truncated to fit: R_X86_64_PC32 against undefined symbol `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal, Gecode::Reify)'
+/usr/local/lib/libgecodeminimodel.a(float-expr.o): In function `Gecode::LinFloatExpr::post(Gecode::Home, Gecode::FloatRelType) const':
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:182: undefined reference to `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal)'
+/cygdrive/x/gecode-5.0.0/gecode-5.0.0/gecode/minimodel/float-expr.cpp:182:(.text+0x468d): relocation truncated to fit: R_X86_64_PC32 against undefined symbol `Gecode::Float::Linear::post(Gecode::Home, Gecode::Float::Linear::Term*, int, Gecode::FloatRelType, Gecode::FloatVal)'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:24: link] Error 1
+
+I'm kinda lost right now as i have no idea what the problem is. I did not check Gecode's sources yet.
+My makefile uses some of GCC's STL-debugging tools, but they are not the reason for this.
+
+Another remark:
+In my previous compilation (without gmp + mpfr; added now) i build all the examples too.
+-&gt; all examples using float &amp; minimodel are behaving strange:
+=&gt; they all seem to run without errors, but do not produce any output (clean shell)
+
+I did not research the Script-like usage of gecode a lot, but i expect those examples should
+produce output too like all the others.
+
+Thanks for taking the time to read this! I hope i did not forget to mention relevant information.
+
+-
+Sascha-Dominic Schnug
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users[https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users[https://www.gecode.org/mailman/listinfo/gecode-users</A>]
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004965.html">[gecode-users] Problem with linear constraint over integers using minimodel (&quot;undef ref&quot;)
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4966">[ date ]</a>
+              <a href="thread.html#4966">[ thread ]</a>
+              <a href="subject.html#4966">[ subject ]</a>
+              <a href="author.html#4966">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,224 @@
+diff -ru gecode/int/bool/clause.hpp gecode/int/bool/clause.hpp
+--- gecode/int/bool/clause.hpp	2009-10-14 12:19:49.000000000 +0200
++++ gecode/int/bool/clause.hpp	2009-12-13 23:46:53.000000000 +0100
+@@ -50,6 +50,8 @@
+   (home,x0[x0.size()-1],y0[y0.size()-1]), x(x0), y(y0) {
+     assert((x.size() > 0) && (y.size() > 0));
+     x.size(x.size()-1); y.size(y.size()-1);
++    x0.subscribe(home,*this,PC_BOOL_SAME,false);
++    x1.subscribe(home,*this,PC_BOOL_SAME,false);
+   }
+ 
+   template<class VX, class VY>
+@@ -99,9 +101,9 @@
+         y.size(n);
+       }
+     }
+-    if ((x.size() == 0) && (y.size() == 0))
+-      return new (home) BinOrTrue<VX,VY>(home,share,*this,x0,x1);
+-    else
++//    if ((x.size() == 0) && (y.size() == 0))
++//      return new (home) BinOrTrue<VX,VY>(home,share,*this,x0,x1);
++//    else
+       return new (home) ClauseTrue<VX,VY>(home,share,*this);
+   }
+ 
+@@ -153,6 +155,7 @@
+           x0=x[i]; x[i]=x[--n];
+           x.size(n);
+           x0.subscribe(home,p,PC_BOOL_VAL,false);
++          x0.subscribe(home,p,PC_BOOL_SAME,false);
+           return ES_FIX;
+         }
+       // All x-views have been assigned!
+@@ -178,6 +181,8 @@
+   template<class VX, class VY>
+   size_t
+   ClauseTrue<VX,VY>::dispose(Space& home) {
++    x0.cancel(home,*this,PC_BOOL_SAME);
++    x1.cancel(home,*this,PC_BOOL_SAME);
+     (void) MixBinaryPropagator<VX,PC_BOOL_VAL,VY,PC_BOOL_VAL>::dispose(home);
+     return sizeof(*this);
+   }
+diff -ru gecode/int/bool/or.hpp gecode/int/bool/or.hpp
+--- gecode/int/bool/or.hpp	2009-10-14 12:19:49.000000000 +0200
++++ gecode/int/bool/or.hpp	2009-12-13 23:46:36.000000000 +0100
+@@ -105,7 +105,19 @@
+   template<class BVA, class BVB>
+   forceinline
+   BinOrTrue<BVA,BVB>::BinOrTrue(Home home, BVA b0, BVB b1)
+-    : BoolBinary<BVA,BVB>(home,b0,b1) {}
++    : BoolBinary<BVA,BVB>(home,b0,b1) {
++    x0.subscribe(home,*this,PC_BOOL_SAME,false);
++    x1.subscribe(home,*this,PC_BOOL_SAME,false);
++  }
++
++  template<class BVA, class BVB>
++  forceinline size_t
++  BinOrTrue<BVA,BVB>::dispose(Space& home) {
++    x0.cancel(home,*this,PC_BOOL_SAME);
++    x1.cancel(home,*this,PC_BOOL_SAME);
++    (void) BoolBinary<BVA,BVB>::dispose(home);
++    return sizeof(*this);
++  }
+ 
+   template<class BVA, class BVB>
+   forceinline
+@@ -158,6 +170,7 @@
+     case GECODE_INT_STATUS(NONE,ZERO):
+       GECODE_ME_CHECK(x0.one_none(home)); break;
+     case GECODE_INT_STATUS(NONE,ONE):
++      x0.cancel(home,*this,PC_BOOL_SAME);
+       x0.cancel(home,*this,PC_BOOL_VAL); break;
+     case GECODE_INT_STATUS(ZERO,NONE):
+       GECODE_ME_CHECK(x1.one_none(home)); break;
+@@ -166,6 +179,7 @@
+     case GECODE_INT_STATUS(ZERO,ONE):
+       break;
+     case GECODE_INT_STATUS(ONE,NONE):
++      x1.cancel(home,*this,PC_BOOL_SAME);
+       x1.cancel(home,*this,PC_BOOL_VAL); break;
+     case GECODE_INT_STATUS(ONE,ZERO):
+       break;
+@@ -186,11 +200,16 @@
+   template<class BV>
+   forceinline
+   TerOrTrue<BV>::TerOrTrue(Home home, BV b0, BV b1, BV b2)
+-    : BoolBinary<BV,BV>(home,b0,b1), x2(b2) {}
++    : BoolBinary<BV,BV>(home,b0,b1), x2(b2) {
++    x0.subscribe(home,*this,PC_BOOL_SAME,false);
++    x1.subscribe(home,*this,PC_BOOL_SAME,false);
++  }
+ 
+   template<class BV>
+   forceinline size_t
+   TerOrTrue<BV>::dispose(Space& home) {
++    x0.cancel(home,*this,PC_BOOL_SAME);
++    x1.cancel(home,*this,PC_BOOL_SAME);
+     (void) BoolBinary<BV,BV>::dispose(home);
+     return sizeof(*this);
+   }
+@@ -214,11 +233,11 @@
+   Actor*
+   TerOrTrue<BV>::copy(Space& home, bool share) {
+     assert(x0.none() && x1.none());
+-    if (x2.one())
+-      return new (home) OrTrueSubsumed<BV>(home,share,*this,x0,x1);
+-    else if (x2.zero())
+-      return new (home) BinOrTrue<BV,BV>(home,share,*this,x0,x1);
+-    else
++//    if (x2.one())
++//      return new (home) OrTrueSubsumed<BV>(home,share,*this,x0,x1);
++//    else if (x2.zero())
++//      return new (home) BinOrTrue<BV,BV>(home,share,*this,x0,x1);
++//    else
+       return new (home) TerOrTrue<BV>(home,share,*this);
+   }
+ 
+@@ -242,6 +261,7 @@
+       GECODE_NEVER;
+     case GECODE_INT_STATUS(NONE,ZERO,NONE):
+       std::swap(x1,x2); x1.subscribe(home,*this,PC_BOOL_VAL);
++      x1.subscribe(home,*this,PC_BOOL_SAME,false);
+       return ES_FIX;
+     case GECODE_INT_STATUS(NONE,ZERO,ZERO):
+       GECODE_ME_CHECK(x0.one_none(home)); break;
+@@ -249,13 +269,16 @@
+     case GECODE_INT_STATUS(NONE,ONE,NONE):
+     case GECODE_INT_STATUS(NONE,ONE,ZERO):
+     case GECODE_INT_STATUS(NONE,ONE,ONE):
++      x0.cancel(home,*this,PC_BOOL_SAME);
+       x0.cancel(home,*this,PC_BOOL_VAL); break;
+     case GECODE_INT_STATUS(ZERO,NONE,NONE):
+       std::swap(x0,x2); x0.subscribe(home,*this,PC_BOOL_VAL);
++      x0.subscribe(home,*this,PC_BOOL_SAME,false);
+       return ES_FIX;
+     case GECODE_INT_STATUS(ZERO,NONE,ZERO):
+       GECODE_ME_CHECK(x1.one_none(home)); break;
+     case GECODE_INT_STATUS(ZERO,NONE,ONE):
++      x1.cancel(home,*this,PC_BOOL_SAME);
+       x1.cancel(home,*this,PC_BOOL_VAL); break;
+     case GECODE_INT_STATUS(ZERO,ZERO,NONE):
+       GECODE_ME_CHECK(x2.one_none(home)); break;
+@@ -269,6 +292,7 @@
+     case GECODE_INT_STATUS(ONE,NONE,NONE):
+     case GECODE_INT_STATUS(ONE,NONE,ZERO):
+     case GECODE_INT_STATUS(ONE,NONE,ONE):
++      x1.cancel(home,*this,PC_BOOL_SAME);
+       x1.cancel(home,*this,PC_BOOL_VAL); break;
+     case GECODE_INT_STATUS(ONE,ZERO,NONE):
+     case GECODE_INT_STATUS(ONE,ZERO,ZERO):
+diff -ru gecode/int/bool.hh gecode/int/bool.hh
+--- gecode/int/bool.hh	2009-10-12 17:36:53.000000000 +0200
++++ gecode/int/bool.hh	2009-12-13 23:42:46.000000000 +0100
+@@ -213,6 +213,8 @@
+     virtual ExecStatus propagate(Space& home, const ModEventDelta& med);
+     /// Post propagator \f$ b_0 \lor b_1 = 1 \f$
+     static  ExecStatus post(Home home, BVA b0, BVB b1);
++    /// Delete propagator and return its size
++    virtual size_t dispose(Space& home);
+   };
+ 
+   /**
+diff -ru gecode/int/var-imp/bool.hpp gecode/int/var-imp/bool.hpp
+--- gecode/int/var-imp/bool.hpp	2009-09-08 21:10:29.000000000 +0200
++++ gecode/int/var-imp/bool.hpp	2009-12-13 23:42:46.000000000 +0100
+@@ -401,15 +401,15 @@
+    *
+    */
+   forceinline void
+-  BoolVarImp::subscribe(Space& home, Propagator& p, PropCond,
++  BoolVarImp::subscribe(Space& home, Propagator& p, PropCond pc,
+                         bool process) {
+     // Subscription can be used with integer propagation conditions,
+     // which must be remapped to the single Boolean propagation condition.
+-    BoolVarImpBase::subscribe(home,p,PC_BOOL_VAL,assigned(),process);
++    BoolVarImpBase::subscribe(home,p,pc,assigned(),process);
+   }
+   forceinline void
+-  BoolVarImp::cancel(Space& home, Propagator& p, PropCond) {
+-    BoolVarImpBase::cancel(home,p,PC_BOOL_VAL,assigned());
++  BoolVarImp::cancel(Space& home, Propagator& p, PropCond pc) {
++    BoolVarImpBase::cancel(home,p,pc,assigned());
+   }
+ 
+   forceinline void
+diff -ru gecode/int/var-imp/bool.vis gecode/int/var-imp/bool.vis
+--- gecode/int/var-imp/bool.vis	2008-02-01 12:10:00.000000000 +0100
++++ gecode/int/var-imp/bool.vis	2009-12-13 23:42:46.000000000 +0100
+@@ -52,8 +52,17 @@
+   /// Domain operation has not changed domain
+ [ModEvent]
+ Name:		VAL=ASSIGNED
+-Combine:	VAL=VAL
++Combine:  VAL=VAL INIT=VAL SAME=SAME
+   /// Domain operation has resulted in a value (assigned variable)
++[ModEvent]
++Name:   INIT=SUBSCRIBE
++Combine:  INIT=INIT VAL=VAL SAME=SAME
++  /// If a propagator subscribes to this variable, it will be processed assuming a ME_BOOL_INIT modification event.
++[ModEvent]
++Name:   SAME
++Combine:  SAME=SAME VAL=SAME INIT=SAME
++  /// Two variables must be in the same equivalence class
++
+ [PropCond]
+ Name:		VAL=ASSIGNED
+ ModEvents:	VAL
+@@ -64,6 +73,16 @@
+    * condition PC_BOOL_VAL, then \a p is propagated when a domain
+    * update operation on \a x returns the modification event ME_BOOL_VAL.
+    */
++[PropCond] 
++Name:   SAME 
++ModEvents:  SAME 
++#  /** 
++#   * \brief Propagate when a view must enter an equivalence class
++#   * 
++#   * If a propagator \a p depends on a view \a x with propagation 
++#   * condition PC_BOOL_SAME, then \a p is propagated when a variable 
++#   * update operation on \a x returns the modification event ME_BOOL_SAME. 
++#   */
+ [PropCondFooter]
+   //@}
+ [End]

@@ -1,0 +1,114 @@
+#include "edgeFinder.h"
+
+EdgeFinder::EdgeFinder(Space* home, ViewArray<Gecode::Int::IntView>& _start, const IntArgs& _processing_time) 
+: processingTime(_processing_time.size()), NaryPropagator <Gecode::Int::IntView, Gecode::Int::PC_INT_BND> (home,_start) 
+{
+  n = x.size();
+  for(int i = _processing_time.size(); i--; )
+    processingTime[i] = _processing_time[i];
+};
+
+EdgeFinder::EdgeFinder(Space* home, bool share, EdgeFinder& p)
+: processingTime(p.processingTime.size()), n(p.n), NaryPropagator <Gecode::Int::IntView, Gecode::Int::PC_INT_BND> (home, share, p)
+{
+  processingTime.update(home, share, p.processingTime);
+};
+
+
+size_t EdgeFinder::dispose(Space* home)
+{
+  processingTime.~SharedArray();
+  return NaryPropagator::dispose(home);
+};
+
+PropCost EdgeFinder::cost() {  return Gecode::PC_QUADRATIC_LO ;	};
+
+ExecStatus EdgeFinder::propagate(Space * home, ModEventDelta med)
+{
+  bool subsumed = true;
+  for (int i = n; i--; ) {
+    if (!x[i].assigned()) {
+      subsumed = false;
+      break;
+    }
+  };
+  // subsume propagator if all tasks have assigned starting time (x)
+  if (subsumed) return ES_SUBSUMED(this,home);
+
+ 
+
+  // Algorithm 1: Edge-Finding according the book [Baptiste,P., Le Pape, C. and Nuijten, W. : Constraint-Based Scheduling. Applying..., 2001]
+  bool modified = false; 
+  
+  std::vector<TaskInfo> tasks;
+  for(int i=0; i < n; i++){
+    tasks.push_back(TaskInfo(x[i], processingTime[i]));
+  }
+  std::sort(tasks.begin(), tasks.end(),nondecreasingEstSort); 
+
+  for (int k=0; k < n ; k++){
+    int P = 0;
+    int C = std::numeric_limits<int>::min();  
+    int H = C;
+    for (int i = n; i--; ){ 
+      if((tasks[i].start.max()+tasks[i].processingTime) <= (tasks[k].start.max()+tasks[k].processingTime) ){ //line 7
+        P += tasks[i].processingTime;
+        C = std::max(C, tasks[i].start.min() + P);
+        if (C > (tasks[k].start.max()+tasks[k].processingTime)) //line 10
+          return ES_FAILED;
+      }
+      tasks[i].Ci=C; //line 14
+    }	
+    for (int i=0; i < n; i++){
+      if ((tasks[i].start.max()+tasks[i].processingTime) <= (tasks[k].start.max()+tasks[k].processingTime)){ //line 17
+        H = std::max(H, tasks[i].start.min()+P);
+        P -= tasks[i].processingTime;
+      }
+      else{
+        if((( tasks[i].start.min() + P + tasks[i].processingTime )) > tasks[k].start.max() ){ //line 21
+          tasks[i].releaseTime = std::max( tasks[i].releaseTime, tasks[i].Ci);
+          modified = true;
+        }
+        if ((H + tasks[i].processingTime) > (tasks[k].start.max() + tasks[k].processingTime)){ //line 24
+          tasks[i].releaseTime = std::max(tasks[i].releaseTime,C);
+          modified = true;
+        }
+      }
+    } 
+  }
+  if (!modified)
+    return ES_FIX;
+
+  for (int i=0; i < n; i++){
+    if (me_failed(tasks[i].start.gq(home, tasks[i].releaseTime))) //line 31
+      return ES_FAILED;
+  }
+
+  return ES_NOFIX;
+};
+
+Actor*  EdgeFinder::copy(Space * home, bool share)
+{
+  return new (home) EdgeFinder(home, share, *this);
+}
+
+ExecStatus EdgeFinder::post(Space* home, const IntVarArgs& _starts, const int* _machine, const int* _processing_time, int size)
+{	
+  ViewArray<Int::IntView> starts(home,_starts); 
+  for (int i=0; i < size ; i++){ // for each machine
+    ViewArray<Int::IntView> start(home, size);
+    IntArgs processingTime(size);
+    int j = 0;
+    int count =0;
+    while (count < size){
+      if(_machine[j]==i){ // task j is processed by machine i
+        processingTime[count] = _processing_time[j];
+        start[count]=starts[j];//copy view
+        count++;
+      }
+      j++;
+    }
+    new (home) EdgeFinder(home,start,processingTime);
+  }
+  return ES_OK;
+}; 

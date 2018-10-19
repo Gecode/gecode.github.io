@@ -1,0 +1,100 @@
+--- sort.icc	2008-12-12 22:06:54.000000000 -0500
++++ sort.icc.new2	2008-12-13 00:44:30.000000000 -0500
+@@ -53,15 +53,26 @@
+   template <class Type>
+   class QuickSortStack {
+   private:
+-    /// Maximal stacksize quicksort ever needs
+-    static const int maxsize = 32;
++    /**
++     * \brief Initial stack size that quicksort is unlikely to exceed
++     *        (remember that worst case O(n) stack size is possible).
++     */
++    static const size_t initialSize = 32;
+     /// Top of stack
+     Type** tos;
+-    /// Stack entries (terminated by NULL entry)
+-    Type*  stack[2*maxsize+1];
++    /// End of stack (invalid entry one past the end of the stack memory).
++    Type** eos;
++    /// Stack allocated entries to avoid initial dynamic memory allocation.
++    Type* staticStack[2*initialSize];
++    /// The actual stack entries (may be dynamically allocated).
++    Type** stack;
++    /// Doubles the size of the stack by allocating memory.
++    void expand(); 
+   public:
+     /// Initialize stack as empty
+     QuickSortStack(void);
++    /// Destructor
++    ~QuickSortStack(void);
+     /// Test whether stack is empty
+     bool empty(void) const;
+     /// Push two positions \a l and \a r
+@@ -72,19 +83,43 @@
+ 
+   template <class Type>
+   forceinline
+-  QuickSortStack<Type>::QuickSortStack(void) : tos(&stack[0]) {
+-    *(tos++) = NULL;
++  QuickSortStack<Type>::QuickSortStack(void)
++    : tos(& staticStack[0])
++    , eos((& staticStack[0]) + initialSize*2) // NO &staticStack[initialSize*2]!
++    , stack(staticStack)
++  {
++  }
++  
++  template <class Type>
++  forceinline
++  QuickSortStack<Type>::~QuickSortStack(void) {
++    if (stack != staticStack) { Memory::free(stack); }
++  }
++  
++  template <class T>
++  forceinline void
++  QuickSortStack<T>::expand(void) {
++    size_t oldSize = eos - (& stack[0]);
++
++    T** newStack = static_cast<T**>(Memory::malloc((oldSize*2)*sizeof(T*)));
++    std::copy(stack, stack + oldSize, newStack);
++    if (stack != staticStack) { Memory::free(stack); }
++    stack = newStack;
++
++    tos = & stack[oldSize];
++    eos = (& stack[0]) + oldSize*2; // (& stack[oldSize*2]) is invalid.
+   }
+ 
+   template <class Type>
+   forceinline bool
+   QuickSortStack<Type>::empty(void) const {
+-    return *(tos-1) == NULL;
++    return tos == (& stack[0]);
+   }
+ 
+   template <class Type>
+   forceinline void
+   QuickSortStack<Type>::push(Type* l, Type* r) {
++    if (tos == eos) { expand(); }
+     *(tos++) = l; *(tos++) = r;
+   }
+ 
+@@ -110,7 +145,7 @@
+     }
+   }
+ 
+-  /// Standard partioning
++  /// Standard partitioning
+   template <class Type, class LessThan>
+   forceinline Type*
+   partition(Type* l, Type* r, LessThan &lt) {
+@@ -120,8 +155,8 @@
+     while (true) {
+       while (lt(*(++i),v)) {}
+       while (lt(v,*(--j))) if (j == l) break;
+-        if (i >= j) break;
+-        std::swap(*i,*j);
++      if (i >= j) break;
++      std::swap(*i,*j);
+     }
+     std::swap(*i,*r);
+     return i;

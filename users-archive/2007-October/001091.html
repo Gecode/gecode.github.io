@@ -1,0 +1,311 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] gecode-users Digest, Vol 25, Issue 3
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20gecode-users%20Digest%2C%20Vol%2025%2C%20Issue%203&In-Reply-To=%3C000801c81240%248f8f01a0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001089.html">
+   <LINK REL="Next"  HREF="001090.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] gecode-users Digest, Vol 25, Issue 3</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20gecode-users%20Digest%2C%20Vol%2025%2C%20Issue%203&In-Reply-To=%3C000801c81240%248f8f01a0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] gecode-users Digest, Vol 25, Issue 3">cschulte at kth.se
+       </A><BR>
+    <I>Fri Oct 19 13:09:47 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001089.html">[gecode-users] gecode-users Digest, Vol 25, Issue 3
+</A></li>
+        <LI>Next message: <A HREF="001090.html">[gecode-users] Help:How to compute Autocorrelation of a v-length	sequence
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1091">[ date ]</a>
+              <a href="thread.html#1091">[ thread ]</a>
+              <a href="subject.html#1091">[ subject ]</a>
+              <a href="author.html#1091">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Maybe that could be it: You forgot to copy the value n in the constructor
+
+	Test_common(bool share, Test_common&amp; test) : Example(share, test){
+		vars.update(this, share, test.vars);
+	}
+
+There must be also n(test.n) after the call to Example.
+
+If in trouble use a debugger or print statements...
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: 'Stanimir Dragiev' [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">stanio at cs.tu-berlin.de</A>] 
+Sent: Thursday, October 18, 2007 6:52 PM
+To: Christian Schulte
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+
+
+Hello,
+
+* Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; [2007-10-17 15:17]:
+&gt;<i> actually I am totally lost now: What do you really do? Is it that you 
+</I>&gt;<i> solve a problem with search and there abs is not propagated? Or what?
+</I>
+I am sorry for not explaining clear enough. I thought there is a general
+mistake in the code you will find at first glance.
+
+I am extending the Example class and invoking some static functions from
+within the constructor, after initialisation and before branching. They
+realize &quot;complex&quot; constraints by invoking gecode-built-in constraints. The
+pieces of code I posted couple of days ago were outline of what is done in
+one such function invoked by the constrain() method of my space. I
+experienced the abs(Space*, IntVar a, IntVar b) to leave b unconstrained ...
+while the other way round: post(abs(....)) worked well.
+
+So, today I tested a minimal example with both pieces of code and they
+resulted again in _not_ identical output. Please find the example below.
+
+Again, sorry for bothering you.  My code seems to work now anyway (with the
+second way of using abs()), but I am still curious to understand the reason.
+
+&gt;<i> 
+</I>&gt;<i> Maybe you send us the code that exhibits the problem.
+</I>
+Well, here the code, which shows the both ways of using abs() behave in
+different way (according to me). I apparently miss something important.
+
+--------- code -------------------------------------------- 
+
+
+// Last edited: &lt;2007-10-18 Thu 18:40:03 stanio_&gt; 
+#include &quot;support.hh&quot;
+#include &quot;gecode/minimodel.hh&quot;
+
+/**
+ * Problem:  Find _all_ pairs (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * 
+ */
+class Test_common : public Example{
+protected:
+	IntVarArray vars;
+	int n;
+public:	
+	Test_common(const Options&amp; opt) : 
+		vars(this,2, 0, opt.size),
+		n(opt.size)
+	{
+		linear(this, vars, IRT_EQ, n);
+		branch(this, vars, BVAR_SIZE_MIN, BVAL_MIN);
+	}
+	Test_common(bool share, Test_common&amp; test) : Example(share, test){
+		vars.update(this, share, test.vars);
+	}
+	virtual Space*
+	copy(bool share){
+		return new Test_common(share, *this);
+	}
+	virtual void
+	print(void){
+		std::cout &lt;&lt; &quot;Solution: (a,b) = (&quot; &lt;&lt; vars[0] &lt;&lt; &quot;, &quot; &lt;&lt;
+vars[1] &lt;&lt;  &quot;)&quot; &lt;&lt; std::endl;
+	}
+};
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -&gt; min
+ */
+class Test_one : public Test_common{
+public:	
+	Test_one(const Options &amp;o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_one * s = (Test_one *) space;
+		IntVar signed_diff_now = post(this, vars[0] -  vars[1],
+ICL_DOM);
+		IntVar abs_diff_now(this, 0, n);
+		abs(this, signed_diff_now, abs_diff_now, ICL_DOM);
+
+		IntVar signed_diff_best = post(s, s-&gt;vars[0] -  s-&gt;vars[1],
+ICL_DOM);
+		IntVar signed_diff_best_this; signed_diff_best_this.update(
+this, true, signed_diff_best);
+		IntVar abs_diff_best(this, 0, n);
+		abs(this, signed_diff_best_this, abs_diff_best, ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout &lt;&lt; &quot;constrain: signed best : &quot; &lt;&lt; signed_diff_best
+&lt;&lt; 
+				&quot; ; best (imported) : &quot; &lt;&lt;
+signed_diff_best_this &lt;&lt; 
+				&quot; ; best : &quot; &lt;&lt; abs_diff_best &lt;&lt; 
+				&quot; ; now : &quot; &lt;&lt; abs_diff_now &lt;&lt;  std::endl;
+	}
+};
+
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -&gt; min
+ */
+class Test_two : public Test_common{
+public:
+	Test_two(const Options &amp;o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_two * s = (Test_two *) space;
+		IntVar abs_diff_best =  post(this,
+				abs(this,
+					minus(s, s-&gt;vars[0], s-&gt;vars[1],
+						ICL_DOM), ICL_DOM),
+ICL_DOM);
+		IntVar abs_diff_now =  post(this,
+				abs(this,
+					minus(this, vars[0], vars[1],
+						ICL_DOM), ICL_DOM),
+ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout &lt;&lt; &quot;constrain: best : &quot; &lt;&lt; abs_diff_best &lt;&lt; &quot; ;
+now : &quot; &lt;&lt; abs_diff_now &lt;&lt;  std::endl;
+	}
+};
+
+int main(int argc, char** argv) {
+
+	int size = 5;
+
+	Options opt(&quot;Test_common&quot;);
+	opt.solutions = 0;
+	opt.size      = size;
+	opt.parse(argc,argv);
+	Example::run&lt;Test_common,DFS&gt;(opt);
+
+	opt = Options(&quot;Test_one&quot;);
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run&lt;Test_one,BAB&gt;(opt);
+
+	opt = Options(&quot;Test_two&quot;);
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run&lt;Test_two,BAB&gt;(opt);
+	return 0;
+}
+
+
+----- end code -------------------------------------------- 
+
+And here what is this code resulting in.
+
+----- output ---------------------------------------------- 
+
+
+Test_common
+Solution: (a,b) = (0, 5)
+Solution: (a,b) = (1, 4)
+Solution: (a,b) = (2, 3)
+Solution: (a,b) = (3, 2)
+Solution: (a,b) = (4, 1)
+Solution: (a,b) = (5, 0)
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     6
+	propagations:  10
+	failures:      0
+	clones:        5
+	commits:       10
+	peak memory:   6 KB
+Test_one
+Solution: (a,b) = (0, 5)
+constrain: signed best : -5 ; best (imported) : -5 ; best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: signed best : -3 ; best (imported) : -3 ; best : 0 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     2
+	propagations:  11
+	failures:      1
+	clones:        4
+	commits:       4
+	peak memory:   6 KB
+Test_two
+Solution: (a,b) = (0, 5)
+constrain: best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: best : 3 ; now : [0..2]
+Solution: (a,b) = (2, 3)
+constrain: best : 1 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     3
+	propagations:  37
+	failures:      1
+	clones:        6
+	commits:       6
+	peak memory:   6 KB
+----- end output ------------------------------------------ 
+
+-- 
+ /----------------------------------
+/  S|t|a|n|i|m|i|r|    D|r|a|g|i|e|v
+|<i>  a|k|a|            C|m|a|p|Y|o|p|c
+</I>|<i>  [ i c q ]       2 2 2 0 4 0 6 9 8
+</I>|<i>  [jabber]<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">CmapYopc at users.jabber.org</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001089.html">[gecode-users] gecode-users Digest, Vol 25, Issue 3
+</A></li>
+	<LI>Next message: <A HREF="001090.html">[gecode-users] Help:How to compute Autocorrelation of a v-length	sequence
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1091">[ date ]</a>
+              <a href="thread.html#1091">[ thread ]</a>
+              <a href="subject.html#1091">[ subject ]</a>
+              <a href="author.html#1091">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

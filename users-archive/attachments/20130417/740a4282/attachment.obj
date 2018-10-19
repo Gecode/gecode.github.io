@@ -1,0 +1,160 @@
+Index: changelog.in
+===================================================================
+--- changelog.in	(revision 13582)
++++ changelog.in	(working copy)
+@@ -73,6 +73,13 @@
+ Bla!
+ 
+ [ENTRY]
++Module: kernel
++What:   new
++Rank:   minor
++[DESCRIPTION]
++Both AFC and Activity can be changed by a set() function.
++
++[ENTRY]
+ Module: int
+ What:   new
+ Rank:   minor
+Index: gecode/kernel/activity.cpp
+===================================================================
+--- gecode/kernel/activity.cpp	(revision 13582)
++++ gecode/kernel/activity.cpp	(working copy)
+@@ -97,9 +97,15 @@
+   }
+ 
+   void
++  Activity::set(Space&, double a) {
++    acquire();
++    for (int i=storage->n; i--; )
++      storage->a[i] = a;
++    release();
++  }
++
++  void
+   Activity::decay(Space&, double d) {
+-    if ((d <= 0.0) || (d > 1.0))
+-      throw IllegalDecay("Activity");
+     acquire();
+     storage->d = d;
+     release();
+Index: gecode/kernel/activity.hpp
+===================================================================
+--- gecode/kernel/activity.hpp	(revision 13582)
++++ gecode/kernel/activity.hpp	(working copy)
+@@ -112,6 +112,9 @@
+     void init(Home home, ViewArray<View>& x, double d);
+     /// Test whether already initialized
+     bool initialized(void) const;
++    /// Set activity to \a a
++    GECODE_KERNEL_EXPORT
++    void set(Space& home, double a=0.0);
+     /// Default (empty) activity information
+     GECODE_KERNEL_EXPORT static const Activity def;
+     //@}
+Index: gecode/kernel/afc.hpp
+===================================================================
+--- gecode/kernel/afc.hpp	(revision 13582)
++++ gecode/kernel/afc.hpp	(working copy)
+@@ -68,6 +68,8 @@
+     void init(Home home, const VarArgArray<Var>& x, double d);
+     /// Test whether already initialized
+     bool initialized(void) const;
++    /// Set AFC information to \a a
++    void set(Space& home, double a=1.0);
+     /// Default (empty) AFC information
+     GECODE_KERNEL_EXPORT static const AFC def;
+     //@}
+@@ -163,6 +165,11 @@
+     home.afc_decay(d);
+   }
+ 
++  forceinline void
++  AFC::set(Space& home, double a) {
++    home.afc_set(a);
++  }
++
+   forceinline double
+   AFC::decay(const Space& home) const {
+     return home.afc_decay();
+Index: gecode/kernel/core.cpp
+===================================================================
+--- gecode/kernel/core.cpp	(revision 13582)
++++ gecode/kernel/core.cpp	(working copy)
+@@ -571,7 +571,14 @@
+     gafc.decay(d);
+   }
+ 
++  void
++  Space::afc_set(double a) {
++    afc_enable();
++    for (Propagators p(*this); p(); ++p)
++      gafc.set(p.propagator().gafc,a);
++  }
+ 
++
+ }
+ 
+ // STATISTICS: kernel-core
+Index: gecode/kernel/core.hpp
+===================================================================
+--- gecode/kernel/core.hpp	(revision 13582)
++++ gecode/kernel/core.hpp	(working copy)
+@@ -1411,6 +1411,9 @@
+     void afc_decay(double d);
+     /// Return AFC decay factor
+     double afc_decay(void) const;
++    /// Reset AFC to \a a
++    GECODE_KERNEL_EXPORT
++    void afc_set(double a);
+   public:
+     /**
+      * \brief Default constructor
+Index: gecode/kernel/global-afc.hpp
+===================================================================
+--- gecode/kernel/global-afc.hpp	(revision 13582)
++++ gecode/kernel/global-afc.hpp	(working copy)
+@@ -85,6 +85,8 @@
+       double decay(void) const;
+       /// Increment counter and perform decay
+       void inc(Counter& c);
++      /// Set failure count to \a a
++      void set(Counter& c, double a);
+       /// Return counter value 
+       double val(Counter& c);
+       /// Allocate memory from heap
+@@ -143,6 +145,8 @@
+     double decay(void) const;
+     /// Increment failure count
+     void fail(Counter& c);
++    /// Set failure count to \a a
++    void set(Counter& c, double a);
+     /// Return failure count
+     double afc(Counter& c);
+     /// Allocate new propagator info
+@@ -203,6 +207,10 @@
+       decay(c);
+     return c.c;
+   }
++  forceinline void
++  GlobalAFC::DecayManager::set(Counter& c, double a) {
++    c.c = a;
++  }
+   forceinline void*
+   GlobalAFC::DecayManager::operator new(size_t s) {
+     return Gecode::heap.ralloc(s);
+@@ -313,6 +321,14 @@
+     m.release();
+   }
+ 
++  forceinline void
++  GlobalAFC::set(Counter& c, double a) {
++    Support::Mutex& m = *object()->mutex;
++    m.acquire();
++    object()->decay->set(c,a);
++    m.release();
++  }
++
+   forceinline double
+   GlobalAFC::afc(Counter& c) {
+     Support::Mutex& m = *object()->mutex;

@@ -1,0 +1,262 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Cloning problems
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cloning%20problems&In-Reply-To=%3C000301c98df1%241a072380%244e156a80%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002252.html">
+   <LINK REL="Next"  HREF="002254.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Cloning problems</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Cloning%20problems&In-Reply-To=%3C000301c98df1%241a072380%244e156a80%24%40se%3E"
+       TITLE="[gecode-users] Cloning problems">cschulte at kth.se
+       </A><BR>
+    <I>Fri Feb 13 16:38:21 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002252.html">[gecode-users] Cloning problems
+</A></li>
+        <LI>Next message: <A HREF="002254.html">[gecode-users] Cloning problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2253">[ date ]</a>
+              <a href="thread.html#2253">[ thread ]</a>
+              <a href="subject.html#2253">[ subject ]</a>
+              <a href="author.html#2253">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Great! I always get nervous no matter how often we say that it can't be our fault ;-)
+
+Christian
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: Filip Konvi&#269;ka [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>] 
+Sent: Friday, February 13, 2009 4:19 PM
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">public-cschulte-UNjuZkX4dYU at hugh.gmane.org</A>; 'Lubo&#353; Moric'
+Subject: Re: Cloning problems
+
+
+
+Ha! One of our custom propagators (not a &quot;standard&quot; floatvar propagator) 
+returned __ES_SUBSUMED directly instead of calling the macro. So it is 
+exactly like you said.
+
+Thanks very much for support!
+
+As a side effect, we now have a nice description of what happens during 
+cloning that might be useful in the future.
+
+Frankly, we're also glad that it was our fault in the end. We've been 
+tracing the cloning process in the debugger in both C++ and assembler 
+for quite some time, so we feel even more comfortable about Gecode now 
+that we've seen the internals.
+
+Thanks again,
+Filip
+
+&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> we just discussed the very same idea. It seems that during cloning, an 
+</I>&gt;<i> actor is present in the variable subscription list, but not in the 
+</I>&gt;<i> Space::a_actors list, so we thought that maybe an actor disappeared 
+</I>&gt;<i> without unsubscribing. We're using ES_SUBSUMED(this, home) everywhere in 
+</I>&gt;<i> floatvar propagators to indicate entailment, I'll check whether that is 
+</I>&gt;<i> done everywhere.
+</I>&gt;<i> 
+</I>&gt;<i> Thanks,
+</I>&gt;<i> Filip
+</I>&gt;<i> 
+</I>&gt;&gt;<i> Hi Mikael and I just had one more thing you could check: the behaviour could
+</I>&gt;&gt;<i> also be due to a propagator that says subsumption but does not delete all of
+</I>&gt;&gt;<i> its dependencies via cancel.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: Christian Schulte [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>] 
+</I>&gt;&gt;<i> Sent: Friday, February 13, 2009 11:12 AM
+</I>&gt;&gt;<i> To: 'Filip Konvi&#269;ka'; '<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>'
+</I>&gt;&gt;<i> Cc: 'Lubo&#353; Moric'
+</I>&gt;&gt;<i> Subject: RE: [gecode-users] Cloning problems
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> that sounds ugly ;-) Before I start with rambling about cloning, a tip:
+</I>&gt;&gt;<i> Gecode supports unary branchings (with a single alternatiuve only). So you
+</I>&gt;&gt;<i> could have a unary branching and don't have to have a mock-up empty branch.
+</I>&gt;&gt;<i> The search engines even optimize that case. If you are looking for an
+</I>&gt;&gt;<i> example, check the assign function in gecode/int.hh for assigning variables.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Okay, cloning it is. So, there are two stages: copying and updating. During
+</I>&gt;&gt;<i> copying you first create a new space and copy all actors. While copying all
+</I>&gt;&gt;<i> actors you copy each variable and its domain used by an actor and collect a
+</I>&gt;&gt;<i> list of all these variables (actually a list for each variable type). The
+</I>&gt;&gt;<i> only thing that you do not do is copying the dependency array of a variable
+</I>&gt;&gt;<i> (the array of pointers that point to propagators that depend on a variable).
+</I>&gt;&gt;<i> Then in updating, you update the dependency arrays (and also deal with
+</I>&gt;&gt;<i> advisors).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Updating a dependency array just copies for each old entry the new entry
+</I>&gt;&gt;<i> (stored via a forwarding pointer in each actor) and restore some information
+</I>&gt;&gt;<i> for variables that has been stored in the copy of the dependency array.
+</I>&gt;&gt;<i> After that you cleanup the space, the actors, and you are done.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> In VarImp&lt;VIC&gt;::enter, the --idx[0] makes room for an additional entry. Then
+</I>&gt;&gt;<i> you keep moving actors to a free entry and by this create a new free entry
+</I>&gt;&gt;<i> for the propagation condition i. When the loop is done, you know that there
+</I>&gt;&gt;<i> is a free entry for propagation condition pc and that's where the propagator
+</I>&gt;&gt;<i> is entered.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Your guess about x-&gt;idx[0] in VarImp&lt;VIC&gt;::update is correct: this actually
+</I>&gt;&gt;<i> stores the forwarding pointer for a variable implementation. Also your
+</I>&gt;&gt;<i> suspicion about ActorLink::prev is correct: there the forwarding pointer for
+</I>&gt;&gt;<i> actors is stored.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Let me come up with some idea where the trouble could be:
+</I>&gt;&gt;<i>  - you forget to update a variable or view at some place. Either in your
+</I>&gt;&gt;<i> branching, propagator, or model. 
+</I>&gt;&gt;<i>    Then you can see an invalid pointer in the dependency array.
+</I>&gt;&gt;<i>    You might want to change the default constructor of VarBase in
+</I>&gt;&gt;<i> gecode/kernel/var.icc and the default constructor
+</I>&gt;&gt;<i>    of VarViewBase in gecode/kernel/view.icc so that they set varimp to NULL
+</I>&gt;&gt;<i> (actually, I just did that yesterday in the trunk as well). Then you will be
+</I>&gt;&gt;<i> sure that when you forget to update, you'll see a NULL pointer.
+</I>&gt;&gt;<i>  - you commit a heinous crime in that you change the dependencies of a
+</I>&gt;&gt;<i> variable with cancel/subscribe during 
+</I>&gt;&gt;<i>    cloning. That is illegal and will for sure break everything. Note that
+</I>&gt;&gt;<i> creating a propagator during
+</I>&gt;&gt;<i>    cloning will commit that crime, too.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> It is very very unlikely (but not impossible, of course) that the cloning in
+</I>&gt;&gt;<i> Gecode has a snatch but, as said, very unlikely given that its used by
+</I>&gt;&gt;<i> anything else.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hope that helps. Please do not hesitate to ask some more
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;&gt;<i> Of Filip Konvicka
+</I>&gt;&gt;<i> Sent: Thursday, February 12, 2009 2:21 PM
+</I>&gt;&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Cc: Lubo&#353; Moric
+</I>&gt;&gt;<i> Subject: [gecode-users] Cloning problems
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> [Sorry, this is a looong message...]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> we're hunting a serious bug that occurs during space cloning in 2.2.0. 
+</I>&gt;&gt;<i> The bug occurs very rarely, but we have a testcase that triggers this 
+</I>&gt;&gt;<i> behavior.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> We have many constraints in the problem instance and the solver should 
+</I>&gt;&gt;<i> post as many propagators as possible. We have a custom branching for 
+</I>&gt;&gt;<i> this, which posts one propagator at a time in commit(), while the 
+</I>&gt;&gt;<i> alternative is not to post the propagator (i.e. a no-op). Because we're 
+</I>&gt;&gt;<i> only looking for the first solution, in the case of a failure we no 
+</I>&gt;&gt;<i> longer need the path back to the root in the recomputation tree, so we 
+</I>&gt;&gt;<i> decided to use our own simple search engine for this. The standard DFS 
+</I>&gt;&gt;<i> search engine exhibits exactly the same behavior (both with 
+</I>&gt;&gt;<i> recomputation on and off), and we don't see any problems with our search 
+</I>&gt;&gt;<i> engine.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Everything seems to work for the vast majority of the test cases, but 
+</I>&gt;&gt;<i> there are a few instances that cause problems (probably) during cloning 
+</I>&gt;&gt;<i> (can be probably also be caused by some earlier bad subscibe or 
+</I>&gt;&gt;<i> unsubscribe). From our point of view, there is nothing wrong or special 
+</I>&gt;&gt;<i> about the instances. The crashes occur at the same location both on 
+</I>&gt;&gt;<i> Linux and Windows, in both release and debug builds. Changing memory 
+</I>&gt;&gt;<i> management (e.g. never deleting Spaces in the search engine) can cause 
+</I>&gt;&gt;<i> the crash to occur at slightly different places (e.g. some propagation 
+</I>&gt;&gt;<i> during status() after clone() finishes).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> One particular case we're looking at now crashes at core.icc:2270, where 
+</I>&gt;&gt;<i> f[0] is a bad pointer (0xfeeefeee at Windows). We're not sure how this 
+</I>&gt;&gt;<i> can happen - we know that in this case n==2 at core.icc:2255, so idx[0] 
+</I>&gt;&gt;<i> is bad pointer at core.icc:2252. This is also what Valgrind says on 
+</I>&gt;&gt;<i> Linux (bad read of size 4).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> When we were trying to debug the other cases, we found out that the 
+</I>&gt;&gt;<i> subscription list in a variable in the cloned space contained an actor 
+</I>&gt;&gt;<i> link that was probably copied incorrectly as it seemed as a pure 
+</I>&gt;&gt;<i> ActorLink like Space::a_actors, having a totally different address than 
+</I>&gt;&gt;<i> the rest of the actors (probably belonging to the original space 
+</I>&gt;&gt;<i> object). When we tried to find out when this actor link entered the 
+</I>&gt;&gt;<i> list, we ended up in VarImp&lt;VIC&gt;::update again.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> We're (of course:-)) using FloatVars in the model, and we eliminated all 
+</I>&gt;&gt;<i> other kinds of variables and propagators. In our case, pc_max==1 and 
+</I>&gt;&gt;<i> free_bits==0.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> We find it difficult to understand what is happening during cloning. We 
+</I>&gt;&gt;<i> would appreciate if someone explaned the basic idea. We only have 
+</I>&gt;&gt;<i> floatvars, propagators and one branching (no advisors or other types of 
+</I>&gt;&gt;<i> actors/branchings/advisors).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> We know how VarImp&lt;VIC&gt;::resize works, that's easy. In 
+</I>&gt;&gt;<i> VarImp&lt;VIC&gt;::enter, we can't see why you do &quot;--idx[0];&quot; as the first 
+</I>&gt;&gt;<i> iteration of the for cycle overwrites it (as long as pc&gt;0, of course). 
+</I>&gt;&gt;<i> May be just optimization of course. As for VarImp&lt;VIC&gt;::update, we only 
+</I>&gt;&gt;<i> guess...we suspect that a) the original x-&gt;idx[0] is destroyed somewhere 
+</I>&gt;&gt;<i> so it needs to get restored from a memcpy backup at idx[0], b) 
+</I>&gt;&gt;<i> ActorLink::_prev is probably used to map old actors to new ones (thus 
+</I>&gt;&gt;<i> the &quot;-&gt;prev()&quot;. We did not dig deep enough to be sure though, so we'd 
+</I>&gt;&gt;<i> welcome some guidance here.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Filip
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>   
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002252.html">[gecode-users] Cloning problems
+</A></li>
+	<LI>Next message: <A HREF="002254.html">[gecode-users] Cloning problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2253">[ date ]</a>
+              <a href="thread.html#2253">[ thread ]</a>
+              <a href="subject.html#2253">[ subject ]</a>
+              <a href="author.html#2253">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

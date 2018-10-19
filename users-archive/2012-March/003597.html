@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] NaryUnion, infinite loop
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20NaryUnion%2C%20infinite%20loop&In-Reply-To=%3CF69DE0BC-7088-4A5C-9C31-2098F57A5B18%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003596.html">
+   <LINK REL="Next"  HREF="003599.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] NaryUnion, infinite loop</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20NaryUnion%2C%20infinite%20loop&In-Reply-To=%3CF69DE0BC-7088-4A5C-9C31-2098F57A5B18%40gecode.org%3E"
+       TITLE="[gecode-users] NaryUnion, infinite loop">tack at gecode.org
+       </A><BR>
+    <I>Fri Mar 30 10:13:07 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003596.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+        <LI>Next message: <A HREF="003599.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3597">[ date ]</a>
+              <a href="thread.html#3597">[ thread ]</a>
+              <a href="subject.html#3597">[ subject ]</a>
+              <a href="author.html#3597">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On 30 Mar 2012, at 18:48, Jean-No&#235;l Monette wrote:
+
+&gt;<i> Hi Guido,
+</I>&gt;<i> 
+</I>&gt;<i> You are totally right and this is indeed a bug in my (real) code, and I will change it accordingly. However, in the small example, I get the same problem when u0 is created using region1 instead of region2, i.e.
+</I>&gt;<i> 
+</I>&gt;<i> Region region1(home);
+</I>&gt;<i> Iter::Ranges::NaryUnion u0;
+</I>&gt;<i> {
+</I>&gt;<i>    Region region2(home);
+</I>&gt;<i>    u0 = Iter::Ranges::NaryUnion(region1,dom0); //region1 here
+</I>&gt;<i> }
+</I>&gt;<i> Iter::Ranges::NaryUnion u1(region1,u0,dom1);
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> In this case, as far as I understand, there should be no dangling pointer, as u0 is initialized with memory from region1. Or do the two regions share their memory, and the destruction of region2 affects the memory of region1?
+</I>
+Right, that's a bug.  You currently can't use region1 while another &quot;inner&quot; region is active (i.e., in scope).  That's a bug and requires rewriting the region code, so it will have to wait until a future release.  Sorry about that.
+
+Cheers,
+Guido
+
+&gt;<i> 
+</I>&gt;<i> Thank you for you answers, and sorry for the inconvenience.
+</I>&gt;<i> 
+</I>&gt;<i> Jean-No&#235;l
+</I>&gt;<i> 
+</I>&gt;<i> On 03/30/2012 12:41 AM, Guido Tack wrote:
+</I>&gt;&gt;<i> On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Here is a new problem I came across with NaryUnion. As suggested by Christian, I created a fresh region for every new NaryUnion, however I ran into an infinite loop. Below is a minimal example. I located the infinite loop inside the &quot;two(I&amp;  i, J&amp;  j)&quot; method of NaryUnion, and the reason seems to be that, after the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I unfortunately cannot give you line numbers as I messed around with print statements), &quot;i.c&quot; and &quot;t&quot; point to the very same RangeList (while they should not). I'm not expert enough to go deeper/further...
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> Notice that this appears only when region2 is created in a block (in real code, it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it is actually used or not.
+</I>&gt;&gt;&gt;<i> 
+</I>&gt;&gt;&gt;<i> I guess it is again related to the Region implementation that is going to change, but I think it is worth mentioning it anyway.
+</I>&gt;&gt;<i> Memory allocated from a region only lives as long as the region, and by passing u0 out of its region's scope, you get a dangling pointer.  It's like writing
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> char* c;
+</I>&gt;&gt;<i> { string s = &quot;hello&quot;; c = s.c_str(); }
+</I>&gt;&gt;<i> string s = &quot;world&quot;;
+</I>&gt;&gt;<i> printf(&quot;%s&quot;,c);
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> which will probably print world rather than hello.  So I'd say this is a bug in your code (and we should improve the documentation to make this clear).
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-- 
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120330/a2e47263/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20120330/a2e47263/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003596.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+	<LI>Next message: <A HREF="003599.html">[gecode-users] NaryUnion, infinite loop
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3597">[ date ]</a>
+              <a href="thread.html#3597">[ thread ]</a>
+              <a href="subject.html#3597">[ subject ]</a>
+              <a href="author.html#3597">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

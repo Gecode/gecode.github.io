@@ -1,0 +1,60 @@
+<tt>
+I&nbsp;am&nbsp;trying&nbsp;to&nbsp;create&nbsp;a&nbsp;solver&nbsp;that&nbsp;(as&nbsp;a&nbsp;toy&nbsp;explanation)&nbsp;can&nbsp;create&nbsp;sets&nbsp;with&lt;br&gt;<br>
+certain&nbsp;properties,&nbsp;such&nbsp;as:&lt;br&gt;<br>
+&lt;br&gt;<br>
+1)&nbsp;The&nbsp;resulting&nbsp;set&nbsp;size&nbsp;is&nbsp;specified&lt;br&gt;<br>
+2)&nbsp;The&nbsp;resulting&nbsp;set&nbsp;contains&nbsp;a&nbsp;certain&nbsp;number&nbsp;of&nbsp;items&nbsp;that&nbsp;belong&nbsp;to&nbsp;a&lt;br&gt;<br>
+&nbsp; &nbsp;&amp;quot;special&amp;quot;&nbsp;group&lt;br&gt;<br>
+3)&nbsp;The&nbsp;total&nbsp;&amp;quot;weight&amp;quot;&nbsp;of&nbsp;items&nbsp;is&nbsp;below&nbsp;a&nbsp;certain&nbsp;threshold&lt;br&gt;<br>
+&lt;br&gt;<br>
+I&nbsp;can&nbsp;easily&nbsp;enough&nbsp;create&nbsp;constraints&nbsp;for&nbsp;1)&nbsp;and&nbsp;2),&nbsp;but&nbsp;I&nbsp;would&nbsp;love&nbsp;to&nbsp;get&lt;br&gt;<br>
+some&nbsp;help&nbsp;in&nbsp;how&nbsp;I&nbsp;integrate&nbsp;constraint&nbsp;3)&nbsp;into&nbsp;the&nbsp;mix.&nbsp;Supposedly&nbsp;I&nbsp;would&lt;br&gt;<br>
+create&nbsp;a&nbsp;set&nbsp;of&nbsp;variables&nbsp;for&nbsp;the&nbsp;weights&nbsp;and&nbsp;specify&nbsp;a&nbsp;constraint&nbsp;on&nbsp;the&nbsp;sum&nbsp;of&lt;br&gt;<br>
+these&nbsp;weights.&nbsp;But&nbsp;I&nbsp;have&nbsp;no&nbsp;idea&nbsp;about&nbsp;how&nbsp;to&nbsp;express&nbsp;in&nbsp;Gecode&nbsp;that&nbsp;I&nbsp;want&nbsp;to&lt;br&gt;<br>
+sum&nbsp;up&nbsp;the&nbsp;weights&nbsp;of&nbsp;exactly&nbsp;the&nbsp;ids&nbsp;that&nbsp;are&nbsp;in&nbsp;the&nbsp;currently&nbsp;selected&nbsp;set.&nbsp;&lt;br&gt;<br>
+&lt;br&gt;<br>
+My&nbsp;approach&nbsp;to&nbsp;doing&nbsp;1)&amp;amp;2)&nbsp;is&nbsp;attached&nbsp;below.&nbsp;The&nbsp;question&nbsp;is:&nbsp;How&nbsp;do&nbsp;I&nbsp;specify&lt;br&gt;<br>
+that&nbsp;the&nbsp;total&nbsp;weight&nbsp;of&nbsp;selected&nbsp;items&nbsp;should&nbsp;be&nbsp;less&nbsp;than,&nbsp;say&nbsp;&amp;quot;maxWeight&amp;quot;.&lt;br&gt;<br>
+&lt;br&gt;<br>
+(Note:&nbsp;This&nbsp;is&nbsp;not&nbsp;a&nbsp;homework&nbsp;problem&nbsp;:-)&nbsp;It&amp;#39;s&nbsp;an&nbsp;abstraction&nbsp;of&nbsp;a&nbsp;set&nbsp;selector&lt;br&gt;<br>
+that&nbsp;I&nbsp;want&nbsp;to&nbsp;include&nbsp;in&nbsp;a&nbsp;user&nbsp;interface&nbsp;for&nbsp;suggesting&nbsp;available&nbsp;sets&nbsp;to&lt;br&gt;<br>
+users)&lt;br&gt;<br>
+&lt;br&gt;<br>
+Thanks&nbsp;for&nbsp;your&nbsp;time,&lt;br&gt;<br>
+Holger.&lt;br&gt;<br>
+========================&amp;lt;&nbsp;main.cpp&nbsp;&amp;gt;===========================&lt;div&gt;#include&nbsp;&amp;lt;gecode/set.hh&amp;gt;&lt;br&gt;#include&nbsp;&amp;lt;gecode/support.hh&amp;gt;&lt;br&gt;#include&nbsp;&amp;lt;gecode/kernel.hh&amp;gt;&lt;br&gt;#include&nbsp;&amp;lt;gecode/search.hh&amp;gt;&lt;br&gt;<br>
+<br>
+&lt;br&gt;using&nbsp;namespace&nbsp;Gecode;&lt;br&gt;&lt;br&gt;//&nbsp;Some&nbsp;data&nbsp;to&nbsp;play&nbsp;with&lt;br&gt;int&nbsp;numItems&nbsp;=&nbsp;10;   &nbsp;   &nbsp;   &nbsp;   &nbsp;   &nbsp;//&nbsp;total&nbsp;number&nbsp;of&nbsp;items&nbsp;in&nbsp;inventory&lt;br&gt;int&nbsp;numSpecialItems&nbsp;=&nbsp;4;   &nbsp;   &nbsp;   &nbsp;//&nbsp;number&nbsp;of&nbsp;items&nbsp;in&nbsp;inventory&nbsp;with&nbsp;&amp;quot;special&amp;quot;&nbsp;attribute&lt;br&gt;<br>
+<br>
+int&nbsp;numRequestedSize&nbsp;=&nbsp;6;   &nbsp;   &nbsp;   &nbsp;//&nbsp;requested&nbsp;size&nbsp;of&nbsp;result&nbsp;set&lt;br&gt;int&nbsp;numRequestedSpecialSize&nbsp;=&nbsp;2;   &nbsp;//&nbsp;requested&nbsp;size&nbsp;of&nbsp;&amp;quot;special&amp;quot;&nbsp;items&nbsp;in&nbsp;result&nbsp;set&lt;br&gt;float&nbsp;maxWeight&nbsp;=&nbsp;1.8f;   &nbsp;   &nbsp;   &nbsp;   &nbsp;//&nbsp;requested&nbsp;maximum&nbsp;weight&nbsp;of&nbsp;all&nbsp;items&nbsp;in&nbsp;result&nbsp;set&nbsp;(NOT&nbsp;IMPLEMENTED!)&lt;br&gt;<br>
+<br>
+&lt;br&gt;int&nbsp;allItems[]&nbsp;=&nbsp;{0,1,2,3,4,5,6,7,8,9};&nbsp;//&nbsp;10&nbsp;items&nbsp;(their&nbsp;id&amp;#39;s)&lt;br&gt;float&nbsp;itemWeights[]&nbsp;=&nbsp;{0.1f,&nbsp;0.5f,&nbsp;0.2f,&nbsp;0.2f,&nbsp;0.6f,&nbsp;0.8f,&nbsp;1.0f,&nbsp;0.3f,&nbsp;0.7f,&nbsp;0.6f};&nbsp;//&nbsp;their&nbsp;associated&nbsp;weights&lt;br&gt;int&nbsp;specialItems[]&nbsp;=&nbsp;{2,5,8,9};&nbsp;//&nbsp;a&nbsp;subset&nbsp;of&nbsp;items&nbsp;having&nbsp;the&nbsp;attribute&nbsp;&amp;quot;special&amp;quot;&lt;br&gt;<br>
+<br>
+&lt;br&gt;//&nbsp;Little&nbsp;helper&nbsp;function&lt;br&gt;bool&nbsp;isInSet(int&nbsp;id,&nbsp;int&nbsp;set[],&nbsp;int&nbsp;setSize)&lt;br&gt;{&lt;br&gt;   &nbsp;for(int&nbsp;i=0;&nbsp;i&amp;lt;setSize;&nbsp;++i)&lt;br&gt;   &nbsp;   &nbsp;if(id&nbsp;==&nbsp;set[i])&nbsp;return&nbsp;true;&lt;br&gt;   &nbsp;return&nbsp;false;&lt;br&gt;}&lt;br&gt;&lt;br&gt;//&nbsp;A&nbsp;&amp;quot;Minimal&amp;quot;&nbsp;space&nbsp;definition&nbsp;for&nbsp;the&nbsp;problem&lt;br&gt;<br>
+<br>
+class&nbsp;MiniSpace:&nbsp;public&nbsp;Space&lt;br&gt;{&lt;br&gt;   &nbsp;   &nbsp;SetVarArray&nbsp;mSetStore;&lt;br&gt;public:&lt;br&gt;   &nbsp;MiniSpace(){&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;Create&nbsp;a&nbsp;SetVariable&nbsp;array&nbsp;(only&nbsp;need&nbsp;one&nbsp;element&nbsp;really,&nbsp;but&nbsp;this&nbsp;allows&nbsp;me&nbsp;to&nbsp;define&nbsp;the&nbsp;domain&nbsp;in&nbsp;one&nbsp;step)&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;mSetStore&nbsp;=&nbsp;SetVarArray(*this,&nbsp;1,&nbsp;IntSet::empty,&nbsp;0,&nbsp;numItems);&lt;br&gt;   &nbsp;   &nbsp;SetVar&nbsp;resultSet&nbsp;=&nbsp;mSetStore[0];&nbsp;//&nbsp;get&nbsp;the&nbsp;one&nbsp;variable&nbsp;that&nbsp;was&nbsp;defined&nbsp;in&nbsp;the&nbsp;above&nbsp;line&lt;br&gt;&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;impose&nbsp;the&nbsp;constraint&nbsp;that&nbsp;we&nbsp;only&nbsp;want&nbsp;&amp;quot;numRequestedSize&amp;quot;&nbsp;items&nbsp;in&nbsp;the&nbsp;result&nbsp;set&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;cardinality(*this,&nbsp;resultSet,&nbsp;numRequestedSize,&nbsp;numRequestedSize);&lt;br&gt;&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;now&nbsp;impose&nbsp;the&nbsp;fact&nbsp;that&nbsp;we&nbsp;want&nbsp;exactly&nbsp;&amp;quot;numRequestedSpecialSize&amp;quot;&nbsp;items&nbsp;coming&nbsp;from&nbsp;the&nbsp;special&nbsp;set&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;1.)&nbsp;Create&nbsp;a&nbsp;new&nbsp;set&nbsp;domain&nbsp;that&nbsp;represents&nbsp;the&nbsp;&amp;quot;special&amp;quot;&nbsp;items&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;IntSet&nbsp;specialSet(specialItems,&nbsp;numSpecialItems);&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;2.)&nbsp;Create&nbsp;a&nbsp;set&nbsp;variable&nbsp;that&nbsp;we&amp;#39;ll&nbsp;associate&nbsp;with&nbsp;that&nbsp;set&nbsp;later&nbsp;on&lt;br&gt;   &nbsp;   &nbsp;SetVar&nbsp;specialSelected(*this);&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;3.)&nbsp;Set&nbsp;&amp;quot;specialSelected&amp;quot;&nbsp;to&nbsp;the&nbsp;intersection&nbsp;of&nbsp;whatever&nbsp;a&nbsp;possible&nbsp;solution&nbsp;is,&nbsp;and&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;//    &nbsp;the&nbsp;&amp;quot;specialSet&amp;quot;.&nbsp;This&nbsp;ensures&nbsp;that&nbsp;we&nbsp;can&nbsp;talk&nbsp;about&nbsp;items&nbsp;that&nbsp;are&nbsp;included&lt;br&gt;   &nbsp;   &nbsp;//    &nbsp;in&nbsp;the&nbsp;solution,&nbsp;but&nbsp;also&nbsp;belong&nbsp;to&nbsp;the&nbsp;special&nbsp;set&lt;br&gt;   &nbsp;   &nbsp;rel(*this,&nbsp;resultSet,&nbsp;SOT_INTER,&nbsp;specialSet,&nbsp;SRT_EQ,&nbsp;specialSelected);&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;//&nbsp;4.)&nbsp;Now&nbsp;ensure&nbsp;that&nbsp;we&nbsp;only&nbsp;have&nbsp;&amp;quot;numRequestedSpecialSize&amp;quot;&nbsp;of&nbsp;these&nbsp;overlapping&nbsp;items&lt;br&gt;   &nbsp;   &nbsp;cardinality(*this,&nbsp;specialSelected,&nbsp;numRequestedSpecialSize,&nbsp;numRequestedSpecialSize);&lt;br&gt;&lt;br&gt;   &nbsp;   &nbsp;//&nbsp;Given&nbsp;these&nbsp;constraints,&nbsp;branch&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;branch(*this,&nbsp;mSetStore,&nbsp;SET_VAR_NONE,&nbsp;SET_VAL_MIN_INC);&lt;br&gt;   &nbsp;}&lt;br&gt;   &nbsp;MiniSpace(bool&nbsp;share,&nbsp;MiniSpace&amp;amp;&nbsp;s)&nbsp;:&nbsp;Space(share,&nbsp;s)&nbsp;{mSetStore.update(*this,&nbsp;share,&nbsp;s.mSetStore);}&lt;br&gt;   &nbsp;virtual&nbsp;Space*&nbsp;copy(bool&nbsp;share)&nbsp;{return&nbsp;new&nbsp;MiniSpace(share,&nbsp;*this);}&lt;br&gt;<br>
+<br>
+   &nbsp;void&nbsp;print()&nbsp;const&lt;br&gt;   &nbsp;{&lt;br&gt;   &nbsp;   &nbsp;int&nbsp;countAsSpecial&nbsp;=&nbsp;0;&lt;br&gt;   &nbsp;   &nbsp;for(SetVarGlbValues&nbsp;d(mSetStore[0]);d();++d)&lt;br&gt;   &nbsp;   &nbsp;{&lt;br&gt;   &nbsp;   &nbsp;   &nbsp;int&nbsp;id&nbsp;=&nbsp;d.val();&lt;br&gt;   &nbsp;   &nbsp;   &nbsp;if(isInSet(id,&nbsp;specialItems,&nbsp;numSpecialItems))&nbsp;countAsSpecial++;&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;   &nbsp;std::cout&nbsp;&amp;lt;&amp;lt;&nbsp;id&nbsp;&amp;lt;&amp;lt;&nbsp;&amp;quot;&nbsp;&amp;quot;;&lt;br&gt;   &nbsp;   &nbsp;}&nbsp;//&nbsp;for&lt;br&gt;   &nbsp;   &nbsp;std::cout&nbsp;&amp;lt;&amp;lt;&nbsp;&amp;quot;.&nbsp;Nr.&nbsp;of&nbsp;specials:&nbsp;&amp;quot;&nbsp;&amp;lt;&amp;lt;&nbsp;countAsSpecial;&lt;br&gt;   &nbsp;}&lt;br&gt;};&lt;br&gt;&lt;br&gt;int&nbsp;main(int&nbsp;argc,&nbsp;char*&nbsp;argv[])&lt;br&gt;<br>
+<br>
+{&lt;br&gt;   &nbsp;//&nbsp;Run&nbsp;the&nbsp;problem&lt;br&gt;   &nbsp;MiniSpace&nbsp;problem;&nbsp;//&nbsp;space&nbsp;instance&lt;br&gt;   &nbsp;//Search::Options&nbsp;options&lt;br&gt;   &nbsp;DFS&amp;lt;MiniSpace&amp;gt;&nbsp;solver&nbsp;(&amp;amp;problem);&lt;br&gt;   &nbsp;int&nbsp;count=0;&lt;br&gt;   &nbsp;while(true){&lt;br&gt;   &nbsp;   &nbsp;MiniSpace*&nbsp;solution&nbsp;=&nbsp;solver.next();&lt;br&gt;<br>
+<br>
+   &nbsp;   &nbsp;if(!solution)&nbsp;break;&lt;br&gt;   &nbsp;   &nbsp;std::cout&nbsp;&amp;lt;&amp;lt;&nbsp;&amp;quot;Solution&nbsp;Nr.&amp;quot;&nbsp;&amp;lt;&amp;lt;&nbsp;count++&nbsp;&amp;lt;&amp;lt;&nbsp;std::endl;&lt;br&gt;   &nbsp;   &nbsp;solution-&amp;gt;print();&lt;br&gt;   &nbsp;   &nbsp;std::cout&nbsp;&amp;lt;&amp;lt;&nbsp;std::endl;&lt;br&gt;   &nbsp;   &nbsp;delete&nbsp;solution;&lt;br&gt;<br>
+<br>
+   &nbsp;}&lt;br&gt;   &nbsp;std::cout&nbsp;&amp;lt;&amp;lt;&nbsp;&amp;quot;Done...&amp;quot;&nbsp;&amp;lt;&amp;lt;&nbsp;std::endl;&lt;br&gt;   &nbsp;return&nbsp;0;&lt;br&gt;}&lt;br&gt;&lt;br&gt;&lt;br&gt;<br>
+&lt;/div&gt;<br>
+
+</tt>

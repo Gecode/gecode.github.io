@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] FloatVar implementation
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20FloatVar%20implementation&In-Reply-To=%3CC422BFF8.C68%25cschulte%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001539.html">
+   <LINK REL="Next"  HREF="001541.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] FloatVar implementation</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20FloatVar%20implementation&In-Reply-To=%3CC422BFF8.C68%25cschulte%40kth.se%3E"
+       TITLE="[gecode-users] FloatVar implementation">cschulte at kth.se
+       </A><BR>
+    <I>Wed Apr  9 18:48:24 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001539.html">[gecode-users] FloatVar implementation
+</A></li>
+        <LI>Next message: <A HREF="001541.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1540">[ date ]</a>
+              <a href="thread.html#1540">[ thread ]</a>
+              <a href="subject.html#1540">[ subject ]</a>
+              <a href="author.html#1540">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Filip,
+
+If you check the stubs for all the different variable types you will see
+that there are two aspects in which they differ. Both of which depend on the
+variable implementation specification you deliver:
+
+ - Propagation conditions: a stub class allocates one slot for each
+   propagation condition you specify. This is used to find all propagators
+   with a particular propagation condition.
+
+   As cloning is controlled by the kernel, the kernel needs to know
+   how many slots a variable has so that all of its slots are copied.
+
+ - Modification events: a modification event on a variable determines
+   what are the propagators that must be propagated. For example, for
+   integer variables, if the the min or max of a variable changes, this
+   results in a ME_INT_BND modification event (one of the bounds changed).
+   The specification contains the information that all propagators
+   for that variable with conditions PC_INT_DOM (run if anything changes)
+   and PC_INT_BND (run if the bounds change) must be run.
+
+   The code that runs (actually schedules propagators for later execution)
+   is generated from the specification as, again, this is done in the
+   kernel. Moreover, the code is super optimized (really with number
+   of assembly instructions in mind) as it is at the core of the kernel.
+
+There is one more thing that happens (computing an optimal bit layout for
+modification event deltas) but I won't go into that.
+
+So you see, generating the stuff is somewhat less powerful (you need to
+recompile) but has a great return if investment as it comes to speed.
+
+Moreover, a kernel that has been compiled with a particular variable type
+enabled can still be used without linking your programs to code that
+implements the variable proper.
+
+Christian
+
+On 4/9/08 3:52 PM, &quot;Filip Konvi&#269;ka&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>&gt; wrote:
+
+&gt;<i> 
+</I>&gt;&gt;<i> Hmm, I am not so sure that Guido is telling the truth here ;-) I just had a
+</I>&gt;&gt;<i> chat with him and he agrees ;-)
+</I>&gt;&gt;<i>   
+</I>&gt;<i> I hope I didn't start any fight :-)
+</I>&gt;&gt;<i> The kernel only knows about a base class that contains no information
+</I>&gt;&gt;<i> whatsoever about how the domain of a variable is implemented.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> What is perfectly possible is to have variables of different types in the
+</I>&gt;&gt;<i> system that share the same baseclass: the kernel is only concerned with what
+</I>&gt;&gt;<i> is in the baseclass and not with how the variables are implemented. The key
+</I>&gt;&gt;<i> aspect is that variable implementations are only refered to by propagators
+</I>&gt;&gt;<i> and branchings: they statically know the real type so that the right
+</I>&gt;&gt;<i> operations are performed, so no need for virtual etc.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Look to the generated baseclass IntVarImpBase and how IntVarImp inherits
+</I>&gt;&gt;<i> from it: IntVarImpBase is what the kernel deals with, while IntVarImp is the
+</I>&gt;&gt;<i> real implementation of integer variables.
+</I>&gt;&gt;<i>   
+</I>&gt;<i> I've seen that, but what I need to understand is why you need distinct
+</I>&gt;<i> *VarImpBases for Int, Bool, etc., why not just one. The difference I've
+</I>&gt;<i> seen in kernel is that the classes report their own &quot;event id&quot; or
+</I>&gt;<i> whatever, so I guess you use this for speeding up actor filtering.
+</I>&gt;<i> Again, I'm just guessing and will need to look into this.
+</I>&gt;<i> 
+</I>&gt;<i> [...some time passes...]
+</I>&gt;<i> 
+</I>&gt;<i> OK, we've added float.vis and recompiled Gecode, so now it seems we have
+</I>&gt;<i> our own bunch of ModEvents and also a FloatVarImpBase, which is cool, so
+</I>&gt;<i> we'll come back with a status report (or more questions) soon :-)
+</I>&gt;<i> 
+</I>&gt;&gt;<i> Having said all that, I would first attempt to get everything up for a
+</I>&gt;&gt;<i> single implementation. You can go crazy later ;-)
+</I>&gt;&gt;<i>   
+</I>&gt;<i> I guess I'm crazy enough already - nothing ever stops me from making
+</I>&gt;<i> things more generic. Even if it takes 5 minutes to compile... :-))
+</I>&gt;<i> 
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Filip
+</I>&gt;<i> 
+</I>
+--
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001539.html">[gecode-users] FloatVar implementation
+</A></li>
+	<LI>Next message: <A HREF="001541.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1540">[ date ]</a>
+              <a href="thread.html#1540">[ thread ]</a>
+              <a href="subject.html#1540">[ subject ]</a>
+              <a href="author.html#1540">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

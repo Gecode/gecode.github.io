@@ -1,0 +1,1483 @@
+From ggutierrez at cic.puj.edu.co  Thu Mar  1 13:42:37 2007
+From: ggutierrez at cic.puj.edu.co (Gustavo Gutierrez)
+Date: Thu, 1 Mar 2007 07:42:37 -0500
+Subject: [gecode-users] Space entailment
+Message-ID: <e7b0e5a40703010442m36ca4685ka804da4748e9e2ea@mail.gmail.com>
+
+Hi all,
+
+I was wondering about the representation of the entailment relation in
+gecode. Suppose you have a space with variables and constraints. How
+can i verify if an extra constraint is already entailed by the store
+(space)?. In the mozart terminology this is the difference between a
+succeeded(entailed) and a succeeded(stuck) space. Of course, here we
+will not take threads into account since threads does not exist in
+gecode.
+
+At implementation level, if the relation implemented by a propagator
+to be posted in the space is already represented in terms of variables
+domains, the propagator is not posted at all. Then counting how many
+propagators are in the space before the posting of the new one and
+comparing it to the number of propagators after posting it, is enough
+to verify that property.
+
+Do you agree??
+
+
+Cheers,
+--
+Gustavo Gutierrez
+
+
+
+From zayenz at gmail.com  Thu Mar  1 14:30:17 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 1 Mar 2007 14:30:17 +0100
+Subject: [gecode-users] Space entailment
+In-Reply-To: <e7b0e5a40703010442m36ca4685ka804da4748e9e2ea@mail.gmail.com>
+References: <e7b0e5a40703010442m36ca4685ka804da4748e9e2ea@mail.gmail.com>
+Message-ID: <63b5c8b00703010530x3c61bb70g2aff2005f5b5e504@mail.gmail.com>
+
+On 3/1/07, Gustavo Gutierrez <ggutierrez at cic.puj.edu.co> wrote:
+> Hi all,
+>
+> I was wondering about the representation of the entailment relation in
+> gecode. Suppose you have a space with variables and constraints. How
+> can i verify if an extra constraint is already entailed by the store
+> (space)?. In the mozart terminology this is the difference between a
+> succeeded(entailed) and a succeeded(stuck) space. Of course, here we
+> will not take threads into account since threads does not exist in
+> gecode.
+>
+> At implementation level, if the relation implemented by a propagator
+> to be posted in the space is already represented in terms of variables
+> domains, the propagator is not posted at all. Then counting how many
+> propagators are in the space before the posting of the new one and
+> comparing it to the number of propagators after posting it, is enough
+> to verify that property.
+>
+> Do you agree??
+
+
+The short answer is no, this will not tell you if the posted
+constraint was entailed.
+
+
+In general, entailment for a constraint is a co-NP complete problem,
+which means that it is a property that can only be approximated for
+many common constraints.
+
+For some constraints, posting will check for entailment (e.g., Boolean
+or) and for some it will not (e.g., distinct). Furthermore, some
+constraints there are good entailment checks (e.g. linear
+in-equations) while others don't have any good ones (most global
+constraints). As a simple example, try posting a distinct-constraint
+on a collection of variables with non-overlapping ranges. The
+constraint is trivially entailed, but the propagator is still not
+subsumed.
+
+A more specific reason why your technique won't work (not even as an
+approximation), is that a newly created propagator will (in most
+cases) be scheduled for propagation. To get a correct calculation of
+the number of propagators, you would need to compute the fixpoint.
+When you call status() for the space, the propagator will be run,
+possibly resulting in some domain-reductions and more propagators
+being run. One (or more) of the other propagators could in turn be
+subsumed, leading to the count returned from propagators() to look
+like the constraint was entailed.
+
+
+If I recall correctly, Mozart/Oz is more strict than Gecode when it
+comes to detecting entailment of propagators. But I am no expert in
+the Mozart system. The common theme in Gecode is to try to delay
+invocation of propagators until they can propagate.
+
+A good example of possible approaches is the not-equals constraint
+between two variables. If you only want to run the propagator when it
+can propagate, it should only be run when one of the variables is
+assigned. If we want to get early subsumption, it should listen to all
+events to see if the domains are non-overlapping.
+
+
+Hope this helps,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Fri Mar  2 15:50:35 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 2 Mar 2007 15:50:35 +0100
+Subject: [gecode-users] Space entailment
+In-Reply-To: <e7b0e5a40703010442m36ca4685ka804da4748e9e2ea@mail.gmail.com>
+Message-ID: <000901c75cda$23eda030$bb64fe91@tiny>
+
+Hi,
+
+well, yes and no. The difference between succeeded(entailed) and
+succeeded(stuck) is easy to find: just check the number of propagators left.
+
+
+The other one does not work: if you post a new propagator it might find out
+that it is entailed and disappear. However, it might also propagate and some
+other propagator becomes entailed. So you don't know whether the newly
+posted propagator is actually entailed.
+
+Maybe you tell us what you want to do exactly?
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Gustavo Gutierrez
+Sent: Thursday, March 01, 2007 1:43 PM
+To: gecode at gecode.org
+Subject: [gecode-users] Space entailment
+
+
+Hi all,
+
+I was wondering about the representation of the entailment relation in
+gecode. Suppose you have a space with variables and constraints. How can i
+verify if an extra constraint is already entailed by the store (space)?. In
+the mozart terminology this is the difference between a
+succeeded(entailed) and a succeeded(stuck) space. Of course, here we will
+not take threads into account since threads does not exist in gecode.
+
+At implementation level, if the relation implemented by a propagator to be
+posted in the space is already represented in terms of variables domains,
+the propagator is not posted at all. Then counting how many propagators are
+in the space before the posting of the new one and comparing it to the
+number of propagators after posting it, is enough to verify that property.
+
+Do you agree??
+
+
+Cheers,
+--
+Gustavo Gutierrez
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From aribi_noureddine at yahoo.fr  Fri Mar  2 20:13:48 2007
+From: aribi_noureddine at yahoo.fr (ARIBI Noureddine)
+Date: Fri, 2 Mar 2007 20:13:48 +0100
+Subject: [gecode-users] GecodeJ v1.0.1 -compilation error-
+Message-ID: <000301c75cfe$e8aa9350$b9ffb9f0$@fr>
+
+Hello Everybody,
+
+ 
+
+I tried several times to compile GecodeJ from source under Cygwin
+[http://www.imit.kth.se/courses/2G1515/gecodej-installation.pdf] (like I did
+for Gecode) but I got the following errors:
+
+make
+
+g++ -I. -I. -I/usr/local/include   -I"d:/Program
+Files/Java/jdk1.6.0_01/include" -I"d:/Program
+Files/Java/jdk1.6.0_01/include/win32"  \
+
+        -c -o GecodeSpace.o  GecodeSpace.cxx
+
+swig -c++ -java -package org.gecode -outdir org/gecode Gecode.i
+
+./misc/fixgendoc.sh
+
+g++ -I. -I. -I/usr/local/include   -I"d:/Program
+Files/Java/jdk1.6.0_01/include" -I"d:/Program
+Files/Java/jdk1.6.0_01/include/win32"  \
+
+        -c -o Gecode_wrap.o  Gecode_wrap.cxx
+
+g++ -shared -L/usr/local/lib -lgecodeint -lgecodeset -lgecodesearch
+-lgecodekernel -lgecodeminimodel   \
+
+        GecodeSpace.o \
+
+        Gecode_wrap.o \
+
+        -o libgecodej.dll && \
+
+        @true libgecodej.dll libgecodej && \
+
+        @true libgecodej.dll libgecodej
+
+/usr/lib/gcc/i686-pc-cygwin/3.4.4/../../../../i686-pc-cygwin/bin/ld: cannot
+find -lgecodeint
+
+collect2: ld returned 1 exit status
+
+make: *** [libgecodej.dll] Error 1
+
+ 
+
+I set PKG_CONFIG_PATH to the path of my installation directory of gecode.pc
+(ie /usr/local/lib/pkgconfig ),
+
+Also LD_LIBRARY_PATH to Gecode libraries (ie /usr/local/bin).
+
+ 
+
+Thanks in advance.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070302/75b77931/attachment.htm>
+
+From kemmami at yahoo.fr  Sun Mar  4 12:31:28 2007
+From: kemmami at yahoo.fr (kemmar amina)
+Date: Sun, 4 Mar 2007 12:31:28 +0100 (CET)
+Subject: [gecode-users] gecode
+Message-ID: <20070304113128.95959.qmail@web27207.mail.ukl.yahoo.com>
+
+hi,
+I want to express a programm JAVA to constraints with GECODE, what are the constrains must be used to express an if_then_else instruction such as :
+if(x1>2){x2 = x1 + 1;}
+else{
+y2 = y1 + 1;
+}
+thank you.
+
+ 		
+---------------------------------
+ D?couvrez une nouvelle fa?on d'obtenir des r?ponses ? toutes vos questions ! Profitez des connaissances, des opinions et des exp?riences des internautes sur Yahoo! Questions/R?ponses.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070304/df69eadd/attachment.htm>
+
+From penche21 at hotmail.com  Sun Mar  4 23:31:52 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Sun, 04 Mar 2007 22:31:52 +0000
+Subject: [gecode-users] gecode
+In-Reply-To: <20070304113128.95959.qmail@web27207.mail.ukl.yahoo.com>
+Message-ID: <BAY119-F9E4843D66423C2E12362DD9850@phx.gbl>
+
+hi,
+
+I am not sure if this is the right&efficient way but I handle it like that;
+
+boolVar expression;
+linear(x1,IRT_LE,x2, expression);
+
+boolVar action;
+rel(x2,IRT_EQ,x1+1, action);
+
+boolVar t = true;
+bool_imp(expression, action, t); // expr = true implies that action = t
+
+same idea for the else part.
+syntax is just for a rough idea, please check for it. hope this helps..
+
+
+Cheers,
+penche
+
+>From: kemmar amina <kemmami at yahoo.fr>
+>To: users at gecode.org
+>Subject: [gecode-users] gecode
+>Date: Sun, 4 Mar 2007 12:31:28 +0100 (CET)
+>
+>hi,
+>I want to express a programm JAVA to constraints with GECODE, what are the 
+>constrains must be used to express an if_then_else instruction such as :
+>if(x1>2){x2 = x1 + 1;}
+>else{
+>y2 = y1 + 1;
+>}
+>thank you.
+>
+>
+>---------------------------------
+>  D?couvrez une nouvelle fa?on d'obtenir des r?ponses ? toutes vos 
+>questions ! Profitez des connaissances, des opinions et des exp?riences des 
+>internautes sur Yahoo! Questions/R?ponses.
+
+
+>_______________________________________________
+>Gecode users mailing list
+>users at gecode.org
+>https://www.gecode.org/mailman/listinfo/gecode-users
+
+_________________________________________________________________
+Hem e-postalarinizi, hem de Bilgisayarinizi MSN G?venlik ile koruma altina 
+alin! http://www.msn.com.tr/security/
+
+
+
+
+From penche21 at hotmail.com  Mon Mar  5 18:32:36 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Mon, 05 Mar 2007 17:32:36 +0000
+Subject: [gecode-users] branching
+In-Reply-To: <BAY119-F9E4843D66423C2E12362DD9850@phx.gbl>
+Message-ID: <BAY119-F9935C5486369DA347B8AED9840@phx.gbl>
+
+Hi!
+
+I would like to create my own branching. It should assign values to the 
+Var's in the order i choose.
+I was always using branch(..size_max, split_min) and now I can not figure 
+out how to code a different branching. if anyone have an example on it, this 
+would be perfect to grasp the way to implement a new branching.
+
+Thank you all,
+penche
+
+_________________________________________________________________
+En etkili ve g?venilir PC Korumayi tercih edin, rahat edin! 
+http://www.msn.com.tr/security/
+
+
+
+
+From jeremie.vautard at laposte.net  Tue Mar  6 14:21:28 2007
+From: jeremie.vautard at laposte.net (=?ISO-8859-1?Q?J=E9r=E9mie_Vautard?=)
+Date: Tue, 06 Mar 2007 14:21:28 +0100
+Subject: [gecode-users] Cumulative constraint propagation
+Message-ID: <45ED6AD8.8060703@laposte.net>
+
+Hi !
+
+I asked a few month ago (October 4th) what propagation the cumulative 
+constraint did (*Mikael Zayenz Lagerkvist answered me that it did not 
+very much). Does it do more now ?
+
+Could someone indicate me a paper describing the state of the art in 
+this domain ?
+
+
+Cheers,
+
+J?r?mie Vautard
+*
+
+
+
+From zayenz at gmail.com  Tue Mar  6 15:32:08 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 6 Mar 2007 15:32:08 +0100
+Subject: [gecode-users] Cumulative constraint propagation
+In-Reply-To: <45ED6AD8.8060703@laposte.net>
+References: <45ED6AD8.8060703@laposte.net>
+Message-ID: <63b5c8b00703060632j73a3b3e5r4dabe53f47aa1a63@mail.gmail.com>
+
+On 3/6/07, J?r?mie Vautard <jeremie.vautard at laposte.net> wrote:
+> I asked a few month ago (October 4th) what propagation the cumulative
+> constraint did (*Mikael Zayenz Lagerkvist answered me that it did not
+> very much). Does it do more now ?
+
+It does not do anything more. The constraint implemented, called
+cumulatives, is a very general constraint. To read more about the
+specific prunings done, see "A New Multi-resource cumulatives
+Constraint with Negative Heights" by Beldiceanu and Carlsson
+(http://www.springerlink.com/content/yblp5037rxkqn2u0/).
+
+
+> Could someone indicate me a paper describing the state of the art in
+> this domain ?
+
+Bounds-consistent pruning for cumulative is NP-complete, so we must
+look for weaker algorithms. Some common algorithms used are edge
+finding, not-first/not-last, and energetic reasoning.
+
+The most complete reference for scheduling constraints is probably
+"Constraint-Based Scheduling" by Baptiste, Le Pape, and Nuijten
+(http://www.springer.com/west/home?SGWID=4-102-22-33293925-0).
+
+For some updates on edge-finding for cumulative constraints, see "Edge
+Finding for Cumulative Scheduling" Mercier and Van Hentenryck
+(http://www.cs.brown.edu/people/pvh/ef2.pdf).
+
+
+Hope this helps,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From mmann at informatik.uni-freiburg.de  Thu Mar  8 16:48:33 2007
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Thu, 08 Mar 2007 16:48:33 +0100
+Subject: [gecode-users] a missed "atleast/atmost/exactly" for arrays -
+ solution source included
+Message-ID: <45F03051.6080900@informatik.uni-freiburg.de>
+
+Hi,
+
+I was searching for an 'atmost' constraint to express
+
+#( X_i == Y_i ) <= z
+
+whereby X = IntVarArray, Y = IntArgs (array of integers) and z is the 
+integer bound for the number of matches.
+Currently 'atmost' supports only the match against one single value or 
+an IntVar.
+
+Below I attached my code (derived from 'count' and the mechanisms used 
+for 'distinct'), maybe this is something usefull for others too. Think 
+this could be interesting for further versions of Gecode if you like it.
+
+Have a nice weekend,
+
+Martin
+
+=====================================================================
+
+
+#include "gecode/int/count.hh"
+
+namespace Gecode {
+
+   void
+   count(Space* home, const IntVarArgs& xa, const IntArgs& ya,
+	IntRelType r, int z, IntConLevel icl) {
+     using namespace Int;
+     if (home->failed()) return;
+     ViewArray<OffsetView> x(home,xa.size());
+     for (int i = ya.size(); i--; )
+       if ((-ya[i] < Limits::Int::int_min) || (-ya[i] > 
+Limits::Int::int_max))
+         throw NumericalOverflow("Int::count");
+       else
+         x[i].init(xa[i],-ya[i]);
+     ConstIntView yv(0);
+     switch (r) {
+     case IRT_EQ:
+       GECODE_ES_FAIL(home,(Count::EqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_NQ:
+       GECODE_ES_FAIL(home,(Count::NqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_LE:
+       GECODE_ES_FAIL(home,(Count::LqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z-1)));
+       break;
+     case IRT_LQ:
+       GECODE_ES_FAIL(home,(Count::LqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_GR:
+       GECODE_ES_FAIL(home,(Count::GqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z+1)));
+       break;
+     case IRT_GQ:
+       GECODE_ES_FAIL(home,(Count::GqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     default:
+       throw UnknownRelation("Int::count");
+     }
+   }
+
+   void
+   atmost(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_LQ,m,icl);
+   }
+
+   void
+   atleast(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_GQ,m,icl);
+   }
+
+   void
+   exactly(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_EQ,m,icl);
+   }
+
+} // namespace Gecode
+
+=====================================================================
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Thu Mar  8 19:38:26 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 8 Mar 2007 19:38:26 +0100
+Subject: [gecode-users] a missed "atleast/atmost/exactly" for arrays -
+	solution source included
+In-Reply-To: <45F03051.6080900@informatik.uni-freiburg.de>
+Message-ID: <000001c761b0$fb55a1a0$0401a8c0@tiny>
+
+Martin, that's a good one! I'll add it for Gecode 2.0.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Thursday, March 08, 2007 4:49 PM
+To: gecode user list
+Subject: [gecode-users] a missed "atleast/atmost/exactly" for arrays -
+solution source included
+
+
+Hi,
+
+I was searching for an 'atmost' constraint to express
+
+#( X_i == Y_i ) <= z
+
+whereby X = IntVarArray, Y = IntArgs (array of integers) and z is the 
+integer bound for the number of matches.
+Currently 'atmost' supports only the match against one single value or 
+an IntVar.
+
+Below I attached my code (derived from 'count' and the mechanisms used 
+for 'distinct'), maybe this is something usefull for others too. Think 
+this could be interesting for further versions of Gecode if you like it.
+
+Have a nice weekend,
+
+Martin
+
+=====================================================================
+
+
+#include "gecode/int/count.hh"
+
+namespace Gecode {
+
+   void
+   count(Space* home, const IntVarArgs& xa, const IntArgs& ya,
+	IntRelType r, int z, IntConLevel icl) {
+     using namespace Int;
+     if (home->failed()) return;
+     ViewArray<OffsetView> x(home,xa.size());
+     for (int i = ya.size(); i--; )
+       if ((-ya[i] < Limits::Int::int_min) || (-ya[i] > 
+Limits::Int::int_max))
+         throw NumericalOverflow("Int::count");
+       else
+         x[i].init(xa[i],-ya[i]);
+     ConstIntView yv(0);
+     switch (r) {
+     case IRT_EQ:
+       GECODE_ES_FAIL(home,(Count::EqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_NQ:
+       GECODE_ES_FAIL(home,(Count::NqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_LE:
+       GECODE_ES_FAIL(home,(Count::LqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z-1)));
+       break;
+     case IRT_LQ:
+       GECODE_ES_FAIL(home,(Count::LqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     case IRT_GR:
+       GECODE_ES_FAIL(home,(Count::GqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z+1)));
+       break;
+     case IRT_GQ:
+       GECODE_ES_FAIL(home,(Count::GqInt<OffsetView,ConstIntView>
+       			   ::post(home,x,yv,z)));
+       break;
+     default:
+       throw UnknownRelation("Int::count");
+     }
+   }
+
+   void
+   atmost(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_LQ,m,icl);
+   }
+
+   void
+   atleast(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_GQ,m,icl);
+   }
+
+   void
+   exactly(Space* home, const IntVarArgs& x, const IntArgs& ya, int m,
+     IntConLevel icl=ICL_DEF)
+   {
+     count(home,x,ya,IRT_EQ,m,icl);
+   }
+
+} // namespace Gecode
+
+=====================================================================
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science Albert-Ludwigs-University
+Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462 http://www.bioinf.uni-freiburg.de/~mmann/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From tack at ps.uni-sb.de  Tue Mar 13 17:18:29 2007
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 13 Mar 2007 17:18:29 +0100
+Subject: [gecode-users] New Windows Installer for Gecode 1.3.1
+Message-ID: <6386EEF5-276B-4425-8131-92EBA2926867@ps.uni-sb.de>
+
+Hi everyone!
+
+The previous Windows Installer package for Gecode 1.3.1 had some  
+serious issues in the Gecode/J part (mainly with Gist), which were  
+due to a wrong version being packaged. We have now created an updated  
+package which hopefully resolves these problems.
+
+So if you are using Gecode/J from the Windows Installer package,  
+please download the new package from
+
+http://www.gecode.org/download/Gecode-1.3.1.msi
+
+You will have to uninstall the old package before installation of the  
+new one.
+
+With this update, we now also check for the new Java version 1.6.  
+Gecode/J can now be used with both 1.5 and 1.6. If you encounter any  
+problems with the new installer please let us know!
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+
+
+From serdark at su.sabanciuniv.edu  Thu Mar 15 14:42:57 2007
+From: serdark at su.sabanciuniv.edu (Serdar Kadioglu)
+Date: Thu, 15 Mar 2007 15:42:57 +0200
+Subject: [gecode-users] data structure for effiency 
+Message-ID: <1173966177.45f94d6162c88@webmail.sabanciuniv.edu>
+
+
+Hi! 
+
+I would like to keep variables in a matrix data structure. 
+Array of arrays like VarArray<VarArray<IntVar>> did not work. 
+My aim is to reach a cell with an unknown row_IntVar , and known column_int 
+
+If I flatten everything in one dimensional VarArray
+then to reach a cell I call; 
+
+        element(Intvar_row * #of columns + column_int).
+
+This multiplication and addition is just an index arithmetic but forces me to call
+two linear() operations and create many redundant IntVar's for every j.
+
+Is there an efficient way of reaching these cells, 
+(may be a 2D structure that I am unaware of probably)
+because this bottleneck really slows down the model. 
+
+Regards,
+serdar
+
+
+
+From cschulte at kth.se  Thu Mar 15 15:42:19 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 15 Mar 2007 15:42:19 +0100
+Subject: [gecode-users] data structure for effiency 
+In-Reply-To: <1173966177.45f94d6162c88@webmail.sabanciuniv.edu>
+Message-ID: <003f01c76710$22f83ce0$acd4ed82@beule>
+
+Hi,
+
+the problem is inherent in the two dimensional structure! Besides of the
+performance problems you describe it will give poor propagation. 
+
+Suppose you have an x coordinate from {1,2,3,4} and a y coordinate from
+{1,2,3,4}. Then the two coordinates can denote 16 different cells, so very
+little information. In that case using an element constraint for accessing
+cells will offer poor propagation whatever you use to organize the data
+structure!
+
+So if possible avoid two dimensional structures with variable-variables
+access.
+
+If one of the coordinates is a constant as in your example, you should
+transpose the matrix to change row and column and not use a mult constraint.
+
+For simple uses with matrices, check the Matrix class in the Minimodel. Some
+of the examples use this.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Serdar Kadioglu
+Sent: Thursday, March 15, 2007 2:43 PM
+To: users at gecode.org
+Subject: [gecode-users] data structure for effiency 
+
+
+
+Hi! 
+
+I would like to keep variables in a matrix data structure. 
+Array of arrays like VarArray<VarArray<IntVar>> did not work. 
+My aim is to reach a cell with an unknown row_IntVar , and known column_int 
+
+If I flatten everything in one dimensional VarArray
+then to reach a cell I call; 
+
+        element(Intvar_row * #of columns + column_int).
+
+This multiplication and addition is just an index arithmetic but forces me
+to call two linear() operations and create many redundant IntVar's for every
+j.
+
+Is there an efficient way of reaching these cells, 
+(may be a 2D structure that I am unaware of probably)
+because this bottleneck really slows down the model. 
+
+Regards,
+serdar
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From kemmami at yahoo.fr  Fri Mar 16 19:04:48 2007
+From: kemmami at yahoo.fr (kemmar amina)
+Date: Fri, 16 Mar 2007 19:04:48 +0100 (CET)
+Subject: [gecode-users] gecode
+Message-ID: <20070316180448.13385.qmail@web27213.mail.ukl.yahoo.com>
+
+I use gecode and I want to print just the solutions which are different , not all, what can I do?
+thank you.
+
+ 		
+---------------------------------
+ D?couvrez une nouvelle fa?on d'obtenir des r?ponses ? toutes vos questions ! Profitez des connaissances, des opinions et des exp?riences des internautes sur Yahoo! Questions/R?ponses.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20070316/ca59b7a8/attachment.htm>
+
+From mmann at informatik.uni-freiburg.de  Fri Mar 16 20:51:05 2007
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Fri, 16 Mar 2007 20:51:05 +0100
+Subject: [gecode-users] gecode
+In-Reply-To: <20070316180448.13385.qmail@web27213.mail.ukl.yahoo.com>
+References: <20070316180448.13385.qmail@web27213.mail.ukl.yahoo.com>
+Message-ID: <45FAF529.2050706@informatik.uni-freiburg.de>
+
+> I use gecode and I want to print just the solutions which are different , not all, what can I do?
+
+???
+
+what is your problem?
+using a branching in your space?
+usually all solutions found by a search engine like DFS or BAB are 
+different if you specified a branching ?!?!?
+
+sorry, but at least for me you gave too less information to understand 
+the concrete problem and to provide some suggestions.
+
+yours,
+
+Martin
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From penche21 at hotmail.com  Sun Mar 18 10:54:30 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Sun, 18 Mar 2007 09:54:30 +0000
+Subject: [gecode-users] gecode
+In-Reply-To: <45FAF529.2050706@informatik.uni-freiburg.de>
+Message-ID: <BAY119-F49B5F9236608CB61AF91DD9770@phx.gbl>
+
+Hi,
+
+I guess you are using the default branching..
+
+To find only the first solution just use DFS
+to find all solutions use BAB then you are done.
+
+But you say "solutions which are different". This sounds me like you need 
+some symmettry breaking to eliminate some solutions.
+
+Cheers,
+penche
+
+>From: Martin Mann <mmann at informatik.uni-freiburg.de>
+>To: kemmar amina <kemmami at yahoo.fr>
+>CC: users at gecode.org
+>Subject: Re: [gecode-users] gecode
+>Date: Fri, 16 Mar 2007 20:51:05 +0100
+>
+>>I use gecode and I want to print just the solutions which are different , 
+>>not all, what can I do?
+>
+>???
+>
+>what is your problem?
+>using a branching in your space?
+>usually all solutions found by a search engine like DFS or BAB are 
+>different if you specified a branching ?!?!?
+>
+>sorry, but at least for me you gave too less information to understand the 
+>concrete problem and to provide some suggestions.
+>
+>yours,
+>
+>Martin
+>
+>--
+>Martin Mann, Dipl. Bioinf.
+>Bioinformatics - Inst. of Computer Science
+>Albert-Ludwigs-University Freiburg
+>Tel: ++49-761-203-8259
+>Fax: ++49-761-203-7462
+>http://www.bioinf.uni-freiburg.de/~mmann/
+>
+>_______________________________________________
+>Gecode users mailing list
+>users at gecode.org
+>https://www.gecode.org/mailman/listinfo/gecode-users
+
+_________________________________________________________________
+Sohbet ve eglence, web kamera ve sesli sohbet Messenger'de. 
+http://messenger.msn.com/?mkt=tr&DI=3490&XAPID=2584
+
+
+
+
+From penche21 at hotmail.com  Mon Mar 19 03:03:46 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Mon, 19 Mar 2007 02:03:46 +0000
+Subject: [gecode-users] installation 
+Message-ID: <BAY119-F39B1A8FE6171B802F3DB7AD9760@phx.gbl>
+
+Hi,
+
+- I was using GecodeJ via ssh using a server that gecode has already been 
+installed. Everything was fine until I used VarMatrix<IntVar>. Then I 
+started to get "cannot find symbol symbol  : class VarMatrix" error. I dont 
+know which do we need extra imports to use VarMatrix?
+
+So I decided to install gecodeJ on my windows XP.
+
+- I have Jdk ready and cygwin. I installed gecodeJ.msi and downloaded 
+gecodej1.0.1.zip.
+Under cygwin I export the path where it is installed;
+export LD_LIBRARY_PATH=/cygdrive/c/Program\ 
+Files/Gecode/lib:$LD_LIBRARY_PATH
+
+.  Then to javac with -cp options I cant see where should be the 
+GecodeJava.jar file. It is not in gecodej1.0.1.zip neither in the installed 
+Gecode folder.
+.  Is there anything more I need to make gecodeJ run.
+.  any comments on the error of VarMatrix.
+
+Cheers,
+penche
+
+_________________________________________________________________
+Yagmura yakalanmamak i?in sadece semsiyenize degil, MSN hava durumuna 
+g?venin! http://www.msn.com.tr/havadurumu/
+
+
+
+
+From zayenz at gmail.com  Mon Mar 19 06:30:27 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 19 Mar 2007 06:30:27 +0100
+Subject: [gecode-users] installation
+In-Reply-To: <BAY119-F39B1A8FE6171B802F3DB7AD9760@phx.gbl>
+References: <BAY119-F39B1A8FE6171B802F3DB7AD9760@phx.gbl>
+Message-ID: <63b5c8b00703182230v554f7e2erb612fb9d5645560e@mail.gmail.com>
+
+Hi,
+
+If you install Gecode via the MSI provided on our web page, then you
+get the option to install Gecode/J also. Thus, you do not need to
+install the gecodej-package. Note that we updated the MSI Tuesday last
+week since there was a small problem with the old installer.
+
+The Jar-file for Gecode/J (which now is called GecodeJ.jar and not
+GecodeJava.jar) is installed in the extensions directory of Java,
+which means that you do not need to supply a classpath since the
+Jar-files in this directory are automatically loaded.
+
+As for VarMatrix<IntVar>, it is in org.gecode, so either importing
+org.gecode.* or org.gecode.VarMatrix should find it. If you still
+experience problems using the class, please tell us.
+
+Hope this helps,
+Mikael
+
+On 3/19/07, penche21 penche21 <penche21 at hotmail.com> wrote:
+> Hi,
+>
+> - I was using GecodeJ via ssh using a server that gecode has already been
+> installed. Everything was fine until I used VarMatrix<IntVar>. Then I
+> started to get "cannot find symbol symbol  : class VarMatrix" error. I dont
+> know which do we need extra imports to use VarMatrix?
+>
+> So I decided to install gecodeJ on my windows XP.
+>
+> - I have Jdk ready and cygwin. I installed gecodeJ.msi and downloaded
+> gecodej1.0.1.zip.
+> Under cygwin I export the path where it is installed;
+> export LD_LIBRARY_PATH=/cygdrive/c/Program\
+> Files/Gecode/lib:$LD_LIBRARY_PATH
+>
+> .  Then to javac with -cp options I cant see where should be the
+> GecodeJava.jar file. It is not in gecodej1.0.1.zip neither in the installed
+> Gecode folder.
+> .  Is there anything more I need to make gecodeJ run.
+> .  any comments on the error of VarMatrix.
+>
+> Cheers,
+> penche
+>
+> _________________________________________________________________
+> Yagmura yakalanmamak i?in sadece semsiyenize degil, MSN hava durumuna
+> g?venin! http://www.msn.com.tr/havadurumu/
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From penche21 at hotmail.com  Mon Mar 19 18:36:42 2007
+From: penche21 at hotmail.com (penche21 penche21)
+Date: Mon, 19 Mar 2007 17:36:42 +0000
+Subject: [gecode-users] installation
+In-Reply-To: <63b5c8b00703182230v554f7e2erb612fb9d5645560e@mail.gmail.com>
+Message-ID: <BAY119-F1643406A886D9E95C25C26D9760@phx.gbl>
+
+Now I got examples folder running.
+But when I tried my own project it gave errors nearly for every method.
+
+Then I noticed that examples have the statement:
+public class Money extends Space {...}
+whereas I have - though I dont why or the difference between:
+public class Project extends Gecode {..}
+
+when I changed from extends Gecode to extends Space erros downed to 1.
+>can not find symbol lex (this, matrix.row(2), IRT_LE, matrix.row(3) );
+
+I import:
+import static org.gecode.Gecode.*;
+import static org.gecode.GecodeEnumConstants.*;
+import org.gecode.*;
+
+it ,somehow, yells for lex?
+
+>From: "Mikael Zayenz Lagerkvist" <zayenz at gmail.com>
+>To: "penche21 penche21" <penche21 at hotmail.com>
+>CC: users at gecode.org
+>Subject: Re: [gecode-users] installation
+>Date: Mon, 19 Mar 2007 06:30:27 +0100
+>
+>Hi,
+>
+>If you install Gecode via the MSI provided on our web page, then you
+>get the option to install Gecode/J also. Thus, you do not need to
+>install the gecodej-package. Note that we updated the MSI Tuesday last
+>week since there was a small problem with the old installer.
+>
+>The Jar-file for Gecode/J (which now is called GecodeJ.jar and not
+>GecodeJava.jar) is installed in the extensions directory of Java,
+>which means that you do not need to supply a classpath since the
+>Jar-files in this directory are automatically loaded.
+>
+>As for VarMatrix<IntVar>, it is in org.gecode, so either importing
+>org.gecode.* or org.gecode.VarMatrix should find it. If you still
+>experience problems using the class, please tell us.
+>
+>Hope this helps,
+>Mikael
+>
+>On 3/19/07, penche21 penche21 <penche21 at hotmail.com> wrote:
+>>Hi,
+>>
+>>- I was using GecodeJ via ssh using a server that gecode has already been
+>>installed. Everything was fine until I used VarMatrix<IntVar>. Then I
+>>started to get "cannot find symbol symbol  : class VarMatrix" error. I 
+>>dont
+>>know which do we need extra imports to use VarMatrix?
+>>
+>>So I decided to install gecodeJ on my windows XP.
+>>
+>>- I have Jdk ready and cygwin. I installed gecodeJ.msi and downloaded
+>>gecodej1.0.1.zip.
+>>Under cygwin I export the path where it is installed;
+>>export LD_LIBRARY_PATH=/cygdrive/c/Program\
+>>Files/Gecode/lib:$LD_LIBRARY_PATH
+>>
+>>.  Then to javac with -cp options I cant see where should be the
+>>GecodeJava.jar file. It is not in gecodej1.0.1.zip neither in the 
+>>installed
+>>Gecode folder.
+>>.  Is there anything more I need to make gecodeJ run.
+>>.  any comments on the error of VarMatrix.
+>>
+>>Cheers,
+>>penche
+>>
+>>_________________________________________________________________
+>>Yagmura yakalanmamak i?in sadece semsiyenize degil, MSN hava durumuna
+>>g?venin! http://www.msn.com.tr/havadurumu/
+>>
+>>
+>>_______________________________________________
+>>Gecode users mailing list
+>>users at gecode.org
+>>https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>--
+>Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+_________________________________________________________________
+En etkili ve g?venilir PC Korumayi tercih edin, rahat edin! 
+http://www.msn.com.tr/security/
+
+
+
+
+From zayenz at gmail.com  Tue Mar 20 07:54:49 2007
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Tue, 20 Mar 2007 07:54:49 +0100
+Subject: [gecode-users] installation
+In-Reply-To: <BAY119-F1643406A886D9E95C25C26D9760@phx.gbl>
+References: <63b5c8b00703182230v554f7e2erb612fb9d5645560e@mail.gmail.com>
+	<BAY119-F1643406A886D9E95C25C26D9760@phx.gbl>
+Message-ID: <63b5c8b00703192354x12607604xaffe2e09677774b4@mail.gmail.com>
+
+On 3/19/07, penche21 penche21 <penche21 at hotmail.com> wrote:
+> Now I got examples folder running.
+
+That's great.
+
+> But when I tried my own project it gave errors nearly for every method.
+>
+> Then I noticed that examples have the statement:
+> public class Money extends Space {...}
+> whereas I have - though I dont why or the difference between:
+> public class Project extends Gecode {..}
+
+As in Gecode, classes should extend the Space class.
+
+Before Gecode/J 1.0.0 the class to extend was the Gecode class. Now
+this class is just a collection of static functions.
+
+> when I changed from extends Gecode to extends Space erros downed to 1.
+> >can not find symbol lex (this, matrix.row(2), IRT_LE, matrix.row(3) );
+>
+> I import:
+> import static org.gecode.Gecode.*;
+> import static org.gecode.GecodeEnumConstants.*;
+> import org.gecode.*;
+>
+> it ,somehow, yells for lex?
+
+That is because there is no constraint named lex in Gecode/J. It is
+simply called rel:
+http://www.gecode.org/gecodej/doc/group__TaskIntIntRel.html
+
+In Gecode the Minimodel package has some additional names for some
+constraints, for example for lex. These are not in the Gecode/J
+package though. Might be a good idea to add them for the next release.
+
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Tue Mar 20 10:42:41 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 20 Mar 2007 10:42:41 +0100
+Subject: [gecode-users] Third ACP summer school on constraint programming
+Message-ID: <000301c76ad4$1b461fe0$0401a8c0@tiny>
+
+[Crossposted from constraints at yahoogroups.com, Christian]
+
+ ******************** Call for Participation ***********************
+
+                 Third International Summer School of the
+                  Association for Constraint Programming
+      *******************************************************************
+
+                        Hotel Guitart Central Park
+                           Lloret de Mar, Spain
+                            June 10-15, 2007
+                http://www.iiia.csic.es/summerschools/sscp2007/
+
+     ********************************************************************
+
+Constraint Programming is a flourishing area of research aiming at the
+efficient solving of combinatorial problems. The Third International Summer
+School on Constraint Programming is an introductory school on Constraint
+Programming and it is oriented to PhD students, researchers, and
+practitioners of all levels who wish to learn about this area.
+
+The program of the school will include the following courses:
+
+  * * Symmetries in CP  (Barbara Smith)
+  * * Continuous constraints (Frederic Benhamou)
+  * * SAT and CSP  (Lucas Bordeaux)
+  * * Operations Research in CP  (John Hooker)
+  * * CP systems (Christian Schulte)
+  * * Complexity in Combinatorial Problems (Jerome Lang)
+
+
+The school will take place in the Hotel Guitart Central Park of Lloret de
+Mar, Spain. Lloret de Mar is  a sea resort 70 Km North of Barcelona.
+Instructions on how to register to the school will be posted soon at the
+event web page. For the moment, we can advance that the early registration
+fee will be approximately 350 euros and the room rate at the 3 stars hotel
+will of 53.40 Euros per night in single room and full board (even cheaper
+rates can be obtained for double rooms). 
+
+
+
+
+
+
+From 139902 at mail.muni.cz  Fri Mar 23 16:51:14 2007
+From: 139902 at mail.muni.cz (Miroslava =?UTF-8?Q?Plach=C3=A1?=)
+Date: Fri, 23 Mar 2007 16:51:14 +0100
+Subject: [gecode-users] GecodeJ IntVar multiplication
+Message-ID: <1174665073-139902-274.997182490456-13358@mail.muni.cz>
+
+Hi,
+
+I'm looking for a method which in GecodeJ stands for the constrain e.c. 
+IntVar a,b,c;
+a*b == c
+
+but I have found just methods for IntVar*int = IntVar.
+Did I overlook any? 
+
+Thank you a lot
+Mirka Placha
+
+
+
+From tack at ps.uni-sb.de  Fri Mar 23 18:08:37 2007
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 23 Mar 2007 18:08:37 +0100 (CET)
+Subject: [gecode-users] GecodeJ IntVar multiplication
+In-Reply-To: <1174665073-139902-274.997182490456-13358@mail.muni.cz>
+References: <1174665073-139902-274.997182490456-13358@mail.muni.cz>
+Message-ID: <33303.91.21.74.196.1174669717.squirrel@www.ps.uni-sb.de>
+
+Miroslava Placha wrote:
+
+> I'm looking for a method which in GecodeJ stands for the constrain e.c.
+> IntVar a,b,c;
+> a*b == c
+
+You can use the mult constraint:
+
+http://www.gecode.org/gecodej/doc/group__TaskIntIntArith.html#ge166cb3d01f08730fd6376dfc832adeb
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+
+
+
+From petert at itu.dk  Tue Mar 27 18:32:06 2007
+From: petert at itu.dk (Peter Tiedemann)
+Date: Tue, 27 Mar 2007 18:32:06 +0200
+Subject: [gecode-users] Enumerating assignments removed by other propagators
+	since last propagate call
+Message-ID: <efac0bb40703270932j4ef09d85v98af53a61fd5492b@mail.gmail.com>
+
+Hi,
+
+Im trying to write an N-ary propagator that when propagating needs to
+do some work for each assignment xi = a that was previously allowed
+but which have now been pruned by another propagator.
+
+As far as i can tell, Gecode doesnt maintain this information for me,
+so a simple and reasonably efficient way to find this seems to
+maintain a clone of the domain as it where in the previous call to
+propagate,  then for each variable xi check if the domain size has
+changed, and if so iterate through the old domain of xi, checking each
+value for membership in the new domain for xi.
+
+I have a added a ViewArray<IntView xOld to my propagator to be the
+copy of the previous domains.
+
+It would seem that all i have to do is to clone x in the beginning of
+the very first propagate call, in the end of every propagate call and
+remember to clone xOld when asked to clone the propagator. Is that
+correct?
+
+If this is the right way to handle this, what is the correct way to
+clone the ViewArray x/xOld? Should i use "xOld.update(home,false,x);",
+"xOld = ViewArray<IntView>(home,x);" or something else entirely?
+
+So far my attempts have caused some strange behavior, so im guessing
+that i have misunderstood something :)
+
+I could of course just implement my own lists of previously allowed
+assignments, but i would like to understand what im doing wrong.
+
+Regards,
+Peter Tiedemann
+
+
+
+From cschulte at kth.se  Tue Mar 27 19:40:29 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 27 Mar 2007 19:40:29 +0200
+Subject: [gecode-users] Enumerating assignments removed by other
+	propagatorssince last propagate call
+In-Reply-To: <efac0bb40703270932j4ef09d85v98af53a61fd5492b@mail.gmail.com>
+Message-ID: <000301c77097$035938e0$0401a8c0@tiny>
+
+Hi,
+
+Aaargh! Cloning appears to be tempting, indeed! You can not use cloning via
+update or something like that: these routines only work during copying as
+initiated by the copy function of a space where variables, propagators, etc
+live in.
+
+Currently, you will have to maintain your own copy. In Gecode 2.0, support
+for being informed about removed values will be in place.
+
+BTW: Gecode 2.0 goes steady and nicely, with already a substantial number of
+improvements and new functionality. However, we will only finish after CP as
+paper writing has preference for all of us.
+
+Cheers
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Peter Tiedemann
+Sent: Tuesday, March 27, 2007 6:32 PM
+To: users at gecode.org
+Subject: [gecode-users] Enumerating assignments removed by other
+propagatorssince last propagate call
+
+
+Hi,
+
+Im trying to write an N-ary propagator that when propagating needs to do
+some work for each assignment xi = a that was previously allowed but which
+have now been pruned by another propagator.
+
+As far as i can tell, Gecode doesnt maintain this information for me, so a
+simple and reasonably efficient way to find this seems to maintain a clone
+of the domain as it where in the previous call to propagate,  then for each
+variable xi check if the domain size has changed, and if so iterate through
+the old domain of xi, checking each value for membership in the new domain
+for xi.
+
+I have a added a ViewArray<IntView xOld to my propagator to be the copy of
+the previous domains.
+
+It would seem that all i have to do is to clone x in the beginning of the
+very first propagate call, in the end of every propagate call and remember
+to clone xOld when asked to clone the propagator. Is that correct?
+
+If this is the right way to handle this, what is the correct way to clone
+the ViewArray x/xOld? Should i use "xOld.update(home,false,x);", "xOld =
+ViewArray<IntView>(home,x);" or something else entirely?
+
+So far my attempts have caused some strange behavior, so im guessing that i
+have misunderstood something :)
+
+I could of course just implement my own lists of previously allowed
+assignments, but i would like to understand what im doing wrong.
+
+Regards,
+Peter Tiedemann
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From petert at itu.dk  Wed Mar 28 22:25:22 2007
+From: petert at itu.dk (Peter Tiedemann)
+Date: Wed, 28 Mar 2007 22:25:22 +0200
+Subject: [gecode-users] Enumerating assignments removed by other
+	propagatorssince last propagate call
+In-Reply-To: <000301c77097$035938e0$0401a8c0@tiny>
+References: <efac0bb40703270932j4ef09d85v98af53a61fd5492b@mail.gmail.com>
+	<000301c77097$035938e0$0401a8c0@tiny>
+Message-ID: <efac0bb40703281325n346c11a4k32e444b05b16e64f@mail.gmail.com>
+
+> Aaargh!
+
+:)
+
+> Currently, you will have to maintain your own copy. In Gecode 2.0, support
+> for being informed about removed values will be in place.
+
+No problem, i just felt it was 'ugly' to re-implement domains if i
+could use what was already there. Thank you for clarifying it for me.
+
+> BTW: Gecode 2.0 goes steady and nicely, with already a substantial number of
+> improvements and new functionality. However, we will only finish after CP as
+> paper writing has preference for all of us.
+
+Looking forward to it, but pardon me if i dont sit back and wait for
+it, as you might have guessed im also targeting CP ;)
+
+Regards,
+Peter Tiedemann
+
+
+
+From jmonette at info.ucl.ac.be  Thu Mar 29 17:25:24 2007
+From: jmonette at info.ucl.ac.be (=?ISO-8859-1?Q?Jean-No=EBl_Monette?=)
+Date: Thu, 29 Mar 2007 17:25:24 +0200
+Subject: [gecode-users] size of the search tree
+Message-ID: <460BDA64.6090203@info.ucl.ac.be>
+
+Hello,
+
+Using Gecode, I would like to know what is the size of the search tree 
+but this information is not given. If recomputation is disabled, I think 
+that it can be computed as the sum of the number of clone, the number of 
+fails and the number of solution found. However, when recomputation is 
+activated, there is not a clone for each node of the search tree and I 
+don't see how to recover the size of the tree.
+
+Have you any solution?
+
+Thanks a lot for your help,
+
+Jean-No?l Monette
+
+
+
+From cschulte at kth.se  Fri Mar 30 12:11:44 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 30 Mar 2007 12:11:44 +0200
+Subject: [gecode-users] size of the search tree
+In-Reply-To: <460BDA64.6090203@info.ucl.ac.be>
+Message-ID: <000401c772b3$d1e7a480$acd4ed82@beule>
+
+Hi,
+
+why would you like to know the size of the tree? Implicitly (assuming that
+all branchings are binary, which they are), the size of the tree is almost
+known: the number of leaves (failures plus solutions). The only part missing
+are the open nodes. 
+
+Is it really important? It is somewhat easy to add (the only additional
+information needed is the height of the tree) but for example for comparing
+models, the number of failures is sufficient.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Jean-No?l Monette
+Sent: Thursday, March 29, 2007 5:25 PM
+To: users at gecode.org
+Subject: [gecode-users] size of the search tree
+
+
+Hello,
+
+Using Gecode, I would like to know what is the size of the search tree 
+but this information is not given. If recomputation is disabled, I think 
+that it can be computed as the sum of the number of clone, the number of 
+fails and the number of solution found. However, when recomputation is 
+activated, there is not a clone for each node of the search tree and I 
+don't see how to recover the size of the tree.
+
+Have you any solution?
+
+Thanks a lot for your help,
+
+Jean-No?l Monette
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+

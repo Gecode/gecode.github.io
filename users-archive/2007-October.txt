@@ -1,0 +1,2721 @@
+From cschulte at kth.se  Mon Oct  1 10:03:14 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 1 Oct 2007 10:03:14 +0200
+Subject: [gecode-users] Meaning of exception
+In-Reply-To: <46FF6541.8090104@rsise.anu.edu.au>
+Message-ID: <000501c80401$86469470$acd4ed82@beule>
+
+You should actually never get that unless you are using your own search
+engine.
+
+Maybe you could provide us with some information on what you are doing.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Debdeep Banerjee
+Sent: Sunday, September 30, 2007 10:59 AM
+To: users at gecode.org
+Subject: [gecode-users] Meaning of exception
+
+
+hi,
+ I am getting the following exception
+
+terminate called after throwing an instance of 'Gecode::SpaceFailed'
+  what():  Space::clone: Attempt to invoke operation on failed space Aborted
+
+
+What is the meaning of this error? Where it could occur ?  ( for example 
+in search, or propagators or in Branching ? )
+
+With regards
+Debdeep
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Mon Oct  1 10:05:13 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 1 Oct 2007 10:05:13 +0200
+Subject: [gecode-users] How to Order different propagator
+In-Reply-To: <46FCDD24.8070607@rsise.anu.edu.au>
+Message-ID: <000901c80401$cb8c3120$acd4ed82@beule>
+
+You can't. The only ordering you can suggest is by using the cost meber
+function of a propagator and even there you do not have a guarantee on
+order.
+
+Again, why?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Debdeep Banerjee
+Sent: Friday, September 28, 2007 12:53 PM
+To: users at gecode.org
+Subject: [gecode-users] How to Order different propagator
+
+
+hi,
+  I have three different propagator ( all are implemented by me, not the 
+standard ones ) and I want to call them in a certain order. How can I 
+achieve the ordering ?
+
+With regards
+Debdeep
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From pekczynski at ps.uni-sb.de  Tue Oct  2 07:46:29 2007
+From: pekczynski at ps.uni-sb.de (Patrick Pekczynski)
+Date: Tue, 02 Oct 2007 07:46:29 +0200
+Subject: [gecode-users] Meaning of exception
+In-Reply-To: <46FF6541.8090104@rsise.anu.edu.au>
+References: <46FF6541.8090104@rsise.anu.edu.au>
+Message-ID: <4701DB35.8040507@ps.uni-sb.de>
+
+Hi Debdeep:
+
+I guess the others will already know that, but at least for the second 
+part of your problem
+>   what():  Space::clone: Attempt to invoke operation on failed space
+> Aborted
+>
+>   
+I probably have a small hint to point you at.
+
+During propagator development for Gecode I sometimes ran into exactly 
+the very same exception.
+And the problem for me was always the following:
+
+The propagator I 've been implementing did some reasoning on the domains 
+of problem variables, that is
+it modified them. But at some point (at the initial development phase) 
+the reasoning was simply wrong, so
+the semantics of the constraint were not fulfilled and these 
+modifications resulted in a failed space, which
+could not lead to a solution anymore.
+
+Now HERE comes the tricky  part :-)
+
+Somehow, my propagator implementation forgot to check for exactly this 
+failed space and tried to
+go on with computation on the failed space,  what you definitely want to 
+avoid.
+
+Since I do not know exactly what you are doing I can just guess that you 
+are writing your own propagator
+for some nice constraint. So all you have to do is to ensure, that at 
+any point, where you are modifying the
+domains of the problem variables, your propagator does check, whether 
+this modification resulted in a failure or not.
+
+If you are aware of all these points, then I can promise you, that you 
+won't get such an exception again. :-D
+
+
+
+From stanio at cs.tu-berlin.de  Mon Oct 15 21:53:08 2007
+From: stanio at cs.tu-berlin.de (Stanimir Dragiev)
+Date: Mon, 15 Oct 2007 21:53:08 +0200
+Subject: [gecode-users] usage of abs() constraint
+Message-ID: <20071015195307.GA11327@bruja.cs.tu-berlin.de>
+
+Hello to all on the list!
+
+I was pretty frustrated, that I couldn't get following to work:
+---- code ---
+//init var_a, var_b
+IntVar abs_diff(space, 0, MAX_DIFF);
+IntVar signed_diff = post(space, var_a -  var_b);
+abs( space, signed_diff, abs_diff);
+---- end ---
+
+But I found an example  in the gecode example models using abs, and I turned
+it into:
+
+---- code ---
+//init var_a, var_b
+IntVar abs_diff(space, 0, MAX_DIFF);
+abs_diff =  post(space,
+		abs(space,
+			minus(space, var_a, var_b, 
+			ICL_DOM), 
+		ICL_DOM), 
+	ICL_DOM);
+---- end ---
+
+
+The latter one does what I expect, while the first leaves abs_diff with it's
+original bounds: 0 to MAX_DIFF.
+
+Now I'm a little more frustrated than before, since I don't understand what is
+going on :o)
+
+Is it not expected, that both behave the same way?
+
+--
+cheers
+stanio
+
+
+
+
+From cschulte at kth.se  Mon Oct 15 22:10:41 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 15 Oct 2007 22:10:41 +0200
+Subject: [gecode-users] usage of abs() constraint
+In-Reply-To: <20071015195307.GA11327@bruja.cs.tu-berlin.de>
+Message-ID: <000101c80f67$75d6d200$acd4ed82@beule>
+
+Hi,
+
+did you trigger propagation? That is, did you invoke space->status() so that
+the constraints are propagated?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Stanimir Dragiev
+Sent: Monday, October 15, 2007 9:53 PM
+To: users at gecode.org
+Subject: [gecode-users] usage of abs() constraint
+
+
+Hello to all on the list!
+
+I was pretty frustrated, that I couldn't get following to work:
+---- code ---
+//init var_a, var_b
+IntVar abs_diff(space, 0, MAX_DIFF);
+IntVar signed_diff = post(space, var_a -  var_b);
+abs( space, signed_diff, abs_diff);
+---- end ---
+
+But I found an example  in the gecode example models using abs, and I turned
+it into:
+
+---- code ---
+//init var_a, var_b
+IntVar abs_diff(space, 0, MAX_DIFF);
+abs_diff =  post(space,
+		abs(space,
+			minus(space, var_a, var_b, 
+			ICL_DOM), 
+		ICL_DOM), 
+	ICL_DOM);
+---- end ---
+
+
+The latter one does what I expect, while the first leaves abs_diff with it's
+original bounds: 0 to MAX_DIFF.
+
+Now I'm a little more frustrated than before, since I don't understand what
+is going on :o)
+
+Is it not expected, that both behave the same way?
+
+--
+cheers
+stanio
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From stanio at cs.tu-berlin.de  Wed Oct 17 14:50:26 2007
+From: stanio at cs.tu-berlin.de (Stanimir Dragiev)
+Date: Wed, 17 Oct 2007 14:50:26 +0200
+Subject: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+In-Reply-To: <000101c80f67$75d6d200$acd4ed82@beule>
+References: <mailman.3.1192528803.4529.gecode-users@gecode.org>
+Message-ID: <20071017125026.GA20720@fiesta.cs.tu-berlin.de>
+
+Hello again!
+
+
+> > Is it not expected, that both behave the same way?
+> > 
+> did you trigger propagation? That is, did you invoke space->status() so that
+> the constraints are propagated?
+
+
+No I, don't triger propagation by myself. But I grepped the example directory
+for status:
+
+support.icc:    if (s->status() != SS_FAILED) {
+support.icc:    if (s->status() != SS_FAILED) {
+
+The Example's run method  does. Since I use the Example framework, I hope this
+is enough, right?
+
+Most of examples don't invoke status on spaces too. When should it be invoked?
+
+cheers
+stanio
+
+
+-- 
+ /----------------------------------
+/  S|t|a|n|i|m|i|r|    D|r|a|g|i|e|v
+|  a|k|a|            C|m|a|p|Y|o|p|c
+|  [ i c q ]       2 2 2 0 4 0 6 9 8
+|  [jabber]CmapYopc at users.jabber.org
+
+
+
+From cschulte at kth.se  Wed Oct 17 15:14:27 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 17 Oct 2007 15:14:27 +0200
+Subject: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+In-Reply-To: <20071017125026.GA20720@fiesta.cs.tu-berlin.de>
+Message-ID: <000201c810bf$a521c1b0$acd4ed82@beule>
+
+Hi,
+
+actually I am totally lost now: What do you really do? Is it that you solve
+a problem with search and there abs is not propagated? Or what?
+
+Maybe you send us the code that exhibits the problem.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Stanimir Dragiev
+Sent: Wednesday, October 17, 2007 2:50 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+
+
+Hello again!
+
+
+> > Is it not expected, that both behave the same way?
+> > 
+> did you trigger propagation? That is, did you invoke space->status() 
+> so that the constraints are propagated?
+
+
+No I, don't triger propagation by myself. But I grepped the example
+directory for status:
+
+support.icc:    if (s->status() != SS_FAILED) {
+support.icc:    if (s->status() != SS_FAILED) {
+
+The Example's run method  does. Since I use the Example framework, I hope
+this is enough, right?
+
+Most of examples don't invoke status on spaces too. When should it be
+invoked?
+
+cheers
+stanio
+
+
+-- 
+ /----------------------------------
+/  S|t|a|n|i|m|i|r|    D|r|a|g|i|e|v
+|  a|k|a|            C|m|a|p|Y|o|p|c
+|  [ i c q ]       2 2 2 0 4 0 6 9 8
+|  [jabber]CmapYopc at users.jabber.org
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From stanio at cs.tu-berlin.de  Thu Oct 18 18:52:02 2007
+From: stanio at cs.tu-berlin.de ('Stanimir Dragiev')
+Date: Thu, 18 Oct 2007 18:52:02 +0200
+Subject: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+In-Reply-To: <000201c810bf$a521c1b0$acd4ed82@beule>
+References: <20071017125026.GA20720@fiesta.cs.tu-berlin.de>
+	<000201c810bf$a521c1b0$acd4ed82@beule>
+Message-ID: <20071018165202.GA16524@condesa.cs.tu-berlin.de>
+
+Hello,
+
+* Christian Schulte <cschulte at kth.se> [2007-10-17 15:17]:
+> actually I am totally lost now: What do you really do? Is it that you solve
+> a problem with search and there abs is not propagated? Or what?
+
+I am sorry for not explaining clear enough. I thought there is a
+general mistake in the code you will find at first glance.
+
+I am extending the Example class and invoking some static functions
+from within the constructor, after initialisation and before
+branching. They realize "complex" constraints by invoking
+gecode-built-in constraints.
+The pieces of code I posted couple of days ago were outline of what is
+done in one such function invoked by the constrain() method of my
+space. I experienced the abs(Space*, IntVar a, IntVar b) to leave
+b unconstrained ... while the other way round: post(abs(....)) worked
+well.
+
+So, today I tested a minimal example with both pieces of code and
+they resulted again in _not_ identical output. Please find the example
+below.
+
+Again, sorry for bothering you.  My code seems to work now anyway
+(with the second way of using abs()), but I am still curious to
+understand the reason.
+
+> 
+> Maybe you send us the code that exhibits the problem.
+
+Well, here the code, which shows the both ways of using abs() behave
+in different way (according to me). I apparently miss something
+important.
+
+--------- code -------------------------------------------- 
+
+
+// Last edited: <2007-10-18 Thu 18:40:03 stanio_> 
+#include "support.hh"
+#include "gecode/minimodel.hh"
+
+/**
+ * Problem:  Find _all_ pairs (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * 
+ */
+class Test_common : public Example{
+protected:
+	IntVarArray vars;
+	int n;
+public:	
+	Test_common(const Options& opt) : 
+		vars(this,2, 0, opt.size),
+		n(opt.size)
+	{
+		linear(this, vars, IRT_EQ, n);
+		branch(this, vars, BVAR_SIZE_MIN, BVAL_MIN);
+	}
+	Test_common(bool share, Test_common& test) : Example(share, test){
+		vars.update(this, share, test.vars);
+	}
+	virtual Space*
+	copy(bool share){
+		return new Test_common(share, *this);
+	}
+	virtual void
+	print(void){
+		std::cout << "Solution: (a,b) = (" << vars[0] << ", " << vars[1] <<  ")" << std::endl;
+	}
+};
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -> min
+ */
+class Test_one : public Test_common{
+public:	
+	Test_one(const Options &o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_one * s = (Test_one *) space;
+		IntVar signed_diff_now = post(this, vars[0] -  vars[1], ICL_DOM);
+		IntVar abs_diff_now(this, 0, n);
+		abs(this, signed_diff_now, abs_diff_now, ICL_DOM);
+
+		IntVar signed_diff_best = post(s, s->vars[0] -  s->vars[1], ICL_DOM);
+		IntVar signed_diff_best_this; signed_diff_best_this.update( this, true, signed_diff_best);
+		IntVar abs_diff_best(this, 0, n);
+		abs(this, signed_diff_best_this, abs_diff_best, ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout << "constrain: signed best : " << signed_diff_best << 
+				" ; best (imported) : " << signed_diff_best_this << 
+				" ; best : " << abs_diff_best << 
+				" ; now : " << abs_diff_now <<  std::endl;
+	}
+};
+
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -> min
+ */
+class Test_two : public Test_common{
+public:
+	Test_two(const Options &o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_two * s = (Test_two *) space;
+		IntVar abs_diff_best =  post(this,
+				abs(this,
+					minus(s, s->vars[0], s->vars[1],
+						ICL_DOM), ICL_DOM), ICL_DOM);
+		IntVar abs_diff_now =  post(this,
+				abs(this,
+					minus(this, vars[0], vars[1],
+						ICL_DOM), ICL_DOM), ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout << "constrain: best : " << abs_diff_best << " ; now : " << abs_diff_now <<  std::endl;
+	}
+};
+
+int main(int argc, char** argv) {
+
+	int size = 5;
+
+	Options opt("Test_common");
+	opt.solutions = 0;
+	opt.size      = size;
+	opt.parse(argc,argv);
+	Example::run<Test_common,DFS>(opt);
+
+	opt = Options("Test_one");
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run<Test_one,BAB>(opt);
+
+	opt = Options("Test_two");
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run<Test_two,BAB>(opt);
+	return 0;
+}
+
+
+----- end code -------------------------------------------- 
+
+And here what is this code resulting in.
+
+----- output ---------------------------------------------- 
+
+
+Test_common
+Solution: (a,b) = (0, 5)
+Solution: (a,b) = (1, 4)
+Solution: (a,b) = (2, 3)
+Solution: (a,b) = (3, 2)
+Solution: (a,b) = (4, 1)
+Solution: (a,b) = (5, 0)
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     6
+	propagations:  10
+	failures:      0
+	clones:        5
+	commits:       10
+	peak memory:   6 KB
+Test_one
+Solution: (a,b) = (0, 5)
+constrain: signed best : -5 ; best (imported) : -5 ; best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: signed best : -3 ; best (imported) : -3 ; best : 0 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     2
+	propagations:  11
+	failures:      1
+	clones:        4
+	commits:       4
+	peak memory:   6 KB
+Test_two
+Solution: (a,b) = (0, 5)
+constrain: best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: best : 3 ; now : [0..2]
+Solution: (a,b) = (2, 3)
+constrain: best : 1 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     3
+	propagations:  37
+	failures:      1
+	clones:        6
+	commits:       6
+	peak memory:   6 KB
+----- end output ------------------------------------------ 
+
+-- 
+ /----------------------------------
+/  S|t|a|n|i|m|i|r|    D|r|a|g|i|e|v
+|  a|k|a|            C|m|a|p|Y|o|p|c
+|  [ i c q ]       2 2 2 0 4 0 6 9 8
+|  [jabber]CmapYopc at users.jabber.org
+
+
+
+From george.rudolph at citadel.edu  Thu Oct 18 19:41:51 2007
+From: george.rudolph at citadel.edu (George Rudolph)
+Date: Thu, 18 Oct 2007 13:41:51 -0400
+Subject: [gecode-users] Help:How to compute Autocorrelation of a v-length
+	sequence
+Message-ID: <99CC4F739DCD4244957775EF32358A9D60CA17@EVS01.nation.citadel.edu>
+
+As stated in the comments below, I need help figuring out 
+how to express constraints on the autocorrelation of a v-length sequence.
+I am sure there is an easier way to rotate a list,
+ compare two lists for positional matches, count the member of matches,
+and constrain the number of matches to be a particular value,
+and I need help finding it.
+
+
+------------- begin code --------------
+package citadel;
+
+import static org.gecode.Gecode.*;
+import static org.gecode.GecodeEnumConstants.*;
+
+import org.gecode.*;
+
+/**
+ * Script for computing 2-class association schemes, modified from the Queens
+ * example. The goal of this script is to generate (v-1)-length sequences with
+ * the following properties: 
+ * 1. v is prime and v=4t+1, t >=0. 
+ * 2. each sequence has n1 occurrences of lambda1 and n2 occurrences of lambda2. 
+ * 3. the sequence is a palindrome: element 0 and element v-2 have the sane value, element 1 and
+ * element v-3 have the same value, element 2 and element 4-4 have the same
+ * value, etc.
+ * 4. The autocorrelation sequence generated by this sequence is flat. That is, 
+ * if you prepend a 0 to the sequence, and then take the cross-correlation C of 
+ * the extended sequence with rotated copies of itself for all shift values y=1...(v-1),
+ * then c[i] = 2t-1.
+ * Since 0 matched with non-zero value is a mismatch, it should be possible
+ * take the cross-correlation without prepending the 0.
+ * 
+ * @author George Rudolph
+ * @version 1.0 Sep 20, 2007
+ */
+public class AssociationScheme extends Space {
+	/**
+	 * v is the size or length of the sequence,
+	 * must be prime.
+	 */
+	public int v;
+	
+	/**
+	 * v = 4t + 1, so t = (v-1)/4, t > 0
+	 */
+	public int t;
+	
+	/**
+	 * the number of 1st associates of any element x.
+	 */
+	public int n1;
+	
+	/**
+	 * The number of 2nd associates of any element x.
+	 */
+	public int n2;
+	
+	/**
+	 * 
+	 */
+	public int lambda1;
+	public int lambda2;
+	public VarArray<IntVar> schemeCount;
+	
+	/**
+	 * @param opt
+	 *            Convenience object containing options
+	 * @see citadel.Options#toString()
+	 */
+	public AssociationScheme(Options opt) {
+		super();
+		v = opt.size;
+		t = (v - 1) / 4;
+		n1 = (v - 1) / 2;
+		n2 = (v - 1) / 2;
+		lambda1 = 1;
+		lambda2 = 2;
+		schemeCount = new VarArray<IntVar>(this, v - 1, IntVar.class, 1, 2);
+
+		// in the difference vector, constrain it so that
+		// the value of position i is the same as the value at position v-i
+		// for a (v-1)-length array starting at (conceptual) index 1
+		// TODO: simplify the indexing in this constraint
+		for (int i = 1; i <= v - 1; i++) {
+			rel(this, schemeCount.get(i - 1), IRT_EQ, schemeCount
+					.get(v - 1 - i), opt.icl);
+		}
+
+		// "exactly n1 elements have the value lambda1 in schemeCount"
+		// "exactly n2 elements have the value lambda2 in schemeCount"
+		count(this, schemeCount, lambda1, IRT_EQ, n1, opt.icl);
+		count(this, schemeCount, lambda2, IRT_EQ, n2, opt.icl);
+		
+		/********************** begin autocorrelation code ***************************/
+		/**                     what am I doing wrong below?                              **/
+		/* each element of the autocorrelation sequence for schemeCount
+		// must equal 2t-1 = ((v-1)/2) - 1
+		// autocorrelation is the cross-correlation of a sequence with a rotated copy
+		// of itself.
+		// An autocorrelation sequence is the sequence generated by taking the 
+		// cross-correlation for each rotation--the ith position in the autocorrelation 
+		// sequence is obtained by taking the cross-correlation of schemeCount with a
+		// copy of schemeCount rotated right i places (mod v).
+		// But I don't need a second copy of the sequence, I can just manipulate 
+		// the indices. This is what I am trying to do below, but I am  not getting 
+		 * the results I expect. Invalid solutions are being accepted.
+		 * 
+		 * The algorithm is to match schemeCount against a shifted copy of itself using 
+		 * the offset y, count the matches as 1, and the mismatches as 0,
+		 * stored in the sequence Intersect0Y, then sum up all 
+		 *  the 1's in Intersect0Y, and finally,  constrain that the sum must be 2t-1
+		 *  for *each* shift 1...v-1.
+		 * It works for v=5, but is broken for v=13.
+		 * I suspect it only works for  v-5 because of the small space.
+		 * 
+		 * If there is an easier way to write this constraint,
+		 * I'm open to suggestions.
+		 * 
+		 *  212211112212 is a valid solution for v=13.
+		 *  
+		 *  Note, really the sequence is 0212211112212,  
+		 *  so rotated 5 places it looks like 1221202122111,
+		 *  but since 0 matched with anything is 10, in this case,
+		 *  I'm trying to avoid prepending the 0 to schemeCount,
+		 *  which doesn't include it above.
+		 * 
+		 */
+		for (int y = 1; y < v; y++) {
+			VarArray<BoolVar> intersectY0 = new VarArray<BoolVar>(this, v - 1,
+					BoolVar.class);
+			for (int x = 1; x < v; x++) {
+				if (x == y) {
+					continue;
+				}
+				int z = ((x - y + v) % v)-1;
+				eq(this, schemeCount.get(y-1), schemeCount.get(z), intersectY0
+						.get(x-1), opt.icl);
+			} // end for x
+
+			VarArray<IntVar> pijk = new VarArray<IntVar>(intersectY0);
+			// exactly 2t-1 elements have the value 1 in pijk
+			count(this, pijk, 1, IRT_EQ, 2 * t - 1, opt.icl);
+		} // end for y
+		
+		/*********************** end autocorrelation code **************************/
+		branch(this, schemeCount, BVAR_SIZE_MIN, BVAL_MIN);
+	}
+
+	/**
+	 * Copy constructor.
+	 * 
+	 * @param share
+	 * @param scheme
+	 */
+	public AssociationScheme(Boolean share, AssociationScheme scheme) {
+		super(share, scheme);
+		v = scheme.v;
+		t= (v-1)/4;
+		n1 = (v - 1) / 2;
+		n2 = (v - 1) / 2;
+		lambda1 = 1;
+		lambda2 = 2;
+		schemeCount = new VarArray<IntVar>(this, share, scheme.schemeCount);
+	}
+
+	/**
+	 * 
+	 * @see org.gecode.Space#toString()
+	 */
+	public String toString() {
+
+		return schemeCount.toString();
+	}
+
+	/**
+	 * Application startup
+	 * 
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		Options opt = new Options();
+		opt.size = 5;
+		opt.gui = true;
+		opt.parse(args);
+		opt.name = "" + opt.size + "-Schemes";
+
+		AssociationScheme schemes = new AssociationScheme(opt);
+		opt.doSearch(schemes);
+	}
+}
+--------------------- end code -------------------
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20071018/c0c34fb9/attachment.htm>
+
+From cschulte at kth.se  Fri Oct 19 13:09:47 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 19 Oct 2007 13:09:47 +0200
+Subject: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+In-Reply-To: <20071018165202.GA16524@condesa.cs.tu-berlin.de>
+Message-ID: <000801c81240$8f8f01a0$acd4ed82@beule>
+
+Hi,
+
+Maybe that could be it: You forgot to copy the value n in the constructor
+
+	Test_common(bool share, Test_common& test) : Example(share, test){
+		vars.update(this, share, test.vars);
+	}
+
+There must be also n(test.n) after the call to Example.
+
+If in trouble use a debugger or print statements...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: 'Stanimir Dragiev' [mailto:stanio at cs.tu-berlin.de] 
+Sent: Thursday, October 18, 2007 6:52 PM
+To: Christian Schulte
+Cc: users at gecode.org
+Subject: Re: [gecode-users] gecode-users Digest, Vol 25, Issue 3
+
+
+Hello,
+
+* Christian Schulte <cschulte at kth.se> [2007-10-17 15:17]:
+> actually I am totally lost now: What do you really do? Is it that you 
+> solve a problem with search and there abs is not propagated? Or what?
+
+I am sorry for not explaining clear enough. I thought there is a general
+mistake in the code you will find at first glance.
+
+I am extending the Example class and invoking some static functions from
+within the constructor, after initialisation and before branching. They
+realize "complex" constraints by invoking gecode-built-in constraints. The
+pieces of code I posted couple of days ago were outline of what is done in
+one such function invoked by the constrain() method of my space. I
+experienced the abs(Space*, IntVar a, IntVar b) to leave b unconstrained ...
+while the other way round: post(abs(....)) worked well.
+
+So, today I tested a minimal example with both pieces of code and they
+resulted again in _not_ identical output. Please find the example below.
+
+Again, sorry for bothering you.  My code seems to work now anyway (with the
+second way of using abs()), but I am still curious to understand the reason.
+
+> 
+> Maybe you send us the code that exhibits the problem.
+
+Well, here the code, which shows the both ways of using abs() behave in
+different way (according to me). I apparently miss something important.
+
+--------- code -------------------------------------------- 
+
+
+// Last edited: <2007-10-18 Thu 18:40:03 stanio_> 
+#include "support.hh"
+#include "gecode/minimodel.hh"
+
+/**
+ * Problem:  Find _all_ pairs (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * 
+ */
+class Test_common : public Example{
+protected:
+	IntVarArray vars;
+	int n;
+public:	
+	Test_common(const Options& opt) : 
+		vars(this,2, 0, opt.size),
+		n(opt.size)
+	{
+		linear(this, vars, IRT_EQ, n);
+		branch(this, vars, BVAR_SIZE_MIN, BVAL_MIN);
+	}
+	Test_common(bool share, Test_common& test) : Example(share, test){
+		vars.update(this, share, test.vars);
+	}
+	virtual Space*
+	copy(bool share){
+		return new Test_common(share, *this);
+	}
+	virtual void
+	print(void){
+		std::cout << "Solution: (a,b) = (" << vars[0] << ", " <<
+vars[1] <<  ")" << std::endl;
+	}
+};
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -> min
+ */
+class Test_one : public Test_common{
+public:	
+	Test_one(const Options &o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_one * s = (Test_one *) space;
+		IntVar signed_diff_now = post(this, vars[0] -  vars[1],
+ICL_DOM);
+		IntVar abs_diff_now(this, 0, n);
+		abs(this, signed_diff_now, abs_diff_now, ICL_DOM);
+
+		IntVar signed_diff_best = post(s, s->vars[0] -  s->vars[1],
+ICL_DOM);
+		IntVar signed_diff_best_this; signed_diff_best_this.update(
+this, true, signed_diff_best);
+		IntVar abs_diff_best(this, 0, n);
+		abs(this, signed_diff_best_this, abs_diff_best, ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout << "constrain: signed best : " << signed_diff_best
+<< 
+				" ; best (imported) : " <<
+signed_diff_best_this << 
+				" ; best : " << abs_diff_best << 
+				" ; now : " << abs_diff_now <<  std::endl;
+	}
+};
+
+/**
+ * Problem:  Find _best_ pair (a, b) ,  
+ * a,b \in 0..n
+ * a + b = n
+ * |a - b| -> min
+ */
+class Test_two : public Test_common{
+public:
+	Test_two(const Options &o):Test_common(o){}
+	void
+	constrain(Space * space){
+		Test_two * s = (Test_two *) space;
+		IntVar abs_diff_best =  post(this,
+				abs(this,
+					minus(s, s->vars[0], s->vars[1],
+						ICL_DOM), ICL_DOM),
+ICL_DOM);
+		IntVar abs_diff_now =  post(this,
+				abs(this,
+					minus(this, vars[0], vars[1],
+						ICL_DOM), ICL_DOM),
+ICL_DOM);
+
+		rel(this, abs_diff_best, IRT_GR, abs_diff_now );
+		std::cout << "constrain: best : " << abs_diff_best << " ;
+now : " << abs_diff_now <<  std::endl;
+	}
+};
+
+int main(int argc, char** argv) {
+
+	int size = 5;
+
+	Options opt("Test_common");
+	opt.solutions = 0;
+	opt.size      = size;
+	opt.parse(argc,argv);
+	Example::run<Test_common,DFS>(opt);
+
+	opt = Options("Test_one");
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run<Test_one,BAB>(opt);
+
+	opt = Options("Test_two");
+	opt.solutions = 0;
+	opt.size       = size;
+	opt.parse(argc,argv);
+	Example::run<Test_two,BAB>(opt);
+	return 0;
+}
+
+
+----- end code -------------------------------------------- 
+
+And here what is this code resulting in.
+
+----- output ---------------------------------------------- 
+
+
+Test_common
+Solution: (a,b) = (0, 5)
+Solution: (a,b) = (1, 4)
+Solution: (a,b) = (2, 3)
+Solution: (a,b) = (3, 2)
+Solution: (a,b) = (4, 1)
+Solution: (a,b) = (5, 0)
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     6
+	propagations:  10
+	failures:      0
+	clones:        5
+	commits:       10
+	peak memory:   6 KB
+Test_one
+Solution: (a,b) = (0, 5)
+constrain: signed best : -5 ; best (imported) : -5 ; best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: signed best : -3 ; best (imported) : -3 ; best : 0 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     2
+	propagations:  11
+	failures:      1
+	clones:        4
+	commits:       4
+	peak memory:   6 KB
+Test_two
+Solution: (a,b) = (0, 5)
+constrain: best : 5 ; now : [0..4]
+Solution: (a,b) = (1, 4)
+constrain: best : 3 ; now : [0..2]
+Solution: (a,b) = (2, 3)
+constrain: best : 1 ; now : 0
+
+Initial
+	propagators:   1
+	branchings:    1
+
+Summary
+	runtime:       0
+	solutions:     3
+	propagations:  37
+	failures:      1
+	clones:        6
+	commits:       6
+	peak memory:   6 KB
+----- end output ------------------------------------------ 
+
+-- 
+ /----------------------------------
+/  S|t|a|n|i|m|i|r|    D|r|a|g|i|e|v
+|  a|k|a|            C|m|a|p|Y|o|p|c
+|  [ i c q ]       2 2 2 0 4 0 6 9 8
+|  [jabber]CmapYopc at users.jabber.org
+
+
+
+
+From cschulte at kth.se  Fri Oct 19 13:11:46 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 19 Oct 2007 13:11:46 +0200
+Subject: [gecode-users] Help:How to compute Autocorrelation of a
+	v-lengthsequence
+In-Reply-To: <99CC4F739DCD4244957775EF32358A9D60CA17@EVS01.nation.citadel.edu>
+Message-ID: <000901c81240$d6591b70$acd4ed82@beule>
+
+Hi,
+
+what is the Gecode-specific question here?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of George Rudolph
+Sent: Thursday, October 18, 2007 7:42 PM
+To: users at gecode.org
+Subject: [gecode-users] Help:How to compute Autocorrelation of a
+v-lengthsequence
+
+
+As stated in the comments below, I need help figuring out
+how to express constraints on the autocorrelation of a v-length sequence.
+I am sure there is an easier way to rotate a list,
+ compare two lists for positional matches, count the member of matches,
+and constrain the number of matches to be a particular value,
+and I need help finding it.
+
+
+------------- begin code --------------
+package citadel;
+
+import static org.gecode.Gecode.*;
+import static org.gecode.GecodeEnumConstants.*;
+
+import org.gecode.*;
+
+/**
+ * Script for computing 2-class association schemes, modified from the
+Queens
+ * example. The goal of this script is to generate (v-1)-length sequences
+with
+ * the following properties:
+ * 1. v is prime and v=4t+1, t >=0.
+ * 2. each sequence has n1 occurrences of lambda1 and n2 occurrences of
+lambda2.
+ * 3. the sequence is a palindrome: element 0 and element v-2 have the sane
+value, element 1 and
+ * element v-3 have the same value, element 2 and element 4-4 have the same
+ * value, etc.
+ * 4. The autocorrelation sequence generated by this sequence is flat. That
+is,
+ * if you prepend a 0 to the sequence, and then take the cross-correlation C
+of
+ * the extended sequence with rotated copies of itself for all shift values
+y=1...(v-1),
+ * then c[i] = 2t-1.
+ * Since 0 matched with non-zero value is a mismatch, it should be possible
+ * take the cross-correlation without prepending the 0.
+ *
+ * @author George Rudolph
+ * @version 1.0 Sep 20, 2007
+ */
+public class AssociationScheme extends Space {
+        /**
+         * v is the size or length of the sequence,
+         * must be prime.
+         */
+        public int v;
+       
+        /**
+         * v = 4t + 1, so t = (v-1)/4, t > 0
+         */
+        public int t;
+       
+        /**
+         * the number of 1st associates of any element x.
+         */
+        public int n1;
+       
+        /**
+         * The number of 2nd associates of any element x.
+         */
+        public int n2;
+       
+        /**
+         *
+         */
+        public int lambda1;
+        public int lambda2;
+        public VarArray<IntVar> schemeCount;
+       
+        /**
+         * @param opt
+         *            Convenience object containing options
+         * @see citadel.Options#toString()
+         */
+        public AssociationScheme(Options opt) {
+                super();
+                v = opt.size;
+                t = (v - 1) / 4;
+                n1 = (v - 1) / 2;
+                n2 = (v - 1) / 2;
+                lambda1 = 1;
+                lambda2 = 2;
+                schemeCount = new VarArray<IntVar>(this, v - 1,
+IntVar.class, 1, 2);
+
+                // in the difference vector, constrain it so that
+                // the value of position i is the same as the value at
+position v-i
+                // for a (v-1)-length array starting at (conceptual) index 1
+                // TODO: simplify the indexing in this constraint
+                for (int i = 1; i <= v - 1; i++) {
+                        rel(this, schemeCount.get(i - 1), IRT_EQ,
+schemeCount
+                                        .get(v - 1 - i), opt.icl);
+                }
+
+                // "exactly n1 elements have the value lambda1 in
+schemeCount"
+                // "exactly n2 elements have the value lambda2 in
+schemeCount"
+                count(this, schemeCount, lambda1, IRT_EQ, n1, opt.icl);
+                count(this, schemeCount, lambda2, IRT_EQ, n2, opt.icl);
+               
+                /********************** begin autocorrelation code
+***************************/
+                /**                     what am I doing wrong below?
+**/
+                /* each element of the autocorrelation sequence for
+schemeCount
+                // must equal 2t-1 = ((v-1)/2) - 1
+                // autocorrelation is the cross-correlation of a sequence
+with a rotated copy
+                // of itself.
+                // An autocorrelation sequence is the sequence generated by
+taking the
+                // cross-correlation for each rotation--the ith position in
+the autocorrelation
+                // sequence is obtained by taking the cross-correlation of
+schemeCount with a
+                // copy of schemeCount rotated right i places (mod v).
+                // But I don't need a second copy of the sequence, I can
+just manipulate
+                // the indices. This is what I am trying to do below, but I
+am  not getting
+                 * the results I expect. Invalid solutions are being
+accepted.
+                 *
+                 * The algorithm is to match schemeCount against a shifted
+copy of itself using
+                 * the offset y, count the matches as 1, and the mismatches
+as 0,
+                 * stored in the sequence Intersect0Y, then sum up all
+                 *  the 1's in Intersect0Y, and finally,  constrain that the
+sum must be 2t-1
+                 *  for *each* shift 1...v-1.
+                 * It works for v=5, but is broken for v=13.
+                 * I suspect it only works for  v-5 because of the small
+space.
+                 *
+                 * If there is an easier way to write this constraint,
+                 * I'm open to suggestions.
+                 *
+                 *  212211112212 is a valid solution for v=13.
+                 * 
+                 *  Note, really the sequence is 0212211112212, 
+                 *  so rotated 5 places it looks like 1221202122111,
+                 *  but since 0 matched with anything is 10, in this case,
+                 *  I'm trying to avoid prepending the 0 to schemeCount,
+                 *  which doesn't include it above.
+                 *
+                 */
+                for (int y = 1; y < v; y++) {
+                        VarArray<BoolVar> intersectY0 = new
+VarArray<BoolVar>(this, v - 1,
+                                        BoolVar.class);
+                        for (int x = 1; x < v; x++) {
+                                if (x == y) {
+                                        continue;
+                                }
+                                int z = ((x - y + v) % v)-1;
+                                eq(this, schemeCount.get(y-1),
+schemeCount.get(z), intersectY0
+                                                .get(x-1), opt.icl);
+                        } // end for x
+
+                        VarArray<IntVar> pijk = new
+VarArray<IntVar>(intersectY0);
+                        // exactly 2t-1 elements have the value 1 in pijk
+                        count(this, pijk, 1, IRT_EQ, 2 * t - 1, opt.icl);
+                } // end for y
+               
+                /*********************** end autocorrelation code
+**************************/
+                branch(this, schemeCount, BVAR_SIZE_MIN, BVAL_MIN);
+        }
+
+        /**
+         * Copy constructor.
+         *
+         * @param share
+         * @param scheme
+         */
+        public AssociationScheme(Boolean share, AssociationScheme scheme) {
+                super(share, scheme);
+                v = scheme.v;
+                t= (v-1)/4;
+                n1 = (v - 1) / 2;
+                n2 = (v - 1) / 2;
+                lambda1 = 1;
+                lambda2 = 2;
+                schemeCount = new VarArray<IntVar>(this, share,
+scheme.schemeCount);
+        }
+
+        /**
+         *
+         * @see org.gecode.Space#toString()
+         */
+        public String toString() {
+
+                return schemeCount.toString();
+        }
+
+        /**
+         * Application startup
+         *
+         * @param args
+         */
+        public static void main(String[] args) {
+                Options opt = new Options();
+                opt.size = 5;
+                opt.gui = true;
+                opt.parse(args);
+                opt.name = "" + opt.size + "-Schemes";
+
+                AssociationScheme schemes = new AssociationScheme(opt);
+                opt.doSearch(schemes);
+        }
+}
+--------------------- end code ------------------- 
+
+
+
+
+From george.rudolph at citadel.edu  Fri Oct 19 16:48:31 2007
+From: george.rudolph at citadel.edu (George Rudolph)
+Date: Fri, 19 Oct 2007 10:48:31 -0400
+Subject: [gecode-users] Help:How to compute Autocorrelation of a
+	v-length sequence
+In-Reply-To: <000901c81240$d6591b70$acd4ed82@beule>
+Message-ID: <99CC4F739DCD4244957775EF32358A9D0172F1C4@EVS01.nation.citadel.edu>
+
+The gecode-specific question is this:
+What have I done wrong?
+How do I specify periodic autocorrelation on a binary sequence 
+using Gecode/J?
+The code I have written does not match the constraints
+I think I am writing--when I run the program for v=13,
+for example, I am expecting exactly two solutions,
+but I get more than two. And the additional solutions don't match the
+constraints I am trying to specify.
+Yet, It is not obvious to me what I have done wrong.
+
+--------------------
+George Rudolph
+Assistant Professor
+Thompson Hall 225
+Math & Computer Science Dept.
+The Citadel
+171 Moultrie St.
+Charleston, SC 29409
+
+> -----Original Message-----
+> From: Christian Schulte [mailto:cschulte at kth.se]
+> Sent: Friday, October 19, 2007 7:12 AM
+> To: George Rudolph; users at gecode.org
+> Subject: RE: [gecode-users] Help:How to compute Autocorrelation of a
+v-
+> lengthsequence
+> 
+> Hi,
+> 
+> what is the Gecode-specific question here?
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+Behalf
+> Of George Rudolph
+> Sent: Thursday, October 18, 2007 7:42 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Help:How to compute Autocorrelation of a
+> v-lengthsequence
+> 
+> 
+> As stated in the comments below, I need help figuring out
+> how to express constraints on the autocorrelation of a v-length
+sequence.
+> I am sure there is an easier way to rotate a list,
+>  compare two lists for positional matches, count the member of
+matches,
+> and constrain the number of matches to be a particular value,
+> and I need help finding it.
+> 
+> 
+> ------------- begin code --------------
+> package citadel;
+> 
+> import static org.gecode.Gecode.*;
+> import static org.gecode.GecodeEnumConstants.*;
+> 
+> import org.gecode.*;
+> 
+> /**
+>  * Script for computing 2-class association schemes, modified from the
+> Queens
+>  * example. The goal of this script is to generate (v-1)-length
+sequences
+> with
+>  * the following properties:
+>  * 1. v is prime and v=4t+1, t >=0.
+>  * 2. each sequence has n1 occurrences of lambda1 and n2 occurrences
+of
+> lambda2.
+>  * 3. the sequence is a palindrome: element 0 and element v-2 have the
+> sane
+> value, element 1 and
+>  * element v-3 have the same value, element 2 and element 4-4 have the
+> same
+>  * value, etc.
+>  * 4. The autocorrelation sequence generated by this sequence is flat.
+> That
+> is,
+>  * if you prepend a 0 to the sequence, and then take the
+cross-correlation
+> C
+> of
+>  * the extended sequence with rotated copies of itself for all shift
+> values
+> y=1...(v-1),
+>  * then c[i] = 2t-1.
+>  * Since 0 matched with non-zero value is a mismatch, it should be
+> possible
+>  * take the cross-correlation without prepending the 0.
+>  *
+>  * @author George Rudolph
+>  * @version 1.0 Sep 20, 2007
+>  */
+> public class AssociationScheme extends Space {
+>         /**
+>          * v is the size or length of the sequence,
+>          * must be prime.
+>          */
+>         public int v;
+> 
+>         /**
+>          * v = 4t + 1, so t = (v-1)/4, t > 0
+>          */
+>         public int t;
+> 
+>         /**
+>          * the number of 1st associates of any element x.
+>          */
+>         public int n1;
+> 
+>         /**
+>          * The number of 2nd associates of any element x.
+>          */
+>         public int n2;
+> 
+>         /**
+>          *
+>          */
+>         public int lambda1;
+>         public int lambda2;
+>         public VarArray<IntVar> schemeCount;
+> 
+>         /**
+>          * @param opt
+>          *            Convenience object containing options
+>          * @see citadel.Options#toString()
+>          */
+>         public AssociationScheme(Options opt) {
+>                 super();
+>                 v = opt.size;
+>                 t = (v - 1) / 4;
+>                 n1 = (v - 1) / 2;
+>                 n2 = (v - 1) / 2;
+>                 lambda1 = 1;
+>                 lambda2 = 2;
+>                 schemeCount = new VarArray<IntVar>(this, v - 1,
+> IntVar.class, 1, 2);
+> 
+>                 // in the difference vector, constrain it so that
+>                 // the value of position i is the same as the value at
+> position v-i
+>                 // for a (v-1)-length array starting at (conceptual)
+index
+> 1
+>                 // TODO: simplify the indexing in this constraint
+>                 for (int i = 1; i <= v - 1; i++) {
+>                         rel(this, schemeCount.get(i - 1), IRT_EQ,
+> schemeCount
+>                                         .get(v - 1 - i), opt.icl);
+>                 }
+> 
+>                 // "exactly n1 elements have the value lambda1 in
+> schemeCount"
+>                 // "exactly n2 elements have the value lambda2 in
+> schemeCount"
+>                 count(this, schemeCount, lambda1, IRT_EQ, n1,
+opt.icl);
+>                 count(this, schemeCount, lambda2, IRT_EQ, n2,
+opt.icl);
+> 
+>                 /********************** begin autocorrelation code
+> ***************************/
+>                 /**                     what am I doing wrong below?
+> **/
+>                 /* each element of the autocorrelation sequence for
+> schemeCount
+>                 // must equal 2t-1 = ((v-1)/2) - 1
+>                 // autocorrelation is the cross-correlation of a
+sequence
+> with a rotated copy
+>                 // of itself.
+>                 // An autocorrelation sequence is the sequence
+generated
+> by
+> taking the
+>                 // cross-correlation for each rotation--the ith
+position
+> in
+> the autocorrelation
+>                 // sequence is obtained by taking the
+cross-correlation of
+> schemeCount with a
+>                 // copy of schemeCount rotated right i places (mod v).
+>                 // But I don't need a second copy of the sequence, I
+can
+> just manipulate
+>                 // the indices. This is what I am trying to do below,
+but
+> I
+> am  not getting
+>                  * the results I expect. Invalid solutions are being
+> accepted.
+>                  *
+>                  * The algorithm is to match schemeCount against a
+shifted
+> copy of itself using
+>                  * the offset y, count the matches as 1, and the
+> mismatches
+> as 0,
+>                  * stored in the sequence Intersect0Y, then sum up all
+>                  *  the 1's in Intersect0Y, and finally,  constrain
+that
+> the
+> sum must be 2t-1
+>                  *  for *each* shift 1...v-1.
+>                  * It works for v=5, but is broken for v=13.
+>                  * I suspect it only works for  v-5 because of the
+small
+> space.
+>                  *
+>                  * If there is an easier way to write this constraint,
+>                  * I'm open to suggestions.
+>                  *
+>                  *  212211112212 is a valid solution for v=13.
+>                  *
+>                  *  Note, really the sequence is 0212211112212,
+>                  *  so rotated 5 places it looks like 1221202122111,
+>                  *  but since 0 matched with anything is 10, in this
+case,
+>                  *  I'm trying to avoid prepending the 0 to
+schemeCount,
+>                  *  which doesn't include it above.
+>                  *
+>                  */
+>                 for (int y = 1; y < v; y++) {
+>                         VarArray<BoolVar> intersectY0 = new
+> VarArray<BoolVar>(this, v - 1,
+>                                         BoolVar.class);
+>                         for (int x = 1; x < v; x++) {
+>                                 if (x == y) {
+>                                         continue;
+>                                 }
+>                                 int z = ((x - y + v) % v)-1;
+>                                 eq(this, schemeCount.get(y-1),
+> schemeCount.get(z), intersectY0
+>                                                 .get(x-1), opt.icl);
+>                         } // end for x
+> 
+>                         VarArray<IntVar> pijk = new
+> VarArray<IntVar>(intersectY0);
+>                         // exactly 2t-1 elements have the value 1 in
+pijk
+>                         count(this, pijk, 1, IRT_EQ, 2 * t - 1,
+opt.icl);
+>                 } // end for y
+> 
+>                 /*********************** end autocorrelation code
+> **************************/
+>                 branch(this, schemeCount, BVAR_SIZE_MIN, BVAL_MIN);
+>         }
+> 
+>         /**
+>          * Copy constructor.
+>          *
+>          * @param share
+>          * @param scheme
+>          */
+>         public AssociationScheme(Boolean share, AssociationScheme
+scheme)
+> {
+>                 super(share, scheme);
+>                 v = scheme.v;
+>                 t= (v-1)/4;
+>                 n1 = (v - 1) / 2;
+>                 n2 = (v - 1) / 2;
+>                 lambda1 = 1;
+>                 lambda2 = 2;
+>                 schemeCount = new VarArray<IntVar>(this, share,
+> scheme.schemeCount);
+>         }
+> 
+>         /**
+>          *
+>          * @see org.gecode.Space#toString()
+>          */
+>         public String toString() {
+> 
+>                 return schemeCount.toString();
+>         }
+> 
+>         /**
+>          * Application startup
+>          *
+>          * @param args
+>          */
+>         public static void main(String[] args) {
+>                 Options opt = new Options();
+>                 opt.size = 5;
+>                 opt.gui = true;
+>                 opt.parse(args);
+>                 opt.name = "" + opt.size + "-Schemes";
+> 
+>                 AssociationScheme schemes = new
+AssociationScheme(opt);
+>                 opt.doSearch(schemes);
+>         }
+> }
+> --------------------- end code -------------------
+
+
+
+
+From cschulte at kth.se  Sat Oct 20 22:38:02 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Sat, 20 Oct 2007 22:38:02 +0200
+Subject: [gecode-users] Help:How to compute Autocorrelation of
+	a	v-length sequence
+In-Reply-To: <99CC4F739DCD4244957775EF32358A9D0172F1C4@EVS01.nation.citadel.edu>
+References: <000901c81240$d6591b70$acd4ed82@beule>
+	<99CC4F739DCD4244957775EF32358A9D0172F1C4@EVS01.nation.citadel.edu>
+Message-ID: <000001c81359$20214ed0$6063ec70$@se>
+
+Dear George,
+
+I am sorry but I have to refrain from answering: to me, this is a modeling
+issue and not a Gecode-specific issue. Sorry, but I think that we as Gecode
+developers have to stick to Gecode-specific issues (time is a limited
+resource).
+
+On the other hand, any takers from the community?
+
+Cheers
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of George Rudolph
+Sent: Friday, October 19, 2007 4:49 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: [gecode-users] Help:How to compute Autocorrelation of a
+v-length sequence
+
+The gecode-specific question is this:
+What have I done wrong?
+How do I specify periodic autocorrelation on a binary sequence 
+using Gecode/J?
+The code I have written does not match the constraints
+I think I am writing--when I run the program for v=13,
+for example, I am expecting exactly two solutions,
+but I get more than two. And the additional solutions don't match the
+constraints I am trying to specify.
+Yet, It is not obvious to me what I have done wrong.
+
+--------------------
+George Rudolph
+Assistant Professor
+Thompson Hall 225
+Math & Computer Science Dept.
+The Citadel
+171 Moultrie St.
+Charleston, SC 29409
+
+> -----Original Message-----
+> From: Christian Schulte [mailto:cschulte at kth.se]
+> Sent: Friday, October 19, 2007 7:12 AM
+> To: George Rudolph; users at gecode.org
+> Subject: RE: [gecode-users] Help:How to compute Autocorrelation of a
+v-
+> lengthsequence
+> 
+> Hi,
+> 
+> what is the Gecode-specific question here?
+> 
+> Christian
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+Behalf
+> Of George Rudolph
+> Sent: Thursday, October 18, 2007 7:42 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Help:How to compute Autocorrelation of a
+> v-lengthsequence
+> 
+> 
+> As stated in the comments below, I need help figuring out
+> how to express constraints on the autocorrelation of a v-length
+sequence.
+> I am sure there is an easier way to rotate a list,
+>  compare two lists for positional matches, count the member of
+matches,
+> and constrain the number of matches to be a particular value,
+> and I need help finding it.
+> 
+> 
+> ------------- begin code --------------
+> package citadel;
+> 
+> import static org.gecode.Gecode.*;
+> import static org.gecode.GecodeEnumConstants.*;
+> 
+> import org.gecode.*;
+> 
+> /**
+>  * Script for computing 2-class association schemes, modified from the
+> Queens
+>  * example. The goal of this script is to generate (v-1)-length
+sequences
+> with
+>  * the following properties:
+>  * 1. v is prime and v=4t+1, t >=0.
+>  * 2. each sequence has n1 occurrences of lambda1 and n2 occurrences
+of
+> lambda2.
+>  * 3. the sequence is a palindrome: element 0 and element v-2 have the
+> sane
+> value, element 1 and
+>  * element v-3 have the same value, element 2 and element 4-4 have the
+> same
+>  * value, etc.
+>  * 4. The autocorrelation sequence generated by this sequence is flat.
+> That
+> is,
+>  * if you prepend a 0 to the sequence, and then take the
+cross-correlation
+> C
+> of
+>  * the extended sequence with rotated copies of itself for all shift
+> values
+> y=1...(v-1),
+>  * then c[i] = 2t-1.
+>  * Since 0 matched with non-zero value is a mismatch, it should be
+> possible
+>  * take the cross-correlation without prepending the 0.
+>  *
+>  * @author George Rudolph
+>  * @version 1.0 Sep 20, 2007
+>  */
+> public class AssociationScheme extends Space {
+>         /**
+>          * v is the size or length of the sequence,
+>          * must be prime.
+>          */
+>         public int v;
+> 
+>         /**
+>          * v = 4t + 1, so t = (v-1)/4, t > 0
+>          */
+>         public int t;
+> 
+>         /**
+>          * the number of 1st associates of any element x.
+>          */
+>         public int n1;
+> 
+>         /**
+>          * The number of 2nd associates of any element x.
+>          */
+>         public int n2;
+> 
+>         /**
+>          *
+>          */
+>         public int lambda1;
+>         public int lambda2;
+>         public VarArray<IntVar> schemeCount;
+> 
+>         /**
+>          * @param opt
+>          *            Convenience object containing options
+>          * @see citadel.Options#toString()
+>          */
+>         public AssociationScheme(Options opt) {
+>                 super();
+>                 v = opt.size;
+>                 t = (v - 1) / 4;
+>                 n1 = (v - 1) / 2;
+>                 n2 = (v - 1) / 2;
+>                 lambda1 = 1;
+>                 lambda2 = 2;
+>                 schemeCount = new VarArray<IntVar>(this, v - 1,
+> IntVar.class, 1, 2);
+> 
+>                 // in the difference vector, constrain it so that
+>                 // the value of position i is the same as the value at
+> position v-i
+>                 // for a (v-1)-length array starting at (conceptual)
+index
+> 1
+>                 // TODO: simplify the indexing in this constraint
+>                 for (int i = 1; i <= v - 1; i++) {
+>                         rel(this, schemeCount.get(i - 1), IRT_EQ,
+> schemeCount
+>                                         .get(v - 1 - i), opt.icl);
+>                 }
+> 
+>                 // "exactly n1 elements have the value lambda1 in
+> schemeCount"
+>                 // "exactly n2 elements have the value lambda2 in
+> schemeCount"
+>                 count(this, schemeCount, lambda1, IRT_EQ, n1,
+opt.icl);
+>                 count(this, schemeCount, lambda2, IRT_EQ, n2,
+opt.icl);
+> 
+>                 /********************** begin autocorrelation code
+> ***************************/
+>                 /**                     what am I doing wrong below?
+> **/
+>                 /* each element of the autocorrelation sequence for
+> schemeCount
+>                 // must equal 2t-1 = ((v-1)/2) - 1
+>                 // autocorrelation is the cross-correlation of a
+sequence
+> with a rotated copy
+>                 // of itself.
+>                 // An autocorrelation sequence is the sequence
+generated
+> by
+> taking the
+>                 // cross-correlation for each rotation--the ith
+position
+> in
+> the autocorrelation
+>                 // sequence is obtained by taking the
+cross-correlation of
+> schemeCount with a
+>                 // copy of schemeCount rotated right i places (mod v).
+>                 // But I don't need a second copy of the sequence, I
+can
+> just manipulate
+>                 // the indices. This is what I am trying to do below,
+but
+> I
+> am  not getting
+>                  * the results I expect. Invalid solutions are being
+> accepted.
+>                  *
+>                  * The algorithm is to match schemeCount against a
+shifted
+> copy of itself using
+>                  * the offset y, count the matches as 1, and the
+> mismatches
+> as 0,
+>                  * stored in the sequence Intersect0Y, then sum up all
+>                  *  the 1's in Intersect0Y, and finally,  constrain
+that
+> the
+> sum must be 2t-1
+>                  *  for *each* shift 1...v-1.
+>                  * It works for v=5, but is broken for v=13.
+>                  * I suspect it only works for  v-5 because of the
+small
+> space.
+>                  *
+>                  * If there is an easier way to write this constraint,
+>                  * I'm open to suggestions.
+>                  *
+>                  *  212211112212 is a valid solution for v=13.
+>                  *
+>                  *  Note, really the sequence is 0212211112212,
+>                  *  so rotated 5 places it looks like 1221202122111,
+>                  *  but since 0 matched with anything is 10, in this
+case,
+>                  *  I'm trying to avoid prepending the 0 to
+schemeCount,
+>                  *  which doesn't include it above.
+>                  *
+>                  */
+>                 for (int y = 1; y < v; y++) {
+>                         VarArray<BoolVar> intersectY0 = new
+> VarArray<BoolVar>(this, v - 1,
+>                                         BoolVar.class);
+>                         for (int x = 1; x < v; x++) {
+>                                 if (x == y) {
+>                                         continue;
+>                                 }
+>                                 int z = ((x - y + v) % v)-1;
+>                                 eq(this, schemeCount.get(y-1),
+> schemeCount.get(z), intersectY0
+>                                                 .get(x-1), opt.icl);
+>                         } // end for x
+> 
+>                         VarArray<IntVar> pijk = new
+> VarArray<IntVar>(intersectY0);
+>                         // exactly 2t-1 elements have the value 1 in
+pijk
+>                         count(this, pijk, 1, IRT_EQ, 2 * t - 1,
+opt.icl);
+>                 } // end for y
+> 
+>                 /*********************** end autocorrelation code
+> **************************/
+>                 branch(this, schemeCount, BVAR_SIZE_MIN, BVAL_MIN);
+>         }
+> 
+>         /**
+>          * Copy constructor.
+>          *
+>          * @param share
+>          * @param scheme
+>          */
+>         public AssociationScheme(Boolean share, AssociationScheme
+scheme)
+> {
+>                 super(share, scheme);
+>                 v = scheme.v;
+>                 t= (v-1)/4;
+>                 n1 = (v - 1) / 2;
+>                 n2 = (v - 1) / 2;
+>                 lambda1 = 1;
+>                 lambda2 = 2;
+>                 schemeCount = new VarArray<IntVar>(this, share,
+> scheme.schemeCount);
+>         }
+> 
+>         /**
+>          *
+>          * @see org.gecode.Space#toString()
+>          */
+>         public String toString() {
+> 
+>                 return schemeCount.toString();
+>         }
+> 
+>         /**
+>          * Application startup
+>          *
+>          * @param args
+>          */
+>         public static void main(String[] args) {
+>                 Options opt = new Options();
+>                 opt.size = 5;
+>                 opt.gui = true;
+>                 opt.parse(args);
+>                 opt.name = "" + opt.size + "-Schemes";
+> 
+>                 AssociationScheme schemes = new
+AssociationScheme(opt);
+>                 opt.doSearch(schemes);
+>         }
+> }
+> --------------------- end code -------------------
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Mon Oct 22 15:22:29 2007
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Mon, 22 Oct 2007 15:22:29 +0200
+Subject: [gecode-users] gecode autoconf setting
+Message-ID: <471CA415.8090108@informatik.uni-freiburg.de>
+
+Hi,
+
+I am currently preparing an autoconf based package including 
+gecode-1.3.0 as subpackage (subdir) in the source distribution using the 
+standard autoconf macro
+
+AC_CONFIG_SUBDIRS([gecode-1.3.0])
+
+Everything works fine including compilation:
+- my configure enters the subdir and calls the gecode configure
+- my makefile enters the gecode subdir and compiles the library
+- my code compiles using the previously compiled local gecode version in 
+the subdir
+- my resulting program works and can be installed in the system using 
+the standard "make install" target generated by autoconf
+
+so far everything fine!
+
+the problem occurs, when i want to create a source distribution of my 
+package (include gecode of course)
+
+calling the standard "make dist" results in
+
+...
+make[1]: Entering directory `/home/..../gecode-1.3.0'
+make[1]: *** No rule to make target `distdir'.  Stop.
+make[1]: Leaving directory `/home/..../gecode-1.3.0'
+make: *** [distdir] Error 1
+
+a closer look at the 'gecode-1.3.0/Makefile' shows, that there are only 
+make targets to generate a distribution of the include-headers and 
+compiled library - the binary distribution. This is nice to install the 
+precompiled library but doesnt help source sub-supplier as I am.. ;)
+
+Think this is also usefull for other people that want to integrate a 
+certain gecode version as a bundle into their source project and to 
+distribute it.
+
+Is there a reason for the non-standard Makefile not providing a source 
+distribution generation? If not is it possible to enable this in the 
+comming gecode-2.0.0 version?
+
+Would be glad about! ;)
+
+Meanwhile I will try to write a dist make target to enable the support 
+locally. Do you ve got this already or are you interested to get it if I 
+can manage?
+
+So far, hope to help,
+
+Martin
+
+
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From cschulte at kth.se  Mon Oct 22 20:13:10 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 22 Oct 2007 20:13:10 +0200
+Subject: [gecode-users] gecode autoconf setting
+In-Reply-To: <471CA415.8090108@informatik.uni-freiburg.de>
+References: <471CA415.8090108@informatik.uni-freiburg.de>
+Message-ID: <000001c814d7$3805af80$a8110e80$@se>
+
+Hi Martin,
+
+Yes that shouldn't be hard (actually the hard part is packing a binary
+distribution). Should be there in Gecode 2.0.0.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Martin Mann
+Sent: Monday, October 22, 2007 3:22 PM
+To: gecode user list
+Subject: [gecode-users] gecode autoconf setting
+
+Hi,
+
+I am currently preparing an autoconf based package including 
+gecode-1.3.0 as subpackage (subdir) in the source distribution using the 
+standard autoconf macro
+
+AC_CONFIG_SUBDIRS([gecode-1.3.0])
+
+Everything works fine including compilation:
+- my configure enters the subdir and calls the gecode configure
+- my makefile enters the gecode subdir and compiles the library
+- my code compiles using the previously compiled local gecode version in 
+the subdir
+- my resulting program works and can be installed in the system using 
+the standard "make install" target generated by autoconf
+
+so far everything fine!
+
+the problem occurs, when i want to create a source distribution of my 
+package (include gecode of course)
+
+calling the standard "make dist" results in
+
+...
+make[1]: Entering directory `/home/..../gecode-1.3.0'
+make[1]: *** No rule to make target `distdir'.  Stop.
+make[1]: Leaving directory `/home/..../gecode-1.3.0'
+make: *** [distdir] Error 1
+
+a closer look at the 'gecode-1.3.0/Makefile' shows, that there are only 
+make targets to generate a distribution of the include-headers and 
+compiled library - the binary distribution. This is nice to install the 
+precompiled library but doesnt help source sub-supplier as I am.. ;)
+
+Think this is also usefull for other people that want to integrate a 
+certain gecode version as a bundle into their source project and to 
+distribute it.
+
+Is there a reason for the non-standard Makefile not providing a source 
+distribution generation? If not is it possible to enable this in the 
+comming gecode-2.0.0 version?
+
+Would be glad about! ;)
+
+Meanwhile I will try to write a dist make target to enable the support 
+locally. Do you ve got this already or are you interested to get it if I 
+can manage?
+
+So far, hope to help,
+
+Martin
+
+
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mmann at informatik.uni-freiburg.de  Tue Oct 23 10:21:51 2007
+From: mmann at informatik.uni-freiburg.de (Martin Mann)
+Date: Tue, 23 Oct 2007 10:21:51 +0200
+Subject: [gecode-users] gecode autoconf setting
+In-Reply-To: <000001c814d7$3805af80$a8110e80$@se>
+References: <471CA415.8090108@informatik.uni-freiburg.de>
+	<000001c814d7$3805af80$a8110e80$@se>
+Message-ID: <471DAF1F.1030905@informatik.uni-freiburg.de>
+
+Hi Christian,
+
+thanks a lot! :)
+
+Martin
+
+Christian Schulte schrieb:
+> Hi Martin,
+> 
+> Yes that shouldn't be hard (actually the hard part is packing a binary
+> distribution). Should be there in Gecode 2.0.0.
+> 
+> Christian
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Martin Mann
+> Sent: Monday, October 22, 2007 3:22 PM
+> To: gecode user list
+> Subject: [gecode-users] gecode autoconf setting
+> 
+> Hi,
+> 
+> I am currently preparing an autoconf based package including 
+> gecode-1.3.0 as subpackage (subdir) in the source distribution using the 
+> standard autoconf macro
+> 
+> AC_CONFIG_SUBDIRS([gecode-1.3.0])
+> 
+> Everything works fine including compilation:
+> - my configure enters the subdir and calls the gecode configure
+> - my makefile enters the gecode subdir and compiles the library
+> - my code compiles using the previously compiled local gecode version in 
+> the subdir
+> - my resulting program works and can be installed in the system using 
+> the standard "make install" target generated by autoconf
+> 
+> so far everything fine!
+> 
+> the problem occurs, when i want to create a source distribution of my 
+> package (include gecode of course)
+> 
+> calling the standard "make dist" results in
+> 
+> ...
+> make[1]: Entering directory `/home/..../gecode-1.3.0'
+> make[1]: *** No rule to make target `distdir'.  Stop.
+> make[1]: Leaving directory `/home/..../gecode-1.3.0'
+> make: *** [distdir] Error 1
+> 
+> a closer look at the 'gecode-1.3.0/Makefile' shows, that there are only 
+> make targets to generate a distribution of the include-headers and 
+> compiled library - the binary distribution. This is nice to install the 
+> precompiled library but doesnt help source sub-supplier as I am.. ;)
+> 
+> Think this is also usefull for other people that want to integrate a 
+> certain gecode version as a bundle into their source project and to 
+> distribute it.
+> 
+> Is there a reason for the non-standard Makefile not providing a source 
+> distribution generation? If not is it possible to enable this in the 
+> comming gecode-2.0.0 version?
+> 
+> Would be glad about! ;)
+> 
+> Meanwhile I will try to write a dist make target to enable the support 
+> locally. Do you ve got this already or are you interested to get it if I 
+> can manage?
+> 
+> So far, hope to help,
+> 
+> Martin
+> 
+> 
+> 
+
+
+-- 
+Martin Mann, Dipl. Bioinf.
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8259
+Fax: ++49-761-203-7462
+http://www.bioinf.uni-freiburg.de/~mmann/
+
+
+
+From george.rudolph at citadel.edu  Wed Oct 24 02:41:30 2007
+From: george.rudolph at citadel.edu (George Rudolph)
+Date: Tue, 23 Oct 2007 20:41:30 -0400
+Subject: [gecode-users] FW: Help:How to compute Autocorrelation of a
+	v-length sequence
+Message-ID: <99CC4F739DCD4244957775EF32358A9D0178B2EB@EVS01.nation.citadel.edu>
+
+Below I am posting an answer from Christian Schulte to some questions
+that I thought I had also posted to the mailing list, but did not.
+So here they are.
+
+George
+
+-----------------------------------------------------------------------
+
+Dear George,
+
+thank you for your constructive attitude, I would also like to apologize
+to
+you for being quite rude: I fear that we have to be focused in what kind
+of
+discussions take place on the mailing list: Gecode does not target
+people
+not knowing constraint programming in general; we would like to keep the
+discussions on a level that assumes prior knowledge.
+
+However, questions those such as you phrase below are very good! After
+you
+took the effort to isolate questions their answers can be reused and
+capture
+nicely some knowledge required to implement a model in Gecode (or
+Gecode/J).
+
+So let me try.
+
+1. You can't. You have (as you hint yourself) create an additional
+IntVar
+and constraint it to a single value (either by how you initialize it or
+by
+operations such as rel or dom). While doing otherwise is difficult in a
+statically typed language such as C++ or Java, Mozart will do quite
+often
+exactly the same thing without you knowing.
+
+2. I assume that you mean posting a constraint that compares for
+equality
+when you refer to "compare". 
+   The following steps should work:
+   - You declare an array of BoolVarArgs, say b, of the right size.
+   - You iterate over all element with a loop.
+   - You initialize (yes, BoolVarArgs does not initialize its elements)
+each
+b[i], say with
+		b[i].init(this,0,1)
+   - You post a comparison constraint between x[i] and y[i]
+		rel(this, x[i], IRT_EQ, y[i], b[i]);
+   - Counting is then just a linear constraint, say you have an IntVar c
+for
+the result
+		linear(this, b, IRT_EQ, c);
+
+Hope that helps.
+
+All the best
+Christian
+
+-----Original Message-----
+From: George Rudolph [mailto:george.rudolph at citadel.edu] 
+Sent: Sunday, October 21, 2007 4:13 AM
+To: cschulte at kth.se
+Subject: RE: [gecode-users] Help:How to compute Autocorrelation of a
+v-length sequence
+
+Christian,
+
+No need to apologize. I know that development time is precious.
+Especially yours.
+I completely agree that it is a modeling issue.
+Unquestionably. And non-trivial, or not simple.
+My intent was to ask for help from the community,
+and I do not intend someone to spend time they don't have.
+
+I do not understand what you mean by "Gecode-specific", however.
+For example, I have Oz Mozart code that computes this algorithm,
+and in fact I'm doing a translation to Gecode/J because
+it allows me to use Java tools, and I'm hoping it's more
+efficient, and syntactically cleaner than what I have.
+And it will help me learn the language/API.
+>From that perspective, I thought I was asking Gecode-specific questions,
+and not about general modeling questions. I can specify the constraints
+mathematically, I just don't know how to implement/model them in
+Gecode/J.
+I suppose it would be helpful if I broke the larger problem down into
+more specific questions, such as:
+1.  Suppose I have a list like [0,x,y] where 0 is a definite integer and
+x
+and y
+    are finite domain variables. How do I represent such a list in
+Gecode/J?
+    (Note: By definite integer, I mean that I know the element is 0, so
+it
+doesn't
+    have to be a finite domain variable.)
+2.  Suppose I want compare the list [0,x,y], defined as above, with
+another
+    list [y,0,x], element by element, and count the number of positions
+in
+which
+    they match. How should I do this comparison in Gecode/J?
+    (Note: I have tried comparing two list element-by-element,
+generating a
+Boolean
+     list of the results by position, where true = match, and false =
+mismatch,
+     then casting the BooleanVar array to an IntVar array, where 0=false
+and
+1=true,
+     then counting the 1's, but this did not work as I expected.)
+
+
+
+From debdeep.banerjee at rsise.anu.edu.au  Sat Oct 27 02:56:11 2007
+From: debdeep.banerjee at rsise.anu.edu.au (Debdeep Banerjee)
+Date: Sat, 27 Oct 2007 10:56:11 +1000
+Subject: [gecode-users] Meaning of error
+Message-ID: <47228CAB.80407@rsise.anu.edu.au>
+
+Hi,
+ I am getting this error
+
+Internal error in Java propagator. Exit.
+
+when I am using a stack based DFS search. But when I use the DFSSearch 
+then i don't get any error.
+
+What does it mean ?
+
+With regards
+Debdeep
+
+
+
+From cschulte at kth.se  Sun Oct 28 16:59:03 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 28 Oct 2007 16:59:03 +0100
+Subject: [gecode-users] Meaning of error
+In-Reply-To: <47228CAB.80407@rsise.anu.edu.au>
+References: <47228CAB.80407@rsise.anu.edu.au>
+Message-ID: <000901c8197b$79ef0b00$6dcd2100$@se>
+
+Hi, I think you might want to throw in some additional detail about what you
+actually do.
+
+Totally guessing is that apparently your stack-based DFS does not work...
+Why do you do that anyway? The DFS that comes with Gecode is extremely well
+engineered and very hard to beat...
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Debdeep Banerjee
+Sent: Saturday, October 27, 2007 2:56 AM
+To: users at gecode.org
+Subject: [gecode-users] Meaning of error
+
+Hi,
+ I am getting this error
+
+Internal error in Java propagator. Exit.
+
+when I am using a stack based DFS search. But when I use the DFSSearch 
+then i don't get any error.
+
+What does it mean ?
+
+With regards
+Debdeep
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From mauriciotorob at gmail.com  Wed Oct 31 21:38:19 2007
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Wed, 31 Oct 2007 15:38:19 -0500
+Subject: [gecode-users] Real time interpreters using GECODE
+Message-ID: <a6b4b44a0710311338uf4aea0v569df862c2ebe026@mail.gmail.com>
+
+Hello Gecode Comunity !
+
+Together with the AVISPA research group we are trying to develop
+a real time interpreter for a process calculus called
+Non deterministic Timed Concurrent Constraint (NTCC), this calculus is a
+non deterministic extension to the Timed Concurrent Constraint Calculus
+(TCC).
+
+In the past, some implementations were done using Mozart OZ using
+combinators, but the
+real time was not achieved. We are now considering using GECODE with
+reification, but the whole concurrency syncronization seems to be a big
+problem, additionally
+reification could be not general enough.
+
+We are also considering using GECOL (the lisp wraper of GECODE) because we
+want to model music improvisation with the NTCC interpreted, and LISP has
+been widely
+used for computer music.
+
+- Do you considered that a real time interpreter can be done with GECODE?
+- What about GECOL? fast enough?
+- What other options could we consider to make the interpreter?
+
+Thank you very much
+
+-- 
+Mauricio Toro Bermudez
+Pontifica Universidad Javeriana
+Cali, Colombia S.A
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20071031/468ab2d9/attachment.htm>
+
+From mauriciotorob at gmail.com  Wed Oct 31 21:41:22 2007
+From: mauriciotorob at gmail.com (Mauricio Toro)
+Date: Wed, 31 Oct 2007 15:41:22 -0500
+Subject: [gecode-users] Compiling Gecode examples under MAC OS X 10.3.4
+Message-ID: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+
+Hello Gecode people
+
+I am doing some research about real time interpreters for constraint process
+calculi
+with the AVISPA research group.
+
+I have tried, with no success, to compile the GECODE examples under MAC OS X
+10.3.4 for ppc
+using g++ 3.3.
+I would like to know how the compilation process is achieved? How the
+makefile is done?
+Do you have any examples about compiling the Gecode examples? It does not
+matter
+whether they are developed in a different MAC OS version or Linux.
+
+I tried to compile the knights examples this way:
+
+g++ -o examples/knights examples/knights.o examples/support.o
+examples/timer.o  -L. -I. -I. -I. -fPIC -Wall -ggdb -O3 -fno-strict-aliasing
+-finline-limit=3000 -ffast-math  -fPIC -Wall -ggdb -O3 -fno-strict-aliasing
+-finline-limit=3000  -ffast-math   -lgecodeminimodel -lgecodeset -lgecodeint
+-lgecodesearch -lgecodekernel
+
+But I do not know how to generate the .o files required.
+
+By the way, I heard that gcc 3.3 does not work well with GECODE, gcc 3.4 is
+ok ?
+gcc > 4 does not work with mac OS < 10.3.5
+
+Thank you very much
+
+-- 
+Mauricio Toro Bermudez
+Pontifica Universidad Javeriana
+Cali, Colombia S.A
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20071031/6b44b230/attachment.htm>
+
+From tack at ps.uni-sb.de  Wed Oct 31 21:51:18 2007
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 31 Oct 2007 21:51:18 +0100
+Subject: [gecode-users] Compiling Gecode examples under MAC OS X 10.3.4
+In-Reply-To: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+References: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+Message-ID: <3BD5F3BE-DFF8-46E2-B44B-802B14A2DE8B@ps.uni-sb.de>
+
+Hi Mauricio.
+
+Mauricio Toro wrote:
+
+> I have tried, with no success, to compile the GECODE examples under  
+> MAC OS X 10.3.4 for ppc
+> using g++ 3.3.
+
+We don't support gcc prior to 3.4 any more, and I'm currently not sure  
+that 3.4 still works (4.0 or better is recommended).
+
+> I would like to know how the compilation process is achieved? How  
+> the makefile is done?
+> Do you have any examples about compiling the Gecode examples? It  
+> does not matter
+> whether they are developed in a different MAC OS version or Linux.
+>
+> I tried to compile the knights examples this way:
+>
+> g++ -o examples/knights examples/knights.o examples/support.o  
+> examples/timer.o  -L. -I. -I. -I. -fPIC -Wall -ggdb -O3 -fno-strict- 
+> aliasing -finline-limit=3000 -ffast-math  -fPIC -Wall -ggdb -O3 -fno- 
+> strict-aliasing -finline-limit=3000  -ffast-math   -lgecodeminimodel  
+> -lgecodeset -lgecodeint -lgecodesearch -lgecodekernel
+>
+> But I do not know how to generate the .o files required.
+
+If you use the supplied Makefile, you can just follow the compilation  
+instructions:
+http://www.gecode.org/gecode-doc-latest/PageComp.html
+
+For compiling individual examples, just run
+make examples/knight
+
+> By the way, I heard that gcc 3.3 does not work well with GECODE, gcc  
+> 3.4 is ok ?
+> gcc > 4 does not work with mac OS < 10.3.5
+
+Oh, I didn't know that.  I guess it should be possible to install gcc  
+from sources.  Unfortunately, we cannot support earlier versions of  
+gcc, as we heavily rely on several C++ features that older versions  
+just don't provide (or at least not correctly).
+
+Cheers,
+	Guido
+
+
+
+
+From cschulte at kth.se  Wed Oct 31 21:48:58 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 31 Oct 2007 21:48:58 +0100
+Subject: [gecode-users] Compiling Gecode examples under MAC OS X 10.3.4
+In-Reply-To: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+References: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+Message-ID: <001f01c81bff$77f51520$67df3f60$@se>
+
+Hi Mauricio,
+
+did you check the how to compile Gecode part of its docs:
+	http://www.gecode.org/gecode-doc-latest/PageComp.html
+
+I think it?ll answer all your questions.
+
+Christian
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mauricio Toro
+Sent: Wednesday, October 31, 2007 9:41 PM
+To: gecode at gecode.org
+Subject: [gecode-users] Compiling Gecode examples under MAC OS X 10.3.4
+
+Hello Gecode people
+
+I am doing some research about real time interpreters for constraint process
+calculi 
+with the AVISPA research group.
+
+I have tried, with no success, to compile the GECODE examples under MAC OS X
+10.3.4 for ppc
+using g++ 3.3.
+I would like to know how the compilation process is achieved? How the
+makefile is done?
+Do you have any examples about compiling the Gecode examples? It does not
+matter
+whether they are developed in a different MAC OS version or Linux. 
+
+I tried to compile the knights examples this way:
+
+g++ -o examples/knights examples/knights.o examples/support.o
+examples/timer.o? -L. -I. -I. -I. -fPIC -Wall -ggdb -O3 -fno-strict-aliasing
+-finline-limit=3000 -ffast-math? -fPIC -Wall -ggdb -O3 -fno-strict-aliasing
+-finline-limit=3000? -ffast-math?? -lgecodeminimodel -lgecodeset -lgecodeint
+-lgecodesearch -lgecodekernel? 
+
+But I do not know how to generate the .o files required.
+
+By the way, I heard that gcc 3.3 does not work well with GECODE, gcc 3.4 is
+ok ?
+gcc > 4 does not work with mac OS < 10.3.5
+
+Thank you very much 
+
+-- 
+Mauricio Toro Bermudez
+Pontifica Universidad Javeriana
+Cali, Colombia S.A 
+
+
+
+
+From cschulte at kth.se  Wed Oct 31 21:52:41 2007
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 31 Oct 2007 21:52:41 +0100
+Subject: [gecode-users] Real time interpreters using GECODE
+In-Reply-To: <a6b4b44a0710311338uf4aea0v569df862c2ebe026@mail.gmail.com>
+References: <a6b4b44a0710311338uf4aea0v569df862c2ebe026@mail.gmail.com>
+Message-ID: <002001c81bff$fcdd2160$f6976420$@se>
+
+Dear Mauricio,
+
+your questions are not easy to answer. 
+
+- I do not know how big (or hard) the problems are. So can't say.
+- Don't know anything about that.
+- Gecode/J maybe?
+
+I think the first and most important question to ask is whether there exists
+a good constraint model for solving the problems you have. If that exists,
+and the problems are easy enough then Gecode is indeed efficient enough to
+do the trick. But, as said, first check how to model.
+
+Christian
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mauricio Toro
+Sent: Wednesday, October 31, 2007 9:38 PM
+To: gecode at gecode.org
+Subject: [gecode-users] Real time interpreters using GECODE
+
+Hello Gecode Comunity !
+
+Together with the AVISPA research group we are trying to develop
+a real time interpreter for a process calculus called 
+Non deterministic Timed Concurrent Constraint (NTCC), this calculus is a 
+non deterministic extension to the Timed Concurrent Constraint Calculus
+(TCC).
+
+In the past, some implementations were done using Mozart OZ using
+combinators, but the 
+real time was not achieved. We are now considering using GECODE with 
+reification, but the whole concurrency syncronization seems to be a big
+problem, additionally
+reification could be not general enough.
+
+We are also considering using GECOL (the lisp wraper of GECODE) because we
+want to model music improvisation with the NTCC interpreted, and LISP has
+been widely
+used for computer music.
+
+- Do you considered that a real time interpreter can be done with GECODE? 
+- What about GECOL? fast enough?
+- What other options could we consider to make the interpreter?
+
+Thank you very much
+
+-- 
+Mauricio Toro Bermudez
+Pontifica Universidad Javeriana
+Cali, Colombia S.A 
+
+
+
+
+From Justin.Pearson at it.uu.se  Wed Oct 31 22:34:54 2007
+From: Justin.Pearson at it.uu.se (Justin Pearson)
+Date: Wed, 31 Oct 2007 22:34:54 +0100
+Subject: [gecode-users] Compiling Gecode examples under MAC OS X 10.3.4
+In-Reply-To: <3BD5F3BE-DFF8-46E2-B44B-802B14A2DE8B@ps.uni-sb.de>
+References: <a6b4b44a0710311341k107f4797vdf297608e3e65dae@mail.gmail.com>
+	<3BD5F3BE-DFF8-46E2-B44B-802B14A2DE8B@ps.uni-sb.de>
+Message-ID: <18216.62718.920967.415951@harpo.it.uu.se>
+
+> 
+> > By the way, I heard that gcc 3.3 does not work well with GECODE, gcc  
+> > 3.4 is ok ?
+> > gcc > 4 does not work with mac OS < 10.3.5
+> 
+> Oh, I didn't know that.  I guess it should be possible to install gcc  
+> from sources.  Unfortunately, we cannot support earlier versions of  
+> gcc, as we heavily rely on several C++ features that older versions  
+> just don't provide (or at least not correctly).
+> 
+> Cheers,
+> 	Guido
+> 
+
+
+I seem to remember on 10.3 you could install gcc4 via fink, you might
+be able to go down that route and compile gecode.
+
+
+/Justin
+
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+

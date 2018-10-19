@@ -1,0 +1,100 @@
+Index: gecode/kernel/core.hpp
+===================================================================
+--- gecode/kernel/core.hpp	(revision 14380)
++++ gecode/kernel/core.hpp	(working copy)
+@@ -860,6 +860,8 @@
+     //@{
+     /// Return the accumlated failure count
+     double afc(const Space& home) const;
++    /// Disable AFC for this propagator
++    void disable_afc(Space& home);
+     //@}
+   };
+ 
+@@ -2963,6 +2965,11 @@
+     return const_cast<Space&>(home).gafc.afc(gafc);
+   }
+ 
++  forceinline void
++  Propagator::disable_afc(Space& home) {
++    home.gafc.disable(gafc);
++  }
++
+   forceinline ExecStatus
+   Space::ES_SUBSUMED_DISPOSED(Propagator& p, size_t s) {
+     p.u.size = s;
+Index: gecode/kernel/global-afc.hpp
+===================================================================
+--- gecode/kernel/global-afc.hpp	(revision 14380)
++++ gecode/kernel/global-afc.hpp	(working copy)
+@@ -49,6 +49,8 @@
+       double c;
+       /// The time-stamp
+       unsigned long int t;
++      /// Whether to count at all
++      bool active;
+       /// Initialize
+       void init(void);
+     };
+@@ -89,6 +91,8 @@
+       void set(Counter& c, double a);
+       /// Return counter value 
+       double val(Counter& c);
++      /// Disable failure count
++      void disable(Counter& c);
+       /// Allocate memory from heap
+       static void* operator new(size_t s);
+       /// Free memory allocated from heap
+@@ -145,6 +149,8 @@
+     double decay(void) const;
+     /// Increment failure count
+     void fail(Counter& c);
++    /// Disable failure count
++    void disable(Counter& c);
+     /// Set failure count to \a a
+     void set(Counter& c, double a);
+     /// Return failure count
+@@ -157,7 +163,7 @@
+ 
+   forceinline void
+   GlobalAFC::Counter::init(void) {
+-    c=1.0; t=0UL;
++    c=1.0; t=0UL; active=true;
+   }
+ 
+   forceinline void
+@@ -180,6 +186,10 @@
+     return d;
+   }
+   forceinline void
++  GlobalAFC::DecayManager::disable(Counter& c) {
++    c.active = false;
++  }
++  forceinline void
+   GlobalAFC::DecayManager::decay(Counter& c) {
+     assert((t >= c.t) && (d != 1.0));
+     unsigned int n = t - c.t;
+@@ -194,6 +204,8 @@
+   }
+   forceinline void
+   GlobalAFC::DecayManager::inc(Counter& c) {
++    if (!c.active)
++      return;
+     if (d == 1.0) {
+       c.c += 1.0;
+     } else {
+@@ -322,6 +334,14 @@
+   }
+ 
+   forceinline void
++  GlobalAFC::disable(Counter& c) {
++    Support::FastMutex& m = *object()->mutex;
++    m.acquire();
++    object()->decay->disable(c);
++    m.release();
++  }
++
++  forceinline void
+   GlobalAFC::set(Counter& c, double a) {
+     Support::FastMutex& m = *object()->mutex;
+     m.acquire();

@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Set constraints working for sequential data,	but not non-sequential 	data. Ideas?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Set%20constraints%20working%20for%20sequential%20data%2C%0A%09but%20not%20non-sequential%20%09data.%20Ideas%3F&In-Reply-To=%3C8eb8d34d0912152021qa354e39ub7f8e728569ed0f9%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002768.html">
+   <LINK REL="Next"  HREF="002772.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Set constraints working for sequential data,	but not non-sequential 	data. Ideas?</H1>
+    <B>Holger Winnemoeller</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Set%20constraints%20working%20for%20sequential%20data%2C%0A%09but%20not%20non-sequential%20%09data.%20Ideas%3F&In-Reply-To=%3C8eb8d34d0912152021qa354e39ub7f8e728569ed0f9%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Set constraints working for sequential data,	but not non-sequential 	data. Ideas?">holger.winnemoeller at gmail.com
+       </A><BR>
+    <I>Wed Dec 16 05:21:13 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002768.html">[gecode-users] Help: Howto combine sets and value constraints?
+</A></li>
+        <LI>Next message: <A HREF="002772.html">[gecode-users] Set constraints working for sequential data,	but 	not non-sequential data. Ideas?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2771">[ date ]</a>
+              <a href="thread.html#2771">[ thread ]</a>
+              <a href="subject.html#2771">[ subject ]</a>
+              <a href="author.html#2771">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>*QUESTION: How can I solve the following problem for anything but toy
+examples?*
+
+Say, I have the following sets:
+
+All : {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}
+subA: {0,1,2,3,4}
+subB: {5,6,7,8,9}
+
+If I ask for a subset of &quot;All&quot; which contains 4 elements, of which 2
+elements are from &quot;subA&quot; and 2 elements are from &quot;subB&quot;, I get a variety of
+results, such as
+{0,1,5,6}
+{0,1,5,7}
+...
+{3,4,8,9}
+...
+
+etc.
+
+This works perfectly fine.
+
+Now, for cases where subA, and  subB are not strictly sequential (i.e.
+sorted but non-consecutive numbers)
+
+subA: {4,8,14,16,17}
+subB: {0,3,5,10,12}
+
+The system quickly runs out of steam (maybe not for the toy example here,
+but for |All| = 100, |subA| = |subB| = 20, asking for 10 items -- see
+attached code). Gecode just keeps computing and never seems to find a
+solution.
+
+Given that the sub-sets are disjoint a solution should really be trivial in
+any case (take 50% of one subset and 50% of the other). However, I don't
+want to make the assumption that they are disjoint.
+
+I have attached some demo code for what I am talking about, so you can
+experiment with it.
+
+Thanks for your help!
+
+Holger.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20091215/0f54715c/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20091215/0f54715c/attachment.htm</A>&gt;
+-------------- next part --------------
+#include &lt;gecode/set.hh&gt;
+#include &lt;gecode/support.hh&gt;
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;vector&gt;
+#include &lt;algorithm&gt;
+
+using namespace std;
+using namespace Gecode;
+
+#define BROKEN_PROBLEM 1 // will not finish
+//#define BROKEN_PROBLEM 0 // works just fine
+
+// A &quot;Minimal&quot; space definition for the problem
+class MiniSpace: public Space
+{
+	SetVarArray mSetStore;
+	void CreateAndRequestCategory(int numItemsInCategories, int requestFromEachCategory, vector&lt;int&gt;&amp; allItems)
+	{
+		vector&lt;int&gt; data (numItemsInCategories); // space to hold items
+		for(int i=0; i&lt;numItemsInCategories; ++i) // fill data from allItems
+		{
+			data[i] = allItems.back();
+			allItems.pop_back();
+		}
+
+		// sort the items before loading them into Gecode -- not sure if this is necessary
+		sort(data.begin(), data.end());
+
+		// 1.) Create a new set domain that holds the &quot;special&quot; items
+		IntSet specialSet(&amp;data[0], (int)data.size());
+		// 2.) Create a set variable that we'll associate with that set later on
+		SetVar specialSelected(*this);
+		// 3.) Set &quot;specialSelected&quot; to the intersection of whatever a possible solution is, and
+		//     the &quot;specialSet&quot;. This ensures that we can talk about items that are included
+		//     in the solution, but also belong to the special set
+		rel(*this, mSetStore[0], SOT_INTER, specialSet, SRT_EQ, specialSelected);
+		// 4.) Now ensure that we only have &quot;requestFromEachCategory&quot; of these overlapping items
+		cardinality(*this, specialSelected, requestFromEachCategory, requestFromEachCategory);
+	}
+
+public:
+	MiniSpace(int problemSize, int numItemsInCategories, int numRequestedSize)
+	{
+		puts(&quot;Setting up problem...&quot;);
+		// Create a SetVariable array (only need one element really, but this allows me to define the domain in one step)
+		mSetStore = SetVarArray(*this, 1, IntSet::empty, 0, problemSize);
+		SetVar resultSet = mSetStore[0]; // get the one variable that was defined in the above line
+
+		// impose the constraint that we only want &quot;numRequestedSize&quot; items in the result set
+		cardinality(*this, resultSet, numRequestedSize, numRequestedSize);
+
+		// Create two sets of random non-overlapping items from inventory
+		vector&lt;int&gt; allItems (problemSize);
+		for(int i=0; i&lt;problemSize; ++i) allItems[i] = problemSize-1-i; // init items
+#if BROKEN_PROBLEM
+		random_shuffle(allItems.begin(), allItems.end()); // shuffle items
+#endif
+		int requestFromEachCategory = numRequestedSize * 4 / 10;
+		CreateAndRequestCategory(numItemsInCategories, requestFromEachCategory, allItems); // one category
+
+		// Create another set of items and request elements from it
+		CreateAndRequestCategory(numItemsInCategories, requestFromEachCategory, allItems); // another category
+
+		// Given these constraints, branch
+		branch(*this, mSetStore, SET_VAR_NONE, SET_VAL_MIN_INC);
+	}
+	MiniSpace(bool share, MiniSpace&amp; s) : Space(share, s) {mSetStore.update(*this, share, s.mSetStore);}
+	virtual Space* copy(bool share) {return new MiniSpace(share, *this);}
+	void print() const
+	{
+		for(SetVarGlbValues d(mSetStore[0]);d();++d)
+			std::cout &lt;&lt; d.val() &lt;&lt; &quot; &quot;;
+	}
+};
+
+int main(int argc, char* argv[])
+{
+	// Run the problem
+	//MiniSpace problem (
+	//	3000,	// total number of items in inventory
+	//	200,	// several sub-inventories (non-overlapping) with X elements each
+	//	20		// requesting X items
+	//); // space instance
+
+	MiniSpace problem (
+		100,	// total number of items in inventory
+		20,		// several sub-inventories (non-overlapping) with X elements each
+		10		// requesting X items
+	); // space instance
+
+	DFS&lt;MiniSpace&gt; solver (&amp;problem);
+	int count=0;
+	puts(&quot;Looking for solutions...&quot;);
+	while(true){
+		MiniSpace* solution = solver.next();
+		if(!solution) break;
+		std::cout &lt;&lt; &quot;Solution Nr.&quot; &lt;&lt; count++ &lt;&lt; std::endl;
+		solution-&gt;print();
+		std::cout &lt;&lt; std::endl;
+		delete solution;
+	}
+	std::cout &lt;&lt; &quot;Done...&quot; &lt;&lt; std::endl;
+	system(&quot;pause&quot;);
+	return 0;
+}
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002768.html">[gecode-users] Help: Howto combine sets and value constraints?
+</A></li>
+	<LI>Next message: <A HREF="002772.html">[gecode-users] Set constraints working for sequential data,	but 	not non-sequential data. Ideas?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2771">[ date ]</a>
+              <a href="thread.html#2771">[ thread ]</a>
+              <a href="subject.html#2771">[ subject ]</a>
+              <a href="author.html#2771">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

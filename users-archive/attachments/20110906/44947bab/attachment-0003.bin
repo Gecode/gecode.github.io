@@ -1,0 +1,101 @@
+/*********************************************
+ * OPL 12.2.0.2 Model
+ * Author: jefferson.biernastki
+ * Creation Date: Sep 6, 2011 at 9:47:08 AM
+ *********************************************/
+
+// Data structure
+tuple SectionBlock
+{
+  int id;
+  string name;
+  int yard;
+};
+
+tuple Train
+{
+  int id;
+  string prefix;
+  int departure;
+};  
+
+tuple RouteActivity
+{
+  int id;
+  Train train;
+  SectionBlock sectionBlock;
+  int transitTime;
+  int transitTimeRelease;
+};  
+
+tuple ActivitySequence
+{
+  RouteActivity origin;
+  RouteActivity destination;
+}  
+
+// Data
+{SectionBlock} SectionBlocks = { <0, "LPG", 0>, <1, "LIC", 0>, <2, "LUS", 0>, <3, "LAP", 0>, <4, "LMG", 1> };
+// Build a reversed list
+reversed {SectionBlock} ReversedSectionBlocks = SectionBlocks;
+
+{Train} Trains = { <11, "X01", 0>, <12, "X02", 0> };
+
+{RouteActivity} Activityx01 = { <1, first(Trains), s, 10, 1> | s in SectionBlocks };
+{RouteActivity} Activityx02 = { <1, last(Trains), s, 10, 1> | s in ReversedSectionBlocks };
+{RouteActivity} Activities = Activityx01 union Activityx02;
+
+// Preprocess
+{RouteActivity} ActivitiesByTrain[t in Trains] = { e | e in Activities : e.train.id == t.id };
+
+// Precedences
+{ActivitySequence} ActivityPrecedence[t in Trains] = { <e1, e2> | e1 in Activities, e2 in Activities : t.id == e1.train.id && t.id == e2.train.id && (ord(Activities, e1) + 1) == ord(Activities, e2) };
+
+{RouteActivity} ActivitiesFirst = { e | t in Trains, e in ActivitiesByTrain[t] : ord(ActivitiesByTrain[t], e) == 0 };
+
+using CP;
+
+// Decision
+dvar interval dvScheduling[e in Activities] size e.transitTime..100;
+dvar interval dvSchedulingRelease[e in Activities] size e.transitTimeRelease;
+
+// Sequence for no overlap
+dvar sequence sqScheduling[s in SectionBlocks] in 
+append
+(
+	all(e in Activities : e.sectionBlock.id == s.id) dvScheduling[e],
+	all(e in Activities : e.sectionBlock.id == s.id) dvSchedulingRelease[e]
+);
+
+// Minimize
+minimize sum (e in Activities) sizeOf(dvScheduling[e]);
+
+subject to
+{
+  // Startup
+  forall (e in ActivitiesFirst)
+  {
+    startOf(dvScheduling[e]) == e.train.departure;
+  }
+  
+  // Precedence
+  forall (t in Trains)
+  {
+    forall (e in ActivityPrecedence[t])
+    {
+      startAtEnd(dvScheduling[e.destination], dvScheduling[e.origin]);
+    }    
+  }
+  
+  // Tail Releasing
+  forall (e in Activities)
+  {
+    startAtEnd(dvSchedulingRelease[e], dvScheduling[e]);
+  }      
+  
+  // Avoid overlapping
+  forall (s in SectionBlocks : s.yard == 0)
+  {
+    noOverlap(sqScheduling[s]);
+  } 
+}

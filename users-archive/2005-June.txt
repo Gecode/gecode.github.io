@@ -1,0 +1,670 @@
+From tack at ps.uni-sb.de  Wed Jun  1 17:53:38 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 1 Jun 2005 17:53:38 +0200
+Subject: [Gecode] Changed sets in CVS
+Message-ID: <200506011753.38956.tack@ps.uni-sb.de>
+
+Hi.
+
+I moved set/views.hh and set/views to set/view.hh and set/view to be 
+consistent with the int naming scheme. As I moved them directly in the CVS 
+repository, you will have to update your copies.
+
+Cheers,
+	Guido
+
+-- 
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Jun  1 18:04:55 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 1 Jun 2005 18:04:55 +0200
+Subject: [Gecode] Changed sets in CVS
+In-Reply-To: <200506011753.38956.tack@ps.uni-sb.de>
+Message-ID: <000201c566c3$a7398df0$0301a8c0@dator>
+
+Mmmm, you also changed the names of the files containing the post
+functions... But the new versions are of yet missing!
+
+Christian
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, June 01, 2005 5:54 PM
+To: 'Technical Gecode'
+Subject: [Gecode] Changed sets in CVS
+
+
+Hi.
+
+I moved set/views.hh and set/views to set/view.hh and set/view to be 
+consistent with the int naming scheme. As I moved them directly in the CVS 
+repository, you will have to update your copies.
+
+Cheers,
+	Guido
+
+-- 
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From tack at ps.uni-sb.de  Wed Jun  1 19:10:01 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 1 Jun 2005 19:10:01 +0200 (CEST)
+Subject: [Gecode] Changed sets in CVS
+In-Reply-To: <000201c566c3$a7398df0$0301a8c0@dator>
+References: <200506011753.38956.tack@ps.uni-sb.de>
+	<000201c566c3$a7398df0$0301a8c0@dator>
+Message-ID: <34011.84.165.145.227.1117645801.squirrel@84.165.145.227>
+
+> Mmmm, you also changed the names of the files containing the post
+> functions... But the new versions are of yet missing!
+
+Oops... I'll have to add them again tomorrow, sorry.
+
+Guido
+
+
+
+From schulte at imit.kth.se  Thu Jun  2 14:01:32 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 2 Jun 2005 14:01:32 +0200
+Subject: [Gecode] GECODE CVS
+In-Reply-To: <1117556852.7997.20.camel@localhost.localdomain>
+Message-ID: <003601c5676a$d169e6e0$acd4ed82@beule>
+
+Hi,
+
+there will be no anonymous access before the release. However, I can put up
+now and then an updated archive under
+	http://web.imit.kth.se/~schulte/misc/gecode
+	User:	gecode
+	Pass:	patient
+
+But currently we are in the process of getting the structure right for the
+release, so I will put this up only a little later (beginning of next week).
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Gustavo Gutierrez
+Sent: Tuesday, May 31, 2005 6:28 PM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] GECODE CVS
+
+
+Hi All,
+
+Is there any way to get the last version of GECODE via anonymous  cvs? I
+think the version i have is out of date (Feb. 2005) and i would like to
+update it. 
+
+Thanks in advance,
+
+Gustavo Gutierrez
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From zayenz at kth.se  Thu Jun  2 16:20:53 2005
+From: zayenz at kth.se (Mikael Lagerkvist)
+Date: Thu, 2 Jun 2005 16:20:53 +0200 (CEST)
+Subject: [Gecode] Some observations on views depending on more than one
+	variable
+Message-ID: <42841.130.237.15.12.1117722053.squirrel@webmail.sys.kth.se>
+
+Hi,
+
+There are some interesting problems associated with views of more than
+one variable that I discovered when investigating the possibility of having
+a view that represents the sum of two variables.
+
+In the following, assume that we have two identity-views V1 and V2 (on
+variables v1 and v2), and the sum-view S representing V1+V2. Let the
+initial state be represented by (v1,v2)=({0..2},{0..2}).
+
+The simple definition of the operations min and max for S are:
+	max() := V1.max() + V2.max()
+	min() := V1.min() + V2.min()
+Now we have a problem, because telling something will not necessarily
+affect subsequent min- and max-operations on S. For example, telling
+"S < 3" does not imply anything for the V1 or V2. Thus we may have
+that after telling "S < 3", S.max() may still return 4. This will
+break some very basic assumptions made on views, and therefore we need
+something stronger if sum-views are going to work.
+
+One possible idea is to add state to the sum-view, recording the
+requested minimum and maximum. This will not work either. Consider the
+initial state again. Min and max for S will initially return 0 and 4
+respectively. Now we tell "S < 4", making the requested upper bound
+for S equal to 3. This can not affect V1 or V2, although we 'know'
+that (v1,v2)!=({2},{2}). Now let V1 and V2 both be assigned 2. We are
+now in an inconsistent state, that in the Gecode framework will not be
+detected until we do a tell on S, which may be to late.
+
+To 'fix' this problem, it is necessary to add all the features of a
+real variable representing the sum, and then we may as well use the
+explicit variable instead.
+
+
+Regards,
+Mikael Lagerkvist
+
+--
+Mikael 'Zayenz' Lagerkvist, http://www.imit.kth.se/~zayenz/
+
+
+
+
+From pekczynski at ps.uni-sb.de  Tue Jun  7 08:27:16 2005
+From: pekczynski at ps.uni-sb.de (Patrick Pekczynski)
+Date: Tue, 07 Jun 2005 08:27:16 +0200
+Subject: [Gecode] Running Times
+Message-ID: <42A53E44.7030506@ps.uni-sb.de>
+
+Hi everybody,
+
+I've just made jcmax and sports_league compile again (where 
+sports_league is still experimental
+in the branching strategy) but I'm wondering now, how it is possible to 
+display the running times
+for the examples.
+Is there a new "timer mode" or something like this ? (or under 
+construction?) would be nice to know. Thx so far.
+
+Patrick
+
+
+From schulte at imit.kth.se  Tue Jun  7 10:54:54 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 7 Jun 2005 10:54:54 +0200
+Subject: [Gecode] Running Times
+In-Reply-To: <42A53E44.7030506@ps.uni-sb.de>
+Message-ID: <005a01c56b3e$92b55970$acd4ed82@beule>
+
+Hi,
+
+unfortunately you do not mention which platform you are running the programs
+on, but I guess it might be Windows you are referring to. If you build under
+Windows the macro HAVE_WIN_SDK must be defined to get timing on.
+
+So when using MSVC, just using
+	make -f Makefile.mvc
+will do the job.
+
+When using the autoconf stuff
+	make CUSR=-DHAVE_WIN_SDK
+should do the trick (is that true?)
+
+The changed behaviour is due to the fact that I switched to the free version
+of the MSVC compiler and in order to do timing with that one has to first
+install the Windows Platform SDK, which I just did over the weekend.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Patrick Pekczynski
+Sent: Tuesday, June 07, 2005 8:27 AM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] Running Times
+
+
+Hi everybody,
+
+I've just made jcmax and sports_league compile again (where 
+sports_league is still experimental
+in the branching strategy) but I'm wondering now, how it is possible to 
+display the running times
+for the examples.
+Is there a new "timer mode" or something like this ? (or under 
+construction?) would be nice to know. Thx so far.
+
+Patrick
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From schulte at imit.kth.se  Tue Jun  7 14:44:19 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 7 Jun 2005 14:44:19 +0200
+Subject: [Gecode] Re: Problem with operator== for views,
+	equality vs. aliasing.
+Message-ID: <007901c56b5e$9f3dc310$acd4ed82@beule>
+
+Dear all,
+
+I now have provided some working infrastructure for testing sharing and
+equality.
+
+A view x depends on a variable v, either if x is an identify view for v or x
+is derived from a view v' which depends on v (this assumes the terminology
+in the views paper).
+
+Two views x and y (of not necessarily the same type) _share_ a variable v,
+if both x and y depend on v. The views are also called shared. Written in
+Gecode as x & y.
+
+Two views x and y of the same type are _equal_, if they are identical. This
+means that when becoming assigned they will have the same value. Written in
+Gecode as x == y (also != is available).
+
+Additionally, there is an ordering on views. The order is completely
+arbitrary (implemented for example by location in memory) and is not stable
+with respect to cloning. However, the following important invariant holds:
+if x<y and x and y are shared, then for a view z that is not shared with x
+or y: z < x or y < z but never x < z < y. For example, the implementation
+achieves this by using lexicographic ordering where the variable component
+of a derived view takes precedence.
+
+This means that when sorting views of the same type wrt <, shared views are
+next to each other.
+ 
+ViewArrays now provide some functionality for sorting and finding shared or
+equal views. For a ViewArray x:
+	x.equal()	tests whether x has at least two equal views.
+	x.shared()	tests whether x has at least two shared views.
+	x.group_equal()	sorts the views in x and returns x.equal()
+	x.group_shared()	sorts the views in x and returns x.shared()
+
+All operations take n log n in average (based on quicksorting the views). If
+the order of views in a ViewArray does not matter, the group_-variants are
+more efficient (in-place sorting).
+
+However, the original problem we wanted to tackle with all this, is still
+unsolved: how to decide idempotence with shared views... See next Email.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Tue Jun  7 16:29:35 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 7 Jun 2005 16:29:35 +0200
+Subject: [Gecode] Interaction between shared variables and idempotency
+Message-ID: <007e01c56b6d$53bd7660$acd4ed82@beule>
+
+Dear all,
+
+initially, the tests for sharing and equality on views was meant to address
+issues with shared variables for idempotent propagators.
+
+As a reminder, a propagator returns ES_FIX if it is at a fixpoint and
+ES_NOFIX if it is not at a fixpoint. For efficiency, the propagator should
+try hard to tell ES_FIX most of the times when it is actually at fixpoint.
+However, this is difficult for propagators computing on shared views:
+performing an operation on a view also narrows the domain of the shared
+view.
+
+Here are three strategies for finding out whether a propagator is at
+fixpoint with shared views.
+
+1. Suppose a propagator that only performs at most one write operation to a
+view. Typical examples are "smart" propagators such as distinct, regular,
+etc. They work by first computing new domain information for each view and
+then writing or posting this information back to the views. Here one can use
+a trick to find out whether one has computed a fixpoint or not: a view x
+provides an operation x.modified(). When a propagator starts execution
+modified() is false for all views. Only after a modification has taken
+place, it becomes true. So the following works: before the propagator posts
+to the view x, it checks whether x is already modified. If yes, the
+propagator might not be at a fixpoint. Otherwise, it is.
+
+2. The propagator computes in a loop until a fixpoint is reached. The
+propagator must make sure that this loop really computes a fixpoint! For
+example, when the loop is based until no view changes this also must
+consider that no shared view has been changed. Here the trick with modified
+is not available.
+
+3. Check for sharing once and for all. If none of the above works, just
+check whether the propagator has shared views or not. If it has, ALWAYS
+report ES_NOFIX! This can be achieved most efficiently by making the
+propagator generic with respect to whether to return ES_FIX and ES_NOFIX
+through a template.
+
+Here comes also an example why this matters. Assume domain consistent
+distinct and variables x with domain {1,2} and y both with domain {2,3} and
+the following three views v1 := x+0, v2 := x+1, v3 := y. Propagation should
+yield x=1 and y=3 directly! However, if the propagator does not detect that
+v1 and v2 are shared it will only propagate that x=1 and y in {2,3}!
+
+And yes, sharing sucks. And yes, almost all propagators are faulty (but
+linear and bool!)...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From dooms at info.ucl.ac.be  Mon Jun 13 18:02:07 2005
+From: dooms at info.ucl.ac.be (=?ISO-8859-1?Q?Gr=E9goire_Dooms?=)
+Date: Mon, 13 Jun 2005 18:02:07 +0200
+Subject: [Gecode] bug: bab-copy.cc : BAB search not traversing rightmost
+	root subtree.
+Message-ID: <42ADADFF.4090305@info.ucl.ac.be>
+
+Hi,
+
+I think I found a bug in BAB search: the righmost subtree of the root 
+node is never traversed.
+I attach a small code demonstrating the bug and a patch.
+All the best,
+--
+Gr?goire Dooms
+
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: test_BAB.cc
+Type: text/x-c++src
+Size: 1274 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050613/b0927437/attachment.cc>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: bug_bab.patch
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050613/b0927437/attachment.txt>
+
+From schulte at imit.kth.se  Mon Jun 13 19:46:27 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 13 Jun 2005 19:46:27 +0200
+Subject: [Gecode] bug: bab-copy.cc : BAB search not traversing
+	rightmostroot subtree.
+In-Reply-To: <42ADADFF.4090305@info.ucl.ac.be>
+Message-ID: <000801c5703f$d319ef70$0301a8c0@dator>
+
+Hi Gr?goire,
+
+Thanks so much! You are of course absolutely right: this is a major bug...
+
+Cheers
+Christian
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Gr?goire Dooms
+Sent: Monday, June 13, 2005 6:02 PM
+To: Technical discussions about Gecode
+Subject: [Gecode] bug: bab-copy.cc : BAB search not traversing rightmostroot
+subtree.
+
+
+Hi,
+
+I think I found a bug in BAB search: the righmost subtree of the root 
+node is never traversed.
+I attach a small code demonstrating the bug and a patch.
+All the best,
+--
+Gr?goire Dooms
+
+
+
+
+
+
+
+From tack at ps.uni-sb.de  Tue Jun 21 17:51:07 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 21 Jun 2005 17:51:07 +0200 (CEST)
+Subject: [Gecode] Internal area on www.gecode.org, tarballs
+Message-ID: <57175.130.237.15.11.1119369067.squirrel@130.237.15.11>
+
+Hi everyone!
+
+We will from now on (until we actually release) provide tarballs of the
+Gecode CVS whenever we find that something substantial has changed and the
+CVS is relatively stable. You can download them from our internal pages:
+https://www.gecode.org/Internal
+
+The login is gecode, the password pr.p.g.t. (that is propagate with a .
+instead of each vowel). Note that these pages are from now on only
+accessible via https - please ignore if your browser complains that the
+certificate is not valid.
+
+We have recently restructured some parts of the library, and we think what
+we have now is pretty much what we are going to release (in terms of
+structure). Comments and bug reports (and of course patches that fix the
+bugs ;-) are highly welcome! On the internal pages, you will find a
+bugzilla bug tracking system.
+
+Please keep in mind that these are pre-release versions, and the same
+restrictions apply as for the tarballs Christian has sent you: please do
+not redistribute them.
+
+Cheers,
+   Guido
+
+
+
+From schulte at imit.kth.se  Wed Jun 22 16:41:50 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 22 Jun 2005 16:41:50 +0200
+Subject: [Gecode] Memory information: needed? how accurate?
+Message-ID: <001c01c57738$864f6030$acd4ed82@beule>
+
+Dear all,
+
+the last thing which is currently on the list of things to be done for
+Gecode in order to release is functionality that allows to inquire how much
+memory is used for solving a problem (of course, putting docs aside).
+
+The simplest approach would be only to check how much memory has been
+allocated by each space. However, propagators also can have memory allocated
+for caching intermediate states and this can be quite substantial. Does one
+also want to know about this?
+
+Moreover, in order to find out how much memory is used by a search engine it
+is not sufficient to only look out for how much memory is allocated for
+spaces as also branch descriptions (used for batch recomputation) are stored
+by the search engine. Does one want to know?
+
+And even more: would one wish to have the possibility to ask for the peak
+memory consumption of a search engine?
+
+So many questions so little answers...
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From alexander_samoilov at yahoo.com  Thu Jun 23 11:13:35 2005
+From: alexander_samoilov at yahoo.com (Alexander Samoilov)
+Date: Thu, 23 Jun 2005 02:13:35 -0700 (PDT)
+Subject: [Gecode] .template patch to Gecode for fl_alloc
+Message-ID: <20050623091335.9485.qmail@web50508.mail.yahoo.com>
+
+Dear developers,
+
+I've downloaded gecode-2005-06-21.tar.gz and tried
+to compile it. Gcc 3.4.4 compiled it just excellent
+but
+gcc 3.2.3 failed:
+
+ g++ -DHAVE_CONFIG_H -I. -I. -I.. -I..
+-DGECODE_BUILD_INT -O3 -finline-limit=3000 -DNDEBUG
+-Wall -MT regular/dfa.lo -MD -MP -MF
+regular/.deps/dfa.Tpo -c regular/dfa.cc -o
+regular/dfa.o
+../kernel/core.icc: In member function `void*
+Gecode::Space::fl_alloc() [with
+   unsigned int <anonymous> = 16]':
+../int/var/rangelist.icc:98:   instantiated from here
+../kernel/core.icc:73: no matching function for call
+to `Gecode::MemoryManager
+   ::fl_alloc()'
+../kernel/core.icc: In member function `void
+   Gecode::Space::fl_dispose(Gecode::FreeList*,
+Gecode::FreeList*) [with
+   unsigned int <anonymous> = 16]':
+../int/var/rangelist.icc:103:   instantiated from here
+../kernel/core.icc:78: no matching function for call
+to `Gecode::MemoryManager
+   ::fl_dispose(Gecode::FreeList*&,
+Gecode::FreeList*&)'
+make[2]: *** [regular/dfa.lo] Error 1
+
+I'm sending small patch for fixing it.
+With this patch g++ 3.2.3 compiles gecode ok
+but consumes much more time for the job then 3.4.4 :(
+G++ 3.4.4 works much faster then 
+
+The patch should work with g++ 3.4.4 so it doesn't
+harm to apply it. However I can't check it for MSVC.
+If MSVC failed to accept the .template construct,
+conditional compilation would help.
+
+Best wishes,
+Alexander Samoilov
+
+
+		
+____________________________________________________ 
+Yahoo! Sports 
+Rekindle the Rivalries. Sign up for Fantasy Football 
+http://football.fantasysports.yahoo.com
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: gecode.patch
+Type: application/octet-stream
+Size: 653 bytes
+Desc: 2727372033-gecode.patch
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20050623/4f2c1a4d/attachment.obj>
+
+From schulte at imit.kth.se  Thu Jun 23 13:41:08 2005
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 23 Jun 2005 13:41:08 +0200
+Subject: [Gecode] .template patch to Gecode for fl_alloc
+In-Reply-To: <20050623091335.9485.qmail@web50508.mail.yahoo.com>
+Message-ID: <000d01c577e8$7284a1e0$acd4ed82@beule>
+
+Hi Alexander,
+
+thanks for the patch. I just checked that it also works for GCC 4 and Intel
+and Microsoft.
+
+Maybe Guido can update the tarballs...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Alexander Samoilov
+Sent: Thursday, June 23, 2005 11:14 AM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] .template patch to Gecode for fl_alloc
+
+
+Dear developers,
+
+I've downloaded gecode-2005-06-21.tar.gz and tried
+to compile it. Gcc 3.4.4 compiled it just excellent
+but
+gcc 3.2.3 failed:
+
+ g++ -DHAVE_CONFIG_H -I. -I. -I.. -I..
+-DGECODE_BUILD_INT -O3 -finline-limit=3000 -DNDEBUG
+-Wall -MT regular/dfa.lo -MD -MP -MF
+regular/.deps/dfa.Tpo -c regular/dfa.cc -o
+regular/dfa.o
+../kernel/core.icc: In member function `void*
+Gecode::Space::fl_alloc() [with
+   unsigned int <anonymous> = 16]':
+../int/var/rangelist.icc:98:   instantiated from here
+../kernel/core.icc:73: no matching function for call
+to `Gecode::MemoryManager
+   ::fl_alloc()'
+../kernel/core.icc: In member function `void
+   Gecode::Space::fl_dispose(Gecode::FreeList*,
+Gecode::FreeList*) [with
+   unsigned int <anonymous> = 16]':
+../int/var/rangelist.icc:103:   instantiated from here
+../kernel/core.icc:78: no matching function for call
+to `Gecode::MemoryManager
+   ::fl_dispose(Gecode::FreeList*&,
+Gecode::FreeList*&)'
+make[2]: *** [regular/dfa.lo] Error 1
+
+I'm sending small patch for fixing it.
+With this patch g++ 3.2.3 compiles gecode ok
+but consumes much more time for the job then 3.4.4 :(
+G++ 3.4.4 works much faster then
+
+The patch should work with g++ 3.4.4 so it doesn't
+harm to apply it. However I can't check it for MSVC.
+If MSVC failed to accept the .template construct,
+conditional compilation would help.
+
+Best wishes,
+Alexander Samoilov
+
+
+		
+____________________________________________________ 
+Yahoo! Sports 
+Rekindle the Rivalries. Sign up for Fantasy Football 
+http://football.fantasysports.yahoo.com
+
+
+
+From tack at ps.uni-sb.de  Thu Jun 23 13:52:43 2005
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 23 Jun 2005 13:52:43 +0200
+Subject: [Gecode] .template patch to Gecode for fl_alloc
+In-Reply-To: <000d01c577e8$7284a1e0$acd4ed82@beule>
+References: <000d01c577e8$7284a1e0$acd4ed82@beule>
+Message-ID: <200506231352.43878.tack@ps.uni-sb.de>
+
+Hi.
+
+On Thursday 23 June 2005 13:41, Christian Schulte wrote:
+> Hi Alexander,
+>
+> thanks for the patch. I just checked that it also works for GCC 4 and Intel
+> and Microsoft.
+>
+> Maybe Guido can update the tarballs...
+
+Done.
+
+Guido
+
+-- 
+http://www.ps.uni-sb.de/~tack
+
+

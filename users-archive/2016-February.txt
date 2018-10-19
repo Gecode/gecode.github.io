@@ -1,0 +1,1015 @@
+From cschulte at kth.se  Mon Feb  1 09:21:44 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 1 Feb 2016 09:21:44 +0100
+Subject: [gecode-users] users Digest, Vol 124, Issue 6
+In-Reply-To: <CAFd=f3Ee9of6_CAy692vw=Y3cUBjh_=uMQsqrAGic-NzCHp0Ug@mail.gmail.com>
+References: <mailman.1.1454065203.17549.users@gecode.org>	<56AB47A1.3030508@informatik.uni-augsburg.de>	<008e01d15a86$5a64d490$0f2e7db0$@kth.se>	<CAFd=f3EAHEPEaCEgtCBwROGd0=gx_C+jrVryxqWcE6Vt7EGEaA@mail.gmail.com>	<00ad01d15a95$ab47a040$01d6e0c0$@kth.se>	<56AB72D4.300@informatik.uni-augsburg.de>
+	<CAFd=f3Ee9of6_CAy692vw=Y3cUBjh_=uMQsqrAGic-NzCHp0Ug@mail.gmail.com>
+Message-ID: <000101d15cc9$96574a60$c305df20$@kth.se>
+
+Hi,
+
+ 
+
+I have a suspicion here. The easiest might be to send me your implementation of the constrain() member function so that I can have a look.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: Juan Carlos Hernandez [mailto:jchernandez.madrid at gmail.com] 
+Sent: Sunday, January 31, 2016 09:10 AM
+To: Alexander Schiendorfer; Christian Schulte
+Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+
+ 
+
+Hi again,
+
+ 
+
+I just wanted to say that the lexicographic search worked perfectly. Thanks!
+
+Now, I am stuck at a segmentation fault that appears when I try to run it in parallel mode (say, using 8 threads). The error happens irregularly, but more often when I increase the thread count. I will see if I can make a small code that reproduces the error. Here is the Visual Studio trace, in case it is a known bug.
+
+ 
+
+Unhandled exception at 0x0F5A81BA (GecodeInt-4-4-0-d-x86.dll) in cpsolver.exe: 0xC0000005: Access violation reading location 0x0194379C.
+
+> GecodeInt-4-4-0-d-x86.dll!Gecode::Int::IntVarImp::RangeList::min() Line 103 C++
+
+GecodeInt-4-4-0-d-x86.dll!Gecode::Int::IntVarImp::min() Line 230 C++
+
+GecodeInt-4-4-0-d-x86.dll!Gecode::Int::IntView::min() Line 60 C++
+
+GecodeInt-4-4-0-d-x86.dll!Gecode::Int::Rel::LexLqLe<Gecode::Int::IntView>::propagate(Gecode::Space & home, const int & __formal) Line 93 C++
+
+GecodeKernel-4-4-0-d-x86.dll!Gecode::Space::status(Gecode::StatusStatistics & stat) Line 270 C++
+
+GecodeSearch-4-4-0-d-x86.dll!Gecode::Search::Parallel::BAB::Worker::run() Line 120 C++
+
+GecodeSupport-4-4-0-d-x86.dll!Gecode::Support::Thread::Run::exec() Line 64 C++
+
+GecodeSupport-4-4-0-d-x86.dll!Gecode::Support::bootstrap(void * p) Line 48 C++
+
+ 
+
+Thanks,
+
+JC
+
+ 
+
+2016-01-29 15:10 GMT+01:00 Alexander Schiendorfer <alexander.schiendorfer at informatik.uni-augsburg.de>:
+
+Yes it's godly :)!
+
+Let me jump on the bandwagon of showing off - http://isse-augsburg.github.io/constraint-relationships/ does really benefit from that feature (well, accessed by MiniSearch, but still!)
+
+Cheers, have a good weekend
+
+ 
+
+On 29.01.2016 14:05, Christian Schulte wrote:
+
+Actually, this is the very reason that Gecode has a constrain() function as its primitive: it is way more powerful than a simple cost variable.
+
+ 
+
+Just showing off a little ;-)
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/%7Eschulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: Juan Carlos Hernandez [mailto:jchernandez.madrid at gmail.com] 
+Sent: Friday, January 29, 2016 01:39 PM
+To: Christian Schulte  <mailto:cschulte at kth.se> <cschulte at kth.se>; alexander.schiendorfer at informatik.uni-augsburg.de
+Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+
+ 
+
+Dear Alex and Christian,
+
+ 
+
+thanks a lot! A very elegant solution - I will try it out at once. 
+
+ 
+
+Cheers,
+
+JC
+
+ 
+
+2016-01-29 12:15 GMT+01:00 Christian Schulte <cschulte at kth.se>:
+
+Alex is spot on here: but let me expand a little.
+
+You might have used the cost() member function for B&B. However the cost()
+member function is just implemented in terms of the constrain() member
+function. So what I would do is the following:
+ - Have a integer variable array cost containing the two cost variables you
+have in mind.
+ - implement a constrain(const Space& _b) member function: _b refers to the
+so-far best solution. Cast this to your script type, say b. Then this just
+posts
+        rel(*this, cost, IRT_LQ, b.cost);
+   This enforces that this->cost is lexicographically smaller then the so
+far best cost b.cost.
+
+That's it. More on the  constrain() function you can find in Chapter 2 of
+MPG.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte <http://www.gecode.org/%7Eschulte> 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Alexander Schiendorfer
+Sent: Friday, January 29, 2016 12:06 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+
+Hi Juan,
+
+it seems to me that you're searching for lexicographic branch-and-bound.
+There is a global constraint lex_lesseq that you might want to consider for
+posting in the constrain method of a Space.
+
+Cheers,
+Alex
+
+On 29.01.2016 12:00, users-request at gecode.org wrote:
+> Send users mailing list submissions to
+>       users at gecode.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>       http://www.gecode.org/cgi-bin/mailman/listinfo/users
+> or, via email, send a message with subject or body 'help' to
+>       users-request at gecode.org
+>
+> You can reach the person managing the list at
+>       users-owner at gecode.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of users digest..."
+>
+>
+> Today's Topics:
+>
+>     1. Best way to implement multi-criterion optimization     in Gecode?
+>        (Juan Carlos Hernandez)
+>
+>
+> ----------------------------------------------------------------------
+>
+> Message: 1
+> Date: Thu, 28 Jan 2016 12:30:54 +0100
+> From: Juan Carlos Hernandez <jchernandez.madrid at gmail.com>
+> To: users at gecode.org
+> Subject: [gecode-users] Best way to implement multi-criterion
+>       optimization    in Gecode?
+> Message-ID:
+>       <CAFd=f3EAU+XPqJo02KPT9SWibPjxkifw-F2so-4mE+x4Kv7Q5A at mail.gmail.com <mailto:f3EAU%2BXPqJo02KPT9SWibPjxkifw-F2so-4mE%2Bx4Kv7Q5A at mail.gmail.com> >
+> Content-Type: text/plain; charset="utf-8"
+>
+> Hi everyone,
+>
+>
+> I am trying to use Gecode to solve a multi-criterion problem
+>
+>
+> minimize        (F1(x,z), F2(x,z) )
+>
+> subject to       constraints on x,z
+>
+>
+> The objectives are ordered in order of importance, so I would like to
+> first solve the problem P1
+>
+>
+> minimize        F1(x,z)
+>
+> subject to       original constraints on x,z
+>
+>
+> and then consider the modified problem P2
+>
+>
+> minimize        F2(x,z)
+>
+> subject to      original constraints on x,z
+>
+>                          F1(x,z) = F1opt
+>
+>
+> where F1opt is the optimal value of P1.
+>
+>
+> What is the most efficient way to implement this in Gecode?
+>
+>
+>
+> I am now doing two completely separate searches, in the sense that I
+> create a new Space and run BAB on it for each of the problems. I am
+> sure that this cannot be the most efficient way of dealing with the
+> problem, but am unable to figure out how to do it "the right way".
+> Essentially, when solving P2 I should be able to make use of the work done
+while solving P1...
+>
+>
+> Any feedback is very much appreciated!
+>
+>
+> Thanks,
+>
+> JC
+> -------------- next part -------------- An HTML attachment was
+> scrubbed...
+> URL:
+> <http://www.gecode.org/pipermail/users/attachments/20160128/06e6ff75/a
+> ttachment-0001.html>
+>
+> ------------------------------
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> End of users Digest, Vol 124, Issue 6
+> *************************************
+
+--
+Alexander Schiendorfer, M.Sc.
+Institute for Software & Systems Engineering Raum 3043, Geb?ude N
+Universit?t Augsburg
+
+Web:
+http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer
+/
+Tel.: +49 (821) 598 - 2196 <tel:%2B49%20%28821%29%20598%20-%202196> 
+E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+
+
+
+
+-- 
+Alexander Schiendorfer, M.Sc.
+Institute for Software & Systems Engineering
+Raum 3043, Geb?ude N
+Universit?t Augsburg
+ 
+Web: http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer/
+Tel.: +49 (821) 598 - 2196 <tel:%2B49%20%28821%29%20598%20-%202196> 
+E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de 
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160201/22ab11a5/attachment-0001.html>
+
+From jchernandez.madrid at gmail.com  Mon Feb  1 18:24:34 2016
+From: jchernandez.madrid at gmail.com (Juan Carlos Hernandez)
+Date: Mon, 1 Feb 2016 18:24:34 +0100
+Subject: [gecode-users] users Digest, Vol 124, Issue 6
+In-Reply-To: <008e01d15a86$5a64d490$0f2e7db0$@kth.se>
+References: <mailman.1.1454065203.17549.users@gecode.org>
+	<56AB47A1.3030508@informatik.uni-augsburg.de>
+	<008e01d15a86$5a64d490$0f2e7db0$@kth.se>
+Message-ID: <CAFd=f3H4m+dZXVPU7PsJCN+=q5hgPN5Yo2xxQL2qLd2=BcVw1Q@mail.gmail.com>
+
+Dear Alex and Christian,
+
+thanks a lot! A very elegant solution - it works well, but I am now
+battling with two problems
+
+1. I get a segmentation fault when I try to run it in parallel mode (say,
+using 8 threads). The error happens irregularly, but more often when I
+increase the thread count. Here is what my constrain function looks like
+for a maximization problem
+
+virtual void constrain(const Space& _b){
+
+const cpSolver& mycpSolver = static_cast<const cpSolver&>(_b);
+rel(*this, objectives, IRT_GR, mycpSolver.objectives);
+
+}
+
+Since this does not really look like the other examples in the Gecode
+manual, I guess that it is not correct. But I was unable to come up with
+any other solution that rel would accept (that is, for which there is a
+matching version of rel).
+
+2. Ideally, I would like to have more than two objectives and have the
+search to first try to maximize the first objective, then the second, etc.
+But I do not manage, not matter which variable selection rule I use.
+Typically, I get a little advancement in the first objective (say, it goes
+from 0 to 1, and perhaps to two), and then the search makes progress on the
+third or fourth objective in order.
+
+Thanks,
+
+JC
+
+
+2016-01-29 12:15 GMT+01:00 Christian Schulte <cschulte at kth.se>:
+
+> Alex is spot on here: but let me expand a little.
+>
+> You might have used the cost() member function for B&B. However the cost()
+> member function is just implemented in terms of the constrain() member
+> function. So what I would do is the following:
+>  - Have a integer variable array cost containing the two cost variables you
+> have in mind.
+>  - implement a constrain(const Space& _b) member function: _b refers to the
+> so-far best solution. Cast this to your script type, say b. Then this just
+> posts
+>         rel(*this, cost, IRT_LQ, b.cost);
+>    This enforces that this->cost is lexicographically smaller then the so
+> far best cost b.cost.
+>
+> That's it. More on the  constrain() function you can find in Chapter 2 of
+> MPG.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Alexander Schiendorfer
+> Sent: Friday, January 29, 2016 12:06 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+>
+> Hi Juan,
+>
+> it seems to me that you're searching for lexicographic branch-and-bound.
+> There is a global constraint lex_lesseq that you might want to consider for
+> posting in the constrain method of a Space.
+>
+> Cheers,
+> Alex
+>
+> On 29.01.2016 12:00, users-request at gecode.org wrote:
+> > Send users mailing list submissions to
+> >       users at gecode.org
+> >
+> > To subscribe or unsubscribe via the World Wide Web, visit
+> >       http://www.gecode.org/cgi-bin/mailman/listinfo/users
+> > or, via email, send a message with subject or body 'help' to
+> >       users-request at gecode.org
+> >
+> > You can reach the person managing the list at
+> >       users-owner at gecode.org
+> >
+> > When replying, please edit your Subject line so it is more specific
+> > than "Re: Contents of users digest..."
+> >
+> >
+> > Today's Topics:
+> >
+> >     1. Best way to implement multi-criterion optimization     in Gecode?
+> >        (Juan Carlos Hernandez)
+> >
+> >
+> > ----------------------------------------------------------------------
+> >
+> > Message: 1
+> > Date: Thu, 28 Jan 2016 12:30:54 +0100
+> > From: Juan Carlos Hernandez <jchernandez.madrid at gmail.com>
+> > To: users at gecode.org
+> > Subject: [gecode-users] Best way to implement multi-criterion
+> >       optimization    in Gecode?
+> > Message-ID:
+> >       <CAFd=
+> f3EAU+XPqJo02KPT9SWibPjxkifw-F2so-4mE+x4Kv7Q5A at mail.gmail.com>
+> > Content-Type: text/plain; charset="utf-8"
+> >
+> > Hi everyone,
+> >
+> >
+> > I am trying to use Gecode to solve a multi-criterion problem
+> >
+> >
+> > minimize        (F1(x,z), F2(x,z) )
+> >
+> > subject to       constraints on x,z
+> >
+> >
+> > The objectives are ordered in order of importance, so I would like to
+> > first solve the problem P1
+> >
+> >
+> > minimize        F1(x,z)
+> >
+> > subject to       original constraints on x,z
+> >
+> >
+> > and then consider the modified problem P2
+> >
+> >
+> > minimize        F2(x,z)
+> >
+> > subject to      original constraints on x,z
+> >
+> >                          F1(x,z) = F1opt
+> >
+> >
+> > where F1opt is the optimal value of P1.
+> >
+> >
+> > What is the most efficient way to implement this in Gecode?
+> >
+> >
+> >
+> > I am now doing two completely separate searches, in the sense that I
+> > create a new Space and run BAB on it for each of the problems. I am
+> > sure that this cannot be the most efficient way of dealing with the
+> > problem, but am unable to figure out how to do it "the right way".
+> > Essentially, when solving P2 I should be able to make use of the work
+> done
+> while solving P1...
+> >
+> >
+> > Any feedback is very much appreciated!
+> >
+> >
+> > Thanks,
+> >
+> > JC
+> > -------------- next part -------------- An HTML attachment was
+> > scrubbed...
+> > URL:
+> > <http://www.gecode.org/pipermail/users/attachments/20160128/06e6ff75/a
+> > ttachment-0001.html>
+> >
+> > ------------------------------
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+> >
+> > End of users Digest, Vol 124, Issue 6
+> > *************************************
+>
+> --
+> Alexander Schiendorfer, M.Sc.
+> Institute for Software & Systems Engineering Raum 3043, Geb?ude N
+> Universit?t Augsburg
+>
+> Web:
+>
+> http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer
+> /
+> Tel.: +49 (821) 598 - 2196
+> E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160201/c76f6b07/attachment.html>
+
+From cschulte at kth.se  Mon Feb  1 21:32:02 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 1 Feb 2016 21:32:02 +0100
+Subject: [gecode-users] users Digest, Vol 124, Issue 6
+In-Reply-To: <CAFd=f3H4m+dZXVPU7PsJCN+=q5hgPN5Yo2xxQL2qLd2=BcVw1Q@mail.gmail.com>
+References: <mailman.1.1454065203.17549.users@gecode.org>	<56AB47A1.3030508@informatik.uni-augsburg.de>	<008e01d15a86$5a64d490$0f2e7db0$@kth.se>
+	<CAFd=f3H4m+dZXVPU7PsJCN+=q5hgPN5Yo2xxQL2qLd2=BcVw1Q@mail.gmail.com>
+Message-ID: <00f601d15d2f$9c4ec8b0$d4ec5a10$@kth.se>
+
+Hi Juan Carlos,
+
+ 
+
+I think the ?solution? suggested by me was a little bit too elegant, in fact it is buggy and that?s why you experience segfaults? Reminds of an Einstein quote: Everything should be made as simple as possible, but not simpler.
+
+ 
+
+The problem is as follows: variables in Gecode belong to just one space and they are deleted when the space is deleted. However in the constrain() function a new propagator is created with both variables from the *this space as well as from the space for the so-far best solution b. Now what can happen is that b might already be deleted while *this is still alive: hence the access to variables which are already did and kaboom: segfault!
+
+ 
+
+The problem is easy to fix, though: when the constrain() function is called you create new variables, one for each variable from b, but now in *this! The variables in b must be assigned, so creating new variables in *this must happen with the variables assigned to the value of the respective variable in b.
+
+ 
+
+The code should look this, roughly:
+
+               IntVarArgs bo(*this, mycpSolver.objectives.size(), Int::Limits::min, Int::Limits::max);
+
+               for (int i=0; i< mycpSolver.objectives.size(), i++)
+
+                 rel(*this, bo[i], IRT_EQ, mycpSolver.objectives[i].val());
+
+               rel(*this, objectives, IRT_LE, bo);
+
+ 
+
+Sorry for not thinking about this in the first place. I?ll add a tip and a warning in MPG.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: Juan Carlos Hernandez [mailto:jchernandez.madrid at gmail.com] 
+Sent: Monday, February 1, 2016 06:25 PM
+To: Christian Schulte <cschulte at kth.se>
+Cc: Alexander Schiendorfer <alexander.schiendorfer at informatik.uni-augsburg.de>; users at gecode.org
+Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+
+ 
+
+Dear Alex and Christian,
+
+ 
+
+thanks a lot! A very elegant solution - it works well, but I am now battling with two problems
+
+ 
+
+1. I get a segmentation fault when I try to run it in parallel mode (say, using 8 threads). The error happens irregularly, but more often when I increase the thread count. Here is what my constrain function looks like for a maximization problem
+
+ 
+
+virtual void constrain(const Space& _b){
+
+ 
+
+const cpSolver& mycpSolver = static_cast<const cpSolver&>(_b);
+
+rel(*this, objectives, IRT_GR, mycpSolver.objectives);
+
+ 
+
+}
+
+ 
+
+Since this does not really look like the other examples in the Gecode manual, I guess that it is not correct. But I was unable to come up with any other solution that rel would accept (that is, for which there is a matching version of rel). 
+
+ 
+
+2. Ideally, I would like to have more than two objectives and have the search to first try to maximize the first objective, then the second, etc. But I do not manage, not matter which variable selection rule I use. Typically, I get a little advancement in the first objective (say, it goes from 0 to 1, and perhaps to two), and then the search makes progress on the third or fourth objective in order.
+
+ 
+
+Thanks,
+
+ 
+
+JC
+
+ 
+
+ 
+
+2016-01-29 12:15 GMT+01:00 Christian Schulte <cschulte at kth.se <mailto:cschulte at kth.se> >:
+
+Alex is spot on here: but let me expand a little.
+
+You might have used the cost() member function for B&B. However the cost()
+member function is just implemented in terms of the constrain() member
+function. So what I would do is the following:
+ - Have a integer variable array cost containing the two cost variables you
+have in mind.
+ - implement a constrain(const Space& _b) member function: _b refers to the
+so-far best solution. Cast this to your script type, say b. Then this just
+posts
+        rel(*this, cost, IRT_LQ, b.cost);
+   This enforces that this->cost is lexicographically smaller then the so
+far best cost b.cost.
+
+That's it. More on the  constrain() function you can find in Chapter 2 of
+MPG.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte <http://www.gecode.org/~schulte> 
+Professor of Computer Science, KTH, cschulte at kth.se <mailto:cschulte at kth.se> 
+Expert Researcher, SICS, cschulte at sics.se <mailto:cschulte at sics.se> 
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org <mailto:users-bounces at gecode.org>  [mailto:users-bounces at gecode.org <mailto:users-bounces at gecode.org> ] On Behalf
+Of Alexander Schiendorfer
+Sent: Friday, January 29, 2016 12:06 PM
+To: users at gecode.org <mailto:users at gecode.org> 
+Subject: Re: [gecode-users] users Digest, Vol 124, Issue 6
+
+Hi Juan,
+
+it seems to me that you're searching for lexicographic branch-and-bound.
+There is a global constraint lex_lesseq that you might want to consider for
+posting in the constrain method of a Space.
+
+Cheers,
+Alex
+
+On 29.01.2016 12:00, users-request at gecode.org <mailto:users-request at gecode.org>  wrote:
+> Send users mailing list submissions to
+>       users at gecode.org <mailto:users at gecode.org> 
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>       http://www.gecode.org/cgi-bin/mailman/listinfo/users
+> or, via email, send a message with subject or body 'help' to
+>       users-request at gecode.org <mailto:users-request at gecode.org> 
+>
+> You can reach the person managing the list at
+>       users-owner at gecode.org <mailto:users-owner at gecode.org> 
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of users digest..."
+>
+>
+> Today's Topics:
+>
+>     1. Best way to implement multi-criterion optimization     in Gecode?
+>        (Juan Carlos Hernandez)
+>
+>
+> ----------------------------------------------------------------------
+>
+> Message: 1
+> Date: Thu, 28 Jan 2016 12:30:54 +0100
+> From: Juan Carlos Hernandez <jchernandez.madrid at gmail.com <mailto:jchernandez.madrid at gmail.com> >
+> To: users at gecode.org <mailto:users at gecode.org> 
+> Subject: [gecode-users] Best way to implement multi-criterion
+>       optimization    in Gecode?
+> Message-ID:
+>       <CAFd=f3EAU+XPqJo02KPT9SWibPjxkifw-F2so-4mE+x4Kv7Q5A at mail.gmail.com <mailto:f3EAU%2BXPqJo02KPT9SWibPjxkifw-F2so-4mE%2Bx4Kv7Q5A at mail.gmail.com> >
+> Content-Type: text/plain; charset="utf-8"
+>
+> Hi everyone,
+>
+>
+> I am trying to use Gecode to solve a multi-criterion problem
+>
+>
+> minimize        (F1(x,z), F2(x,z) )
+>
+> subject to       constraints on x,z
+>
+>
+> The objectives are ordered in order of importance, so I would like to
+> first solve the problem P1
+>
+>
+> minimize        F1(x,z)
+>
+> subject to       original constraints on x,z
+>
+>
+> and then consider the modified problem P2
+>
+>
+> minimize        F2(x,z)
+>
+> subject to      original constraints on x,z
+>
+>                          F1(x,z) = F1opt
+>
+>
+> where F1opt is the optimal value of P1.
+>
+>
+> What is the most efficient way to implement this in Gecode?
+>
+>
+>
+> I am now doing two completely separate searches, in the sense that I
+> create a new Space and run BAB on it for each of the problems. I am
+> sure that this cannot be the most efficient way of dealing with the
+> problem, but am unable to figure out how to do it "the right way".
+> Essentially, when solving P2 I should be able to make use of the work done
+while solving P1...
+>
+>
+> Any feedback is very much appreciated!
+>
+>
+> Thanks,
+>
+> JC
+> -------------- next part -------------- An HTML attachment was
+> scrubbed...
+> URL:
+> <http://www.gecode.org/pipermail/users/attachments/20160128/06e6ff75/a
+> ttachment-0001.html>
+>
+> ------------------------------
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org <mailto:users at gecode.org> 
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> End of users Digest, Vol 124, Issue 6
+> *************************************
+
+--
+Alexander Schiendorfer, M.Sc.
+Institute for Software & Systems Engineering Raum 3043, Geb?ude N
+Universit?t Augsburg
+
+Web:
+http://www.informatik.uni-augsburg.de/lehrstuehle/swt/se/staff/aschiendorfer
+/
+Tel.: +49 (821) 598 - 2196 <tel:%2B49%20%28821%29%20598%20-%202196> 
+E-Mail: alexander.schiendorfer at informatik.uni-augsburg.de <mailto:alexander.schiendorfer at informatik.uni-augsburg.de> 
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org <mailto:users at gecode.org> 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org <mailto:users at gecode.org> 
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160201/1f6492b6/attachment-0001.html>
+
+From gilles.pesant at polymtl.ca  Sat Feb 13 02:22:58 2016
+From: gilles.pesant at polymtl.ca (Gilles Pesant)
+Date: Fri, 12 Feb 2016 20:22:58 -0500 (EST)
+Subject: [gecode-users] counting-based search in Gecode
+In-Reply-To: <450340008.98335401.1455326410545.JavaMail.zimbra@polymtl.ca>
+Message-ID: <922828389.98336401.1455326578951.JavaMail.zimbra@polymtl.ca>
+
+I would like to integrate counting-based branching heuristics in Gecode. Like AFC we need to collect information from each constraint in which a given variable appears. But our information is more involved than a simple updated failure count --- we have dedicated algorithms computing "solution densities" for variable-value pairs. We saw that we can define a Brancher to make an integrated choice of both variable and value. But to host our solution counting code we see two options:
+
+1) In objects of a class Counter which, like Propagator, would inherit from Actor and subscribe to variables. They would mainly implement a getSolutionDensity(var,val) method and possibly react to domain events by updating data structures (via Advisors?).
+
+2) By inheriting directly from Propagator, say in a class CountablePropagator, which may allow us to share data structures used by the propagator: for example for the regular constraint the layered graph is augmented with counters of incoming and outgoing paths at nodes.
+
+What's your opinion?
+
+Thanks,
+Gilles
+
+
+From jchernandez.madrid at gmail.com  Sat Feb 13 08:32:42 2016
+From: jchernandez.madrid at gmail.com (Juan Carlos Hernandez)
+Date: Sat, 13 Feb 2016 08:32:42 +0100
+Subject: [gecode-users] Constraining domain of variable to the index set of
+	Boolean array?
+Message-ID: <CAFd=f3EezyV6snJPQDAK0Sk5ZVPxcm4yEeHuWFhMAQxvQX_=Bw@mail.gmail.com>
+
+I am wondering if there is any native support for the following constraint
+
+x \in  { i such that y[i]=TRUE }
+
+in Gecode. In other words, I would like to ensure that x is an index of a
+true variable in the vector y.
+
+In the global constraint catalog, this looks like a domain_constraint, and
+there is a reference to "in" in Gecode, but I cannot find a matching
+definition of the "in" constraint.
+
+Am I overlooking something?
+
+Grateful for help,
+JC
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160213/e4d2d663/attachment.html>
+
+From guido.tack at monash.edu  Sat Feb 13 08:36:17 2016
+From: guido.tack at monash.edu (Guido Tack)
+Date: Sat, 13 Feb 2016 18:36:17 +1100
+Subject: [gecode-users] Constraining domain of variable to the index set
+	of Boolean array?
+In-Reply-To: <CAFd=f3EezyV6snJPQDAK0Sk5ZVPxcm4yEeHuWFhMAQxvQX_=Bw@mail.gmail.com>
+References: <CAFd=f3EezyV6snJPQDAK0Sk5ZVPxcm4yEeHuWFhMAQxvQX_=Bw@mail.gmail.com>
+Message-ID: <662691E1-79B7-49F4-BC98-B107B5F316DF@monash.edu>
+
+Hi,
+
+you can use the element constraint:
+http://www.gecode.org/doc-latest/reference/group__TaskModelIntElement.html#ga4d6854069f6e77baa1ac353f7cb46e47 <http://www.gecode.org/doc-latest/reference/group__TaskModelIntElement.html#ga4d6854069f6e77baa1ac353f7cb46e47>
+
+So if you have BoolVarArray y and IntVar x, you can post
+
+element(*this, y, x, true);
+
+which simply states that y[x]=true.
+
+Cheers,
+Guido
+
+-- 
+GUIDO TACK                  
+Senior Lecturer
+
+Information Technology
+Monash University
+Level 6, Room 6.40, Building H, Caulfield Campus
+900 Dandenong Road
+Caulfield East VIC 3145
+Australia
+
+T: +61 3 9903 1214                      
+E: guido.tack at monash.edu <mailto:guido.tack at monash.edu>
+http://www.csse.monash.edu/~guidot/ <http://www.csse.monash.edu/~guidot/>
+
+
+> On 13 Feb 2016, at 6:32 PM, Juan Carlos Hernandez <jchernandez.madrid at gmail.com> wrote:
+> 
+> I am wondering if there is any native support for the following constraint
+> 
+> x \in  { i such that y[i]=TRUE }
+> 
+> in Gecode. In other words, I would like to ensure that x is an index of a true variable in the vector y.
+> 
+> In the global constraint catalog, this looks like a domain_constraint, and there is a reference to "in" in Gecode, but I cannot find a matching definition of the "in" constraint.
+> 
+> Am I overlooking something?
+> 
+> Grateful for help,
+> JC
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20160213/0bb6b5e1/attachment.html>
+
+From cschulte at kth.se  Sun Feb 14 18:39:50 2016
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 14 Feb 2016 18:39:50 +0100
+Subject: [gecode-users] counting-based search in Gecode
+In-Reply-To: <922828389.98336401.1455326578951.JavaMail.zimbra@polymtl.ca>
+References: <450340008.98335401.1455326410545.JavaMail.zimbra@polymtl.ca>
+	<922828389.98336401.1455326578951.JavaMail.zimbra@polymtl.ca>
+Message-ID: <00ca01d1674e$b5e55270$21aff750$@kth.se>
+
+Hi Gilles,
+
+That sounds really interesting, very nice!
+
+I would never go for 1): This would require you to change things inside the
+Gecode kernel. This will most likely be a very frustrating experience. Even
+I would not dare doing that unless I had half year and under the assumption
+that I know Gecode as well as I do already.
+
+2) sounds more promising but still very ambitious.
+
+If I were you, I would have a look at how activity information is recorded
+(the files are in gecode/kernel). The idea is as follows: a propagator is
+created which does not really do any propagation but it just records
+information about how variables change. To make it efficient this propagator
+is given a very high cost so that it will run only after all "real"
+propagators have reached their fixpoint. And as you suggest it uses advisors
+to do that. My gut feeling is that you can start very quickly from what is
+already there for activity recording.
+
+It is not that obvious how to share datastructures then. It is possible in
+principle, though. But I'd really leave that to later.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Gilles Pesant
+Sent: Saturday, February 13, 2016 02:23 AM
+To: users at gecode.org
+Subject: [gecode-users] counting-based search in Gecode
+
+I would like to integrate counting-based branching heuristics in Gecode.
+Like AFC we need to collect information from each constraint in which a
+given variable appears. But our information is more involved than a simple
+updated failure count --- we have dedicated algorithms computing "solution
+densities" for variable-value pairs. We saw that we can define a Brancher to
+make an integrated choice of both variable and value. But to host our
+solution counting code we see two options:
+
+1) In objects of a class Counter which, like Propagator, would inherit from
+Actor and subscribe to variables. They would mainly implement a
+getSolutionDensity(var,val) method and possibly react to domain events by
+updating data structures (via Advisors?).
+
+2) By inheriting directly from Propagator, say in a class
+CountablePropagator, which may allow us to share data structures used by the
+propagator: for example for the regular constraint the layered graph is
+augmented with counters of incoming and outgoing paths at nodes.
+
+What's your opinion?
+
+Thanks,
+Gilles
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+

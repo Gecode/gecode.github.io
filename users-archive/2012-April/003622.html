@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Multiple separate searches
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Multiple%20separate%20searches&In-Reply-To=%3CA20512E0-EC0F-4657-B898-2B4CE4726299%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003621.html">
+   <LINK REL="Next"  HREF="003623.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Multiple separate searches</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Multiple%20separate%20searches&In-Reply-To=%3CA20512E0-EC0F-4657-B898-2B4CE4726299%40gecode.org%3E"
+       TITLE="[gecode-users] Multiple separate searches">tack at gecode.org
+       </A><BR>
+    <I>Mon Apr 23 07:44:35 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003621.html">[gecode-users] Multiple separate searches
+</A></li>
+        <LI>Next message: <A HREF="003623.html">[gecode-users] Multiple separate searches
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3622">[ date ]</a>
+              <a href="thread.html#3622">[ thread ]</a>
+              <a href="subject.html#3622">[ subject ]</a>
+              <a href="author.html#3622">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On 23/04/2012, at 3:31 PM, Milton Friedman wrote:
+
+&gt;<i> Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at ...</A>&gt; writes:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> -- 
+</I>&gt;&gt;<i> Guido Tack
+</I>&gt;&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> When you construct DFS from a space, DFS takes ownership of that space, 
+</I>&gt;&gt;<i> unless you give it a search options argument where you set clone to false 
+</I>&gt;&gt;<i> (see the reference documentation for the DFS class).  So here it depends 
+</I>&gt;&gt;<i> on whether s is still the initial space (in which case you mustn't delete it) 
+</I>&gt;&gt;<i> or a space returned from e.next (in which case you must delete it).
+</I>&gt;&gt;<i> But that's not the main problem with the code above: 
+</I>&gt;&gt;<i> a space returned from e.next() is always NULL or SS_SOLVED.
+</I>&gt;&gt;<i> What you probably want to do is to implement your own Brancher 
+</I>&gt;&gt;<i> that runs a DFS internally.  There is code that does more or less that in 
+</I>&gt;&gt;<i> gecode/flatzinc/flatzinc.cpp in the current svn trunk, it's called 
+</I>&gt;&gt;<i> &quot;AuxVarBrancher&quot;.  Perhaps that can help you to get started.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at ...</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Thanks Guido.
+</I>&gt;<i> 
+</I>&gt;<i> I see what you mean about DFS only returning NULL &amp; Solved, and not Branch.
+</I>&gt;<i> It looks like when you initialize DFS, s.status() returns Branch,
+</I>&gt;<i> you're immediately going to use e.next to call DFS,
+</I>&gt;<i> so no need to check for Branch.
+</I>
+As I said, DFS takes ownership of s, so you shouldn't do anything with s after initialising DFS.  You are definitely not allowed to delete it!
+
+&gt;<i> That makes the function simpler, and it works. 
+</I>&gt;<i> But now I'm able to delete s in two places,
+</I>&gt;<i> as I was originally trying to do: 
+</I>&gt;<i> - The first deletion deletes the initial space.
+</I>&gt;<i> - The final deletion deletes the space returned by s = e.next()
+</I>&gt;<i> So I'm not sure why it's letting me delete both spaces,
+</I>&gt;<i> since I didn't use the .clone=false option.
+</I>&gt;<i> I must have misunderstood what you meant.
+</I>
+It may just work by accident.
+
+&gt;<i> void DoOneDFS(int argc, char* argv[],const char* ModelName){
+</I>&gt;<i>        SizeOptions optModel(ModelName);         
+</I>&gt;<i>        optModel.iterations(1);          
+</I>&gt;<i>        optModel.size(3);          
+</I>&gt;<i>        optModel.parse(argc,argv);     
+</I>&gt;<i>        ModelB* s = new ModelB(optModel);
+</I>&gt;<i>        //initialize DFS search engine
+</I>&gt;<i>        DFS&lt;modelB&gt; e(s);
+</I>&gt;<i>        delete s;       //deletes initial space
+</I>&gt;<i>        s = e.next();   //calls DFS
+</I>&gt;<i>        if (s)  {               //if not null, then solved
+</I>&gt;<i>                if (SS_SOLVED==s-&gt;status()){
+</I>&gt;<i>                        cout&lt;&lt;&quot;Solved&quot;&lt;&lt;endl;
+</I>&gt;<i>                        s-&gt;myprint();
+</I>&gt;<i>                        s-&gt;mydebugprint();
+</I>&gt;<i>                        //system(&quot;PAUSE&quot;);
+</I>&gt;<i>                }
+</I>&gt;<i>                else if (SS_FAILED==s-&gt;status()){
+</I>&gt;<i>                        cout&lt;&lt;&quot;Failed&quot;&lt;&lt;endl;
+</I>&gt;<i>                        //system(&quot;PAUSE&quot;);
+</I>&gt;<i>                }
+</I>&gt;<i>                else { 
+</I>&gt;<i>                        cout&lt;&lt;&quot;Shouldn't arrive here. status: &quot;&lt;&lt;s-&gt;status()&lt;&lt;endl;
+</I>&gt;<i>                        system(&quot;PAUSE&quot;);
+</I>&gt;<i>                }
+</I>&gt;<i>        }
+</I>&gt;<i>        else     //null...no solution found.
+</I>&gt;<i>        delete s;
+</I>&gt;<i>  }
+</I>
+I'm still puzzled what you are trying to do here.  I thought you wanted to run another DFS on a different set of variables when the first DFS finishes, so I would have expected the code to look more or less like this:
+
+DFS&lt;modelB&gt; e(s);
+modelB* sol=NULL;
+while (sol==NULL) {
+  sol = e.next();
+  if (sol==NULL) break; // no more solutions -&gt; done
+  branch(*sol,....); // Add branch for second set of variables
+  DFS&lt;modelB&gt; e2(sol);
+  sol = e2.next();
+}
+if (sol) {
+  sol-&gt;print();
+  delete sol; // this is the only object that needs deletion
+}
+
+&gt;<i> Thanks for the suggestion about writing my own brancher.
+</I>&gt;<i> Would it be significantly faster?  If so, what is the source of the speedup?
+</I>
+It wouldn't be faster, it would just be easier to encapsulate (you can run it with any search engine, not just with your own combination of engines).
+
+Cheers,
+Guido
+
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003621.html">[gecode-users] Multiple separate searches
+</A></li>
+	<LI>Next message: <A HREF="003623.html">[gecode-users] Multiple separate searches
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3622">[ date ]</a>
+              <a href="thread.html#3622">[ thread ]</a>
+              <a href="subject.html#3622">[ subject ]</a>
+              <a href="author.html#3622">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

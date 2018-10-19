@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Problem solving simple model
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20solving%20simple%20model&In-Reply-To=%3CSNT110-W6CDD0F19DB12B8190596AE41C0%40phx.gbl%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003366.html">
+   <LINK REL="Next"  HREF="003371.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Problem solving simple model</H1>
+    <B>Jefferson Soares Biernastki</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Problem%20solving%20simple%20model&In-Reply-To=%3CSNT110-W6CDD0F19DB12B8190596AE41C0%40phx.gbl%3E"
+       TITLE="[gecode-users] Problem solving simple model">jef_ti at hotmail.com
+       </A><BR>
+    <I>Tue Sep  6 15:57:36 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003366.html">[gecode-users] Linear memory allocation
+</A></li>
+        <LI>Next message: <A HREF="003371.html">[gecode-users] Problem solving simple model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3370">[ date ]</a>
+              <a href="thread.html#3370">[ thread ]</a>
+              <a href="subject.html#3370">[ subject ]</a>
+              <a href="author.html#3370">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>
+Hi people,
+i m working on Gecode for 2 weeks and i model a simple constraint problem already resolved in ILOG CP.
+Problem: Two trains (X01 and X02) must arrive in final station, each ocupation must be released, normally 1 minute for releasing.
+the model bellow tries to represent this problem.
+somebody could help me on what i m doing wrong?
+&lt;code&gt;#include &lt;gecode/driver.hh&gt;#include &lt;gecode/int.hh&gt;#include &lt;gecode/minimodel.hh&gt;
+#include &lt;list&gt;#include &lt;conio.h&gt;
+using namespace Gecode;
+// Structure of data
+// Sectionstruct SectionBlock{	int id;	char *name;	bool yard;
+	SectionBlock(int id, char *name, bool yard)	{		this-&gt;id = id;		this-&gt;name = name;		this-&gt;yard = yard;	}};
+// Trainstruct Train{	int id;	char *prefix;	int departure;	SectionBlock *origin;	SectionBlock *destination;
+	Train(int id, char *prefix, int departure, SectionBlock *origin, SectionBlock *destination)	{		this-&gt;id = id;		this-&gt;prefix = prefix;		this-&gt;departure = departure;		this-&gt;origin = origin;		this-&gt;destination = destination;	}};
+// Activitiesstruct RouteActivity{	int id;	Train *train;	int transitTime;	int transitTimeReleasing;	SectionBlock *sectionBlock;
+	RouteActivity(int id, Train *train, int transitTime, int transitTimeReleasing, SectionBlock *sectionBlock)	{		this-&gt;id = id;		this-&gt;train = train;		this-&gt;transitTime = transitTime;		this-&gt;transitTimeReleasing = transitTimeReleasing;		this-&gt;sectionBlock = sectionBlock;	}};
+/***************************************************** Train scheduling*****************************************************/class Scheduling : public MinimizeScript{private:		// Intervals	IntVarArray *start_times;	IntVarArray *end_times;	IntVarArray *start_times_releasing;	IntVarArray *end_times_releasing;	IntVarArray *duration;	IntVarArray *duration_releasing;	IntVarArray totalCost;	IntVar totalFinal;
+	int maxDomain;
+	// Input data	std::list&lt;Train*&gt; _trains;	std::list&lt;SectionBlock*&gt; _sectionBlocks;	std::list&lt;RouteActivity*&gt; _activities;	std::list&lt;RouteActivity*&gt; *_activitiesByTrain;
+public:
+	// search engines	enum	{		SEARCH_DFS,		SEARCH_BAB,		SEARCH_RESTART	};
+	// Droping data	~Scheduling()	{		/*		for (int i = 0; i &lt; _trains.size(); i++)		{			_activitiesByTrain[i].clear();		}
+		for (std::list&lt;RouteActivity*&gt;::iterator i = _activities.begin(); i != _activities.end(); ++i)		{			delete (*i);		}
+		for (std::list&lt;Train*&gt;::iterator i = _trains.begin(); i != _trains.end(); ++i)		{			delete (*i);		}
+		for (std::list&lt;SectionBlock*&gt;::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)		{			delete (*i);		}				_activities.clear();		_trains.clear();		_sectionBlocks.clear();		*/	}
+	// Actual model	Scheduling(const SizeOptions&amp; opt)		: totalFinal(*this, 0, Int::Limits::max)	{		maxDomain = 1000;
+		run(opt);	}
+	// Constructor for cloning s	Scheduling(bool share, Scheduling&amp; s) : MinimizeScript(share, s) 	{		copypreprocess(share, s);
+		const int totalTrains = _trains.size();
+		maxDomain = s.maxDomain;
+		// Domain definition		start_times = new IntVarArray[totalTrains];		end_times = new IntVarArray[totalTrains];
+		start_times_releasing = new IntVarArray[totalTrains];		end_times_releasing = new IntVarArray[totalTrains];
+		duration = new IntVarArray[totalTrains];		duration_releasing = new IntVarArray[totalTrains];
+		totalFinal.update(*this, share, s.totalFinal);
+		totalCost = IntVarArray(*this, totalTrains, 0, Int::Limits::max);
+		for (int t = 0; t &lt; totalTrains; t++)		{			int totalActivities = _activitiesByTrain[t].size();
+			totalCost[t].update(*this, share, s.totalCost[t]);
+			start_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			start_times[t].update(*this, share, s.start_times[t]);
+			end_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			end_times[t].update(*this, share, s.end_times[t]);
+			start_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			start_times_releasing[t].update(*this, share, s.start_times_releasing[t]);
+			end_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			end_times_releasing[t].update(*this, share, s.end_times_releasing[t]);
+			duration[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			duration[t].update(*this, share, s.duration[t]);
+			duration_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			duration_releasing[t].update(*this, share, s.duration_releasing[t]);		}	}
+	// Copy during cloning	virtual Space *copy(bool share) 	{		return new Scheduling(share, *this);	}
+	// Run method	virtual void run(const SizeOptions&amp; opt)	{		preprocess();
+		const int totalTrains = _trains.size();		const int totalSBs = 5;
+		// Domain intervals		start_times = new IntVarArray[totalTrains];		end_times = new IntVarArray[totalTrains];		duration = new IntVarArray[totalTrains];
+		start_times_releasing = new IntVarArray[totalTrains];		end_times_releasing = new IntVarArray[totalTrains];		duration_releasing = new IntVarArray[totalTrains];
+		totalCost = IntVarArray(*this, totalTrains, 0, Int::Limits::max);
+		IntVarArgs sb_start_resource[totalSBs];		IntVarArgs sb_end_resource[totalSBs];		IntVarArgs sb_duration[totalSBs];
+		// Domain definition		for (int t = 0; t &lt; _trains.size(); t++)		{			int totalActivities = _activitiesByTrain[t].size();
+			start_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			end_times[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			duration[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			start_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			end_times_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);			duration_releasing[t] = IntVarArray(*this, totalActivities, 0, maxDomain);
+			// Grouping activities by SB			int s = 0;			for (std::list&lt;RouteActivity*&gt;::iterator j = _activitiesByTrain[t].begin(); j != _activitiesByTrain[t].end(); ++j)			{				int sb = (*j)-&gt;sectionBlock-&gt;id;
+				sb_start_resource[sb] &lt;&lt; start_times[t][s];				sb_start_resource[sb] &lt;&lt; start_times_releasing[t][s];
+				sb_duration[sb] &lt;&lt; duration[t][s];				sb_duration[sb] &lt;&lt; duration_releasing[t][s];
+				sb_end_resource[sb] &lt;&lt; end_times[t][s];				sb_end_resource[sb] &lt;&lt; end_times_releasing[t][s];
+				s++;			}		}
+		// Starting activities		int x = 0;		for (std::list&lt;Train*&gt;::iterator i = _trains.begin(); i != _trains.end(); ++i)		{			rel(*this, start_times[x][0], IRT_EQ, (*i)-&gt;departure, opt.icl());			x++;		}
+		int k = 0;		for (std::list&lt;Train*&gt;::iterator i = _trains.begin(); i != _trains.end(); ++i)		{			// Start and end of activities			int sb = 0;			for (std::list&lt;RouteActivity*&gt;::iterator j = _activitiesByTrain[k].begin(); j != _activitiesByTrain[k].end(); )			{				RouteActivity *atual = (*j);
+				j++;
+				// Travel duration				rel(*this, end_times[k][sb] &gt;= start_times[k][sb] + atual-&gt;transitTime, opt.icl());								// Duration var				rel(*this, duration[k][sb] == end_times[k][sb] - start_times[k][sb], opt.icl());								// Releasing start				rel(*this, start_times_releasing[k][sb], IRT_EQ, end_times[k][sb], opt.icl());
+				// Releasing duration				rel(*this, end_times_releasing[k][sb] == start_times_releasing[k][sb] + atual-&gt;transitTimeReleasing, opt.icl());								// Release Duration var				rel(*this, duration_releasing[k][sb] == end_times_releasing[k][sb] - start_times_releasing[k][sb], opt.icl());
+				// Precedence of activities (ignore last)				if (j != _activitiesByTrain[k].end())				{					// Precendences					rel(*this, start_times[k][sb + 1], IRT_EQ, end_times[k][sb], opt.icl());				}
+				sb++;			}
+			linear(*this, duration[k], IRT_EQ, totalCost[k]);
+			k++;		}
+		linear(*this, totalCost, IRT_EQ, totalFinal);
+		IntVarArgs SY[totalSBs];		IntVarArgs EY[totalSBs];		IntVarArgs DY[totalSBs];				// Disjuntive data		for (std::list&lt;SectionBlock*&gt;::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)		{			int total = 0;
+			SectionBlock *atual = (*i);
+			for (std::list&lt;RouteActivity*&gt;::iterator j = _activities.begin(); j != _activities.end(); ++j)			{				RouteActivity *activity = (*j);
+				if (activity-&gt;sectionBlock-&gt;id == atual-&gt;id)				{					// Activity + Releasing					total += 2;				}			}						SY[atual-&gt;id] = IntVarArgs(*this, total, 0, 0);			EY[atual-&gt;id] = IntVarArgs(*this, total, 1, 1);			DY[atual-&gt;id] = IntVarArgs(*this, total, 1, 1);		}
+		// Disjuntive restriction		for (std::list&lt;SectionBlock*&gt;::iterator i = _sectionBlocks.begin(); i != _sectionBlocks.end(); ++i)		{			SectionBlock *atual = (*i);						if (atual-&gt;yard || sb_start_resource[atual-&gt;id].size() &lt;= 0)			{				continue;			}
+			nooverlap(*this, sb_start_resource[atual-&gt;id], sb_duration[atual-&gt;id], sb_end_resource[atual-&gt;id], SY[atual-&gt;id], DY[atual-&gt;id], EY[atual-&gt;id], opt.icl());		}
+		// Branching		for (int t = 0; t &lt; _trains.size(); t++)		{			branch(*this, start_times[t], INT_VAR_SIZE_MIN, INT_VAL_MIN);			branch(*this, end_times[t], INT_VAR_SIZE_MIN, INT_VAL_MIN);		}	}
+	// Print solution	virtual void print(std::ostream&amp; os) const 	{		int t = 0;		for (std::list&lt;Train*&gt;::const_iterator i = _trains.begin(); i != _trains.end(); ++i)		{			os &lt;&lt; &quot;train : &quot; &lt;&lt; (*i)-&gt;prefix &lt;&lt; &quot; (&quot; &lt;&lt; (*i)-&gt;origin-&gt;name &lt;&lt; &quot; - &quot; &lt;&lt; (*i)-&gt;destination-&gt;name &lt;&lt; &quot;) &quot; &lt;&lt; std::endl;			os &lt;&lt; &quot;start_times    : &quot; &lt;&lt; start_times[t] &lt;&lt; std::endl;			os &lt;&lt; &quot;end_times      : &quot; &lt;&lt; end_times[t] &lt;&lt; std::endl;
+			os &lt;&lt; &quot;releasing start: &quot; &lt;&lt; start_times_releasing[t] &lt;&lt; std::endl;			os &lt;&lt; &quot;releasing end  : &quot; &lt;&lt; end_times_releasing[t] &lt;&lt; std::endl;			os &lt;&lt; &quot;duration       : &quot; &lt;&lt; totalCost[t] &lt;&lt; std::endl;
+			os &lt;&lt; std::endl;
+			t++;		}
+		os &lt;&lt; &quot;objective      : &quot; &lt;&lt; totalFinal &lt;&lt; std::endl;	}
+	virtual IntVar cost() const	{		return totalFinal;	}
+	void copypreprocess(bool share, Scheduling &amp;s)	{		if (share)		{			_sectionBlocks = s._sectionBlocks;			_activities = s._activities;			_trains = s._trains;			_activitiesByTrain = s._activitiesByTrain;		}		else		{			preprocess();		}	}
+	void preprocess()	{		// Sample data		SectionBlock *_lpg = new SectionBlock(0, &quot;LPG&quot;, false);		_sectionBlocks.push_back(_lpg);
+		SectionBlock *_lic = new SectionBlock(1, &quot;LIC&quot;, false);		_sectionBlocks.push_back(_lic);
+		SectionBlock *_lus = new SectionBlock(2, &quot;LUS&quot;, false);		_sectionBlocks.push_back(_lus);
+		SectionBlock *_lap = new SectionBlock(3, &quot;LAP&quot;, false);		_sectionBlocks.push_back(_lap);				SectionBlock *_lmg = new SectionBlock(4, &quot;LMG&quot;, true);		_sectionBlocks.push_back(_lmg);
+		// Trains		Train *_x01 = new Train(11, &quot;X01&quot;, 0, _lmg, _lpg);		_trains.push_back(_x01);
+		Train *_x02 = new Train(12, &quot;X02&quot;, 0, _lpg, _lmg);		_trains.push_back(_x02);
+		// Activities for train x01		_activities.push_back(new RouteActivity(21, _x01, 10, 1, _lmg));		_activities.push_back(new RouteActivity(22, _x01, 10, 1, _lap));		_activities.push_back(new RouteActivity(23, _x01, 10, 1, _lus));		_activities.push_back(new RouteActivity(24, _x01, 10, 1, _lic));		_activities.push_back(new RouteActivity(25, _x01, 10, 1, _lpg));
+		// Activities for train x02		_activities.push_back(new RouteActivity(21, _x02, 10, 1, _lpg));		_activities.push_back(new RouteActivity(22, _x02, 10, 1, _lic));		_activities.push_back(new RouteActivity(23, _x02, 10, 1, _lus));		_activities.push_back(new RouteActivity(24, _x02, 10, 1, _lap));		_activities.push_back(new RouteActivity(25, _x02, 10, 1, _lmg));
+		_activitiesByTrain = new std::list&lt;RouteActivity*&gt;[_trains.size()];
+		int t = 0;		for (std::list&lt;Train*&gt;::iterator i = _trains.begin(); i != _trains.end(); ++i)		{			// calculate the end times			for (std::list&lt;RouteActivity*&gt;::iterator j = _activities.begin(); j != _activities.end(); ++j)			{				if ((*i)-&gt;id == (*j)-&gt;train-&gt;id)				{					_activitiesByTrain[t].push_back(*j);				}			}
+			t++;		}	}};
+/**  *  main */int main(int argc, char* argv[]) {	SizeOptions opt(&quot;Train Scheduling&quot;);	opt.solutions(0);	opt.time(30000);
+	opt.search(Scheduling::SEARCH_BAB);	opt.search(Scheduling::SEARCH_DFS, &quot;dfs&quot;);	opt.search(Scheduling::SEARCH_BAB, &quot;bab&quot;);	opt.search(Scheduling::SEARCH_RESTART, &quot;restart&quot;);
+	if (!opt.size()) 	{		opt.size(4);	}
+	opt.parse(argc,argv);
+	if (opt.search() == Scheduling::SEARCH_DFS) 	{		MinimizeScript::run&lt;Scheduling, DFS, SizeOptions&gt;(opt);	} 	else if (opt.search() == Scheduling::SEARCH_RESTART) 	{		MinimizeScript::run&lt;Scheduling, Restart, SizeOptions&gt;(opt);	}	else 	{		MinimizeScript::run&lt;Scheduling, BAB, SizeOptions&gt;(opt);	}
+	getch();
+	return 0;}&lt;/code&gt; Thanks in advance,
+Jefferson Soares BiernastkiJSK Solu&#231;&#245;es em Tecnologia Ltda
+Desenvolvimento - Novas Tecnologias
+41 88426214
+<A HREF="http://www.onlaboral.com.br">http://www.onlaboral.com.br</A> 
+<A HREF="http://pixeljef.wordpress.com">http://pixeljef.wordpress.com</A>
+
+
+ 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0001.htm</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: TrainSchedule.cpp
+Type: text/x-c
+Size: 12331 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0002.bin">http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0002.bin</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: TrainSchedule.mod
+Type: audio/mod
+Size: 2491 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0003.bin">http://www.gecode.org/pipermail/users/attachments/20110906/44947bab/attachment-0003.bin</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003366.html">[gecode-users] Linear memory allocation
+</A></li>
+	<LI>Next message: <A HREF="003371.html">[gecode-users] Problem solving simple model
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3370">[ date ]</a>
+              <a href="thread.html#3370">[ thread ]</a>
+              <a href="subject.html#3370">[ subject ]</a>
+              <a href="author.html#3370">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

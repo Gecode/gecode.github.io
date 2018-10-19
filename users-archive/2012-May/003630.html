@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Extending the flatzinc interface
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20the%20flatzinc%20interface&In-Reply-To=%3C3952E6EC-81E7-4B38-A607-8C8BC99490E8%40gecode.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003629.html">
+   <LINK REL="Next"  HREF="003631.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Extending the flatzinc interface</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20the%20flatzinc%20interface&In-Reply-To=%3C3952E6EC-81E7-4B38-A607-8C8BC99490E8%40gecode.org%3E"
+       TITLE="[gecode-users] Extending the flatzinc interface">tack at gecode.org
+       </A><BR>
+    <I>Thu May 10 10:35:41 CEST 2012</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003629.html">[gecode-users] Extending the flatzinc interface
+</A></li>
+        <LI>Next message: <A HREF="003631.html">[gecode-users] Building gecode for macintosh i386 ?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3630">[ date ]</a>
+              <a href="thread.html#3630">[ thread ]</a>
+              <a href="subject.html#3630">[ subject ]</a>
+              <a href="author.html#3630">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+you are running into these problems because I didn't really take care that the registry can be extended by users - sorry about that.  I'll put the helper functions in a header so you can include them.  The linker problems are due to missing export declarations.  You can probably work around that problem by compiling Gecode with the --disable-gcc-visibility configure switch.  I'll also fix that.
+
+Cheers,
+Guido
+
+On 7 May 2012, at 21:58, Jean-No&#235;l Monette wrote:
+
+&gt;<i> Hello,
+</I>&gt;<i> 
+</I>&gt;<i> I would like to extend the Gecode/Flatzinc interface to handle &quot;natively&quot; more constraints (that I implemented in Gecode). The way I do it is to add new constraints to the Registry global object. So my code looks like:
+</I>&gt;<i> 
+</I>&gt;<i> #include &lt;gecode/flatzinc.hh&gt;
+</I>&gt;<i> #include &lt;gecode/flatzinc/registry.hh&gt;
+</I>&gt;<i> #include &quot;my_cstr_prop.hh&quot;
+</I>&gt;<i> 
+</I>&gt;<i> namespace Gecode { namespace FlatZinc {
+</I>&gt;<i> 
+</I>&gt;<i> void p_my_cstr(FlatZincSpace&amp; s, const ConExpr&amp; ce, AST::Node* ann) {
+</I>&gt;<i>      IntVar x = getIntVar(s, ce[0]);
+</I>&gt;<i>      IntVar y = getIntVar(s, ce[1]);
+</I>&gt;<i>      My_CSTR(s,x,y,ann2icl(ann));
+</I>&gt;<i>    }
+</I>&gt;<i> 
+</I>&gt;<i> class MyPoster {
+</I>&gt;<i>   public:
+</I>&gt;<i>   MyPoster(void) {
+</I>&gt;<i>       registry().add(&quot;my_cstr&quot;, &amp;p_my_cstr);
+</I>&gt;<i>   }
+</I>&gt;<i> };
+</I>&gt;<i> MyPoster __my_poster;
+</I>&gt;<i> }}
+</I>&gt;<i> 
+</I>&gt;<i> This is done by &quot;monkey-see-monkey-do&quot; from the file registry.cpp. However, I ran into several problems. First, I had to add the definition of &quot;getIntVar&quot; and &quot;ann2icl&quot;, that I just copy-pasted from registry.cpp (as they are not declared in a header file, and furthermore are in an anonymous namespace). So, my question is to know if this is the way I'm suppose to do it, or if there is a more straightforward way to extend the Gecode/Flatzinc interface with new constraints.
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Second (this might be more related to c++ rather than Gecode, apologizes if this is indeed the case), I've been unable to link the resulting object file against libgecodeflatzinc.so with the following command (fz.o is the object file from fz.cpp in the gecode distrib):
+</I>&gt;<i> 
+</I>&gt;<i> g++   ./src_c/fz.o ./src_c/my_cstr.o   -lgecodeflatzinc -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint -lgecodekernel -lgecodesupport
+</I>&gt;<i> 
+</I>&gt;<i> It yields the following error:
+</I>&gt;<i> 
+</I>&gt;<i> ./src_c/my_cstr.o: In function `global constructors keyed to _Z3NEQN6Gecode4HomeENS_6IntVarES1_NS_11IntConLevelE':
+</I>&gt;<i> my_cstr.cpp:(.text+0x2667): undefined reference to `Gecode::FlatZinc::registry()'
+</I>&gt;<i> my_cstr.cpp:(.text+0x2679): undefined reference to `Gecode::FlatZinc::Registry::add(std::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const&amp;, void (*)(Gecode::FlatZinc::FlatZincSpace&amp;, Gecode::FlatZinc::ConExpr const&amp;, Gecode::FlatZinc::AST::Node*))'
+</I>&gt;<i> 
+</I>&gt;<i> However, I'm able to link the same object file against the object files that are compiled into libgecodeflatzinc:
+</I>&gt;<i> 
+</I>&gt;<i> g++  ./src_c/fz.o ./src_c/my_cstr.o  gecode-3.7.3/gecode/flatzinc/*.o -lgecodedriver -lgecodesearch -lgecodeminimodel -lgecodeset -lgecodeint -lgecodekernel -lgecodesupport
+</I>&gt;<i> 
+</I>&gt;<i> So, I'm wondering why and how this is happening, and I have no clue... (I'm using Gecode 3.7.1, compiler is gcc 4.5.2, on Ubuntu 11.04)
+</I>&gt;<i> 
+</I>&gt;<i> Thank you very much for your help,
+</I>&gt;<i> 
+</I>&gt;<i> Jean-No&#235;l Monette
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-- 
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120510/24e0f127/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120510/24e0f127/attachment.html</A>&gt;
+</PRE>
+
+
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003629.html">[gecode-users] Extending the flatzinc interface
+</A></li>
+	<LI>Next message: <A HREF="003631.html">[gecode-users] Building gecode for macintosh i386 ?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3630">[ date ]</a>
+              <a href="thread.html#3630">[ thread ]</a>
+              <a href="subject.html#3630">[ subject ]</a>
+              <a href="author.html#3630">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

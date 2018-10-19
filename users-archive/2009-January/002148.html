@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] question about view types and propagator	templates
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20question%20about%20view%20types%20and%20propagator%0A%09templates&In-Reply-To=%3CDA4E226E-5209-4B45-A51B-37C889C885D9%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002146.html">
+   <LINK REL="Next"  HREF="002134.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] question about view types and propagator	templates</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20question%20about%20view%20types%20and%20propagator%0A%09templates&In-Reply-To=%3CDA4E226E-5209-4B45-A51B-37C889C885D9%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] question about view types and propagator	templates">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Fri Jan  9 08:17:02 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002146.html">[gecode-users] question about view types and propagator	templates
+</A></li>
+        <LI>Next message: <A HREF="002134.html">[gecode-users] different nr of solutions with and without GIST
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2148">[ date ]</a>
+              <a href="thread.html#2148">[ thread ]</a>
+              <a href="subject.html#2148">[ subject ]</a>
+              <a href="author.html#2148">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Denys Duchier wrote:
+
+&gt;<i> Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; writes:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Denys Duchier wrote:
+</I>&gt;&gt;&gt;<i> Also:
+</I>&gt;&gt;&gt;<i> is there a downside to providing the most general templates?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> There is actually a downside (although it's not the reason we didn't
+</I>&gt;&gt;<i> provide the templates).  If you use the ModEventDelta during
+</I>&gt;&gt;<i> propagation, you have to access it through all the view types of the
+</I>&gt;&gt;<i> propagator and combine the results.  The more types you allow, the
+</I>&gt;&gt;<i> less accurate is the ModEventDelta.  E.g., if you get ME_SET_GLB, but
+</I>&gt;&gt;<i> you use one SetView and one ComplementView, the combined delta is
+</I>&gt;&gt;<i> ME_SET_BB (and you have to compute the combined ModEventDelta  
+</I>&gt;&gt;<i> yourself).
+</I>&gt;<i>
+</I>&gt;<i> WOOSH!
+</I>&gt;<i>
+</I>&gt;<i> I think that was the sound of your explanation, as it quickly flew  
+</I>&gt;<i> above
+</I>&gt;<i> my head ;-)
+</I>
+Look at gecode/set/rel/eq.hpp:94.  The Eq propagator has two views,  
+and its propagate method gets the ModEventDelta med, which describes  
+the cumulated modifications (on all subscribed variables) since the  
+last invocation.  Now assume the lower bounds of the two subscribed  
+variables x and y have been modified.  Then med is ME_SET_GLB.  So the  
+propagator knows that it just has to perform the lower bound  
+reasoning, it can skip the other inferences.  That's what's determined  
+by the testSetEventLB etc functions.
+
+Now if Eq is instantiated with a SetView on x and a ComplementView on  
+y, it still gets ME_SET_GLB as the med (because the kernel doesn't  
+know about the views).  So Eq asks the views to translate the med (in  
+lines 96 and 97).  The SetView just returns ME_SET_GLB, and the  
+ComplementView returns ME_SET_LUB (because a glb change in y  
+corresponds to a lub change in its complement).  So we'll have to do  
+lub reasoning as well.
+
+Now assume that only the glb of x has changed.  Still, the med must be  
+converted through both views (we don't know which of the two views has  
+the changed domain), and we'll have to run the lub propagation  
+although it won't contribute any pruning.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002146.html">[gecode-users] question about view types and propagator	templates
+</A></li>
+	<LI>Next message: <A HREF="002134.html">[gecode-users] different nr of solutions with and without GIST
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2148">[ date ]</a>
+              <a href="thread.html#2148">[ thread ]</a>
+              <a href="subject.html#2148">[ subject ]</a>
+              <a href="author.html#2148">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

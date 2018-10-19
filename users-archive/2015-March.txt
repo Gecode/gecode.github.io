@@ -1,0 +1,1469 @@
+From David.Rijsman at quintiq.com  Wed Mar  4 09:23:01 2015
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 04 Mar 2015 09:23:01 +0100
+Subject: [gecode-users] Rewriting propagators into more than one propagator
+Message-ID: <54F6CEF5020000850000A16C@mail.quintiq.nl>
+
+Dear All,
+
+How can I rewrite a propagator during cloning (or propagation) into more than one propagator? 
+
+The example in the MPG all rewrite propagators into one other propagator.
+
+Reason for wanting is that I have a propagator P with complexity n-square so it pays of to rewrite into two or more P propagators if by value of the variables the propagators become independent. 
+
+
+David J. Rijsman
+R&D Optimization Lead
+Quintiq
+T +31 73 691 0739
+M +31 6 2127 6829
+Skype: quintiq.david
+www.quintiq.com
+
+
+
+
+From cschulte at kth.se  Wed Mar  4 10:44:32 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 4 Mar 2015 10:44:32 +0100
+Subject: [gecode-users] Rewriting propagators into more than one
+	propagator
+In-Reply-To: <54F6CEF5020000850000A16C@mail.quintiq.nl>
+References: <54F6CEF5020000850000A16C@mail.quintiq.nl>
+Message-ID: <006501d0565f$d2378480$76a68d80$@kth.se>
+
+Dear David,
+
+That is quite simple: in fact, rewriting a propagator p into a propagator q
+is nothing but posting q and returning that p is subsumed. The reason why
+there is in fact a special macro is that the macro firsts calls the
+dispose() member function of p, then posts q, and then p returns E_SUBSUMED
+(check the definition of GECODE_REWRITE in gecode/kernel/macros.hpp). But
+this is an optimization.
+
+So what you can do: 
+ - just post all propagators (make sure to pass home(*this) as first
+argument to the post function, this makes sure that some information is
+inherited from the propagator to be rewritten).
+ - return ES_SUBSUMED of the propagator to be rewritten.
+
+That's all!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of David Rijsman
+Sent: Wednesday, March 04, 2015 9:23 AM
+To: users at gecode.org
+Subject: [gecode-users] Rewriting propagators into more than one propagator
+
+Dear All,
+
+How can I rewrite a propagator during cloning (or propagation) into more
+than one propagator? 
+
+The example in the MPG all rewrite propagators into one other propagator.
+
+Reason for wanting is that I have a propagator P with complexity n-square so
+it pays of to rewrite into two or more P propagators if by value of the
+variables the propagators become independent. 
+
+
+David J. Rijsman
+R&D Optimization Lead
+Quintiq
+T +31 73 691 0739
+M +31 6 2127 6829
+Skype: quintiq.david
+www.quintiq.com
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From serg.buslovsky at gmail.com  Wed Mar 11 06:53:56 2015
+From: serg.buslovsky at gmail.com (Serg Buslovsky)
+Date: Wed, 11 Mar 2015 05:53:56 +0000
+Subject: [gecode-users] unsigned 32bit representation, additions
+Message-ID: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+
+Hi Group,
+
+I'm thinking about the ways of implementing 32bit unsigned integer
+representations in gecode model.
+So I have 32 BoolVar's per uint32 representation, which are used to store
+corresponding bits, then I can easily define bitwise operations on
+"integers" by posting relation constraints on the bits.
+The problem is with the addition.
+My first approach was to add an IntVar, post linear constraints with powers
+of 2 as coefficients to reconstruct integer from bits, however gecode
+limits IntVar into signed int bounds and it doesn't fit.
+The second approach was to just implement binary addition:
+bool lsb = true;
+for (int i=(INT_BITS-1); i>=0; i--) {
+BoolVarArgs bits;
+bits << bools[i] << x->bools[i];
+if (!lsb) {
+bits << result->bools[INT_BITS+i+1];
+}
+rel(*model, BOT_XOR, bits, result->bools[i]);
+if (lsb) {
+rel(*model, BOT_AND, bits, result->bools[INT_BITS+i]);
+lsb = false;
+} else {
+linear(*model, bits, IRT_GQ, 2, result->bools[INT_BITS+i]);
+}
+}
+(bools[i] - bits of the first "integer", x->bools[i] - bits of the second
+"integer", result->bools[i] - bits of the resulting "integer",
+result->bools[INT_BITS+i] - carry bits)
+That works but it turned out to be very inefficient in practice, complexity
+of the model is growing exponentially with this approach.
+
+Any thoughts? Maybe there's a way to recompile gecode to use unsigned int
+internally? Maybe there are ideas on better implementation of addition?
+Maybe just some suggestion on another tool which uses unsigned ints
+internally?
+
+
+Thanks,
+Serg
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150311/fc4abe92/attachment.html>
+
+From cschulte at kth.se  Wed Mar 11 10:17:01 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 11 Mar 2015 10:17:01 +0100
+Subject: [gecode-users] unsigned 32bit representation, additions
+In-Reply-To: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+References: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+Message-ID: <00de01d05bdc$22bcb6b0$68362410$@kth.se>
+
+Hi Serg,
+
+ 
+
+For the time being there is not much that you can do about this. And Gecode cannot be easily recompiled using unsigned ints (or 64 bit integers for that matter). I think some people have been experimenting with arbitrary precision integers as well as bit vectors but I do not know how far that got. Anybody?
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Serg Buslovsky
+Sent: Wednesday, March 11, 2015 6:54 AM
+To: users at gecode.org
+Subject: [gecode-users] unsigned 32bit representation, additions
+
+ 
+
+Hi Group,
+
+ 
+
+I'm thinking about the ways of implementing 32bit unsigned integer representations in gecode model.
+
+So I have 32 BoolVar's per uint32 representation, which are used to store corresponding bits, then I can easily define bitwise operations on "integers" by posting relation constraints on the bits.
+
+The problem is with the addition.
+
+My first approach was to add an IntVar, post linear constraints with powers of 2 as coefficients to reconstruct integer from bits, however gecode limits IntVar into signed int bounds and it doesn't fit.
+
+The second approach was to just implement binary addition:
+
+            bool lsb = true;
+
+            for (int i=(INT_BITS-1); i>=0; i--) {
+
+                        BoolVarArgs bits;
+
+                        bits << bools[i] << x->bools[i];
+
+                        if (!lsb) {
+
+                                    bits << result->bools[INT_BITS+i+1];
+
+                        }
+
+                        rel(*model, BOT_XOR, bits, result->bools[i]);
+
+                        if (lsb) {
+
+                                    rel(*model, BOT_AND, bits, result->bools[INT_BITS+i]);
+
+                                    lsb = false;
+
+                        } else {
+
+                                    linear(*model, bits, IRT_GQ, 2, result->bools[INT_BITS+i]);
+
+                        }
+
+            }
+
+(bools[i] - bits of the first "integer", x->bools[i] - bits of the second "integer", result->bools[i] - bits of the resulting "integer", result->bools[INT_BITS+i] - carry bits)
+
+That works but it turned out to be very inefficient in practice, complexity of the model is growing exponentially with this approach.
+
+ 
+
+Any thoughts? Maybe there's a way to recompile gecode to use unsigned int internally? Maybe there are ideas on better implementation of addition? Maybe just some suggestion on another tool which uses unsigned ints internally?
+
+ 
+
+ 
+
+Thanks,
+
+Serg
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150311/f05e4f54/attachment.html>
+
+From jean-noel.monette at it.uu.se  Wed Mar 11 16:13:12 2015
+From: jean-noel.monette at it.uu.se (=?windows-1252?Q?Jean-No=EBl_Monette?=)
+Date: Wed, 11 Mar 2015 16:13:12 +0100
+Subject: [gecode-users] unsigned 32bit representation, additions
+In-Reply-To: <00de01d05bdc$22bcb6b0$68362410$@kth.se>
+References: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+	<00de01d05bdc$22bcb6b0$68362410$@kth.se>
+Message-ID: <55005B88.5020101@it.uu.se>
+
+Hi Serg,
+
+Kellen Dye implemented a Bit-Vector domain implementation for Gecode for 
+his master thesis. You can find his thesis at
+
+http://uu.diva-portal.org/smash/record.jsf?pid=diva2%3A761927&dswid=8488
+
+and the source-code at
+
+https://github.com/kellen/bitvector-masters
+
+He did not implement the addition constraint but the paper on which he 
+based his implementation gives an algorithm for the addition:
+
+L. D. Michel and P. Van Hentenryck. *Constraint* *Satisfaction* *over* 
+*Bit-Vectors*. http://link.springer.com/chapter/10.1007/978-3-642-33558-7_39
+
+Best,
+
+Jean-No?l
+
+
+On 2015-03-11 10:17, Christian Schulte wrote:
+>
+> Hi Serg,
+>
+> For the time being there is not much that you can do about this. And 
+> Gecode cannot be easily recompiled using unsigned ints (or 64 bit 
+> integers for that matter). I think some people have been experimenting 
+> with arbitrary precision integers as well as bit vectors but I do not 
+> know how far that got. Anybody?
+>
+> Best
+>
+> Christian
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se 
+> <mailto:cschulte at kth.se>
+>
+> Expert Researcher, SICS, cschulte at sics.se <mailto:cschulte at sics.se>
+>
+> *From:*users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On 
+> Behalf Of *Serg Buslovsky
+> *Sent:* Wednesday, March 11, 2015 6:54 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] unsigned 32bit representation, additions
+>
+> Hi Group,
+>
+> I'm thinking about the ways of implementing 32bit unsigned integer 
+> representations in gecode model.
+>
+> So I have 32 BoolVar's per uint32 representation, which are used to 
+> store corresponding bits, then I can easily define bitwise operations 
+> on "integers" by posting relation constraints on the bits.
+>
+> The problem is with the addition.
+>
+> My first approach was to add an IntVar, post linear constraints with 
+> powers of 2 as coefficients to reconstruct integer from bits, however 
+> gecode limits IntVar into signed int bounds and it doesn't fit.
+>
+> The second approach was to just implement binary addition:
+>
+> bool lsb = true;
+>
+> for (int i=(INT_BITS-1); i>=0; i--) {
+>
+> BoolVarArgs bits;
+>
+> bits << bools[i] << x->bools[i];
+>
+> if (!lsb) {
+>
+> bits << result->bools[INT_BITS+i+1];
+>
+> }
+>
+> rel(*model, BOT_XOR, bits, result->bools[i]);
+>
+> if (lsb) {
+>
+> rel(*model, BOT_AND, bits, result->bools[INT_BITS+i]);
+>
+> lsb = false;
+>
+> } else {
+>
+> linear(*model, bits, IRT_GQ, 2, result->bools[INT_BITS+i]);
+>
+> }
+>
+> }
+>
+> (bools[i] - bits of the first "integer", x->bools[i] - bits of the 
+> second "integer", result->bools[i] - bits of the resulting "integer", 
+> result->bools[INT_BITS+i] - carry bits)
+>
+> That works but it turned out to be very inefficient in practice, 
+> complexity of the model is growing exponentially with this approach.
+>
+> Any thoughts? Maybe there's a way to recompile gecode to use unsigned 
+> int internally? Maybe there are ideas on better implementation of 
+> addition? Maybe just some suggestion on another tool which uses 
+> unsigned ints internally?
+>
+> Thanks,
+>
+> Serg
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150311/ce33d46c/attachment.html>
+
+From serg.buslovsky at gmail.com  Wed Mar 11 19:23:13 2015
+From: serg.buslovsky at gmail.com (Serg Buslovsky)
+Date: Wed, 11 Mar 2015 18:23:13 +0000
+Subject: [gecode-users] unsigned 32bit representation, additions
+In-Reply-To: <55005B88.5020101@it.uu.se>
+References: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+	<00de01d05bdc$22bcb6b0$68362410$@kth.se> <55005B88.5020101@it.uu.se>
+Message-ID: <CADdNPDYhLQNW_Qeg7rL+TgsuopUiTWyX4TB1p2Sx3_PV5KaXDQ@mail.gmail.com>
+
+Hi Group,
+
+This is helpful, thank you.
+I'll take a look at Kellen Dye's work and L. D. Michel and P. Van
+Hentenryck paper.
+
+
+Thanks,
+Serg
+
+On Wed, Mar 11, 2015 at 8:13 AM Jean-No?l Monette <
+jean-noel.monette at it.uu.se> wrote:
+
+>  Hi Serg,
+>
+> Kellen Dye implemented a Bit-Vector domain implementation for Gecode for
+> his master thesis. You can find his thesis at
+>
+> http://uu.diva-portal.org/smash/record.jsf?pid=diva2%3A761927&dswid=8488
+>
+> and the source-code at
+>
+> https://github.com/kellen/bitvector-masters
+>
+> He did not implement the addition constraint but the paper on which he
+> based his implementation gives an algorithm for the addition:
+>
+> L. D. Michel and P. Van Hentenryck. *Constraint* *Satisfaction* *over*
+> *Bit-Vectors*.
+> http://link.springer.com/chapter/10.1007/978-3-642-33558-7_39
+>
+> Best,
+>
+> Jean-No?l
+>
+>
+>
+> On 2015-03-11 10:17, Christian Schulte wrote:
+>
+>  Hi Serg,
+>
+>
+>
+> For the time being there is not much that you can do about this. And
+> Gecode cannot be easily recompiled using unsigned ints (or 64 bit integers
+> for that matter). I think some people have been experimenting with
+> arbitrary precision integers as well as bit vectors but I do not know how
+> far that got. Anybody?
+>
+>
+>
+> Best
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org
+> <users-bounces at gecode.org>] *On Behalf Of *Serg Buslovsky
+> *Sent:* Wednesday, March 11, 2015 6:54 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] unsigned 32bit representation, additions
+>
+>
+>
+> Hi Group,
+>
+>
+>
+> I'm thinking about the ways of implementing 32bit unsigned integer
+> representations in gecode model.
+>
+> So I have 32 BoolVar's per uint32 representation, which are used to store
+> corresponding bits, then I can easily define bitwise operations on
+> "integers" by posting relation constraints on the bits.
+>
+> The problem is with the addition.
+>
+> My first approach was to add an IntVar, post linear constraints with
+> powers of 2 as coefficients to reconstruct integer from bits, however
+> gecode limits IntVar into signed int bounds and it doesn't fit.
+>
+> The second approach was to just implement binary addition:
+>
+>             bool lsb = true;
+>
+>             for (int i=(INT_BITS-1); i>=0; i--) {
+>
+>                         BoolVarArgs bits;
+>
+>                         bits << bools[i] << x->bools[i];
+>
+>                         if (!lsb) {
+>
+>                                     bits << result->bools[INT_BITS+i+1];
+>
+>                         }
+>
+>                         rel(*model, BOT_XOR, bits, result->bools[i]);
+>
+>                         if (lsb) {
+>
+>                                     rel(*model, BOT_AND, bits,
+> result->bools[INT_BITS+i]);
+>
+>                                     lsb = false;
+>
+>                         } else {
+>
+>                                     linear(*model, bits, IRT_GQ, 2,
+> result->bools[INT_BITS+i]);
+>
+>                         }
+>
+>             }
+>
+> (bools[i] - bits of the first "integer", x->bools[i] - bits of the second
+> "integer", result->bools[i] - bits of the resulting "integer",
+> result->bools[INT_BITS+i] - carry bits)
+>
+> That works but it turned out to be very inefficient in practice,
+> complexity of the model is growing exponentially with this approach.
+>
+>
+>
+> Any thoughts? Maybe there's a way to recompile gecode to use unsigned int
+> internally? Maybe there are ideas on better implementation of addition?
+> Maybe just some suggestion on another tool which uses unsigned ints
+> internally?
+>
+>
+>
+>
+>
+> Thanks,
+>
+> Serg
+>
+>
+> _______________________________________________
+> Gecode users mailing listusers at gecode.orghttps://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+>  _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150311/c8540b9f/attachment-0001.html>
+
+From kellen at cretin.net  Wed Mar 11 20:14:54 2015
+From: kellen at cretin.net (kellen at cretin.net)
+Date: Wed, 11 Mar 2015 19:14:54 +0000
+Subject: [gecode-users] unsigned 32bit representation, additions
+In-Reply-To: <55005B88.5020101@it.uu.se>
+References: <CADdNPDYhXUBvEQe3yHY3aqhFNPFSGxws0V-Dm8tPGoFP1BGg+g@mail.gmail.com>
+	<00de01d05bdc$22bcb6b0$68362410$@kth.se>
+	<55005B88.5020101@it.uu.se>
+Message-ID: <20150311191454.GA21341@cretin.net>
+
+Hi Serg,
+
+Jean-Noel has already pointed you to the code for my master's but if you have
+any questions, I'll be happy to answer. 
+
+Cheers,
+Kellen
+
+
+From francesco.santini at dmi.unipg.it  Sat Mar 14 13:00:27 2015
+From: francesco.santini at dmi.unipg.it (Francesco Santini)
+Date: Sat, 14 Mar 2015 13:00:27 +0100
+Subject: [gecode-users] Restarting search with a new constrain()
+Message-ID: <77BDCBAB-155A-4A1A-A15B-044BA0599BDF@dmi.unipg.it>
+
+Dear all,
+
+my problem has several partially-ordered best solutions, which I would like to exhaustively find (all of them).
+They are partially ordered because they are sets with some properties, but each of these sets is not included into another.
+Elements can be taken or not in such sets: hence, I use boolean variables (1 yes I include this element in my solution, 0 no I do not include it).
+
+I was thinking to use an array of boolean variables, and post constraints to satisfy the properties that I request on them (e.g., "I cant take this if I take that").
+Then, to channel such variables to sets.
+Then define the constrain() function in such a way that each successive solution has to be a -superset- of the previous one.
+In this way, I rapidly climb up to one of my best solutions.
+
+However, restarting with the same space does not help me because all the successive best solutions are not strictly included into the first one: search stops after the first best solution. But, again, I would like to have all of them.
+
+I was thinking to -copy- the first clean space, where constrain() has not been invoked yet adding all the superset constraints. Calling "virtual Space * 	copy (bool share)".
+And then to do a new search over such first space, by posting a new constraint with the purpose to avoid to consider (all subsets of) the first best solution. And so on for all the successive steps, considering all the previous best solutions found.
+
+Is it the right/fastest way to do it?
+So, a ?while until s.next()=NULL?, each time using the first clean space s, but also removing from s all (the subsets of) previous best solutions.
+
+Thanks for your help,
+Francesco
+
+
+
+
+==================================
+Dr. Francesco Santini
+Institute of Informatics and Telematics - CNR
+Security group: http://security.iit.cnr.it
+Via Moruzzi, 1
+56124 Pisa, Italy
+http://sites.google.com/site/santinifrancesco/
+==================================
+
+
+
+
+
+From tack at gecode.org  Sat Mar 14 22:18:49 2015
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 15 Mar 2015 08:18:49 +1100
+Subject: [gecode-users] Restarting search with a new constrain()
+In-Reply-To: <77BDCBAB-155A-4A1A-A15B-044BA0599BDF@dmi.unipg.it>
+References: <77BDCBAB-155A-4A1A-A15B-044BA0599BDF@dmi.unipg.it>
+Message-ID: <B711D033-BAD3-47B5-8237-090B317A504A@gecode.org>
+
+Hi,
+
+something like that should work, although you have to use the clone method, not copy (have a look at the documentation).
+
+Perhaps it would also be possible to express the second search as a new BAB search, i.e., clone the clean root space from the first search, set some flag that tells the constrain method to behave differently and remove subsets instead of posting the superset requirement, and then start a new BAB search.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+> On 14 Mar 2015, at 11:00 pm, Francesco Santini <francesco.santini at dmi.unipg.it> wrote:
+> 
+> Dear all,
+> 
+> my problem has several partially-ordered best solutions, which I would like to exhaustively find (all of them).
+> They are partially ordered because they are sets with some properties, but each of these sets is not included into another.
+> Elements can be taken or not in such sets: hence, I use boolean variables (1 yes I include this element in my solution, 0 no I do not include it).
+> 
+> I was thinking to use an array of boolean variables, and post constraints to satisfy the properties that I request on them (e.g., "I cant take this if I take that").
+> Then, to channel such variables to sets.
+> Then define the constrain() function in such a way that each successive solution has to be a -superset- of the previous one.
+> In this way, I rapidly climb up to one of my best solutions.
+> 
+> However, restarting with the same space does not help me because all the successive best solutions are not strictly included into the first one: search stops after the first best solution. But, again, I would like to have all of them.
+> 
+> I was thinking to -copy- the first clean space, where constrain() has not been invoked yet adding all the superset constraints. Calling "virtual Space * 	copy (bool share)".
+> And then to do a new search over such first space, by posting a new constraint with the purpose to avoid to consider (all subsets of) the first best solution. And so on for all the successive steps, considering all the previous best solutions found.
+> 
+> Is it the right/fastest way to do it?
+> So, a ?while until s.next()=NULL?, each time using the first clean space s, but also removing from s all (the subsets of) previous best solutions.
+> 
+> Thanks for your help,
+> Francesco
+> 
+> 
+> 
+> 
+> ==================================
+> Dr. Francesco Santini
+> Institute of Informatics and Telematics - CNR
+> Security group: http://security.iit.cnr.it
+> Via Moruzzi, 1
+> 56124 Pisa, Italy
+> http://sites.google.com/site/santinifrancesco/
+> ==================================
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150315/371f5cf8/attachment.html>
+
+From medistif at hotmail.fr  Sun Mar 15 16:28:35 2015
+From: medistif at hotmail.fr (mehdi m)
+Date: Sun, 15 Mar 2015 15:28:35 +0000
+Subject: [gecode-users] Parallel search
+Message-ID: <DUB119-W91F9835AFF13DC942717AB7050@phx.gbl>
+
+Hi everyone,
+I'm trying to make the serach more efficient using several threads (Parallel seacrh) presented in section 9.2 in MPG.On my machine with four cores and employing gecode 4.0.0, i use the option :
+model.exe  -threads 4
+I'm using the serach engine BAB and calling branch (home, Var, INT_VAR_DEGREE_MAX(), INT_VAL_MAX() );
+But it seems that it does not work, the runtime still the same without this option.
+If you have some details about this, it will be helpful. 
+Thanks 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150315/1f514237/attachment.html>
+
+From medistif at hotmail.fr  Mon Mar 16 08:59:03 2015
+From: medistif at hotmail.fr (mehdi m)
+Date: Mon, 16 Mar 2015 07:59:03 +0000
+Subject: [gecode-users] Parallel search
+In-Reply-To: <791F66B4-9283-4D31-9BB9-7683A7012ACE@odiug.de>
+References: <DUB119-W91F9835AFF13DC942717AB7050@phx.gbl>,
+	<791F66B4-9283-4D31-9BB9-7683A7012ACE@odiug.de>
+Message-ID: <DUB119-W9F8491F51790B0D28E0B2B7020@phx.gbl>
+
+I looked for the task manager and i found that just one core is used. Do i need to add something else to the code ?
+Thanks.
+
+
+Subject: Re: [gecode-users] Parallel search
+From: gtack at odiug.de
+Date: Mon, 16 Mar 2015 08:44:27 +1100
+CC: users at gecode.org
+To: medistif at hotmail.fr
+
+Have a look at the Windows task manager, can you see if your model.exe is actually making use of all four cores?  If yes, it is possible that it's just a peculiarity of your model, i.e., that it simply doesn't parallelise well.  You can try different search strategies, that can sometimes make a difference for parallelisation as well.
+Cheers,Guido
+
+On 16 Mar 2015, at 2:28 am, mehdi m <medistif at hotmail.fr> wrote:
+
+
+Hi everyone,
+I'm trying to make the serach more efficient using several threads (Parallel seacrh) presented in section 9.2 in MPG.On my machine with four cores and employing gecode 4.0.0, i use the option :
+model.exe  -threads 4
+I'm using the serach engine BAB and calling branch (home, Var, INT_VAR_DEGREE_MAX(), INT_VAL_MAX() );
+But it seems that it does not work, the runtime still the same without this option.
+If you have some details about this, it will be helpful. 
+Thanks 		 	   		  
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150316/925e4e17/attachment.html>
+
+From cschulte at kth.se  Mon Mar 16 10:29:25 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 16 Mar 2015 10:29:25 +0100
+Subject: [gecode-users] Parallel search
+In-Reply-To: <DUB119-W9F8491F51790B0D28E0B2B7020@phx.gbl>
+References: <DUB119-W91F9835AFF13DC942717AB7050@phx.gbl>,
+	<791F66B4-9283-4D31-9BB9-7683A7012ACE@odiug.de>
+	<DUB119-W9F8491F51790B0D28E0B2B7020@phx.gbl>
+Message-ID: <004701d05fcb$b1ef8a90$15ce9fb0$@kth.se>
+
+Well, if you want the commandline options to work, you will have to use a
+setup as in the Gecode example (check Chapter 3 in MPG). If you do it
+otherwise, read Section 9.3.1 in MPG.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se>
+cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of mehdi m
+Sent: Monday, March 16, 2015 8:59 AM
+To: Guido Tack; users at gecode.org
+Subject: Re: [gecode-users] Parallel search
+
+ 
+
+I looked for the task manager and i found that just one core is used. Do i
+need to add something else to the code ?
+
+ 
+
+Thanks.
+
+ 
+
+  _____  
+
+Subject: Re: [gecode-users] Parallel search
+From: gtack at odiug.de
+Date: Mon, 16 Mar 2015 08:44:27 +1100
+CC: users at gecode.org
+To: medistif at hotmail.fr
+
+Have a look at the Windows task manager, can you see if your model.exe is
+actually making use of all four cores?  If yes, it is possible that it's
+just a peculiarity of your model, i.e., that it simply doesn't parallelise
+well.  You can try different search strategies, that can sometimes make a
+difference for parallelisation as well.
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+On 16 Mar 2015, at 2:28 am, mehdi m <medistif at hotmail.fr> wrote:
+
+ 
+
+Hi everyone,
+
+ 
+
+I'm trying to make the serach more efficient using several threads (Parallel
+seacrh) presented in section 9.2 in MPG.
+
+On my machine with four cores and employing gecode 4.0.0, i use the option :
+
+ 
+
+model.exe  -threads 4
+
+ 
+
+I'm using the serach engine BAB and calling branch (home, Var,
+INT_VAR_DEGREE_MAX(), INT_VAL_MAX() );
+
+ 
+
+But it seems that it does not work, the runtime still the same without this
+option.
+
+ 
+
+If you have some details about this, it will be helpful. 
+
+ 
+
+Thanks
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150316/0d4d4cf1/attachment.html>
+
+From larrosa at lsi.upc.edu  Fri Mar 20 11:19:41 2015
+From: larrosa at lsi.upc.edu (Javier Larrosa)
+Date: Fri, 20 Mar 2015 11:19:41 +0100
+Subject: [gecode-users] Arithmetic element
+Message-ID: <550BF43D.5020908@lsi.upc.edu>
+
+Hi,
+
+I am working in a scheduling problem and I need to post a constraint 
+x[z]<=y, where x is an IntVarArray, z is an IntVar and y is a constant 
+(but in general could be another variable).
+
+It is close to the element constraint which allows to post the 
+constraint x[z]==y. What is the best way to do it?
+
+best,
+    Javier Larrosa
+
+
+From cschulte at kth.se  Fri Mar 20 11:51:53 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 20 Mar 2015 11:51:53 +0100
+Subject: [gecode-users] Arithmetic element
+In-Reply-To: <550BF43D.5020908@lsi.upc.edu>
+References: <550BF43D.5020908@lsi.upc.edu>
+Message-ID: <044601d062fb$e0dfa190$a29ee4b0$@kth.se>
+
+Hi Javier,
+
+Yes, I think that is the best you can. I would create a new integer variable
+u with appropriate bounds and post the constraints in the following order:
+	u <= y and element(x,z,u)
+If you use minimodeling support by writing
+	rel(home, element(x,z) <= y)
+everything will be done for you automatically.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Javier Larrosa
+Sent: Friday, March 20, 2015 11:20 AM
+To: users at gecode.org
+Subject: [gecode-users] Arithmetic element
+
+Hi,
+
+I am working in a scheduling problem and I need to post a constraint
+x[z]<=y, where x is an IntVarArray, z is an IntVar and y is a constant (but
+in general could be another variable).
+
+It is close to the element constraint which allows to post the constraint
+x[z]==y. What is the best way to do it?
+
+best,
+    Javier Larrosa
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From abczu.15 at gmail.com  Mon Mar 23 20:38:01 2015
+From: abczu.15 at gmail.com (Abc ZU)
+Date: Mon, 23 Mar 2015 15:38:01 -0400
+Subject: [gecode-users] gecode gpu support
+Message-ID: <CAOPDKqMp+k6Ka965g0WG6_HhC6U8wJJwhw6-PfLoz6ub4hS3Gg@mail.gmail.com>
+
+Hi guys,
+How to enable gecode gpu support?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150323/b65609e1/attachment.html>
+
+From cschulte at kth.se  Mon Mar 23 21:13:47 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Mar 2015 21:13:47 +0100
+Subject: [gecode-users] gecode gpu support
+In-Reply-To: <CAOPDKqMp+k6Ka965g0WG6_HhC6U8wJJwhw6-PfLoz6ub4hS3Gg@mail.gmail.com>
+References: <CAOPDKqMp+k6Ka965g0WG6_HhC6U8wJJwhw6-PfLoz6ub4hS3Gg@mail.gmail.com>
+Message-ID: <02e601d065a5$df4b7d20$9de27760$@kth.se>
+
+Gecode does not support GPUs. Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Abc ZU
+Sent: Monday, March 23, 2015 8:38 PM
+To: users at gecode.org
+Subject: [gecode-users] gecode gpu support
+
+ 
+
+Hi guys,
+
+How to enable gecode gpu support?
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150323/351dece6/attachment.html>
+
+From vijay at saraswat.org  Mon Mar 23 21:22:53 2015
+From: vijay at saraswat.org (Vijay Saraswat)
+Date: Mon, 23 Mar 2015 16:22:53 -0400
+Subject: [gecode-users] gecode gpu support
+In-Reply-To: <02e601d065a5$df4b7d20$9de27760$@kth.se>
+References: <CAOPDKqMp+k6Ka965g0WG6_HhC6U8wJJwhw6-PfLoz6ub4hS3Gg@mail.gmail.com>
+	<02e601d065a5$df4b7d20$9de27760$@kth.se>
+Message-ID: <5510761D.6060302@saraswat.org>
+
+Why not... what would it take to get it to support GPUs for some regular 
+computations?
+
+On 23/03/15 4:13 pm, Christian Schulte wrote:
+>
+> Gecode does not support GPUs. Christian
+>
+> --
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+> *From:*users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On 
+> Behalf Of *Abc ZU
+> *Sent:* Monday, March 23, 2015 8:38 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] gecode gpu support
+>
+> Hi guys,
+>
+> How to enable gecode gpu support?
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150323/403f5a67/attachment.html>
+
+From cschulte at kth.se  Mon Mar 23 21:34:02 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 23 Mar 2015 21:34:02 +0100
+Subject: [gecode-users] gecode gpu support
+In-Reply-To: <5510761D.6060302@saraswat.org>
+References: <CAOPDKqMp+k6Ka965g0WG6_HhC6U8wJJwhw6-PfLoz6ub4hS3Gg@mail.gmail.com>	<02e601d065a5$df4b7d20$9de27760$@kth.se>
+	<5510761D.6060302@saraswat.org>
+Message-ID: <03ba01d065a8$b33c50d0$19b4f270$@kth.se>
+
+Man power? That's clearly the first. 
+
+ 
+
+If somebody more knowledgeable than me about GPUs wants to volunteer, I'll
+help. But honestly, I cannot see whether propagation has the right
+properties for execution on GPUs.
+
+ 
+
+Christian
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Vijay Saraswat
+Sent: Monday, March 23, 2015 9:23 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] gecode gpu support
+
+ 
+
+Why not... what would it take to get it to support GPUs for some regular
+computations?
+
+On 23/03/15 4:13 pm, Christian Schulte wrote:
+
+Gecode does not support GPUs. Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Abc ZU
+Sent: Monday, March 23, 2015 8:38 PM
+To: users at gecode.org
+Subject: [gecode-users] gecode gpu support
+
+ 
+
+Hi guys,
+
+How to enable gecode gpu support?
+
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150323/10417a3b/attachment.html>
+
+From zzhu at cse.cuhk.edu.hk  Tue Mar 24 11:15:04 2015
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Tue, 24 Mar 2015 18:15:04 +0800
+Subject: [gecode-users] Gecode Propagators' Order
+Message-ID: <CAE2SAwQbe8rJud4YZfwka+9o3FjrwCRLcB6gpQFh6CNru5gCcA@mail.gmail.com>
+
+Dear all,
+
+It is possible to control the propagators' order such that a propagator is
+always triggered at the end?
+
+I changed the cost function to give it as large number as possible but this
+cannot guarantee.
+
+Thanks.
+
+Zoe
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150324/d8509dd2/attachment-0001.html>
+
+From cschulte at kth.se  Tue Mar 24 16:27:30 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Mar 2015 16:27:30 +0100
+Subject: [gecode-users] Gecode Propagators' Order
+In-Reply-To: <CAE2SAwQbe8rJud4YZfwka+9o3FjrwCRLcB6gpQFh6CNru5gCcA@mail.gmail.com>
+References: <CAE2SAwQbe8rJud4YZfwka+9o3FjrwCRLcB6gpQFh6CNru5gCcA@mail.gmail.com>
+Message-ID: <01a501d06647$0c54a750$24fdf5f0$@kth.se>
+
+Hi Zoe,
+
+ 
+
+As you have figured out, giving the highest cost (CRAZY) will make the propagator almost always run last. This is normally quite safe: there are only two other propagators in Gecode that use CRAZY as a cost, the domain-consistent linear propagator which is exponential and is typically not used in a model and a propagator that records the activity of variables (that is, when you use ACTIVITY in branchings).
+
+ 
+
+So, not perfect but as far as pragmatics is okay you can rely that if there is a single propagator with CRAZY it?ll run last.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Zhu Zichen's cse
+Sent: Tuesday, March 24, 2015 11:15 AM
+To: users at gecode.org
+Subject: [gecode-users] Gecode Propagators' Order
+
+ 
+
+Dear all,
+
+ 
+
+It is possible to control the propagators' order such that a propagator is always triggered at the end?
+
+ 
+
+I changed the cost function to give it as large number as possible but this cannot guarantee. 
+
+ 
+
+Thanks.
+
+ 
+
+Zoe
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150324/772b1f73/attachment.html>
+
+From jean-noel.monette at it.uu.se  Wed Mar 25 15:25:43 2015
+From: jean-noel.monette at it.uu.se (=?UTF-8?B?SmVhbi1Ob8OrbCBNb25ldHRl?=)
+Date: Wed, 25 Mar 2015 15:25:43 +0100
+Subject: [gecode-users] Error message with fzn-gecode
+Message-ID: <5512C567.3070102@it.uu.se>
+
+Hi,
+
+The following small FlatZinc model:
+
+    var bool: x;
+    array[1..1] of var int: y = [x];
+    solve satisfy;
+
+
+produces:
+
+    Error: undefined identifier x in line no. 2
+
+
+with fzn-gecode of Gecode 4.3.3. However, "x" is defined, but not of the 
+right type (bool vs int). Really not so important, but I though you 
+would like to know, in case you want to correct the error message in 
+that case.
+
+(By the way, I just discovered that Gecode 4.4.0 had been released a few 
+days ago. Did I miss the announcement?)
+
+Best,
+
+Jean-No?l
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150325/5f10d0b3/attachment.html>
+
+From medistif at hotmail.fr  Sun Mar 29 21:05:48 2015
+From: medistif at hotmail.fr (mehdi m)
+Date: Sun, 29 Mar 2015 19:05:48 +0000
+Subject: [gecode-users] Parallel search
+In-Reply-To: <004701d05fcb$b1ef8a90$15ce9fb0$@kth.se>
+References: <DUB119-W91F9835AFF13DC942717AB7050@phx.gbl>,
+	<791F66B4-9283-4D31-9BB9-7683A7012ACE@odiug.de>
+	<DUB119-W9F8491F51790B0D28E0B2B7020@phx.gbl>,
+	<004701d05fcb$b1ef8a90$15ce9fb0$@kth.se>
+Message-ID: <DUB119-W37071E338FCC92D9673FE3B7F60@phx.gbl>
+
+Hi,I return to the question because I still can't use the parallel search, i used the same commandline options in the gecode example (chapter 3) as you advice me. When i run the example "Golumb ruler" it works perfectly.
+Here is what i'm using in my model :
+/***/branch(*this, var, INT_VAR_DEGREE_MAX(), INT_VAL_MAX());/***/Options opt("Solutions : \n");opt.solutions(0);opt.parse(argc,argv);			Model* m = new Model(opt);BAB<Model> bab(m);delete m;			while (Model* s = bab.next()) {		s->print(); 		delete s;}/***/and i run the model using the command : ./Model -threads 4
+If you have some ideas, it will be very helpful.Thanks.------------
+From: cschulte at kth.se
+To: medistif at hotmail.fr; gtack at odiug.de; users at gecode.org
+Subject: RE: [gecode-users] Parallel search
+Date: Mon, 16 Mar 2015 10:29:25 +0100
+
+Well, if you want the commandline options to work, you will have to use a setup as in the Gecode example (check Chapter 3 in MPG). If you do it otherwise, read Section 9.3.1 in MPG. Christian --Christian Schulte, www.gecode.org/~schulteProfessor of Computer Science, KTH, cschulte at kth.seExpert Researcher, SICS, cschulte at sics.se From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of mehdi m
+Sent: Monday, March 16, 2015 8:59 AM
+To: Guido Tack; users at gecode.org
+Subject: Re: [gecode-users] Parallel search I looked for the task manager and i found that just one core is used. Do i need to add something else to the code ? Thanks. Subject: Re: [gecode-users] Parallel search
+From: gtack at odiug.de
+Date: Mon, 16 Mar 2015 08:44:27 +1100
+CC: users at gecode.org
+To: medistif at hotmail.fr
+
+Have a look at the Windows task manager, can you see if your model.exe is actually making use of all four cores?  If yes, it is possible that it's just a peculiarity of your model, i.e., that it simply doesn't parallelise well.  You can try different search strategies, that can sometimes make a difference for parallelisation as well. Cheers,Guido On 16 Mar 2015, at 2:28 am, mehdi m <medistif at hotmail.fr> wrote: Hi everyone, I'm trying to make the serach more efficient using several threads (Parallel seacrh) presented in section 9.2 in MPG.On my machine with four cores and employing gecode 4.0.0, i use the option : model.exe  -threads 4 I'm using the serach engine BAB and calling branch (home, Var, INT_VAR_DEGREE_MAX(), INT_VAL_MAX() ); But it seems that it does not work, the runtime still the same without this option. If you have some details about this, it will be helpful.  Thanks_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users  		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150329/6e61a572/attachment.html>
+
+From cschulte at kth.se  Sun Mar 29 21:43:33 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Sun, 29 Mar 2015 21:43:33 +0200
+Subject: [gecode-users] Parallel search
+In-Reply-To: <DUB119-W37071E338FCC92D9673FE3B7F60@phx.gbl>
+References: <DUB119-W91F9835AFF13DC942717AB7050@phx.gbl>,
+	<791F66B4-9283-4D31-9BB9-7683A7012ACE@odiug.de>
+	<DUB119-W9F8491F51790B0D28E0B2B7020@phx.gbl>,
+	<004701d05fcb$b1ef8a90$15ce9fb0$@kth.se>
+	<DUB119-W37071E338FCC92D9673FE3B7F60@phx.gbl>
+Message-ID: <003001d06a58$a4f54c70$eedfe550$@kth.se>
+
+There are two options here. Either you provide the right options to BAB so
+that multiple threads are used, or you use the Script::run function as the
+Gecode examples do.
+
+ 
+
+You need to read MPG more carefully, in fact.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: mehdi m [mailto:medistif at hotmail.fr] 
+Sent: Sunday, March 29, 2015 9:06 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: RE: [gecode-users] Parallel search
+
+ 
+
+Hi,
+
+I return to the question because I still can't use the parallel search, i
+used the same commandline options in the gecode example (chapter 3) as you
+advice me. When i run the example "Golumb ruler" it works perfectly.
+
+ 
+
+Here is what i'm using in my model :
+
+ 
+
+/***/
+
+branch(*this, var, INT_VAR_DEGREE_MAX(), INT_VAL_MAX());
+
+/***/
+
+Options opt("Solutions : \n");
+
+opt.solutions(0);
+
+opt.parse(argc,argv);
+
+                                  
+
+Model* m = new Model(opt);
+
+BAB<Model> bab(m);
+
+delete m;
+
+                                  
+
+while (Model* s = bab.next()) {
+
+                      s->print(); 
+
+                      delete s;
+
+}
+
+/***/
+
+and i run the model using the command : 
+
+./Model -threads 4
+
+ 
+
+If you have some ideas, it will be very helpful.
+
+Thanks.
+
+------------
+
+ 
+
+  _____  
+
+From: cschulte at kth.se
+To: medistif at hotmail.fr; gtack at odiug.de; users at gecode.org
+Subject: RE: [gecode-users] Parallel search
+Date: Mon, 16 Mar 2015 10:29:25 +0100
+
+Well, if you want the commandline options to work, you will have to use a
+setup as in the Gecode example (check Chapter 3 in MPG). If you do it
+otherwise, read Section 9.3.1 in MPG.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of mehdi m
+Sent: Monday, March 16, 2015 8:59 AM
+To: Guido Tack; users at gecode.org
+Subject: Re: [gecode-users] Parallel search
+
+ 
+
+I looked for the task manager and i found that just one core is used. Do i
+need to add something else to the code ?
+
+ 
+
+Thanks.
+
+ 
+
+  _____  
+
+Subject: Re: [gecode-users] Parallel search
+From: gtack at odiug.de
+Date: Mon, 16 Mar 2015 08:44:27 +1100
+CC: users at gecode.org
+To: medistif at hotmail.fr
+
+Have a look at the Windows task manager, can you see if your model.exe is
+actually making use of all four cores?  If yes, it is possible that it's
+just a peculiarity of your model, i.e., that it simply doesn't parallelise
+well.  You can try different search strategies, that can sometimes make a
+difference for parallelisation as well.
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+On 16 Mar 2015, at 2:28 am, mehdi m <medistif at hotmail.fr> wrote:
+
+ 
+
+Hi everyone,
+
+ 
+
+I'm trying to make the serach more efficient using several threads (Parallel
+seacrh) presented in section 9.2 in MPG.
+
+On my machine with four cores and employing gecode 4.0.0, i use the option :
+
+ 
+
+model.exe  -threads 4
+
+ 
+
+I'm using the serach engine BAB and calling branch (home, Var,
+INT_VAR_DEGREE_MAX(), INT_VAL_MAX() );
+
+ 
+
+But it seems that it does not work, the runtime still the same without this
+option.
+
+ 
+
+If you have some details about this, it will be helpful. 
+
+ 
+
+Thanks
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150329/0aa3c8d8/attachment-0001.html>
+

@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Parameter/Options passing to engines through	script
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Parameter/Options%20passing%20to%20engines%20through%0A%09script&In-Reply-To=%3C002501ce8206%24eb8b6980%24c2a23c80%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004037.html">
+   <LINK REL="Next"  HREF="004013.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Parameter/Options passing to engines through	script</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Parameter/Options%20passing%20to%20engines%20through%0A%09script&In-Reply-To=%3C002501ce8206%24eb8b6980%24c2a23c80%24%40se%3E"
+       TITLE="[gecode-users] Parameter/Options passing to engines through	script">cschulte at kth.se
+       </A><BR>
+    <I>Tue Jul 16 11:29:07 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004037.html">[gecode-users] Parameter/Options passing to engines through	script
+</A></li>
+        <LI>Next message: <A HREF="004013.html">[gecode-users] Using AFC in Gecode 4
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4042">[ date ]</a>
+              <a href="thread.html#4042">[ thread ]</a>
+              <a href="subject.html#4042">[ subject ]</a>
+              <a href="author.html#4042">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Let me try to summarize whether I got it (kind of):
+ - LNS uses two engines, one for finding an initial solution and one for the
+neighborhoud (you see that this is no strictly necessary as a solution canbe
+computed independently, but I agree that's how it should be).
+ - You use a function that posts the brancher for the initial solution. That
+is not needed, please read 8.1 in MPG (has changed for Gecode 4.*). But
+that's fine.
+ - cloneAndRelax does the relaxation but why also the cloning? I just
+returns a space that is a relaxation of the solution, right? It also posts
+the branching, right?
+ - I do not like very much the hard-wiring of simulated annealing as just
+one particular meta-heuristic. Could one factorize this out into a function
+or class?
+ - How do you implement improving()?
+
+Cheers
+Christian
+
+PS: Is one of you coming to Uppsala? Then we could chat there unless you
+want to have it done before.
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Luca Di Gaspero [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">l.digaspero at uniud.it</A>] 
+Sent: Friday, July 12, 2013 12:48 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: 'Tommaso Urli'; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Parameter/Options passing to engines through
+script
+
+Hi Christian,
+
+&gt;<i> Sorry for the delay but I did not really know what to answer ;-)
+</I>
+we also took some time, because we do not know (exactly) HOW to ask :-)
+Therefore we decided to slightly tidy up our current version of the code and
+put it in a bitbucket repository. You can find it at
+<A HREF="https://bitbucket.org/tunnuz/gecode-lns">https://bitbucket.org/tunnuz/gecode-lns</A> together with a small adaptation of
+the TSP example for LNS full of workarounds (including a patch to
+gecode/search.hh for granting friendship of BaseEngine to LNS as it was done
+with RBS).
+
+Consider that some of the code is taken verbatim from the RBS engine
+(sometimes comments included), and adapted for LNS.
+
+&gt;<i> So, maybe you could summarize:
+</I>&gt;<i> - what does the engine do
+</I>
+The engine is performing a Large Neighborhood Search, i.e., starting from a
+complete initial solution obtained by a &quot;start_engine&quot;(1), it will
+iteratively explore the neighborhood obtained by relaxing some of the
+variables of the current solution and using an engine to find a better new
+solution with only those variables changed. The strategy for relaxing the
+variables should be problem-specific (it will be implemented in a required
+addition to Space) and also the branching strategy for exploring that
+neighborhood (idem).
+
+The abstract pseudo-code of LNS (1) is the following [it is really
+pseudo-code, all the technicalities for dealing with cloning, pointers and
+so on is taken care in the actual code]:
+
+AbstractLNS()
+{
+  current-&gt;postBranchingForInitialSolution();
+  current = start_engine-&gt;next(); // find initial solution
+  best = current;
+  intensity = initialIntensity;
+  while (!StopCondition) {
+    neighbor = current-&gt;cloneAndRelax(intensity);
+    neighbor-&gt;constrain(current, specificConstrainStrategy); // constrain
+neighborhoods to have a solution cost according to a specific constrain
+strategy (e.g., strictly better than current, or based on Simulated
+Annealing)
+    neighborhood_engine-&gt;reset(neighbor); // let the neighborhood_engine
+start from the relaxed solution
+    nextSolution = neighborhood_engine-&gt;next();
+    if (nextSolution-&gt;improving(best))
+    {
+      best = nextSolution;
+      current = nextSolution;
+      intensity = initialIntensity;
+      idle_iterations = 0;
+    }
+    else if (nextSolution-&gt;improving(current) || constrainStrategy ==
+SimulatedAnnealing)
+    {
+      current = nextSolution;
+      intensity = initialIntensity;
+      idle_iterations = 0;
+    }
+    else
+      idle_iterations++;
+    if (idle_iterations &gt; max_iterations_per_intensity)
+      intensity = increaseIntensity;
+  }
+  return best;
+}
+
+&gt;<i> - what does it require from a space (you already mentioned two 
+</I>&gt;<i> additional member functions)
+</I>
+Actually they grow up, although some of them have a tentative definition.
+The augmented interface of Space for being used in LNS is currently defined
+in the LNSModel class (in hybrid_model.hh).
+
+There is another quite impacting requirement for a space to be used in the
+LNS engine: the post of branchers MUST be completely taken away from model
+posting (i.e., it should not be performed in the Space constructor) because
+LNS requires a fresh root model (free of branching) for cloning(3), since in
+the LNS overall strategy the branching for searching the initial solution is
+in principle different from the branching for neighborhood exploration.
+Since we do not have access to any method for removing branchers once they
+are posted we are forced to impose that branching must be posted through
+some functions.
+
+&gt;<i> - what other parameters are needed to control the engine
+</I>
+Actually there are a bunch of parameters, you can find in LNSOptions class,
+namely: the range of variation of the intensity parameter (more or less
+related to the number of variables to be relaxed), the number of non
+improving iterations before intensity must be increased, the strategy for
+constraining the cost value in neighbors solutions (none, strictly or
+loosely improving over current, simulated annealing), for simulated
+annealing there are a few other specific parameters related to the
+temperature, cooling rate and the number of neighbors accepted before
+decreasing the temperature.
+
+We will be happy if you can give a look at the engine and provide us with
+suggestion for integrating it. Consider that we also aim at contributing
+other hybrid metaheuristics that will blend with CP by driving the search
+(at least an ACO implementation and possibly some genetic algorithms),
+therefore these issues are quite general from this point of view.
+
+Thanks and have a nice weekend (considered the organization issues of the CP
+conference :-)
+
+Luca and Tommaso
+
+----
+Notes:
+(1) the start engine, is actually needed because it will be not possible to
+change the options object (more precisely the stop object) passed to an
+engine after it has been created. Namely, we need two different stop objects
+for the first solution (which is the &quot;global&quot; meta-engine stop object) and
+for the neighbors (which is a timestop object).
+(2) the actual LNS code, tough, is implemented differently in the engine
+because we wanted to comply with the &quot;next()&quot; semantics.
+(3) we must confess that we are not completely happy of this solution, but
+it was the one with the least impact in the &quot;jungle&quot;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004037.html">[gecode-users] Parameter/Options passing to engines through	script
+</A></li>
+	<LI>Next message: <A HREF="004013.html">[gecode-users] Using AFC in Gecode 4
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4042">[ date ]</a>
+              <a href="thread.html#4042">[ thread ]</a>
+              <a href="subject.html#4042">[ subject ]</a>
+              <a href="author.html#4042">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] CCP ask for Gecode
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20CCP%20ask%20for%20Gecode&In-Reply-To=%3C405DD93E-2DAF-4185-8020-89D7C5D3D27C%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001604.html">
+   <LINK REL="Next"  HREF="001608.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] CCP ask for Gecode</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20CCP%20ask%20for%20Gecode&In-Reply-To=%3C405DD93E-2DAF-4185-8020-89D7C5D3D27C%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] CCP ask for Gecode">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Wed Apr 23 07:50:25 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001604.html">[gecode-users] CCP ask for Gecode
+</A></li>
+        <LI>Next message: <A HREF="001608.html">[gecode-users] Parallel conditional combinator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1606">[ date ]</a>
+              <a href="thread.html#1606">[ thread ]</a>
+              <a href="subject.html#1606">[ subject ]</a>
+              <a href="author.html#1606">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Mauricio Toro wrote:
+&gt;<i> The ask propagator worked fine in Gecode.
+</I>&gt;<i> I tried it with an example to find concurrently
+</I>&gt;<i> if there is path in directed graph.
+</I>&gt;<i> Running around 30000 &quot;ask&quot;s in a 10000 arcs
+</I>&gt;<i> graph it took around 0,112 seconds.
+</I>&gt;<i>
+</I>&gt;<i> To manage the AskBody I defined a class
+</I>&gt;<i> &quot;AskBody&quot; with a virtual Execute method,
+</I>&gt;<i> that way different bodies can be defined
+</I>&gt;<i> for the ask propagator inhereting from that class.
+</I>&gt;<i>
+</I>&gt;<i> I don't know how to define the &quot;spec&quot; method.
+</I>
+You can ignore it and just return NULL.  This will only mean that  
+reflection is not available for your propagator.  The alternative  
+would be to delegate reflection to the AskBody class (so that would  
+have to have a spec method as well).
+
+&gt;<i> Additionally, I had problems with the &quot;reflection post&quot; method
+</I>&gt;<i> since the AskBody is not a Gecode type.
+</I>
+spec and &quot;reflection post&quot; are closely related, if you don't have  
+spec, you don't need &quot;reflection post&quot; either.  On the other hand, it  
+doesn't matter that AskBody is not a &quot;Gecode type&quot;.  You just have to  
+define appropriate reflection functions.  But as I said, it's not  
+vital, and you can ignore it for the moment.
+
+&gt;<i> What do you think about this definition?
+</I>&gt;<i> Does it seam reasonable?
+</I>
+Yes.  Another option would be to make AskBody a template argument of  
+Ask.  That way, Execute wouldn't have to be virtual, but you'd have to  
+instantiate Ask every time (which is no big deal).
+
+Cheers,
+	Guido
+
+&gt;<i>
+</I>&gt;<i>   class AskBody
+</I>&gt;<i>   {
+</I>&gt;<i>   protected:
+</I>&gt;<i>     Space * home;
+</I>&gt;<i>   public:
+</I>&gt;<i>     AskBody(Space * homie) {home = homie;}
+</I>&gt;<i>     virtual void Execute() { };
+</I>&gt;<i>   };
+</I>&gt;<i>
+</I>&gt;<i>   class Ask : public UnaryPropagator&lt;BoolView,PC_GEN_ASSIGNED&gt; {
+</I>&gt;<i>   protected:
+</I>&gt;<i>     using UnaryPropagator&lt;BoolView,PC_GEN_ASSIGNED&gt;::x0;
+</I>&gt;<i>     AskBody * askbody;
+</I>&gt;<i>
+</I>&gt;<i>     /// Constructor for cloning \a p
+</I>&gt;<i>     Ask(Space* home, bool share, Ask&amp; p);
+</I>&gt;<i>     /// Constructor for posting
+</I>&gt;<i>     Ask(Space* home, BoolView x, AskBody * askbody);
+</I>&gt;<i>   public:
+</I>&gt;<i>     /// Copy propagator during cloning
+</I>&gt;<i>     virtual Actor*     copy(Space* home, bool share);
+</I>&gt;<i>     /// Perform propagation
+</I>&gt;<i>     virtual ExecStatus propagate(Space* home, ModEventDelta med);
+</I>&gt;<i>     /// Specification for this propagator
+</I>&gt;<i>         //virtual Reflection::ActorSpec spec(const Space* home,
+</I>&gt;<i>         //                 Reflection::VarMap&amp; m) const;
+</I>&gt;<i>     /// Post propagator according to specification
+</I>&gt;<i>    // static void post(Space* home, Reflection::VarMap&amp; vars,
+</I>&gt;<i>                    //  const Reflection::ActorSpec&amp; spec);
+</I>&gt;<i>     /// Mangled propagator name
+</I>&gt;<i>     static Support::Symbol ati(void);
+</I>&gt;<i>     /// Post ask propagator
+</I>&gt;<i>     /// \textbf{blocking\_IF} $&lt;boolean\_var&gt;\ x$ \textbf{then} $&lt;ask 
+</I>&gt;<i> \_body&gt;\ askbody$ \textbf{else} $&lt;skip&gt;$
+</I>&gt;<i>     static  ExecStatus post(Space* home, BoolView x, AskBody *  
+</I>&gt;<i> askbody);
+</I>&gt;<i>   };
+</I>&gt;<i>
+</I>&gt;<i> Thanks for all,
+</I>&gt;<i>
+</I>&gt;<i> -- 
+</I>&gt;<i> Mauricio Toro Bermudez
+</I>&gt;<i> Estudiante de Ingenier&#237;a de Sistemas
+</I>&gt;<i> Pontificia Universidad Javeriana, Colombia
+</I>&gt;<i>
+</I>&gt;<i> Stagiare &#224; l'Ircam
+</I>&gt;<i> 1, place Igor-Stravinsky 75004 Paris,
+</I>&gt;<i> France de 2008 &#224; 2009
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001604.html">[gecode-users] CCP ask for Gecode
+</A></li>
+	<LI>Next message: <A HREF="001608.html">[gecode-users] Parallel conditional combinator
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1606">[ date ]</a>
+              <a href="thread.html#1606">[ thread ]</a>
+              <a href="subject.html#1606">[ subject ]</a>
+              <a href="author.html#1606">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

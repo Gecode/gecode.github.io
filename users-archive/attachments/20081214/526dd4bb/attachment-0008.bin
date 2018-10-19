@@ -1,0 +1,185 @@
+=== modified file 'gecode/set/int.hh'
+--- gecode/set/int.hh	2008-12-14 15:03:47 +0000
++++ gecode/set/int.hh	2008-12-14 15:15:20 +0000
+@@ -223,6 +223,42 @@
+   };
+ 
+   /**
++   * \brief %Reified propagator for maximum element
++   *
++   * Requires \code #include "gecode/set/int.hh" \endcode
++   * \ingroup FuncSetProp
++   */
++  template <class View>
++  class ReMaxElement :
++    public IntSetRePropagator<View,PC_SET_ANY,Gecode::Int::PC_INT_BND> {
++  protected:
++    using IntSetRePropagator<View,PC_SET_ANY,Gecode::Int::PC_INT_BND>::x0;
++    using IntSetRePropagator<View,PC_SET_ANY,Gecode::Int::PC_INT_BND>::x1;
++    using IntSetRePropagator<View,PC_SET_ANY,Gecode::Int::PC_INT_BND>::b;
++    /// Constructor for cloning \a p
++    ReMaxElement(Space* home, bool share,ReMaxElement& p);
++    /// Constructor for posting
++    ReMaxElement(Space* home, View, Gecode::Int::IntView, Gecode::Int::BoolView);
++  public:
++    /// Copy propagator during cloning
++    GECODE_SET_EXPORT virtual Actor*      copy(Space* home,bool);
++    /// Perform propagation
++    GECODE_SET_EXPORT virtual ExecStatus propagate(Space* home, ModEventDelta med);
++    /// Post reified propagator for \a b iff \a x is the largest element of \a s 
++    static ExecStatus post(Space* home, View s, Gecode::Int::IntView x,
++                           Gecode::Int::BoolView b);
++    /// Specification for this propagator
++    GECODE_SET_EXPORT
++    virtual Reflection::ActorSpec spec(const Space* home,
++                                        Reflection::VarMap& m) const;
++    /// Post using specification
++    static void post(Space* home, Reflection::VarMap& vars,
++                     const Reflection::ActorSpec& spec);
++    /// Name of this propagator
++    static Support::Symbol ati(void);
++  };
++
++  /**
+    * \brief %Propagator for cardinality
+    *
+    * Requires \code #include "gecode/set/int.hh" \endcode
+
+=== modified file 'gecode/set/int/minmax.icc'
+--- gecode/set/int/minmax.icc	2008-12-14 15:03:47 +0000
++++ gecode/set/int/minmax.icc	2008-12-14 15:15:20 +0000
+@@ -649,6 +649,133 @@
+     }
+     return ES_FIX;
+   }  
++
++  template <class View>
++  forceinline
++  ReMaxElement<View>::ReMaxElement(Space* home, View y0, Gecode::Int::IntView y1,
++                                   Gecode::Int::BoolView b2)
++    : IntSetRePropagator<View,PC_SET_ANY,
++                         Gecode::Int::PC_INT_BND> (home, y0, y1, b2) {}
++
++  template <class View>
++  forceinline
++  ReMaxElement<View>::ReMaxElement(Space* home, bool share, ReMaxElement& p)
++    : IntSetRePropagator<View,PC_SET_ANY,
++                       Gecode::Int::PC_INT_BND> (home, share, p) {}
++
++  template <class View>
++  ExecStatus
++  ReMaxElement<View>::post(Space* home, View x0,
++                           Gecode::Int::IntView x1,
++                           Gecode::Int::BoolView b2) {
++    (void) new (home) ReMaxElement(home,x0,x1,b2);
++    return ES_OK;
++  }
++
++  template <class View>
++  Actor*
++  ReMaxElement<View>::copy(Space* home, bool share) {
++    return new (home) ReMaxElement(home,share,*this);
++  }
++
++  template <class View>
++  Support::Symbol
++  ReMaxElement<View>::ati(void) {
++    return Reflection::mangle<View>("Gecode::Set::Int::ReMaxElement");
++  }
++
++  template <class View>
++  Reflection::ActorSpec
++  ReMaxElement<View>::spec(const Space* home, Reflection::VarMap& m) const {
++    return IntSetRePropagator<View,PC_SET_ANY,Gecode::Int::PC_INT_BND>
++      ::spec(home, m, ati());
++  }
++
++  template <class View>
++  void
++  ReMaxElement<View>::post(Space* home, Reflection::VarMap& vars,
++                         const Reflection::ActorSpec& spec) {
++    spec.checkArity(3);
++    View x0(home, vars, spec[0]);
++    Gecode::Int::IntView x1(home, vars, spec[1]);
++    Gecode::Int::BoolView b2(home, vars, spec[2]);
++    (void) new (home) ReMaxElement<View>(home,x0,x1,b2);
++  }
++
++  template <class View>
++  ExecStatus
++  ReMaxElement<View>::propagate(Space* home, ModEventDelta) {
++    // check if b is determined
++    if (b.one())
++      GECODE_REWRITE(this, (MaxElement<View>::post(home,x0,x1)));
++    if (b.zero())
++      GECODE_REWRITE(this, (NotMaxElement<View>::post(home,x0,x1)));
++    // cheap tests for => b=0
++    // if x0 is empty, then b=0 and entailed
++    // if max(x1) < min(x0.lub) or min(x1) > max(x0.lub), then b=0 and entailed
++    // if max(x0.glb) > max(x1), then b=0 and entailed
++    if ((x0.cardMax() == 0) ||
++        ((x1.max() < x0.lubMin()) || (x1.min() > x0.lubMax())) ||
++        ((x0.glbSize() > 0) && (x0.glbMax() > x1.max())))
++      {
++        GECODE_ME_CHECK(b.zero(home));
++        return ES_SUBSUMED(this, home);
++      }
++    // if max(x0) is decided
++    if (x0.glbMax() == x0.lubMax()) {
++      // if x1 is det: check if = max(x0), assign b, entailed
++      if (x1.assigned()) {
++        if (x1.val() == x0.glbMax()) {
++          GECODE_ME_CHECK(b.one(home));
++        } else {
++          GECODE_ME_CHECK(b.zero(home));
++        }
++        return ES_SUBSUMED(this, home);
++      }
++      // if max(x0) not in dom(x1): b=0, entailed
++      else if ((x0.glbMax() < x1.min()) ||
++               (x0.glbMax() > x1.max()) ||
++               !x1.in(x0.glbMax()))
++        {
++          GECODE_ME_CHECK(b.zero(home));
++          return ES_SUBSUMED(this, home);
++        }
++    }
++    // if dom(x1) and lub(x0) are disjoint, then b=0, entailed
++    {
++      LubRanges<View> ub(x0);
++      Gecode::Int::ViewRanges<Gecode::Int::IntView> d(x1);
++      Gecode::Iter::Ranges::Inter<LubRanges<View>,
++        Gecode::Int::ViewRanges<Gecode::Int::IntView> > ir(ub,d);
++      if (!ir()) {
++        GECODE_ME_CHECK(b.zero(home));
++        return ES_SUBSUMED(this, home);
++      }
++    }
++    // x0 is fated to eventually contain at least x0.cardMin elements.
++    // therefore max(x0) >= x0.cardMin-th smallest element of x0.lub.
++    // if x1 < than that, then b=0, entailed.
++    {
++      unsigned int n = x0.cardMin();
++      int nth_smallest = BndSet::MIN_OF_EMPTY;
++      for (LubRanges<View> ur(x0); ur(); ++ur) {
++        if (ur.width() >= n)
++          {
++            // record it and exit the loop
++            nth_smallest = ur.min() + n - 1;
++            break;
++          }
++        // otherwise, we skipped ur.width() values
++        n -= ur.width();
++      }
++      // if x1.max < nth_smallest, then entailed
++      if (x1.max() < nth_smallest) {
++        GECODE_ME_CHECK(b.zero(home));
++        return ES_SUBSUMED(this, home);
++      }
++    }
++    return ES_FIX;
++  }  
+ }}}
+ 
+ // STATISTICS: set-prop
+

@@ -1,0 +1,62 @@
+=== modified file 'gecode/serialization/register.cc'
+--- gecode/serialization/register.cc	2008-12-12 09:17:43 +0000
++++ gecode/serialization/register.cc	2008-12-14 14:39:01 +0000
+@@ -7550,6 +7550,18 @@
+           return;
+         }
+ #endif
++#if defined(GECODE_HAS_SET_VARS)
++        if (isVar<Gecode::SetVar>(vm, spec[0]) &&
++            isVar<Gecode::IntVar>(vm, spec[1]) &&
++            spec[2]->isInt())
++        {
++          Gecode::SetVar x0(vm.var(spec[0]->toVar()));
++          Gecode::IntVar x1(vm.var(spec[1]->toVar()));
++          bool x2 = static_cast<bool>(spec[2]->toInt());
++          Gecode::min(home, x0,x1,x2);
++          return;
++        }
++#endif
+         throw Gecode::Reflection::ReflectionException("Argument type mismatch for Gecode::Post::min");
+       }
+       break;
+
+=== modified file 'gecode/set.hh'
+--- gecode/set.hh	2008-12-12 09:17:43 +0000
++++ gecode/set.hh	2008-12-14 14:39:01 +0000
+@@ -814,10 +814,11 @@
+ 
+   //@{
+ 
+-  /** \brief Post propagator that propagates that \a x is the
+-   *  minimal element of \a s, and that \a s is not empty */
++  /** \brief When \a b is true, post propagator that propagates that \a x is the
++   *  minimal element of \a s, and that \a s is not empty.  When \a b is false,
++   *  post propagator that \a x is not the min of \a s (which may be empty) */
+   GECODE_SET_EXPORT void
+-  min(Space* home, SetVar s, IntVar x);
++  min(Space* home, SetVar s, IntVar x, bool b=true);
+   
+   /** \brief Post propagator that propagates that \a x is the
+    *  maximal element of \a s, and that \a s is not empty */
+
+=== modified file 'gecode/set/int.cc'
+--- gecode/set/int.cc	2008-12-12 09:17:43 +0000
++++ gecode/set/int.cc	2008-12-14 14:39:01 +0000
+@@ -118,9 +118,13 @@
+   }
+ 
+   void
+-  min(Space* home, SetVar s, IntVar x){
++  min(Space* home, SetVar s, IntVar x, bool b) {
+     if (home->failed()) return;
+-    GECODE_ES_FAIL(home,Set::Int::MinElement<Set::SetView>::post(home,s,x));
++    if (b) {
++      GECODE_ES_FAIL(home,Set::Int::MinElement<Set::SetView>::post(home,s,x));
++    } else {
++      GECODE_ES_FAIL(home,Set::Int::NotMinElement<Set::SetView>::post(home,s,x));
++    }
+   }
+   void
+   max(Space* home, SetVar s, IntVar x){
+

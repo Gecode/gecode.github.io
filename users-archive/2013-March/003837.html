@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Fwd: Problem with splitting Problem
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Fwd%3A%20Problem%20with%20splitting%20Problem&In-Reply-To=%3CCAFWj1gCU8xpaVQJotfsronWN%2BTN2dgkxfYp7-Q2nf8qXGxN%3Dqw%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003836.html">
+   <LINK REL="Next"  HREF="003838.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Fwd: Problem with splitting Problem</H1>
+    <B>Mohamed Rezgui</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Fwd%3A%20Problem%20with%20splitting%20Problem&In-Reply-To=%3CCAFWj1gCU8xpaVQJotfsronWN%2BTN2dgkxfYp7-Q2nf8qXGxN%3Dqw%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Fwd: Problem with splitting Problem">kyo.alone at gmail.com
+       </A><BR>
+    <I>Fri Mar 22 17:29:38 CET 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003836.html">[gecode-users] Possible bug in reified constraint on FloatVar
+</A></li>
+        <LI>Next message: <A HREF="003838.html">[gecode-users] Fwd: Problem with splitting Problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3837">[ date ]</a>
+              <a href="thread.html#3837">[ thread ]</a>
+              <a href="subject.html#3837">[ subject ]</a>
+              <a href="author.html#3837">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Dear everybody,
+
+I have a problem with Gecode 4.0.0 (see the code below)
+I can exhibit the issue on the following example
+
+I solve an optimization problem in the format flatzinc
+&quot;sugiyama2_g5_7_7_7_7_2.fzn&quot; (it is attached). It takes 370s.
+Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces)
+P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+P2 is P with (x3=1, x5=2, x30=29, x31=30)
+
+First, I solve P1. This found a solution with a cost C1. Then I solve P2
+and add the cost constraint cost &lt;C1 (ie constraint(c1) in gecode))
+
+The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+sum is 685s where the initial resolution takes 370s
+I expected to have something close to 370s
+
+It seems that I have no problem if I add constraint on the first variables
+(x0, x1,&#8230;) and that it does not work if I use any variables (like here
+x3,x5,x30&#8230;)
+
+Thanks in advance for any remark
+
+Best Regards,
+Mohammed REZGUI
+
+Here is my code:
+&lt;code&gt;
+//Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance
+FlatZincSpace* fg = FlatZinc::parse(...)
+fg-&gt;createBranchers(...)
+fg-&gt;shrinkArray(...)
+
+//vars_index[3, 5, 30, 31, ] =&gt; variables have the minimum doman size in
+this problem
+// it is fine If I use 4 first variables but it is not interesting for me
+//
+
+
+//best solution used for P2 after
+Space* best = NULL;
+{
+          FlatZincSpace* p1 =
+static_cast&lt;MyFlatZincSpace*&gt;(fg-&gt;clone(false));
+
+          //vars_index[3, 5, 30, 31, ]
+          //tuple_val[1, 2, 29, 30, ]
+          Gecode::rel(*p1, p1-&gt;iv[3], Gecode::IRT_EQ, 1);
+          Gecode::rel(*p1, p1-&gt;iv[5], Gecode::IRT_EQ, 2);
+          Gecode::rel(*p1, p1-&gt;iv[30], Gecode::IRT_EQ, 29);
+          Gecode::rel(*p1, p1-&gt;iv[31], Gecode::IRT_EQ, 30);
+
+          Gecode::Search::Options opt;
+          opt.threads = 1.0;
+          Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+opt);
+          Gecode::Space* s = bab.next();
+          while(s) {
+                      delete best;
+                      best = s;
+                      engine().solution(this);
+                      s = bab.next();
+          }
+
+}
+
+{
+          FlatZincSpace* p2 =
+static_cast&lt;MyFlatZincSpace*&gt;(fg-&gt;clone(false));
+
+          //vars_index[3, 5, 30, 31, ]
+          //tuple_val[1, 2, 30, 29, ]
+          Gecode::rel(*p2, p2-&gt;iv[3], Gecode::IRT_EQ, 1);
+          Gecode::rel(*p2, p2-&gt;iv[5], Gecode::IRT_EQ, 2);
+          Gecode::rel(*p2, p2-&gt;iv[30], Gecode::IRT_EQ, 30);
+          Gecode::rel(*p2, p2-&gt;iv[31], Gecode::IRT_EQ, 29);
+
+          if (best) {
+                    p2-&gt;constrain(*best);
+          }
+
+          Gecode::Search::Options opt;
+          opt.threads = 1.0;
+          Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+opt);
+          Gecode::Space* s = bab.next();
+          while(s) {
+                      delete best;
+                      best = s;
+                      engine().solution(this);
+                      s = bab.next();
+          }
+
+}
+&lt;/code&gt;
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130322/ca0aafa5/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130322/ca0aafa5/attachment.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003836.html">[gecode-users] Possible bug in reified constraint on FloatVar
+</A></li>
+	<LI>Next message: <A HREF="003838.html">[gecode-users] Fwd: Problem with splitting Problem
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3837">[ date ]</a>
+              <a href="thread.html#3837">[ thread ]</a>
+              <a href="subject.html#3837">[ subject ]</a>
+              <a href="author.html#3837">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

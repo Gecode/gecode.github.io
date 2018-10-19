@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Indexing into arrays
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Indexing%20into%20arrays&In-Reply-To=%3Cloom.20111120T182513-172%40post.gmane.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003481.html">
+   <LINK REL="Next"  HREF="003488.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Indexing into arrays</H1>
+    <B>Milt</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Indexing%20into%20arrays&In-Reply-To=%3Cloom.20111120T182513-172%40post.gmane.org%3E"
+       TITLE="[gecode-users] Indexing into arrays">aemhm1 at hotmail.com
+       </A><BR>
+    <I>Sun Nov 20 19:42:40 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003481.html">[gecode-users] Indexing into arrays
+</A></li>
+        <LI>Next message: <A HREF="003488.html">[gecode-users] Indexing into arrays
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3487">[ date ]</a>
+              <a href="thread.html#3487">[ thread ]</a>
+              <a href="subject.html#3487">[ subject ]</a>
+              <a href="author.html#3487">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Guido,
+Thanks for your quick reply!  I'd certainly missed that point about status()
+...got it.
+But I think I still must be missing something, because I'm getting behavior I
+don't quite understand.
+So I distilled my code down to the simple example below that behaves as
+follows.
+  -When I run the code below, I get these results (the rel(!A[0]) fails the
+space):
+      A[0]=1, B0=0, C=0
+      A[1]=[0..1], B1=193, C=0
+  -I'd have expected A[1] to be equal to 0.
+  -But when I change the assignment of B0 from 
+      expr(*this,0) to 
+      expr(*this,192), 
+   I get what I'd expect as results (the rel(!A[0]) doesn't fail the space):
+      A[0]=0, B0=192, C=0
+      A[1]=0, B1=193, C=0
+Is this what's meant in MPG section 4.1.7, that after a space fails, the domain
+may have more content than expected?
+
+Question: If so, then when the space fails during the relation !A[0], why does
+Gecode keep running my code to define A[1], do the status, and the couts?
+(I'd have expected Gecode to recognize that the space failed, abandon the
+failed space ASAP, and hurry to try another branching variable or value.)
+
+Also, my approach to debugging the constraint posting within my model is to use
+compiler directives (#if, #else, #endif) to maintain 2 paths thru my code: 
+
+1 - one that is normal, branching and exploring as intended, for example on an
+IntVarArray &quot;list&quot;, which my code uses to compose constraints to post, and
+
+2 - one that is for debugging a single test case at a time, so it branches and
+updates a different variable array &quot;list_other&quot;, which my code ignores, and
+defines an IntVarArgs &quot;list&quot;, and defines its items specifically to be a test
+case I'm debugging.  So my code, which is written to examine &quot;list&quot;, now
+focuses exclusively on the test case.  This lets me avoid the confusion of the
+entire design space, and see just how the test case is being treated. (e.g., why
+it isn't being filtered out by the constraint I'd expect to catch it, or failing
+good cases.)
+
+Question: But, if Gecode shows extra items once it fails, as in the example
+below, how can I tell when the space has failed, to know whether my code is
+faulty in not narrowing down a domain, or whether some constraint has failed
+for the test case and I'm getting the after-fail behavior? (and if so, is there
+any simple way to detect which constraint detected the failed space, i.e., the
+straw that broke the camel's back; or does order of constraint posting
+matter?)
+
+Question: Is this a reasonable debugging strategy for the constraint posting
+(I'm not dealing with the search issues yet), or do people typically use other
+better techniques?  (not sure where I'd look for Gecode debugging
+techniques...saw your interaction w/Roberto Pinto in 2006, but I'm looking for
+more of a targetable data dump of the data structures than an interactive Gist
+like exploration of the design-space search order -- Gist is great, but not what
+I think I need for this purpose.)
+
+Thanks for your help,
+-Milt
+---------------
+class Trim : public Space {
+protected:
+public:
+        IntVarArray IVA;
+        // Constructor for script
+        Trim()
+          :
+                IVA(*this, 1, 0, 3)
+                {
+                IntVar B0 = expr(*this,0);
+                IntVar B1 = expr(*this,193);
+                int C = 0;
+                BoolVarArgs A(2);
+                //Post constraints
+                A[0] = expr(*this,B0==C,ICL_DOM);          
+                rel(*this,!A[0],ICL_DOM);
+                A[1] = expr(*this,B1==C,ICL_DOM);          
+                status();
+                cout&lt;&lt;&quot;A[0]=&quot;&lt;&lt;A[0]&lt;&lt;&quot;, B0=&quot;&lt;&lt;B0&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                cout&lt;&lt;&quot;A[1]=&quot;&lt;&lt;A[1]&lt;&lt;&quot;, B1=&quot;&lt;&lt;B1&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                // post branching
+                branch(*this, IVA, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+        }
+        // search support: Constructor for cloning
+        Trim(bool share, Trim&amp; s) : Space(share, s) {
+                IVA.update(*this, share, s.IVA);
+        }
+        // perform copying during cloning
+        virtual Space* copy(bool share) {
+                return new
+                Trim(share,*this);
+        }
+};
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003481.html">[gecode-users] Indexing into arrays
+</A></li>
+	<LI>Next message: <A HREF="003488.html">[gecode-users] Indexing into arrays
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3487">[ date ]</a>
+              <a href="thread.html#3487">[ thread ]</a>
+              <a href="subject.html#3487">[ subject ]</a>
+              <a href="author.html#3487">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

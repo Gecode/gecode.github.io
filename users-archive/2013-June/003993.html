@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Implementing scene allocation symmetry break in	gecode-python
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Implementing%20scene%20allocation%20symmetry%20break%20in%0A%09gecode-python&In-Reply-To=%3Cloom.20130629T134927-584%40post.gmane.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003992.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Implementing scene allocation symmetry break in	gecode-python</H1>
+    <B>Michael Rand</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Implementing%20scene%20allocation%20symmetry%20break%20in%0A%09gecode-python&In-Reply-To=%3Cloom.20130629T134927-584%40post.gmane.org%3E"
+       TITLE="[gecode-users] Implementing scene allocation symmetry break in	gecode-python">begbie00 at gmail.com
+       </A><BR>
+    <I>Sat Jun 29 14:05:38 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003992.html">[gecode-users] Access Violation when temporary BoolVarAgs	looses	scope.
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3993">[ date ]</a>
+              <a href="thread.html#3993">[ thread ]</a>
+              <a href="subject.html#3993">[ subject ]</a>
+              <a href="author.html#3993">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+Here's some c++ code implementing the symmetry break in the scene allocation 
+problem:
+
+//Symmetry breaking
+    //Assign shot day for scene imposing an order
+    post(*this, shoot[0] == 1);
+    for(sceneCount=1; sceneCount&lt;numScenes; sceneCount++){
+      IntVar currentMax(*this,1,maxDays);      
+      IntVarArray shot_slice(*this,sceneCount,1,maxDays);
+      //Get Shot days from 0 to sceneCount
+      int parcialShoot;
+      for(parcialShoot=0; parcialShoot&lt; sceneCount; parcialShoot++){
+	shot_slice[parcialShoot] = shoot[parcialShoot];
+      }
+      //Each scene must be assigned to an already assigned scene day
+      //or to the successor of the max assigned day
+      max(*this,shot_slice, currentMax);
+      post(*this, shoot[sceneCount] &lt;= 1+currentMax);
+    }
+
+I would think the same constraint would be constructed in gecode-python as 
+follows (with s = the space object):
+
+    s.rel(shoot[0],cp.IRT_EQ,1)
+    for scene_count in xrange(1,num_scenes):
+        current_max = s.intvar(1, max_days)
+        shot_slice = s.intvars(scene_count, 1, max_days)
+        for partial_shoot in xrange(0, scene_count):
+            shot_slice[partial_shoot] = shoot[partial_shoot]
+        s.max(shot_slice, current_max)
+        s.rel(shoot[scene_count], cp.IRT_LQ, current_max + 1)
+
+But this raises the following exception:
+
+Traceback (most recent call last):
+  ...
+  File &quot;solver.py&quot;, line 61, in solveIt
+    s.rel(shoot[scene_count], cp.IRT_LQ, current_max + 1)
+TypeError: unsupported operand type(s) for +: '_gecode.IntVar' and 'int'
+
+
+How do I implement the &quot;+1&quot; portion of the constraint if I can't add an int 
+and an IntVar? Do I need to use some kind of linear equation constraint with 
+a &quot;plus_one&quot; intvar?
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003992.html">[gecode-users] Access Violation when temporary BoolVarAgs	looses	scope.
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3993">[ date ]</a>
+              <a href="thread.html#3993">[ thread ]</a>
+              <a href="subject.html#3993">[ subject ]</a>
+              <a href="author.html#3993">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

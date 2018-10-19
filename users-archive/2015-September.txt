@@ -1,0 +1,3100 @@
+From cschulte at kth.se  Tue Sep  1 12:58:54 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 1 Sep 2015 12:58:54 +0200
+Subject: [gecode-users] propagation consistency of count (single value)
+	constraint
+In-Reply-To: <55DF3132.8080407@cisco.com>
+References: <55DE1FB2.90108@cisco.com> <55DF3132.8080407@cisco.com>
+Message-ID: <00ba01d0e4a5$32dd8720$98989560$@kth.se>
+
+Hmm, I had a quick look at the code and I think it should rewrite to the
+int/int case. I am travelling right now, so I will look more carefully when
+I am back in a week or so.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Thursday, August 27, 2015 05:48 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] propagation consistency of count (single value)
+constraint
+
+As a follow up to my previous post on this, then from the reference
+documentation, for
+
+count(home, x, y, IRT_EQ, z)
+
+where y and z are int, then there is only one consistency level supported,
+and it is not domain consistent.
+
+We have a rostering program (originally written for our ic solvder), which I
+used to test the Gecode interface, and it uses count constraints, and
+changing the consistency level affected the execution times significantly
+for certasin problem instances. I took a look again at the code, and the
+count constraints are with y and z being integers.
+(the execution times are faster with ICL_BND than ICL_DOM)
+
+The count single vsalue constraint is posted to Gecode using only one
+propagator, the version with y and z being IntVar (and if they are integers,
+they are posted as IntVar with a singleton domain). This is done for all
+constraints that have variants that accept both IntVar and int, as this
+avoid me having to write a lot of code to distinguish the argument types,
+and I remember asking about this here a while ago and I think Chirstian said
+that Gecode will figure out the best propagator to use for the argument.
+
+So my questions are: is the propagator posted the one with y and z being
+int? If so, is there more than consistency level for the propagator, as my
+result seem to suggest? The difference is very significant, e.g. for one
+instance:
+
+ICL_BND: 0.73s  ICL_DOM: 198s
+
+the ICL_BND times are more than 100 times faster, and the only difference
+between the two runs are the count constraint posted with ICL_BND rather
+than ICL_DOM (running on the same machine, of course).
+
+
+Cheers,
+
+Kish
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Thu Sep  3 10:49:54 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 3 Sep 2015 10:49:54 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+Message-ID: <ms91ji$t2s$1@ger.gmane.org>
+
+Hi,
+
+I'm having issues with the trunk version of Gecode compiled with MSVC 
+2015 RTM. The "Release" build seems to get stuck on the attached simple 
+test case. The "Debug" version of the same (configured with 
+--enable-debug), as well as the official 4.4.0 distribution compiled 
+with MSVC 2013 x64 seem to work without issue.
+
+In the test case source code there is a constant "8686.9666660000003". 
+Changing it to "8686" seems to fix the problem - but even "8686.9" makes 
+dfs freeze.  It also seems that it is the branching strategy 
+'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+
+I have built Gecode using my usual setup (the environment is set up for 
+the "xp" compiler toolset) - in the 2015 x64 command prompt I run:
+
+set "INCLUDE=%ProgramFiles(x86)%\Microsoft 
+SDKs\Windows\7.1A\Include;%INCLUDE%"
+set "PATH=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Bin;%PATH%"
+set "LIB=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Lib\x64;%LIB%"
+set "CL=/D_USING_V110_SDK71_"
+set "LINK=/SUBSYSTEM:CONSOLE,5.02"
+C:\cygwin\cygwin
+cd /cygdrive/c/build/gecode
+./configure --disable-examples --disable-qt --disable-gist 
+--disable-flatzinc --prefix=`pwd`/x64rel
+make -j7 install
+
+As you may notice I'm building without Gist so I could not easily check 
+the progress of the search; as far as I could tell from the callstack 
+there seems to be some kind of loop but I'm not sure how tight it is. 
+I'm now trying to get Qt and build with it but so far I'm struggling 
+with that (is there a howto on building with Qt on Windows?)
+
+Thanks for any hints,
+Filip
+
+-------------- next part --------------
+#pragma warning(push)
+#pragma warning(disable : 4251 4355 4800)
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+#pragma warning(pop)
+
+//#include <gecode/gist.hh>
+
+using namespace Gecode;
+
+struct LayoutCalculator2 : public Space {
+  double min_edge_width;
+  double fit_to_width;
+
+  IntVar      total_width;
+  IntVar      scroll_area;
+
+  IntVarArray start_times;
+  IntVarArray widths;
+  FloatVar    scaler;
+
+  /// Constructor for cloning \a s
+  LayoutCalculator2(bool share, LayoutCalculator2& s)
+    : Space(share,s)
+    , min_edge_width(s.min_edge_width)
+    , fit_to_width(s.fit_to_width)
+  {
+    total_width.update(*this, share, s.total_width);
+    scroll_area.update(*this, share, s.scroll_area);
+    start_times.update(*this, share, s.start_times);
+    widths.update(*this, share, s.widths);
+    scaler.update(*this, share, s.scaler);
+  }
+
+  /// Copy during cloning
+  virtual Space*
+    copy(bool share) {
+      return new LayoutCalculator2(share,*this);
+  }
+
+  /// Actual model
+  LayoutCalculator2(double min_edge_width, double fit_to_width)
+    : min_edge_width(min_edge_width)
+    , fit_to_width(fit_to_width)
+  {
+    const int num_nodes = 2;
+    total_width = IntVar(*this, 0, Gecode::Int::Limits::max);
+    scroll_area = IntVar(*this, 0, Gecode::Int::Limits::max);
+    start_times = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    widths = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    scaler = FloatVar(*this, 0, Gecode::Float::Limits::max);
+
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(228.),
+                     8686.9666660000003
+                     * scaler) <= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width <= widths[0]);
+    }
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(265.), 1. * scaler) <= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width <= widths[0]);
+      rel(*this, start_times[0] + widths[0] + (int)min_edge_width <= start_times[1]);
+      rel(*this, start_times[1] + widths[1] <= total_width);
+    }
+
+    rel(*this, max(0, total_width - (int)fit_to_width) == scroll_area);
+
+    // Minimize scroll area
+    branch(*this, scroll_area, INT_VAL_MIN());
+    // Maximize scaler
+    //branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    /*
+    // Minimize total width (just assign)
+    branch(*this, total_width, INT_VAL_MIN());
+    // Maximize all start times (push right)
+    branch(*this, start_times, INT_VAR_MAX_MIN(), INT_VAL_MAX());
+    // Minimize widths
+    branch(*this, widths, INT_VAR_MAX_MIN(), INT_VAL_SPLIT_MIN());
+    */
+  }
+};
+
+
+int main()
+{
+  LayoutCalculator2 init(50, 893);
+  Gecode::Search::TimeStop t(1000);
+  Gecode::Search::Options o;
+  o.stop = &t;
+  Gecode::dfs(&init, o);
+  //Gist::dfs(&init);
+  return 0;
+}
+
+
+From cschulte at kth.se  Thu Sep  3 11:00:59 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 3 Sep 2015 11:00:59 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <ms91ji$t2s$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>
+Message-ID: <000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+
+Hi,
+
+I am travelling right now and cannot look into the issue right now.
+
+Building with Qt is easy: I just build Qt myself (there is Qt doc how to do
+that) and then use that build by setting the path accordingly (pointing to
+%QTDIR%/base/bin). I do that as I have Qt builds for all platforms we run
+tests on...
+
+Then everything works like a charm.
+
+You need to patient, though, when building Qt.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 3, 2015 10:50 AM
+To: users at gecode.org
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi,
+
+I'm having issues with the trunk version of Gecode compiled with MSVC
+2015 RTM. The "Release" build seems to get stuck on the attached simple test
+case. The "Debug" version of the same (configured with --enable-debug), as
+well as the official 4.4.0 distribution compiled with MSVC 2013 x64 seem to
+work without issue.
+
+In the test case source code there is a constant "8686.9666660000003". 
+Changing it to "8686" seems to fix the problem - but even "8686.9" makes dfs
+freeze.  It also seems that it is the branching strategy
+'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+
+I have built Gecode using my usual setup (the environment is set up for the
+"xp" compiler toolset) - in the 2015 x64 command prompt I run:
+
+set "INCLUDE=%ProgramFiles(x86)%\Microsoft
+SDKs\Windows\7.1A\Include;%INCLUDE%"
+set "PATH=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Bin;%PATH%"
+set "LIB=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Lib\x64;%LIB%"
+set "CL=/D_USING_V110_SDK71_"
+set "LINK=/SUBSYSTEM:CONSOLE,5.02"
+C:\cygwin\cygwin
+cd /cygdrive/c/build/gecode
+./configure --disable-examples --disable-qt --disable-gist
+--disable-flatzinc --prefix=`pwd`/x64rel make -j7 install
+
+As you may notice I'm building without Gist so I could not easily check the
+progress of the search; as far as I could tell from the callstack there
+seems to be some kind of loop but I'm not sure how tight it is. 
+I'm now trying to get Qt and build with it but so far I'm struggling with
+that (is there a howto on building with Qt on Windows?)
+
+Thanks for any hints,
+Filip
+
+
+
+
+From filip.konvicka at logis.cz  Thu Sep  3 11:18:46 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 3 Sep 2015 11:18:46 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+Message-ID: <ms939m$p0e$1@ger.gmane.org>
+
+Hi Christian,
+
+Thanks, this helps.  This isn't urgent so I do not really need a fast 
+response.
+
+I was trying to use the Qt installer but Qt does not seem to be visible 
+in the cygwin environment.  I'll try the source package as you suggest, 
+that sounds better to me.
+
+Have safe travels!
+
+Cheers,
+Filip
+
+> Hi,
+>
+> I am travelling right now and cannot look into the issue right now.
+>
+> Building with Qt is easy: I just build Qt myself (there is Qt doc how to do
+> that) and then use that build by setting the path accordingly (pointing to
+> %QTDIR%/base/bin). I do that as I have Qt builds for all platforms we run
+> tests on...
+>
+> Then everything works like a charm.
+>
+> You need to patient, though, when building Qt.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Thursday, September 3, 2015 10:50 AM
+> To: users at gecode.org
+> Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Hi,
+>
+> I'm having issues with the trunk version of Gecode compiled with MSVC
+> 2015 RTM. The "Release" build seems to get stuck on the attached simple test
+> case. The "Debug" version of the same (configured with --enable-debug), as
+> well as the official 4.4.0 distribution compiled with MSVC 2013 x64 seem to
+> work without issue.
+>
+> In the test case source code there is a constant "8686.9666660000003".
+> Changing it to "8686" seems to fix the problem - but even "8686.9" makes dfs
+> freeze.  It also seems that it is the branching strategy
+> 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+>
+> I have built Gecode using my usual setup (the environment is set up for the
+> "xp" compiler toolset) - in the 2015 x64 command prompt I run:
+>
+> set "INCLUDE=%ProgramFiles(x86)%\Microsoft
+> SDKs\Windows\7.1A\Include;%INCLUDE%"
+> set "PATH=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Bin;%PATH%"
+> set "LIB=%ProgramFiles(x86)%\Microsoft SDKs\Windows\7.1A\Lib\x64;%LIB%"
+> set "CL=/D_USING_V110_SDK71_"
+> set "LINK=/SUBSYSTEM:CONSOLE,5.02"
+> C:\cygwin\cygwin
+> cd /cygdrive/c/build/gecode
+> ./configure --disable-examples --disable-qt --disable-gist
+> --disable-flatzinc --prefix=`pwd`/x64rel make -j7 install
+>
+> As you may notice I'm building without Gist so I could not easily check the
+> progress of the search; as far as I could tell from the callstack there
+> seems to be some kind of loop but I'm not sure how tight it is.
+> I'm now trying to get Qt and build with it but so far I'm struggling with
+> that (is there a howto on building with Qt on Windows?)
+>
+> Thanks for any hints,
+> Filip
+>
+
+
+
+
+From cschulte at kth.se  Thu Sep  3 15:55:24 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 3 Sep 2015 15:55:24 +0200
+Subject: [gecode-users] propagation consistency of count (single value)
+	constraint
+In-Reply-To: <55DF3132.8080407@cisco.com>
+References: <55DE1FB2.90108@cisco.com> <55DF3132.8080407@cisco.com>
+Message-ID: <008c01d0e650$2ff06440$8fd12cc0$@kth.se>
+
+Yep, that was a bug introduced by a bugfix some time ago! Thanks! Fixed in
+the trunk. Cheers Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Thursday, August 27, 2015 05:48 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] propagation consistency of count (single value)
+constraint
+
+As a follow up to my previous post on this, then from the reference
+documentation, for
+
+count(home, x, y, IRT_EQ, z)
+
+where y and z are int, then there is only one consistency level supported,
+and it is not domain consistent.
+
+We have a rostering program (originally written for our ic solvder), which I
+used to test the Gecode interface, and it uses count constraints, and
+changing the consistency level affected the execution times significantly
+for certasin problem instances. I took a look again at the code, and the
+count constraints are with y and z being integers.
+(the execution times are faster with ICL_BND than ICL_DOM)
+
+The count single vsalue constraint is posted to Gecode using only one
+propagator, the version with y and z being IntVar (and if they are integers,
+they are posted as IntVar with a singleton domain). This is done for all
+constraints that have variants that accept both IntVar and int, as this
+avoid me having to write a lot of code to distinguish the argument types,
+and I remember asking about this here a while ago and I think Chirstian said
+that Gecode will figure out the best propagator to use for the argument.
+
+So my questions are: is the propagator posted the one with y and z being
+int? If so, is there more than consistency level for the propagator, as my
+result seem to suggest? The difference is very significant, e.g. for one
+instance:
+
+ICL_BND: 0.73s  ICL_DOM: 198s
+
+the ICL_BND times are more than 100 times faster, and the only difference
+between the two runs are the count constraint posted with ICL_BND rather
+than ICL_DOM (running on the same machine, of course).
+
+
+Cheers,
+
+Kish
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kisshen at cisco.com  Sun Sep  6 08:12:04 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Sun, 6 Sep 2015 07:12:04 +0100
+Subject: [gecode-users] Fwd: Re: propagation consistency of count (single
+ value) constraint
+In-Reply-To: <55EBC8B7.3020207@cisco.com>
+References: <55EBC8B7.3020207@cisco.com>
+Message-ID: <55EBD934.90506@cisco.com>
+
+
+I think I didn't send this to the mailing list, so here it is...
+
+-------- Forwarded Message --------
+Subject: Re: [gecode-users] propagation consistency of count (single 
+value) constraint
+To: cschulte at kth.se
+References: <55DE1FB2.90108 at cisco.com> <55DF3132.8080407 at cisco.com> 
+<00ba01d0e4a5$32dd8720$98989560$@kth.se>
+From: Kish Shen <kisshen at cisco.com>
+Message-ID: <55EBC8B7.3020207 at cisco.com>
+Date: Sun, 6 Sep 2015 06:01:43 +0100
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 
+Thunderbird/38.2.0
+In-Reply-To: <00ba01d0e4a5$32dd8720$98989560$@kth.se>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+On 01/09/2015 11:58, Christian Schulte wrote:
+> Hmm, I had a quick look at the code and I think it should rewrite to the
+> int/int case. I am travelling right now, so I will look more carefully when
+> I am back in a week or so.
+>
+
+Hi Christian,
+
+I looked at the program more closely, and it seems that the reason for
+the apparent better performance with ICL_BND is because the constraint
+succeeds when it is violated. The following does not fail when posted
+with ICL_BND:
+
+count(home, x, y, IRT_GR, z, ICL_BND)
+
+x = {5,5,5,5,5,5,5}, y = 1, z = 0
+
+y and z are IntVars with singleton domains.
+
+This succeeds when posted with x set to all 5s, or as variables which
+are then labelled to 5 during the search.
+
+The constraint fails when posted with ICL_DOM.
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+
+From kisshen at cisco.com  Sun Sep  6 08:34:01 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Sun, 6 Sep 2015 07:34:01 +0100
+Subject: [gecode-users] propagation consistency of count (single value)
+ constraint
+In-Reply-To: <008c01d0e650$2ff06440$8fd12cc0$@kth.se>
+References: <55DE1FB2.90108@cisco.com> <55DF3132.8080407@cisco.com>
+	<008c01d0e650$2ff06440$8fd12cc0$@kth.se>
+Message-ID: <55EBDE59.1080804@cisco.com>
+
+Hi,
+
+On 03/09/2015 14:55, Christian Schulte wrote:
+> Yep, that was a bug introduced by a bugfix some time ago! Thanks! Fixed in
+> the trunk. Cheers Christian
+>
+
+I just noticed that this was a reply to my earlier post; I had thought 
+this was a reply to Filip's post. I am not sure what the bug is here -- 
+  is it referring to the propagator for count not being optimal when 
+IntVar arguments with singleton domains?
+
+If so, it may be a lucky break, as I would not have noticed the problem 
+with the ICL_BND propagator I just reported... :-)
+
+Cheers,
+
+Kish
+
+
+
+From cschulte at kth.se  Thu Sep 10 14:08:59 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 10 Sep 2015 14:08:59 +0200
+Subject: [gecode-users] Fwd: Re: propagation consistency of count
+	(single value) constraint
+In-Reply-To: <55EBD934.90506@cisco.com>
+References: <55EBC8B7.3020207@cisco.com> <55EBD934.90506@cisco.com>
+Message-ID: <000f01d0ebc1$7ad131d0$70739570$@kth.se>
+
+Hi Kish,
+
+I just fixed the bug in the trunk: it was a bug in posting the constraint
+(and only for ICL_BND). Unfortunately, the tests had not been adapted to the
+fact that both ICL_BND and ICL_DOM is supported. That's also fixed.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Sunday, September 6, 2015 08:12 AM
+To: users at gecode.org
+Subject: [gecode-users] Fwd: Re: propagation consistency of count (single
+value) constraint
+
+
+I think I didn't send this to the mailing list, so here it is...
+
+-------- Forwarded Message --------
+Subject: Re: [gecode-users] propagation consistency of count (single
+value) constraint
+To: cschulte at kth.se
+References: <55DE1FB2.90108 at cisco.com> <55DF3132.8080407 at cisco.com>
+<00ba01d0e4a5$32dd8720$98989560$@kth.se>
+From: Kish Shen <kisshen at cisco.com>
+Message-ID: <55EBC8B7.3020207 at cisco.com>
+Date: Sun, 6 Sep 2015 06:01:43 +0100
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101
+Thunderbird/38.2.0
+In-Reply-To: <00ba01d0e4a5$32dd8720$98989560$@kth.se>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+On 01/09/2015 11:58, Christian Schulte wrote:
+> Hmm, I had a quick look at the code and I think it should rewrite to 
+> the int/int case. I am travelling right now, so I will look more 
+> carefully when I am back in a week or so.
+>
+
+Hi Christian,
+
+I looked at the program more closely, and it seems that the reason for the
+apparent better performance with ICL_BND is because the constraint succeeds
+when it is violated. The following does not fail when posted with ICL_BND:
+
+count(home, x, y, IRT_GR, z, ICL_BND)
+
+x = {5,5,5,5,5,5,5}, y = 1, z = 0
+
+y and z are IntVars with singleton domains.
+
+This succeeds when posted with x set to all 5s, or as variables which are
+then labelled to 5 during the search.
+
+The constraint fails when posted with ICL_DOM.
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From reg at patrikbroman.se  Wed Sep 16 17:29:43 2015
+From: reg at patrikbroman.se (Patrik Broman)
+Date: Wed, 16 Sep 2015 17:29:43 +0200
+Subject: [gecode-users] Multiple specification files
+Message-ID: <CAM5FMko6r_L2NicRnocp94Y5i+AWsEpaOcMcUKjJcfyxRPvVkg@mail.gmail.com>
+
+Apparently I posted from wrong address first time.
+
+Anyway. I'm creating a two new data types. Is there a good way to use them
+both at the same time?
+
+I have tried
+./configure --with-vis=var1.vis --with-vis=var2.vis
+and
+./configure --with-vis=var1.vis var2.vis
+
+regards
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150916/2698abdb/attachment.html>
+
+From cschulte at kth.se  Thu Sep 17 10:29:02 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 10:29:02 +0200
+Subject: [gecode-users] Multiple specification files
+In-Reply-To: <CAM5FMko6r_L2NicRnocp94Y5i+AWsEpaOcMcUKjJcfyxRPvVkg@mail.gmail.com>
+References: <CAM5FMko6r_L2NicRnocp94Y5i+AWsEpaOcMcUKjJcfyxRPvVkg@mail.gmail.com>
+Message-ID: <004a01d0f122$e9dad840$bd9088c0$@kth.se>
+
+Hi Patrik,
+
+ 
+
+Just use a comma to separate:
+
+               ./configure ?with-vis=var1.vis,var2.vis
+
+ 
+
+If things seem to not work there is the following trick by removing the following files:
+
+               rm gecode/kernel/var-type.hpp gecode/kernel/var-imp.hpp
+
+When typing make these files will be re-generated (you can have a look and see that your stuff will show up in these files).
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Patrik Broman
+Sent: Wednesday, September 16, 2015 05:30 PM
+To: users at gecode.org
+Subject: [gecode-users] Multiple specification files
+
+ 
+
+Apparently I posted from wrong address first time.
+
+
+Anyway. I'm creating a two new data types. Is there a good way to use them both at the same time? 
+
+I have tried
+
+./configure --with-vis=var1.vis --with-vis=var2.vis
+
+and
+./configure --with-vis=var1.vis var2.vis
+
+regards
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150917/db3e6ed0/attachment.html>
+
+From filip.konvicka at logis.cz  Thu Sep 17 15:23:35 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 17 Sep 2015 15:23:35 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <ms939m$p0e$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+Message-ID: <mteeso$vg0$1@ger.gmane.org>
+
+> I was trying to use the Qt installer but Qt does not seem to be visible
+> in the cygwin environment.  I'll try the source package as you suggest,
+> that sounds better to me.
+
+So in the end I finished using the pre-built version of Qt and I'm now 
+able to run the script in Gist (Gist::dfs). The issue is still there.  I 
+ran 'Next Solution' - this apparently runs the search in a separate 
+thread but never finishes (and 'Stop' does not stop the search, you have 
+to kill the program). Inspecting the nodes one by one freezes the 
+program during the 3rd expansion, and in this case the program stops 
+responding altogether.
+
+So my guess is this is really some tight loop somewhere in Gecode (maybe 
+caused by a new optimization or bug in the new compiler?)
+
+Cheers,
+Filip
+
+
+
+
+From cschulte at kth.se  Thu Sep 17 15:28:06 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 15:28:06 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mteeso$vg0$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org> <mteeso$vg0$1@ger.gmane.org>
+Message-ID: <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+
+Hi Filip,
+
+If you tell me which script you tried, I can try here (even though Gist
+works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 17, 2015 03:24 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+> I was trying to use the Qt installer but Qt does not seem to be 
+> visible in the cygwin environment.  I'll try the source package as you 
+> suggest, that sounds better to me.
+
+So in the end I finished using the pre-built version of Qt and I'm now able
+to run the script in Gist (Gist::dfs). The issue is still there.  I ran
+'Next Solution' - this apparently runs the search in a separate thread but
+never finishes (and 'Stop' does not stop the search, you have to kill the
+program). Inspecting the nodes one by one freezes the program during the 3rd
+expansion, and in this case the program stops responding altogether.
+
+So my guess is this is really some tight loop somewhere in Gecode (maybe
+caused by a new optimization or bug in the new compiler?)
+
+Cheers,
+Filip
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Thu Sep 17 15:38:50 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 17 Sep 2015 15:38:50 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+Message-ID: <mtefpa$f98$1@ger.gmane.org>
+
+Sure, it's the script from my original post.  I'm re-attaching it now.
+I also used Gecode trunk (updated about September 1st) with Qt-5.5, 
+built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+
+Thanks,
+Filip
+
+> Hi Filip,
+>
+> If you tell me which script you tried, I can try here (even though Gist
+> works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 03:24 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+>> I was trying to use the Qt installer but Qt does not seem to be
+>> visible in the cygwin environment.  I'll try the source package as you
+>> suggest, that sounds better to me.
+>
+> So in the end I finished using the pre-built version of Qt and I'm now able
+> to run the script in Gist (Gist::dfs). The issue is still there.  I ran
+> 'Next Solution' - this apparently runs the search in a separate thread but
+> never finishes (and 'Stop' does not stop the search, you have to kill the
+> program). Inspecting the nodes one by one freezes the program during the 3rd
+> expansion, and in this case the program stops responding altogether.
+>
+> So my guess is this is really some tight loop somewhere in Gecode (maybe
+> caused by a new optimization or bug in the new compiler?)
+>
+> Cheers,
+> Filip
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+-------------- next part --------------
+#pragma warning(push)
+#pragma warning(disable : 4251 4355 4800)
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+#pragma warning(pop)
+
+//#include <gecode/gist.hh>
+
+using namespace Gecode;
+
+struct LayoutCalculator2 : public Space {
+  double min_edge_width;
+  double fit_to_width;
+
+  IntVar      total_width;
+  IntVar      scroll_area;
+
+  IntVarArray start_times;
+  IntVarArray widths;
+  FloatVar    scaler;
+
+  /// Constructor for cloning \a s
+  LayoutCalculator2(bool share, LayoutCalculator2& s)
+    : Space(share,s)
+    , min_edge_width(s.min_edge_width)
+    , fit_to_width(s.fit_to_width)
+  {
+    total_width.update(*this, share, s.total_width);
+    scroll_area.update(*this, share, s.scroll_area);
+    start_times.update(*this, share, s.start_times);
+    widths.update(*this, share, s.widths);
+    scaler.update(*this, share, s.scaler);
+  }
+
+  /// Copy during cloning
+  virtual Space*
+    copy(bool share) {
+      return new LayoutCalculator2(share,*this);
+  }
+
+  /// Actual model
+  LayoutCalculator2(double min_edge_width, double fit_to_width)
+    : min_edge_width(min_edge_width)
+    , fit_to_width(fit_to_width)
+  {
+    const int num_nodes = 2;
+    total_width = IntVar(*this, 0, Gecode::Int::Limits::max);
+    scroll_area = IntVar(*this, 0, Gecode::Int::Limits::max);
+    start_times = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    widths = IntVarArray(*this, num_nodes, 0, Gecode::Int::Limits::max);
+    scaler = FloatVar(*this, 0, Gecode::Float::Limits::max);
+
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(228.),
+                     8686.9666660000003
+                     * scaler) <= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width <= widths[0]);
+    }
+    {
+      FloatVar fl_width(*this, 0, Gecode::Float::Limits::max);
+      rel(*this, max(FloatVal(265.), 1. * scaler) <= fl_width);
+      IntVar int_width(*this, 0, Gecode::Int::Limits::max);
+      channel(*this, fl_width, int_width);
+      rel(*this, int_width <= widths[0]);
+      rel(*this, start_times[0] + widths[0] + (int)min_edge_width <= start_times[1]);
+      rel(*this, start_times[1] + widths[1] <= total_width);
+    }
+
+    rel(*this, max(0, total_width - (int)fit_to_width) == scroll_area);
+
+    // Minimize scroll area
+    branch(*this, scroll_area, INT_VAL_MIN());
+    // Maximize scaler
+    //branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    branch(*this, scaler, FLOAT_VAL_SPLIT_MAX());
+    /*
+    // Minimize total width (just assign)
+    branch(*this, total_width, INT_VAL_MIN());
+    // Maximize all start times (push right)
+    branch(*this, start_times, INT_VAR_MAX_MIN(), INT_VAL_MAX());
+    // Minimize widths
+    branch(*this, widths, INT_VAR_MAX_MIN(), INT_VAL_SPLIT_MIN());
+    */
+  }
+};
+
+
+int main()
+{
+  LayoutCalculator2 init(50, 893);
+  Gecode::Search::TimeStop t(1000);
+  Gecode::Search::Options o;
+  o.stop = &t;
+  Gecode::dfs(&init, o);
+  //Gist::dfs(&init);
+  return 0;
+}
+
+
+From cschulte at kth.se  Thu Sep 17 16:36:44 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 16:36:44 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mtefpa$f98$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org>
+Message-ID: <00be01d0f156$472d0a80$d5871f80$@kth.se>
+
+Hi Filip,
+
+This seems to be an issue with Gecode and not the compiler... Guido promised
+me that he will look into floats. Real soon, he said ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 17, 2015 03:39 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Sure, it's the script from my original post.  I'm re-attaching it now.
+I also used Gecode trunk (updated about September 1st) with Qt-5.5, built in
+my Cygwin environment with MSVC 2015 RTM x64 compiler.
+
+Thanks,
+Filip
+
+> Hi Filip,
+>
+> If you tell me which script you tried, I can try here (even though 
+> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 03:24 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+>> I was trying to use the Qt installer but Qt does not seem to be 
+>> visible in the cygwin environment.  I'll try the source package as 
+>> you suggest, that sounds better to me.
+>
+> So in the end I finished using the pre-built version of Qt and I'm now 
+> able to run the script in Gist (Gist::dfs). The issue is still there.  
+> I ran 'Next Solution' - this apparently runs the search in a separate 
+> thread but never finishes (and 'Stop' does not stop the search, you 
+> have to kill the program). Inspecting the nodes one by one freezes the 
+> program during the 3rd expansion, and in this case the program stops
+responding altogether.
+>
+> So my guess is this is really some tight loop somewhere in Gecode 
+> (maybe caused by a new optimization or bug in the new compiler?)
+>
+> Cheers,
+> Filip
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From joseph.scott at it.uu.se  Thu Sep 17 16:54:23 2015
+From: joseph.scott at it.uu.se (Joseph Scott)
+Date: Thu, 17 Sep 2015 16:54:23 +0200
+Subject: [gecode-users] SUBSCRIBE modification event required?
+Message-ID: <55FAD41F.2040807@it.uu.se>
+
+Hi,
+
+I was just rebuilding Gecode with an included .vis file for a variable
+type, and I neglected to designate one of the modification events as the
+SUBSCRIBE event, resulting in the error message included below[1].
+Adding "=SUBSCRIBE" to one of the ModEvent definitions makes it go away,
+as one would expect.
+
+But now I'm curious. MPG very carefully does not state that one must
+define a modification event for new subscriptions. Quite the opposite,
+really: of the four special modification events, the other three are
+explicitly stated to be required (p. 403). What is more, it seems that
+bool.vis does not specify a subscription event for Boolean variables
+(upon reflection, this is unsurprising).  So it seems like I should be
+able to omit this specification ? although, I admit, I can't see why I
+would want to do so for anything other than a Boolean.
+
+So my question is this: am I required to specify a modification event
+for subscriptions to (non-assigned) variables? And if so, is this
+requirement somehow waived for Booleans?
+
+Thanks!
+Joe
+
+[1] using g++ (Ubuntu 4.8.2-19ubuntu1) 4.8.2:
+g++ -I. -fcx-limited-range -fno-signaling-nans -fno-rounding-math
+-ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3
+-fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG   \
+        -c -o gecode/kernel/archive.o  gecode/kernel/archive.cpp
+In file included from ./gecode/kernel.hh:228:0,
+                 from gecode/kernel/archive.cpp:38:
+./gecode/kernel/var-imp.hpp: In member function ?void
+StrVars::Str::StrVarImpBase::subscribe(Gecode::Space&,
+Gecode::Propagator&, Gecode::PropCond, bool, bool)?:
+./gecode/kernel/var-imp.hpp:463:79: error: expected primary-expression
+before ?,? token
+    
+Gecode::VarImp<StrVars::Str::StrVarImpConf>::subscribe(home,p,pc,assigned,,schedule);
+                                                                                                                           
+^
+
+
+From filip.konvicka at logis.cz  Thu Sep 17 17:02:07 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 17 Sep 2015 17:02:07 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <00be01d0f156$472d0a80$d5871f80$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+Message-ID: <mteklg$60h$1@ger.gmane.org>
+
+Hi Christian,
+
+Thanks!  OK - I just know that the official Gecode 4.4.0 distribution 
+(MSVC 2013) works OK, and so does the debug (non-optimized) version 
+built from trunk using MSVC 2015.
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> This seems to be an issue with Gecode and not the compiler... Guido promised
+> me that he will look into floats. Real soon, he said ;-)
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 03:39 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Sure, it's the script from my original post.  I'm re-attaching it now.
+> I also used Gecode trunk (updated about September 1st) with Qt-5.5, built in
+> my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>
+> Thanks,
+> Filip
+>
+>> Hi Filip,
+>>
+>> If you tell me which script you tried, I can try here (even though
+>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>> cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 03:24 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>>> I was trying to use the Qt installer but Qt does not seem to be
+>>> visible in the cygwin environment.  I'll try the source package as
+>>> you suggest, that sounds better to me.
+>>
+>> So in the end I finished using the pre-built version of Qt and I'm now
+>> able to run the script in Gist (Gist::dfs). The issue is still there.
+>> I ran 'Next Solution' - this apparently runs the search in a separate
+>> thread but never finishes (and 'Stop' does not stop the search, you
+>> have to kill the program). Inspecting the nodes one by one freezes the
+>> program during the 3rd expansion, and in this case the program stops
+> responding altogether.
+>>
+>> So my guess is this is really some tight loop somewhere in Gecode
+>> (maybe caused by a new optimization or bug in the new compiler?)
+>>
+>> Cheers,
+>> Filip
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+
+
+
+
+From cschulte at kth.se  Thu Sep 17 17:06:18 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 17:06:18 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mteklg$60h$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org>
+Message-ID: <00f201d0f15a$68174310$3845c930$@kth.se>
+
+Uuups, gosh. That I did not know. Right now I cannot try MSV 2013 easily as
+I am travelling. But maybe I'll check somehow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 17, 2015 05:02 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi Christian,
+
+Thanks!  OK - I just know that the official Gecode 4.4.0 distribution (MSVC
+2013) works OK, and so does the debug (non-optimized) version built from
+trunk using MSVC 2015.
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> This seems to be an issue with Gecode and not the compiler... Guido 
+> promised me that he will look into floats. Real soon, he said ;-)
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 03:39 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Sure, it's the script from my original post.  I'm re-attaching it now.
+> I also used Gecode trunk (updated about September 1st) with Qt-5.5, 
+> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>
+> Thanks,
+> Filip
+>
+>> Hi Filip,
+>>
+>> If you tell me which script you tried, I can try here (even though 
+>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>> cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>> Behalf Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 03:24 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>>> I was trying to use the Qt installer but Qt does not seem to be 
+>>> visible in the cygwin environment.  I'll try the source package as 
+>>> you suggest, that sounds better to me.
+>>
+>> So in the end I finished using the pre-built version of Qt and I'm 
+>> now able to run the script in Gist (Gist::dfs). The issue is still there.
+>> I ran 'Next Solution' - this apparently runs the search in a separate 
+>> thread but never finishes (and 'Stop' does not stop the search, you 
+>> have to kill the program). Inspecting the nodes one by one freezes 
+>> the program during the 3rd expansion, and in this case the program 
+>> stops
+> responding altogether.
+>>
+>> So my guess is this is really some tight loop somewhere in Gecode 
+>> (maybe caused by a new optimization or bug in the new compiler?)
+>>
+>> Cheers,
+>> Filip
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Thu Sep 17 17:26:47 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 17 Sep 2015 17:26:47 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <00f201d0f15a$68174310$3845c930$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+Message-ID: <mtem3n$ur8$1@ger.gmane.org>
+
+It only happens with Gecode compiled in release mode with MSVC 2015. 
+There are no such official Gecode binaries, so I wasn't sure whether my 
+build environment was set up correctly - but it probably is.
+
+This is an excerpt from my original post that explains what seems to be 
+triggering the problem:
+
+ > In the test case source code there is a constant
+ > "8686.9666660000003". Changing it to "8686" seems to fix the problem
+ > - but even "8686.9" makes dfs freeze.  It also seems that it is the
+ > branching strategy 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+
+Regarding the build environment, I tried running some tests, and it 
+seems to fail "Float::Arithmetic::Div::C":
+
+...
+Float::Arithmetic::Div::B +++++
+Float::Arithmetic::Div::C -
+Options: -seed 71643696 -test Float::Arithmetic::Div::C
+
+I wonder whether this passes in your environment.  The "Div" tests seem 
+to run slow.  The same test with the seed 71643693 seems to pass.
+
+Cheers,
+Filip
+
+
+> Uuups, gosh. That I did not know. Right now I cannot try MSV 2013 easily as
+> I am travelling. But maybe I'll check somehow.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 05:02 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> Hi Christian,
+>
+> Thanks!  OK - I just know that the official Gecode 4.4.0 distribution (MSVC
+> 2013) works OK, and so does the debug (non-optimized) version built from
+> trunk using MSVC 2015.
+>
+> Cheers,
+> Filip
+>
+>> Hi Filip,
+>>
+>> This seems to be an issue with Gecode and not the compiler... Guido
+>> promised me that he will look into floats. Real soon, he said ;-)
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>> cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>> Behalf Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 03:39 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>> Sure, it's the script from my original post.  I'm re-attaching it now.
+>> I also used Gecode trunk (updated about September 1st) with Qt-5.5,
+>> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>>
+>> Thanks,
+>> Filip
+>>
+>>> Hi Filip,
+>>>
+>>> If you tell me which script you tried, I can try here (even though
+>>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>>
+>>> Cheers
+>>> Christian
+>>>
+>>> --
+>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>> cschulte at sics.se
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+>>> Behalf Of Filip Konvicka
+>>> Sent: Thursday, September 17, 2015 03:24 PM
+>>> To: users at gecode.org
+>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>
+>>>> I was trying to use the Qt installer but Qt does not seem to be
+>>>> visible in the cygwin environment.  I'll try the source package as
+>>>> you suggest, that sounds better to me.
+>>>
+>>> So in the end I finished using the pre-built version of Qt and I'm
+>>> now able to run the script in Gist (Gist::dfs). The issue is still there.
+>>> I ran 'Next Solution' - this apparently runs the search in a separate
+>>> thread but never finishes (and 'Stop' does not stop the search, you
+>>> have to kill the program). Inspecting the nodes one by one freezes
+>>> the program during the 3rd expansion, and in this case the program
+>>> stops
+>> responding altogether.
+>>>
+>>> So my guess is this is really some tight loop somewhere in Gecode
+>>> (maybe caused by a new optimization or bug in the new compiler?)
+>>>
+>>> Cheers,
+>>> Filip
+>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From cschulte at kth.se  Thu Sep 17 17:37:44 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 17:37:44 +0200
+Subject: [gecode-users] SUBSCRIBE modification event required?
+In-Reply-To: <55FAD41F.2040807@it.uu.se>
+References: <55FAD41F.2040807@it.uu.se>
+Message-ID: <012501d0f15e$ccde6090$669b21b0$@kth.se>
+
+Hi Joe,
+
+Gosh, you have been digging deep, haven't you? So the thing is, if you only have a variable type with three modification events, then the SUBSCRIBE event becomes the ASSIGNED one. This I just reverse-engineered from some ultra-ugly perl script that generates the code from the .vis files. There I saw that the script even has a syntax error not caught by perl ;-)
+
+And yes, of course this should be documented and the error should be caught. I will do it for the trunk soonish.
+
+Today seems to be .vis day on this mailing list!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Joseph Scott
+Sent: Thursday, September 17, 2015 04:54 PM
+To: users at gecode.org
+Subject: [gecode-users] SUBSCRIBE modification event required?
+
+Hi,
+
+I was just rebuilding Gecode with an included .vis file for a variable type, and I neglected to designate one of the modification events as the SUBSCRIBE event, resulting in the error message included below[1].
+Adding "=SUBSCRIBE" to one of the ModEvent definitions makes it go away, as one would expect.
+
+But now I'm curious. MPG very carefully does not state that one must define a modification event for new subscriptions. Quite the opposite,
+really: of the four special modification events, the other three are explicitly stated to be required (p. 403). What is more, it seems that bool.vis does not specify a subscription event for Boolean variables (upon reflection, this is unsurprising).  So it seems like I should be able to omit this specification ? although, I admit, I can't see why I would want to do so for anything other than a Boolean.
+
+So my question is this: am I required to specify a modification event for subscriptions to (non-assigned) variables? And if so, is this requirement somehow waived for Booleans?
+
+Thanks!
+Joe
+
+[1] using g++ (Ubuntu 4.8.2-19ubuntu1) 4.8.2:
+g++ -I. -fcx-limited-range -fno-signaling-nans -fno-rounding-math
+-ffinite-math-only -fno-math-errno -fno-strict-aliasing -O3
+-fvisibility=hidden -ggdb -pipe -Wall -Wextra -fPIC -pthread -DNDEBUG   \
+        -c -o gecode/kernel/archive.o  gecode/kernel/archive.cpp In file included from ./gecode/kernel.hh:228:0,
+                 from gecode/kernel/archive.cpp:38:
+./gecode/kernel/var-imp.hpp: In member function ?void StrVars::Str::StrVarImpBase::subscribe(Gecode::Space&,
+Gecode::Propagator&, Gecode::PropCond, bool, bool)?:
+./gecode/kernel/var-imp.hpp:463:79: error: expected primary-expression before ?,? token
+    
+Gecode::VarImp<StrVars::Str::StrVarImpConf>::subscribe(home,p,pc,assigned,,schedule);
+                                                                                                                           
+^
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Thu Sep 17 17:42:43 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Thu, 17 Sep 2015 17:42:43 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mtem3n$ur8$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org>
+Message-ID: <mten1j$f52$1@ger.gmane.org>
+
+...and "Float::Arithmetic::Div::Sol::A" seems to be failing fast with 
+any seed.
+
+So it might really be my build setup - although I hope it's not as it is 
+basically the same as that I've been using for years :)
+
+Cheers,
+Filip
+
+> It only happens with Gecode compiled in release mode with MSVC 2015.
+> There are no such official Gecode binaries, so I wasn't sure whether my
+> build environment was set up correctly - but it probably is.
+>
+> This is an excerpt from my original post that explains what seems to be
+> triggering the problem:
+>
+>  > In the test case source code there is a constant
+>  > "8686.9666660000003". Changing it to "8686" seems to fix the problem
+>  > - but even "8686.9" makes dfs freeze.  It also seems that it is the
+>  > branching strategy 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+>
+> Regarding the build environment, I tried running some tests, and it
+> seems to fail "Float::Arithmetic::Div::C":
+>
+> ...
+> Float::Arithmetic::Div::B +++++
+> Float::Arithmetic::Div::C -
+> Options: -seed 71643696 -test Float::Arithmetic::Div::C
+>
+> I wonder whether this passes in your environment.  The "Div" tests seem
+> to run slow.  The same test with the seed 71643693 seems to pass.
+>
+> Cheers,
+> Filip
+>
+>
+>> Uuups, gosh. That I did not know. Right now I cannot try MSV 2013
+>> easily as
+>> I am travelling. But maybe I'll check somehow.
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte
+>> Professor of Computer Science, KTH, cschulte at kth.se
+>> Expert Researcher, SICS, cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org
+>> [mailto:users-bounces at gecode.org] On Behalf
+>> Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 05:02 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>> Hi Christian,
+>>
+>> Thanks!  OK - I just know that the official Gecode 4.4.0 distribution
+>> (MSVC
+>> 2013) works OK, and so does the debug (non-optimized) version built from
+>> trunk using MSVC 2015.
+>>
+>> Cheers,
+>> Filip
+>>
+>>> Hi Filip,
+>>>
+>>> This seems to be an issue with Gecode and not the compiler... Guido
+>>> promised me that he will look into floats. Real soon, he said ;-)
+>>>
+>>> Cheers
+>>> Christian
+>>>
+>>> --
+>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>> Science, KTH, cschulte at kth.se Expert
+>>> Researcher, SICS,
+>>> cschulte at sics.se
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org
+>>> [mailto:users-bounces at gecode.org] On
+>>> Behalf Of Filip Konvicka
+>>> Sent: Thursday, September 17, 2015 03:39 PM
+>>> To: users at gecode.org
+>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>
+>>> Sure, it's the script from my original post.  I'm re-attaching it now.
+>>> I also used Gecode trunk (updated about September 1st) with Qt-5.5,
+>>> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> Hi Filip,
+>>>>
+>>>> If you tell me which script you tried, I can try here (even though
+>>>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>>> Science, KTH, cschulte at kth.se Expert
+>>>> Researcher, SICS,
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On
+>>>> Behalf Of Filip Konvicka
+>>>> Sent: Thursday, September 17, 2015 03:24 PM
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>>> I was trying to use the Qt installer but Qt does not seem to be
+>>>>> visible in the cygwin environment.  I'll try the source package as
+>>>>> you suggest, that sounds better to me.
+>>>>
+>>>> So in the end I finished using the pre-built version of Qt and I'm
+>>>> now able to run the script in Gist (Gist::dfs). The issue is still
+>>>> there.
+>>>> I ran 'Next Solution' - this apparently runs the search in a separate
+>>>> thread but never finishes (and 'Stop' does not stop the search, you
+>>>> have to kill the program). Inspecting the nodes one by one freezes
+>>>> the program during the 3rd expansion, and in this case the program
+>>>> stops
+>>> responding altogether.
+>>>>
+>>>> So my guess is this is really some tight loop somewhere in Gecode
+>>>> (maybe caused by a new optimization or bug in the new compiler?)
+>>>>
+>>>> Cheers,
+>>>> Filip
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+
+
+
+
+From cschulte at kth.se  Thu Sep 17 17:44:35 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 17 Sep 2015 17:44:35 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mten1j$f52$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>	<mteklg$60h$1@ger.gmane.org>
+	<00f201d0f15a$68174310$3845c930$@kth.se>	<mtem3n$ur8$1@ger.gmane.org>
+	<mten1j$f52$1@ger.gmane.org>
+Message-ID: <012801d0f15f$c1a1add0$44e50970$@kth.se>
+
+It is most likely that I haven't run the float tests with MSVC 2015 yet...
+Will do later.
+
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 17, 2015 05:43 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+...and "Float::Arithmetic::Div::Sol::A" seems to be failing fast with any
+seed.
+
+So it might really be my build setup - although I hope it's not as it is
+basically the same as that I've been using for years :)
+
+Cheers,
+Filip
+
+> It only happens with Gecode compiled in release mode with MSVC 2015.
+> There are no such official Gecode binaries, so I wasn't sure whether 
+> my build environment was set up correctly - but it probably is.
+>
+> This is an excerpt from my original post that explains what seems to 
+> be triggering the problem:
+>
+>  > In the test case source code there is a constant  > 
+> "8686.9666660000003". Changing it to "8686" seems to fix the problem  
+> > - but even "8686.9" makes dfs freeze.  It also seems that it is the  
+> > branching strategy 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+>
+> Regarding the build environment, I tried running some tests, and it 
+> seems to fail "Float::Arithmetic::Div::C":
+>
+> ...
+> Float::Arithmetic::Div::B +++++
+> Float::Arithmetic::Div::C -
+> Options: -seed 71643696 -test Float::Arithmetic::Div::C
+>
+> I wonder whether this passes in your environment.  The "Div" tests 
+> seem to run slow.  The same test with the seed 71643693 seems to pass.
+>
+> Cheers,
+> Filip
+>
+>
+>> Uuups, gosh. That I did not know. Right now I cannot try MSV 2013 
+>> easily as I am travelling. But maybe I'll check somehow.
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>> cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org
+>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 05:02 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>> Hi Christian,
+>>
+>> Thanks!  OK - I just know that the official Gecode 4.4.0 distribution 
+>> (MSVC
+>> 2013) works OK, and so does the debug (non-optimized) version built 
+>> from trunk using MSVC 2015.
+>>
+>> Cheers,
+>> Filip
+>>
+>>> Hi Filip,
+>>>
+>>> This seems to be an issue with Gecode and not the compiler... Guido 
+>>> promised me that he will look into floats. Real soon, he said ;-)
+>>>
+>>> Cheers
+>>> Christian
+>>>
+>>> --
+>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>> cschulte at sics.se
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org
+>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>> Sent: Thursday, September 17, 2015 03:39 PM
+>>> To: users at gecode.org
+>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>
+>>> Sure, it's the script from my original post.  I'm re-attaching it now.
+>>> I also used Gecode trunk (updated about September 1st) with Qt-5.5, 
+>>> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> Hi Filip,
+>>>>
+>>>> If you tell me which script you tried, I can try here (even though 
+>>>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Thursday, September 17, 2015 03:24 PM
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>>> I was trying to use the Qt installer but Qt does not seem to be 
+>>>>> visible in the cygwin environment.  I'll try the source package as 
+>>>>> you suggest, that sounds better to me.
+>>>>
+>>>> So in the end I finished using the pre-built version of Qt and I'm 
+>>>> now able to run the script in Gist (Gist::dfs). The issue is still 
+>>>> there.
+>>>> I ran 'Next Solution' - this apparently runs the search in a 
+>>>> separate thread but never finishes (and 'Stop' does not stop the 
+>>>> search, you have to kill the program). Inspecting the nodes one by 
+>>>> one freezes the program during the 3rd expansion, and in this case 
+>>>> the program stops
+>>> responding altogether.
+>>>>
+>>>> So my guess is this is really some tight loop somewhere in Gecode 
+>>>> (maybe caused by a new optimization or bug in the new compiler?)
+>>>>
+>>>> Cheers,
+>>>> Filip
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Fri Sep 18 11:02:39 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 18 Sep 2015 11:02:39 +0200
+Subject: [gecode-users] Multiple specification files
+References: <CAM5FMko6r_L2NicRnocp94Y5i+AWsEpaOcMcUKjJcfyxRPvVkg@mail.gmail.com>
+Message-ID: <002101d0f1f0$c6421910$52c64b30$@kth.se>
+
+The crucial thing here is to run make (for example, make depend). Only then the files will be re-generated!
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: Christian Schulte [mailto:cschulte at kth.se] 
+Sent: Thursday, September 17, 2015 10:29 AM
+To: 'Patrik Broman' <reg at patrikbroman.se>; 'users at gecode.org' <users at gecode.org>
+Subject: RE: [gecode-users] Multiple specification files
+
+ 
+
+Hi Patrik,
+
+ 
+
+Just use a comma to separate:
+
+               ./configure ?with-vis=var1.vis,var2.vis
+
+ 
+
+If things seem to not work there is the following trick by removing the following files:
+
+               rm gecode/kernel/var-type.hpp gecode/kernel/var-imp.hpp
+
+When typing make these files will be re-generated (you can have a look and see that your stuff will show up in these files).
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org <mailto:users-bounces at gecode.org>  [mailto:users-bounces at gecode.org] On Behalf Of Patrik Broman
+Sent: Wednesday, September 16, 2015 05:30 PM
+To: users at gecode.org <mailto:users at gecode.org> 
+Subject: [gecode-users] Multiple specification files
+
+ 
+
+Apparently I posted from wrong address first time.
+
+
+Anyway. I'm creating a two new data types. Is there a good way to use them both at the same time? 
+
+I have tried
+
+./configure --with-vis=var1.vis --with-vis=var2.vis
+
+and
+./configure --with-vis=var1.vis var2.vis
+
+regards
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150918/bab75e29/attachment.html>
+
+From cschulte at kth.se  Fri Sep 18 12:22:02 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 18 Sep 2015 12:22:02 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <mten1j$f52$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>	<mteklg$60h$1@ger.gmane.org>
+	<00f201d0f15a$68174310$3845c930$@kth.se>	<mtem3n$ur8$1@ger.gmane.org>
+	<mten1j$f52$1@ger.gmane.org>
+Message-ID: <004201d0f1fb$dddb3380$99919a80$@kth.se>
+
+Your environment is fine, it is really MSVC 2015. I can re-produce your
+problems with both x86 and x64... And it appears to be really bad.
+
+But I think I found at least something: by default, MSVC uses SSE2
+arithmetic (has been since quite some time, in particular for x64). If you
+force the compiler to use x87 arithmetic instead (which is really bad as it
+also has an impact on integer performance) by -ARCH:IA32 then at least the
+tests seem to work (you can pass by make CXXUSR=-ARCH:IA32 when you build
+Gecode).
+
+However your test still does not work (terminates immediately with bringing
+up Gist).
+
+I think we will have to fix the Gecode build to use x87 for the float stuff.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Thursday, September 17, 2015 05:43 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+...and "Float::Arithmetic::Div::Sol::A" seems to be failing fast with any
+seed.
+
+So it might really be my build setup - although I hope it's not as it is
+basically the same as that I've been using for years :)
+
+Cheers,
+Filip
+
+> It only happens with Gecode compiled in release mode with MSVC 2015.
+> There are no such official Gecode binaries, so I wasn't sure whether 
+> my build environment was set up correctly - but it probably is.
+>
+> This is an excerpt from my original post that explains what seems to 
+> be triggering the problem:
+>
+>  > In the test case source code there is a constant  > 
+> "8686.9666660000003". Changing it to "8686" seems to fix the problem  
+> > - but even "8686.9" makes dfs freeze.  It also seems that it is the  
+> > branching strategy 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+>
+> Regarding the build environment, I tried running some tests, and it 
+> seems to fail "Float::Arithmetic::Div::C":
+>
+> ...
+> Float::Arithmetic::Div::B +++++
+> Float::Arithmetic::Div::C -
+> Options: -seed 71643696 -test Float::Arithmetic::Div::C
+>
+> I wonder whether this passes in your environment.  The "Div" tests 
+> seem to run slow.  The same test with the seed 71643693 seems to pass.
+>
+> Cheers,
+> Filip
+>
+>
+>> Uuups, gosh. That I did not know. Right now I cannot try MSV 2013 
+>> easily as I am travelling. But maybe I'll check somehow.
+>>
+>> Cheers
+>> Christian
+>>
+>> --
+>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>> cschulte at sics.se
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org
+>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>> Sent: Thursday, September 17, 2015 05:02 PM
+>> To: users at gecode.org
+>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>
+>> Hi Christian,
+>>
+>> Thanks!  OK - I just know that the official Gecode 4.4.0 distribution 
+>> (MSVC
+>> 2013) works OK, and so does the debug (non-optimized) version built 
+>> from trunk using MSVC 2015.
+>>
+>> Cheers,
+>> Filip
+>>
+>>> Hi Filip,
+>>>
+>>> This seems to be an issue with Gecode and not the compiler... Guido 
+>>> promised me that he will look into floats. Real soon, he said ;-)
+>>>
+>>> Cheers
+>>> Christian
+>>>
+>>> --
+>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>> cschulte at sics.se
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org
+>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>> Sent: Thursday, September 17, 2015 03:39 PM
+>>> To: users at gecode.org
+>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>
+>>> Sure, it's the script from my original post.  I'm re-attaching it now.
+>>> I also used Gecode trunk (updated about September 1st) with Qt-5.5, 
+>>> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>>>
+>>> Thanks,
+>>> Filip
+>>>
+>>>> Hi Filip,
+>>>>
+>>>> If you tell me which script you tried, I can try here (even though 
+>>>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Thursday, September 17, 2015 03:24 PM
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>>> I was trying to use the Qt installer but Qt does not seem to be 
+>>>>> visible in the cygwin environment.  I'll try the source package as 
+>>>>> you suggest, that sounds better to me.
+>>>>
+>>>> So in the end I finished using the pre-built version of Qt and I'm 
+>>>> now able to run the script in Gist (Gist::dfs). The issue is still 
+>>>> there.
+>>>> I ran 'Next Solution' - this apparently runs the search in a 
+>>>> separate thread but never finishes (and 'Stop' does not stop the 
+>>>> search, you have to kill the program). Inspecting the nodes one by 
+>>>> one freezes the program during the 3rd expansion, and in this case 
+>>>> the program stops
+>>> responding altogether.
+>>>>
+>>>> So my guess is this is really some tight loop somewhere in Gecode 
+>>>> (maybe caused by a new optimization or bug in the new compiler?)
+>>>>
+>>>> Cheers,
+>>>> Filip
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Gecode users mailing list
+>>>> users at gecode.org
+>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>
+>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Fri Sep 18 13:28:01 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Fri, 18 Sep 2015 13:28:01 +0200
+Subject: [gecode-users] Freeze with MSVC 2015 optimized build
+In-Reply-To: <004201d0f1fb$dddb3380$99919a80$@kth.se>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org> <mten1j$f52$1@ger.gmane.org>
+	<004201d0f1fb$dddb3380$99919a80$@kth.se>
+Message-ID: <mtgsg1$uaj$1@ger.gmane.org>
+
+Christian,
+
+Thanks much for looking into this.  I would be really interested to know 
+the crux of the bug.
+
+I believe that the float variables are using Boost.Interval for the 
+calculations, right? There are rounding policies that can be used with 
+that library (that should guarantee specific precision and rounding 
+behavior), but I'm not sure what overhead there is associated with that 
+and whether/how it interferes with compiler settings.
+
+Since it appears that in my particular case there are problems with the 
+FLOAT_VAL_SPLIT_MAX branching, I wonder whether there are some 
+invariants/assumptions in the branching code that the SSE2 breaks.
+
+But you're saying that SSE2 has been the default for quite some time, so 
+I wonder why this hasn't been a problem with MSVC 2013 too.
+
+Cheers
+Filip
+
+
+
+Dne 18. 9. 2015 v 12:22 Christian Schulte napsal(a):
+> Your environment is fine, it is really MSVC 2015. I can re-produce your
+> problems with both x86 and x64... And it appears to be really bad.
+>
+> But I think I found at least something: by default, MSVC uses SSE2
+> arithmetic (has been since quite some time, in particular for x64). If you
+> force the compiler to use x87 arithmetic instead (which is really bad as it
+> also has an impact on integer performance) by -ARCH:IA32 then at least the
+> tests seem to work (you can pass by make CXXUSR=-ARCH:IA32 when you build
+> Gecode).
+>
+> However your test still does not work (terminates immediately with bringing
+> up Gist).
+>
+> I think we will have to fix the Gecode build to use x87 for the float stuff.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Thursday, September 17, 2015 05:43 PM
+> To: users at gecode.org
+> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>
+> ...and "Float::Arithmetic::Div::Sol::A" seems to be failing fast with any
+> seed.
+>
+> So it might really be my build setup - although I hope it's not as it is
+> basically the same as that I've been using for years :)
+>
+> Cheers,
+> Filip
+>
+>> It only happens with Gecode compiled in release mode with MSVC 2015.
+>> There are no such official Gecode binaries, so I wasn't sure whether
+>> my build environment was set up correctly - but it probably is.
+>>
+>> This is an excerpt from my original post that explains what seems to
+>> be triggering the problem:
+>>
+>>   > In the test case source code there is a constant  >
+>> "8686.9666660000003". Changing it to "8686" seems to fix the problem
+>>> - but even "8686.9" makes dfs freeze.  It also seems that it is the
+>>> branching strategy 'FLOAT_VAL_SPLIT_MAX' that is causing problems.
+>>
+>> Regarding the build environment, I tried running some tests, and it
+>> seems to fail "Float::Arithmetic::Div::C":
+>>
+>> ...
+>> Float::Arithmetic::Div::B +++++
+>> Float::Arithmetic::Div::C -
+>> Options: -seed 71643696 -test Float::Arithmetic::Div::C
+>>
+>> I wonder whether this passes in your environment.  The "Div" tests
+>> seem to run slow.  The same test with the seed 71643693 seems to pass.
+>>
+>> Cheers,
+>> Filip
+>>
+>>
+>>> Uuups, gosh. That I did not know. Right now I cannot try MSV 2013
+>>> easily as I am travelling. But maybe I'll check somehow.
+>>>
+>>> Cheers
+>>> Christian
+>>>
+>>> --
+>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>> cschulte at sics.se
+>>>
+>>> -----Original Message-----
+>>> From: users-bounces at gecode.org
+>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>> Sent: Thursday, September 17, 2015 05:02 PM
+>>> To: users at gecode.org
+>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>
+>>> Hi Christian,
+>>>
+>>> Thanks!  OK - I just know that the official Gecode 4.4.0 distribution
+>>> (MSVC
+>>> 2013) works OK, and so does the debug (non-optimized) version built
+>>> from trunk using MSVC 2015.
+>>>
+>>> Cheers,
+>>> Filip
+>>>
+>>>> Hi Filip,
+>>>>
+>>>> This seems to be an issue with Gecode and not the compiler... Guido
+>>>> promised me that he will look into floats. Real soon, he said ;-)
+>>>>
+>>>> Cheers
+>>>> Christian
+>>>>
+>>>> --
+>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>>> cschulte at sics.se
+>>>>
+>>>> -----Original Message-----
+>>>> From: users-bounces at gecode.org
+>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>> Sent: Thursday, September 17, 2015 03:39 PM
+>>>> To: users at gecode.org
+>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>
+>>>> Sure, it's the script from my original post.  I'm re-attaching it now.
+>>>> I also used Gecode trunk (updated about September 1st) with Qt-5.5,
+>>>> built in my Cygwin environment with MSVC 2015 RTM x64 compiler.
+>>>>
+>>>> Thanks,
+>>>> Filip
+>>>>
+>>>>> Hi Filip,
+>>>>>
+>>>>> If you tell me which script you tried, I can try here (even though
+>>>>> Gist works for me with MSVC 2015 and Qt-5.5.0, using the trunk).
+>>>>>
+>>>>> Cheers
+>>>>> Christian
+>>>>>
+>>>>> --
+>>>>> Christian Schulte, www.gecode.org/~schulte Professor of Computer
+>>>>> Science, KTH, cschulte at kth.se Expert Researcher, SICS,
+>>>>> cschulte at sics.se
+>>>>>
+>>>>> -----Original Message-----
+>>>>> From: users-bounces at gecode.org
+>>>>> [mailto:users-bounces at gecode.org] On Behalf Of Filip Konvicka
+>>>>> Sent: Thursday, September 17, 2015 03:24 PM
+>>>>> To: users at gecode.org
+>>>>> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+>>>>>
+>>>>>> I was trying to use the Qt installer but Qt does not seem to be
+>>>>>> visible in the cygwin environment.  I'll try the source package as
+>>>>>> you suggest, that sounds better to me.
+>>>>>
+>>>>> So in the end I finished using the pre-built version of Qt and I'm
+>>>>> now able to run the script in Gist (Gist::dfs). The issue is still
+>>>>> there.
+>>>>> I ran 'Next Solution' - this apparently runs the search in a
+>>>>> separate thread but never finishes (and 'Stop' does not stop the
+>>>>> search, you have to kill the program). Inspecting the nodes one by
+>>>>> one freezes the program during the 3rd expansion, and in this case
+>>>>> the program stops
+>>>> responding altogether.
+>>>>>
+>>>>> So my guess is this is really some tight loop somewhere in Gecode
+>>>>> (maybe caused by a new optimization or bug in the new compiler?)
+>>>>>
+>>>>> Cheers,
+>>>>> Filip
+>>>>>
+>>>>>
+>>>>>
+>>>>> _______________________________________________
+>>>>> Gecode users mailing list
+>>>>> users at gecode.org
+>>>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>>>
+>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From sebastian.kosch at mail.utoronto.ca  Fri Sep 18 20:31:46 2015
+From: sebastian.kosch at mail.utoronto.ca (Sebastian Kosch)
+Date: Fri, 18 Sep 2015 14:31:46 -0400
+Subject: [gecode-users] Disjunctive Minizinc constraint
+In-Reply-To: <mtgsg1$uaj$1@ger.gmane.org>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se> <ms939m$p0e$1@ger.gmane.org>
+	<mteeso$vg0$1@ger.gmane.org> <00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org> <00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org> <00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org> <mten1j$f52$1@ger.gmane.org>
+	<004201d0f1fb$dddb3380$99919a80$@kth.se> <mtgsg1$uaj$1@ger.gmane.org>
+Message-ID: <55FC5892.80101@mail.utoronto.ca>
+
+Hi,
+
+I'd like to use Minizinc's disjunctive constraint in Gecode, but no such 
+thing is provided. The gecode_schedule_unary constraint requires known 
+processing times and isn't an option.
+
+Now, there Gecode has a version of the unary constraint that has 
+flexible processing times, but also takes in an array of end times 
+(which it then doesn't propagate on, so I don't really get the point). 
+I've created a binding for it in the registry file and have given my 
+model a dummy array of end time variables, and that appears to work okay.
+
+Still, it'd be nice if Gecode supported Minizinc's disjunctive(var[], 
+var[]) out of the box.
+
+Is what I'm doing kosher, and could a "proper" version of this be added 
+to the trunk?
+
+Many thanks,
+Sebastian
+
+
+From cschulte at kth.se  Sat Sep 19 10:33:16 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Sat, 19 Sep 2015 10:33:16 +0200
+Subject: [gecode-users] Disjunctive Minizinc constraint
+In-Reply-To: <55FC5892.80101@mail.utoronto.ca>
+References: <ms91ji$t2s$1@ger.gmane.org>	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org>	<mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>	<mteklg$60h$1@ger.gmane.org>
+	<00f201d0f15a$68174310$3845c930$@kth.se>	<mtem3n$ur8$1@ger.gmane.org>
+	<mten1j$f52$1@ger.gmane.org>	<004201d0f1fb$dddb3380$99919a80$@kth.se>
+	<mtgsg1$uaj$1@ger.gmane.org> <55FC5892.80101@mail.utoronto.ca>
+Message-ID: <001001d0f2b5$d71f27d0$855d7770$@kth.se>
+
+Well, Gecode provides it out of the box, the only thing that you have to do
+is to add the constraints that enforces endtime = startime + duration.
+That's it. And they are documented as well (check the reference
+documentation which is always linked from MPG)
+
+The reason why these constraints are not posted by the unary constraint is
+to leave more flexibility to the user.
+
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Sebastian Kosch
+Sent: Friday, September 18, 2015 08:32 PM
+To: users at gecode.org
+Subject: [gecode-users] Disjunctive Minizinc constraint
+
+Hi,
+
+I'd like to use Minizinc's disjunctive constraint in Gecode, but no such
+thing is provided. The gecode_schedule_unary constraint requires known
+processing times and isn't an option.
+
+Now, there Gecode has a version of the unary constraint that has flexible
+processing times, but also takes in an array of end times (which it then
+doesn't propagate on, so I don't really get the point). 
+I've created a binding for it in the registry file and have given my model a
+dummy array of end time variables, and that appears to work okay.
+
+Still, it'd be nice if Gecode supported Minizinc's disjunctive(var[],
+var[]) out of the box.
+
+Is what I'm doing kosher, and could a "proper" version of this be added to
+the trunk?
+
+Many thanks,
+Sebastian
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tack at gecode.org  Sat Sep 19 10:46:51 2015
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 19 Sep 2015 18:46:51 +1000
+Subject: [gecode-users] Disjunctive Minizinc constraint
+In-Reply-To: <55FC5892.80101@mail.utoronto.ca>
+References: <ms91ji$t2s$1@ger.gmane.org>
+	<000b01d0e627$0e3c24c0$2ab46e40$@kth.se>
+	<ms939m$p0e$1@ger.gmane.org> <mteeso$vg0$1@ger.gmane.org>
+	<00a001d0f14c$b10d1ee0$13275ca0$@kth.se>
+	<mtefpa$f98$1@ger.gmane.org>
+	<00be01d0f156$472d0a80$d5871f80$@kth.se>
+	<mteklg$60h$1@ger.gmane.org>
+	<00f201d0f15a$68174310$3845c930$@kth.se>
+	<mtem3n$ur8$1@ger.gmane.org> <mten1j$f52$1@ger.gmane.org>
+	<004201d0f1fb$dddb3380$99919a80$@kth.se>
+	<mtgsg1$uaj$1@ger.gmane.org> <55FC5892.80101@mail.utoronto.ca>
+Message-ID: <A2D258D1-DF52-4FC3-AF07-716C2C6DE820@gecode.org>
+
+Hi,
+
+I guess you mean you want to use the specialised propagator, but from a MiniZinc model?  That?s indeed missing right now, thanks for pointing it out.
+
+As a workaround, you can use the cumulative constraint in MiniZinc but with capacity 1. The Gecode version will detect the special case and use the disjunctive propagator.  I?ll add support for the MiniZinc disjunctive constraint for the next release of Gecode/FlatZinc.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+> On 19 Sep 2015, at 4:31 am, Sebastian Kosch <sebastian.kosch at mail.utoronto.ca> wrote:
+> 
+> Hi,
+> 
+> I'd like to use Minizinc's disjunctive constraint in Gecode, but no such thing is provided. The gecode_schedule_unary constraint requires known processing times and isn't an option.
+> 
+> Now, there Gecode has a version of the unary constraint that has flexible processing times, but also takes in an array of end times (which it then doesn't propagate on, so I don't really get the point). I've created a binding for it in the registry file and have given my model a dummy array of end time variables, and that appears to work okay.
+> 
+> Still, it'd be nice if Gecode supported Minizinc's disjunctive(var[], var[]) out of the box.
+> 
+> Is what I'm doing kosher, and could a "proper" version of this be added to the trunk?
+> 
+> Many thanks,
+> Sebastian
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150919/26081260/attachment.html>
+
+From tack at gecode.org  Sun Sep 20 12:52:37 2015
+From: tack at gecode.org (Guido Tack)
+Date: Sun, 20 Sep 2015 20:52:37 +1000
+Subject: [gecode-users] Slow performance on large domains before
+	branching
+In-Reply-To: <55E3F840.7040909@uni-bremen.de>
+References: <55E3F840.7040909@uni-bremen.de>
+Message-ID: <EC927B22-13B7-4511-853A-8B40CB6C88E8@gecode.org>
+
+Hi,
+
+sorry for the late reply.  This does look a bit odd, apparently the set-union propagator needs to do a lot of work at the root node.  It?s a bit difficult to say what?s going on without looking at the code.  One possible way to improve the performance is to check whether there is some simple preprocessing you could do, to make sure the domains of the set variables are small to begin with.  But there might be something wrong with our set union propagator.
+
+I would also be happy to have a look at your code directly, if it?s not too difficult to share (just send me an email).  Or perhaps you can extract an example that shows the same behaviour (it looks like all we need are the set variables and constraints, your custom brancher isn?t part of the problem).
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+> On 31 Aug 2015, at 4:46 pm, Matthias Goldhoorn <matthias.goldhoorn at uni-bremen.de> wrote:
+> 
+> Hello Developers and Users,
+> i have a quite big domain/searchspace.
+> However gecode performs currently well and solves my problem. But i recognized a strange behavior.
+> 
+> Berfore ma actual branching/search starts, gecodes does a lot of internal calculations. I'm not sure if i have done the setup wrong of if there is some optimization that i can do?
+> I attached [1] a picture of the most time and instruction consuming calls. Maybe somone can give me a recommendation where i can start tuning..
+> 
+> Setup (class instanciation and bracer setup ~15 sek)
+> first call of BAB until code-flow reaches my first (self written) brancher: ~3min
+> Actual branching/searching: 10sek.
+> Overall Memory consumption ~5GB
+> 
+> Best Regard,
+> Matthias
+> 
+> [1] https://www.dropbox.com/s/21aqlbnjs3zx1rd/callgrind-gecode.png?dl=0
+> 
+> -- 
+> Dipl.-Inf. Matthias Goldhoorn
+> Space and Underwater Robotic
+> 
+> Universit?t Bremen
+> FB 3 - Mathematik und Informatik
+> AG Robotik
+> Robert-Hooke-Stra?e 5
+> 28359 Bremen, Germany
+> 
+> Tel.:     +49 421 178 45-4193
+> Zentrale: +49 421 178 45-6550
+> Fax:      +49 421 178 45-4150
+> E-Mail:   matthias.goldhoorn at uni-bremen.de
+> 
+> Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From neillclift at live.com  Mon Sep 21 00:55:02 2015
+From: neillclift at live.com (Neill Clift)
+Date: Sun, 20 Sep 2015 15:55:02 -0700
+Subject: [gecode-users] Large distinct model
+Message-ID: <BLU436-SMTP217B321EB5F4085CC2DC284B5470@phx.gbl>
+
+Hi,
+I have been playing with gecode for a few days and having a lot of fun.
+My overall goal is to solve a large problem that has close to 6 million 
+values that must be distinct. So kind of like this:
+
+IntVarArray b(*this, 5784689, 0, 5784688);
+distinct(*this, b);
+
+Notice that the b's are constrained to be essentially a permutation of 
+0...5784688.
+
+These b values are generated by sets of linear equations derived from a 
+directed acyclic multi-graph.
+I expect district is a killer. I don't have a hope of attacking this big 
+problem I think. So I am playing with smaller problems. I see gecode 
+searching spaces like this:
+So 6 b's that are distinct values with a range of 0..5:
+
+b{[2..5], [1..4], [1..4], [1..4], [0..3], [0..3]} this should really be 
+b{[5], [1..4], [1..4], [1..4], [0..3], [0..3]}. Maybe I am not using the 
+right way to express what I want and the range and distinct aren't 
+cooperating enough?
+b{[2..4], [1..4], [1..4], [1..4], [0..3], [0..3]} no 5 at all so this 
+should fail.
+
+More complex case:
+
+b{5, [3..4], [3..4], [2..4], [0..3], [0..3]} should be b{5, [3..4], 
+[3..4], [2], [0..1], [0..1]}.
+Computationally I guess it might be very expensive to discover these 
+things. Even if you do discover these things I guess it might be it 
+doesn't help that much.
+Thanks.
+Neill.
+
+
+From neillclift at live.com  Mon Sep 21 02:15:46 2015
+From: neillclift at live.com (Neill Clift)
+Date: Sun, 20 Sep 2015 17:15:46 -0700
+Subject: [gecode-users] Large distinct model
+In-Reply-To: <CE0F6824-3219-4C87-AF7A-747661B7D895@gecode.org>
+References: <BLU436-SMTP217B321EB5F4085CC2DC284B5470@phx.gbl>
+	<CE0F6824-3219-4C87-AF7A-747661B7D895@gecode.org>
+Message-ID: <BLU436-SMTP378CA73B96AA5F7AD12555B5460@phx.gbl>
+
+Thank you very much for this. In my models using the domain propagation 
+in distinct does seem to improve the run-time substantially so the extra 
+work does pay off in my case.
+I can see this option in the doc now I look for it!
+Neill.
+
+On 9/20/2015 3:58 PM, Guido Tack wrote:
+> Hi,
+>
+> there are several different propagators for the distinct constraint in Gecode, and the default one is quite weak and won?t detect these cases. If you post distinct with ICL_DOM as the third argument you will see the behaviour you expect (but you?re right, 6M variables will be stretching it - the complexity of propagating distinct with ICL_DOM is quadratic).
+>
+> Cheers,
+> Guido
+>
+>> On 21 Sep 2015, at 8:55 am, Neill Clift <neillclift at live.com> wrote:
+>>
+>> Hi,
+>> I have been playing with gecode for a few days and having a lot of fun.
+>> My overall goal is to solve a large problem that has close to 6 million values that must be distinct. So kind of like this:
+>>
+>> IntVarArray b(*this, 5784689, 0, 5784688);
+>> distinct(*this, b);
+>>
+>> Notice that the b's are constrained to be essentially a permutation of 0...5784688.
+>>
+>> These b values are generated by sets of linear equations derived from a directed acyclic multi-graph.
+>> I expect district is a killer. I don't have a hope of attacking this big problem I think. So I am playing with smaller problems. I see gecode searching spaces like this:
+>> So 6 b's that are distinct values with a range of 0..5:
+>>
+>> b{[2..5], [1..4], [1..4], [1..4], [0..3], [0..3]} this should really be b{[5], [1..4], [1..4], [1..4], [0..3], [0..3]}. Maybe I am not using the right way to express what I want and the range and distinct aren't cooperating enough?
+>> b{[2..4], [1..4], [1..4], [1..4], [0..3], [0..3]} no 5 at all so this should fail.
+>>
+>> More complex case:
+>>
+>> b{5, [3..4], [3..4], [2..4], [0..3], [0..3]} should be b{5, [3..4], [3..4], [2], [0..1], [0..1]}.
+>> Computationally I guess it might be very expensive to discover these things. Even if you do discover these things I guess it might be it doesn't help that much.
+>> Thanks.
+>> Neill.
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From neillclift at live.com  Mon Sep 21 23:49:36 2015
+From: neillclift at live.com (Neill Clift)
+Date: Mon, 21 Sep 2015 14:49:36 -0700
+Subject: [gecode-users] Sub expression limits
+Message-ID: <BLU436-SMTP67AC5EA717E76BA43FE141B5460@phx.gbl>
+
+Hi,
+I am having a blast with Gecode! I have this small system to demonstrate 
+something I want to improve in my code:
+
+e[0] == v[0]
+e[2] == v[1]
+e[4] == v[2]
+v[0] >= 1
+v[1] + v[0] >= 2
+v[2] + v[1] >= 1
+v[2] >= 1
+v[0] + v[1] + v[2] == 5
+e[4] + e[2] + e[0] == b[0]
+e[5] + e[2] + e[0] == b[3]
+
+This gives me:
+b{[2..5], [1..5], [1..5], [1..5], [0..5], [0..5]} v{[1..4], [0..3], [1..4]}
+
+So the code doesn't see that
+e[4] + e[2] + e[0] == b[0]
+e[0] == v[0]
+e[2] == v[1]
+e[4] == v[2]
+v[0] + v[1] + v[2] == 5
+
+means that b[0] == 5.
+
+A more complicated case is b[3] must be >= 2.
+Is the level of indirection (v -> e -> b) the problem or recognizing an 
+inequality is common to two expressions? I am guessing it's the second case.
+Is there a way to do this differently to get the better result?
+Thanks.
+Neill.
+
+
+From tack at gecode.org  Tue Sep 22 01:34:33 2015
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 22 Sep 2015 09:34:33 +1000
+Subject: [gecode-users] Sub expression limits
+In-Reply-To: <BLU436-SMTP67AC5EA717E76BA43FE141B5460@phx.gbl>
+References: <BLU436-SMTP67AC5EA717E76BA43FE141B5460@phx.gbl>
+Message-ID: <03E8AFAF-BE78-426B-B267-F4604F8BF56E@gecode.org>
+
+Hi,
+
+Gecode doesn?t do a lot of preprocessing of the model. In particular, it doesn?t do any aliasing analysis or common subexpression elimination.  You could try a modelling language like MiniZinc, or implement your own preprocessing, if you need this stronger behaviour.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+> On 22 Sep 2015, at 7:49 am, Neill Clift <neillclift at live.com> wrote:
+> 
+> Hi,
+> I am having a blast with Gecode! I have this small system to demonstrate something I want to improve in my code:
+> 
+> e[0] == v[0]
+> e[2] == v[1]
+> e[4] == v[2]
+> v[0] >= 1
+> v[1] + v[0] >= 2
+> v[2] + v[1] >= 1
+> v[2] >= 1
+> v[0] + v[1] + v[2] == 5
+> e[4] + e[2] + e[0] == b[0]
+> e[5] + e[2] + e[0] == b[3]
+> 
+> This gives me:
+> b{[2..5], [1..5], [1..5], [1..5], [0..5], [0..5]} v{[1..4], [0..3], [1..4]}
+> 
+> So the code doesn't see that
+> e[4] + e[2] + e[0] == b[0]
+> e[0] == v[0]
+> e[2] == v[1]
+> e[4] == v[2]
+> v[0] + v[1] + v[2] == 5
+> 
+> means that b[0] == 5.
+> 
+> A more complicated case is b[3] must be >= 2.
+> Is the level of indirection (v -> e -> b) the problem or recognizing an inequality is common to two expressions? I am guessing it's the second case.
+> Is there a way to do this differently to get the better result?
+> Thanks.
+> Neill.
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150922/08566005/attachment.html>
+
+From kisshen at cisco.com  Fri Sep 25 19:03:53 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Fri, 25 Sep 2015 18:03:53 +0100
+Subject: [gecode-users] svn download of release
+Message-ID: <56057E79.2040300@cisco.com>
+
+Hi,
+
+Does the Gecode source downloaded via svn:
+
+
+svn --username anonymous checkout \
+     https://svn.gecode.org/svn/gecode/tags/release-4.4.0
+
+include the bug fixes since the official release?
+
+I am planning to build the latest released Gecode for all the platforms 
+we support for ECLiPSe. I have already downloaded this source several 
+months ago, and so am wondering if it make sense to download this again.
+
+Thanks and cheers,
+
+Kish
+
+
+From cschulte at kth.se  Fri Sep 25 21:58:12 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 25 Sep 2015 21:58:12 +0200
+Subject: [gecode-users] svn download of release
+In-Reply-To: <56057E79.2040300@cisco.com>
+References: <56057E79.2040300@cisco.com>
+Message-ID: <001701d0f7cc$83f49e20$8bddda60$@kth.se>
+
+Hi Kish,
+
+Nope, none of the fixes is included. We do not change releases. The next
+release might still be some time off as it will be a bigger one with new
+cool stuff and required changes.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte 
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Friday, September 25, 2015 07:04 PM
+To: users at gecode.org
+Subject: [gecode-users] svn download of release
+
+Hi,
+
+Does the Gecode source downloaded via svn:
+
+
+svn --username anonymous checkout \
+     https://svn.gecode.org/svn/gecode/tags/release-4.4.0
+
+include the bug fixes since the official release?
+
+I am planning to build the latest released Gecode for all the platforms we
+support for ECLiPSe. I have already downloaded this source several months
+ago, and so am wondering if it make sense to download this again.
+
+Thanks and cheers,
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From zzhu at cse.cuhk.edu.hk  Tue Sep 29 05:42:32 2015
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Tue, 29 Sep 2015 11:42:32 +0800
+Subject: [gecode-users] Subscription of variables during copying of
+	propagators
+Message-ID: <CAE2SAwQs0pF-DwC_19g_rTuYTJ8Up__1qptXSEar1D9=7B2CWQ@mail.gmail.com>
+
+Dear all,
+
+I am wondering how the variables are subscribed during copying of
+propagators? Could you tell me the exact code that does such things in
+Gecode? Is it defined in the _clone() of Space? And how does it work?
+
+
+Many thanks!
+
+Regards,
+Zoe
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150929/c05c8d54/attachment.html>
+
+From cschulte at kth.se  Tue Sep 29 14:53:13 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 29 Sep 2015 14:53:13 +0200
+Subject: [gecode-users] Subscription of variables during copying
+	of	propagators
+In-Reply-To: <CAE2SAwQs0pF-DwC_19g_rTuYTJ8Up__1qptXSEar1D9=7B2CWQ@mail.gmail.com>
+References: <CAE2SAwQs0pF-DwC_19g_rTuYTJ8Up__1qptXSEar1D9=7B2CWQ@mail.gmail.com>
+Message-ID: <001601d0fab5$ceaf1670$6c0d4350$@kth.se>
+
+Hi Zoe,
+
+ 
+
+Please consult Guido?s dissertation:
+
+                <http://www.csse.monash.edu/~guidot/publication-details.php?key=tack:2009:1:constraint> http://www.csse.monash.edu/~guidot/publication-details.php?key=tack:2009:1:constraint
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte,  <http://www.gecode.org/~schulte> www.gecode.org/~schulte 
+
+Professor of Computer Science, KTH,  <mailto:cschulte at kth.se> cschulte at kth.se
+
+Expert Researcher, SICS,  <mailto:cschulte at sics.se> cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Zhu Zichen's cse
+Sent: Tuesday, September 29, 2015 05:43 AM
+To: users at gecode.org
+Subject: [gecode-users] Subscription of variables during copying of propagators
+
+ 
+
+Dear all,
+
+ 
+
+I am wondering how the variables are subscribed during copying of propagators? Could you tell me the exact code that does such things in Gecode? Is it defined in the _clone() of Space? And how does it work?
+
+ 
+
+ 
+
+Many thanks!
+
+ 
+
+Regards,
+
+Zoe
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150929/f388fb64/attachment.html>
+
+From zzhu at cse.cuhk.edu.hk  Tue Sep 29 16:25:07 2015
+From: zzhu at cse.cuhk.edu.hk (Zhu Zichen's cse)
+Date: Tue, 29 Sep 2015 22:25:07 +0800
+Subject: [gecode-users] Subscription of variables during copying of
+	propagators
+In-Reply-To: <001601d0fab5$ceaf1670$6c0d4350$@kth.se>
+References: <CAE2SAwQs0pF-DwC_19g_rTuYTJ8Up__1qptXSEar1D9=7B2CWQ@mail.gmail.com>
+	<001601d0fab5$ceaf1670$6c0d4350$@kth.se>
+Message-ID: <CAE2SAwSWXKFNJbUQBXRzVZehngepBxT8yGPxz9iKoDCyJLSNLw@mail.gmail.com>
+
+Dear Christian and Guido,
+
+Thanks very much. It helps a lot.
+
+Regards,
+Zoe
+
+On Tue, Sep 29, 2015 at 8:53 PM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi Zoe,
+>
+>
+>
+> Please consult Guido?s dissertation:
+>
+>
+> http://www.csse.monash.edu/~guidot/publication-details.php?key=tack:2009:1:constraint
+>
+>
+>
+> Cheers
+>
+> Christian
+>
+>
+>
+> --
+>
+> Christian Schulte, www.gecode.org/~schulte
+>
+> Professor of Computer Science, KTH, cschulte at kth.se
+>
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Zhu Zichen's cse
+> *Sent:* Tuesday, September 29, 2015 05:43 AM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Subscription of variables during copying of
+> propagators
+>
+>
+>
+> Dear all,
+>
+>
+>
+> I am wondering how the variables are subscribed during copying of
+> propagators? Could you tell me the exact code that does such things in
+> Gecode? Is it defined in the _clone() of Space? And how does it work?
+>
+>
+>
+>
+>
+> Many thanks!
+>
+>
+>
+> Regards,
+>
+> Zoe
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150929/c51a9b77/attachment.html>
+

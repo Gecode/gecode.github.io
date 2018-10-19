@@ -1,0 +1,177 @@
+From duchier at ps.uni-sb.de  Mon Mar  8 14:31:41 2004
+From: duchier at ps.uni-sb.de (duchier at ps.uni-sb.de)
+Date: Mon, 08 Mar 2004 14:31:41 +0100
+Subject: [Gecode] Re: Nary partition etc.
+In-Reply-To: <200403081242.15413.tack@ps.uni-sb.de> (Guido Tack's message of
+	"Mon, 8 Mar 2004 12:42:15 +0100")
+References: <200403081242.15413.tack@ps.uni-sb.de>
+Message-ID: <8765df8nya.fsf@tdg.loria.fr>
+
+[I am forwarding to the gecode list - keep ALL gecode related
+ discussions on that list - come on - how many times does this need to
+ be said?]
+
+Guido Tack <tack at ps.uni-sb.de> writes:
+
+> Do you know of some formal write-up of the propagation rules for an n-ary 
+> partition (union, intersection etc.) propagator? If not, do you think we 
+> should look at the Mozart source code or rather synthesize the rules 
+> ourselves?
+
+I don't personally know of any write-up, but the obvious formalization
+goes as usual, i.e. by formulating expressions that bound each
+variable:
+
+S = U+(S1,S2,...,Sn)
+
+glb(S)\U{lub(Sk)|k!+i} <= Si <= lub(S)\U{glb(Sk)|k!=i}
+U{glb(Sk)|1=<k=<n} <= S <= U{lub(Sk)|1=<k=<n}
+
+and similarly for cardinality bounds.  Perhaps there are stronger
+inferences to be made, but I would have to think about it.
+
+The fundamental implementation issue for the above is to avoid the
+quadratic complexity of the naive implementation - use the same trick
+family as for n-ary fd constraints.
+
+Cheers,
+
+-- 
+Denys Duchier - ?quipe Calligramme - LORIA, Nancy, France
+
+
+
+
+From tack at ps.uni-sb.de  Mon Mar 22 15:03:10 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 22 Mar 2004 15:03:10 +0100
+Subject: [Gecode] Attempt at building libraries
+Message-ID: <200403221503.10142.tack@ps.uni-sb.de>
+
+Hi!
+
+I have tried building gecode using automake/autoconf. This works perfectly, 
+except for one problem: The way how variable modification boards are handled. 
+This is the only place where we have an indirect link from the kernel to the 
+variables, because the initialisation of the vmb array is done by the 
+variables, and the kernel just iterates over the array. 
+
+In my setup, I build a static library which the executable is then linked 
+against. Now if a program only uses int vars, fs/core.o won't be linked into 
+the binary, resulting in a segfault when the kernel tries to access 
+vmb[VTI_FS]. I see three possible solutions:
+1) Use a dynamic library instead - all object files are always loaded
+2) Initialise the vmb with dummy values
+3) Implement a subscription mechanism for variable types: Before first use, a 	
+variable type has to register with the kernel, and the number of registered 
+variables and their type ids are handled dynamically
+
+What do you think? I don't know how big the performance overhead of 3) would 
+be, I guess at least it's a clean solution. On the other hand, 2) should be 
+relatively simple to implement.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Mon Mar 22 17:57:21 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 22 Mar 2004 17:57:21 +0100
+Subject: [Gecode] Attempt at building libraries
+In-Reply-To: <200403221503.10142.tack@ps.uni-sb.de>
+Message-ID: <001d01c4102e$bdcc2830$acd4ed82@beule>
+
+Dear all,
+
+while solution 3 appears to be most appealing, I don't really like it as it
+is an overkill (at least for now).
+
+Let's just settle for 2). Should be very easy, just have an object of a
+board type which does a noop. So that will not incur any overhead.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Monday, March 22, 2004 3:03 PM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] Attempt at building libraries
+
+
+Hi!
+
+I have tried building gecode using automake/autoconf. This works perfectly, 
+except for one problem: The way how variable modification boards are
+handled. 
+This is the only place where we have an indirect link from the kernel to the
+
+variables, because the initialisation of the vmb array is done by the 
+variables, and the kernel just iterates over the array. 
+
+In my setup, I build a static library which the executable is then linked 
+against. Now if a program only uses int vars, fs/core.o won't be linked into
+
+the binary, resulting in a segfault when the kernel tries to access 
+vmb[VTI_FS]. I see three possible solutions:
+1) Use a dynamic library instead - all object files are always loaded
+2) Initialise the vmb with dummy values
+3) Implement a subscription mechanism for variable types: Before first use,
+a 	
+variable type has to register with the kernel, and the number of registered 
+variables and their type ids are handled dynamically
+
+What do you think? I don't know how big the performance overhead of 3) would
+
+be, I guess at least it's a clean solution. On the other hand, 2) should be 
+relatively simple to implement.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Mon Mar 22 18:01:44 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Mon, 22 Mar 2004 18:01:44 +0100
+Subject: [Gecode] Attempt at building libraries
+In-Reply-To: <001d01c4102e$bdcc2830$acd4ed82@beule>
+References: <001d01c4102e$bdcc2830$acd4ed82@beule>
+Message-ID: <200403221801.44929.tack@ps.uni-sb.de>
+
+Hi.
+
+On Monday 22 March 2004 17:57, Christian Schulte wrote:
+> while solution 3 appears to be most appealing, I don't really like it as it
+> is an overkill (at least for now).
+>
+> Let's just settle for 2). Should be very easy, just have an object of a
+> board type which does a noop. So that will not incur any overhead.
+
+Agreed. I have already implemented it. I'm checking it in on the fs branch for 
+the moment. I guess we can merge next week anyway. Ok?
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+

@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Linear constraint on propagation level	ILC_DOM	infinite loop
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Linear%20constraint%20on%20propagation%20level%0A%09ILC_DOM%09infinite%20loop&In-Reply-To=%3C01bd01c83b4a%24927b9350%24b772b9f0%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001223.html">
+   <LINK REL="Next"  HREF="001225.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Linear constraint on propagation level	ILC_DOM	infinite loop</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Linear%20constraint%20on%20propagation%20level%0A%09ILC_DOM%09infinite%20loop&In-Reply-To=%3C01bd01c83b4a%24927b9350%24b772b9f0%24%40se%3E"
+       TITLE="[gecode-users] Linear constraint on propagation level	ILC_DOM	infinite loop">cschulte at kth.se
+       </A><BR>
+    <I>Mon Dec 10 17:34:44 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001223.html">[gecode-users] Linear constraint on propagation level ILC_DOM	infinite loop
+</A></li>
+        <LI>Next message: <A HREF="001225.html">[gecode-users] Linear constraint on propagation level ILC_DOM	infinite loop
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1224">[ date ]</a>
+              <a href="thread.html#1224">[ thread ]</a>
+              <a href="subject.html#1224">[ subject ]</a>
+              <a href="author.html#1224">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi David,
+
+To quote from the doc:
+	&quot;Domain-consistent linear equations have exponential complexity, so
+use with care!&quot;
+
+Maybe we should be even more explicit: never use it for anything that has
+more than four values per variable ;-( The cost of enforcing domain
+consistency is O(d^n) for n variables with maximal domain size d, where the
+worst case is the average case if the linear equation has unit coefficients.
+
+
+Given that the domains you are using are large and you have unit
+coefficients, you are just stuck in a slow finite loop! The implementation
+in Gecode is kind of na&#239;ve, but there is little one can do given that
+propagation is NP complete.
+
+I am always tempted to remove domain-consistent linear as it is so
+misleading.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/ 
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, December 10, 2007 5:15 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Linear constraint on propagation level ILC_DOM
+infinite loop
+
+In Gecode 2.0.0  the following code seems to get stuck in an infinite loop:
+
+template &lt;class Val, class View&gt;  ExecStatus
+DomEq&lt;Val,View&gt;::propagate(Space* home)
+
+Am I missing something or doing something wrong, other propagation
+levels seem to work correct.
+
+---------------------------------------------------------
+
+#include &quot;gecode/minimodel.hh&quot;
+
+class TestCase : public Gecode::Space {
+protected:
+  const int n;
+  Gecode::IntVarArray x;
+public:
+
+  /// Actual model
+  TestCase()
+    : n(3),
+      x(this,n)
+  {
+    x[0].init( this, 0, 7*60*24 );
+    x[1].init( this, 0, 7*60*24 );
+    x[2].init( this, 0, 7*60*24 );
+
+    Gecode::IntVarArgs variables( 3 );
+    variables[0] = x[0];
+    variables[1] = x[1];
+    variables[2] = x[2];
+
+    Gecode::IntArgs arguments( 3 );
+
+    arguments[0] =  1;
+    arguments[1] = -1;
+    arguments[2] = -1;
+
+    Gecode::linear( this, arguments, x, Gecode::IntRelType::IRT_EQ, 0,
+Gecode::ICL_DOM);
+
+
+    this-&gt;status();
+  }
+
+  TestCase(bool share, TestCase&amp; s):
+    Space(share,s), n(s.n)
+  {
+    x.update(this, share, s.x);
+  }
+
+  /// Perform copying during cloning
+  virtual Space* copy(bool share)
+  {
+    return new TestCase(share,*this);
+  }
+
+};
+
+int main(int argc, char** argv)
+{
+  TestCase();
+  return 0;
+}
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001223.html">[gecode-users] Linear constraint on propagation level ILC_DOM	infinite loop
+</A></li>
+	<LI>Next message: <A HREF="001225.html">[gecode-users] Linear constraint on propagation level ILC_DOM	infinite loop
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1224">[ date ]</a>
+              <a href="thread.html#1224">[ thread ]</a>
+              <a href="subject.html#1224">[ subject ]</a>
+              <a href="author.html#1224">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

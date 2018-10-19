@@ -1,0 +1,859 @@
+From schulte at imit.kth.se  Wed Sep  1 08:59:10 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 1 Sep 2004 08:59:10 +0200
+Subject: [Gecode] (no subject)
+Message-ID: <002701c48ff1$2ea1c320$acd4ed82@beule>
+
+The steiner example segfaults on Windows...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From tack at ps.uni-sb.de  Wed Sep  1 10:03:23 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 1 Sep 2004 10:03:23 +0200
+Subject: [Gecode] (no subject)
+In-Reply-To: <002701c48ff1$2ea1c320$acd4ed82@beule>
+References: <002701c48ff1$2ea1c320$acd4ed82@beule>
+Message-ID: <200409011003.23875.tack@ps.uni-sb.de>
+
+On Wednesday 01 September 2004 08:59, Christian Schulte wrote:
+> The steiner example segfaults on Windows...
+
+This is due to the different behaviour of AUTOARRAY under msvc and gcc: the 
+gcc version initialises each element by calling its constructor, whereas the 
+msvc version only allocates the memory. I don't know what the correct 
+solution looks like; I don't want to go through the whole array again 
+initialising each element with a special init method that would have to be 
+introduced only to this end.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Sep  1 13:47:18 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 1 Sep 2004 13:47:18 +0200
+Subject: [Gecode] (no subject)
+In-Reply-To: <200409011003.23875.tack@ps.uni-sb.de>
+Message-ID: <003101c49019$6f31e6e0$acd4ed82@beule>
+
+If you want me, I could make it symmetric in that gcc also never calls the
+default constructor...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, September 01, 2004 10:03 AM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] (no subject)
+
+
+On Wednesday 01 September 2004 08:59, Christian Schulte wrote:
+> The steiner example segfaults on Windows...
+
+This is due to the different behaviour of AUTOARRAY under msvc and gcc: the 
+gcc version initialises each element by calling its constructor, whereas the
+
+msvc version only allocates the memory. I don't know what the correct 
+solution looks like; I don't want to go through the whole array again 
+initialising each element with a special init method that would have to be 
+introduced only to this end.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Wed Sep  1 13:55:36 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 1 Sep 2004 13:55:36 +0200
+Subject: [Gecode] (no subject)
+In-Reply-To: <003101c49019$6f31e6e0$acd4ed82@beule>
+References: <003101c49019$6f31e6e0$acd4ed82@beule>
+Message-ID: <200409011355.36297.tack@ps.uni-sb.de>
+
+On Wednesday 01 September 2004 13:47, Christian Schulte wrote:
+> If you want me, I could make it symmetric in that gcc also never calls the
+> default constructor...
+
+It definitely should be symmetric, I think. So why not just get rid of the 
+ifdef _GNUC_?
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Wed Sep  1 13:56:33 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Wed, 1 Sep 2004 13:56:33 +0200
+Subject: [Gecode] (no subject)
+In-Reply-To: <200409011355.36297.tack@ps.uni-sb.de>
+Message-ID: <003201c4901a$ba1cb710$acd4ed82@beule>
+
+Simple, as alloc is not portable... But I can fix it (MAGIC MAGIC)
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: Guido Tack [mailto:tack at ps.uni-sb.de] 
+Sent: Wednesday, September 01, 2004 1:56 PM
+To: schulte at imit.kth.se; Technical discussions about Gecode
+Subject: Re: [Gecode] (no subject)
+
+
+On Wednesday 01 September 2004 13:47, Christian Schulte wrote:
+> If you want me, I could make it symmetric in that gcc also never calls 
+> the default constructor...
+
+It definitely should be symmetric, I think. So why not just get rid of the 
+ifdef _GNUC_?
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+
+From tack at ps.uni-sb.de  Wed Sep  1 17:26:05 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 1 Sep 2004 17:26:05 +0200
+Subject: [Gecode] Memory leak in the sets
+Message-ID: <200409011726.06109.tack@ps.uni-sb.de>
+
+Hi.
+
+Unfortunately we have a memory leak in the n-ary set propagators, and I have 
+no idea how to fix it: some n-ary propagators keep a GrowingSet containing 
+e.g. the union of the already determined variables. The memory for this set 
+of course comes from the space, but it is never freed. We cannot give a 
+destructor for IntegerSets because that would need the home space (for 
+dispose of a free list).
+I have taken care of all the other intermediate results we store in integer 
+sets, although this is also not optimal - you have to dispose the sets 
+manually when you don't use them any longer.
+Maybe we should think of a different data structure for these intermediates.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Thu Sep  2 10:41:40 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 2 Sep 2004 10:41:40 +0200
+Subject: [Gecode] Memory leak in the sets
+In-Reply-To: <200409011726.06109.tack@ps.uni-sb.de>
+Message-ID: <003f01c490c8$aabd7b20$acd4ed82@beule>
+
+Dear all,
+
+I would like to clarify the problem here: it is not about how destructors
+are handeled, it is about the simple point that space-allocated memory is
+just not useful for temporary data structures. This is absolutely clear.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Wednesday, September 01, 2004 5:26 PM
+To: gecode at ps.uni-sb.de
+Subject: [Gecode] Memory leak in the sets
+
+
+Hi.
+
+Unfortunately we have a memory leak in the n-ary set propagators, and I have
+
+no idea how to fix it: some n-ary propagators keep a GrowingSet containing 
+e.g. the union of the already determined variables. The memory for this set 
+of course comes from the space, but it is never freed. We cannot give a 
+destructor for IntegerSets because that would need the home space (for 
+dispose of a free list).
+I have taken care of all the other intermediate results we store in integer 
+sets, although this is also not optimal - you have to dispose the sets 
+manually when you don't use them any longer.
+Maybe we should think of a different data structure for these intermediates.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From tack at ps.uni-sb.de  Thu Sep  2 10:53:05 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 2 Sep 2004 10:53:05 +0200
+Subject: [Gecode] Memory leak in the sets
+In-Reply-To: <003f01c490c8$aabd7b20$acd4ed82@beule>
+References: <003f01c490c8$aabd7b20$acd4ed82@beule>
+Message-ID: <200409021053.06133.tack@ps.uni-sb.de>
+
+On Thursday 02 September 2004 10:41, Christian Schulte wrote:
+> Dear all,
+>
+> I would like to clarify the problem here: it is not about how destructors
+> are handeled, it is about the simple point that space-allocated memory is
+> just not useful for temporary data structures. This is absolutely clear.
+
+Sure. But in our case it's about a variable that a propagator collects 
+information in over its whole life time, and it is allocated on a free list. 
+So it is neither temporary nor "really" space allocated. A different story 
+are the real temporaries that we use (which are of course also free list 
+allocated), of course.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From szokoli at ps.uni-sb.de  Thu Sep  2 12:48:53 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 02 Sep 2004 12:48:53 +0200
+Subject: [Gecode] Memory leak in the sets
+In-Reply-To: <200409021053.06133.tack@ps.uni-sb.de>
+References: <003f01c490c8$aabd7b20$acd4ed82@beule>
+	<200409021053.06133.tack@ps.uni-sb.de>
+Message-ID: <4136FA95.7080607@ps.uni-sb.de>
+
+Guido Tack wrote:
+
+>On Thursday 02 September 2004 10:41, Christian Schulte wrote:
+>  
+>
+>>I would like to clarify the problem here: it is not about how destructors
+>>are handeled, it is about the simple point that space-allocated memory is
+>>just not useful for temporary data structures. This is absolutely clear.
+>>    
+>>
+>
+>  
+>
+The temporal datastructure in question is an IntegerSet, re-used from 
+our variable bound implementation, that's why it allocates its dynamic 
+memory from the space.
+It is local to a Propagator.propagate() invocation. We have n+1 of them 
+in each nary filtering function.
+Would you suggest creating a heap-allocating version for such puropses? 
+(would that have any benefit at all?)
+Or using a dedicated, localy cerated memory-manager instead of the home 
+space which we can just discard in the end of the method call without 
+deconstructing each local dynamic entity one by one? (that would match 
+the philosophy of an AUTOARRAY holding (and dropping) the non-dynamic parts)
+
+>Sure. But in our case it's about a variable that a propagator collects 
+>information in over its whole life time, and it is allocated on a free list. 
+>So it is neither temporary nor "really" space allocated. 
+>
+Yes, it is persistent information of a propagator, even across cloning.
+Is a virtual void Propagator.cleanup(Space) that would be called in the 
+ES_SUBSUMED branch of the propagator loop out of the question?
+
+If yes:
+An ugly workaround would be to create a fresh SetVar in the posting 
+function, and feed that to the constructor of the propagator, which it 
+could then use as its internal storage.
+This is of course only shoveling the sh*t over a fence and labeling it 
+"fertiliser", without any real benefit, as unreferenced variables are 
+not freed (how do you spell that???) either, just not copied next 
+time... (right?)
+
+>A different story 
+>are the real temporaries that we use (which are of course also free list 
+>allocated), of course.
+>
+>  
+>
+I was talking about these in the first half.
+
+
+Gabor
+
+PS: anything to take my mind off these nasty BDDs :-)
+
+
+
+From schulte at imit.kth.se  Fri Sep  3 13:44:20 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 3 Sep 2004 13:44:20 +0200
+Subject: [Gecode] License and Authorship
+Message-ID: <006201c491ab$5a0245b0$acd4ed82@beule>
+
+Dear all,
+
+an important decision to be taken is which license should be used with
+Gecode. In discussion with Guido we went basically for the Mozart license,
+for your information please find it attached.
+
+Another important issue is about authorship. Here I have been always
+dissatisfied with how things were run with Mozart. Here Guido's and my
+proposal is as follows:
+	- An author of a file is somebody who at one point in time has
+contributed more than 10% percent 
+        of the lines to that file.
+	- A contributing author is somebody who has contributed more than 2%
+but not exceeding 10% 
+        (measure of contribution as above).
+
+I intend to automatize the generation of headers: years, authors,
+contributing authors, the statement of lack of liablity will all be
+generated automatically from the information in the CVS.
+
+I want that the following people agree to this by sending an okay to me:
+	- Christian (which I do)
+	- Guido (which he does, no Email needed)
+	- Gabor
+	- Gert (as Gert provides the resources for Guido and Gabor)
+
+Is there anything you want to add to that? The please do so as early as you
+can.
+
+Cheers
+Christian
+
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: LICENSE
+Type: application/octet-stream
+Size: 1528 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20040903/c2ca0385/attachment.obj>
+
+From schulte at imit.kth.se  Fri Sep  3 13:53:09 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 3 Sep 2004 13:53:09 +0200
+Subject: [Gecode] License and Authorship
+In-Reply-To: <006201c491ab$5a0245b0$acd4ed82@beule>
+Message-ID: <006c01c491ac$955aba10$acd4ed82@beule>
+
+Somehow the LICENSE got garbelled, here again...
+
+CS
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Christian Schulte
+Sent: Friday, September 03, 2004 1:44 PM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] License and Authorship
+
+
+Dear all,
+
+an important decision to be taken is which license should be used with
+Gecode. In discussion with Guido we went basically for the Mozart license,
+for your information please find it attached.
+
+Another important issue is about authorship. Here I have been always
+dissatisfied with how things were run with Mozart. Here Guido's and my
+proposal is as follows:
+	- An author of a file is somebody who at one point in time has
+contributed more than 10% percent 
+        of the lines to that file.
+	- A contributing author is somebody who has contributed more than 2%
+but not exceeding 10% 
+        (measure of contribution as above).
+
+I intend to automatize the generation of headers: years, authors,
+contributing authors, the statement of lack of liablity will all be
+generated automatically from the information in the CVS.
+
+I want that the following people agree to this by sending an okay to me:
+	- Christian (which I do)
+	- Guido (which he does, no Email needed)
+	- Gabor
+	- Gert (as Gert provides the resources for Guido and Gabor)
+
+Is there anything you want to add to that? The please do so as early as you
+can.
+
+Cheers
+Christian
+
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: LICENSE.txt
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20040903/111b5be0/attachment.txt>
+
+From szokoli at ps.uni-sb.de  Fri Sep  3 14:41:58 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Fri, 03 Sep 2004 14:41:58 +0200
+Subject: [Gecode] License and Authorship
+In-Reply-To: <006201c491ab$5a0245b0$acd4ed82@beule>
+References: <006201c491ab$5a0245b0$acd4ed82@beule>
+Message-ID: <41386696.8010507@ps.uni-sb.de>
+
+I agree as is.
+
+It might work differently here, but in the US, our university had a 
+whole legal department for bullet-proofing our licenses and disclaimers 
+and file-header notices.
+They made us put things in licences for example about not allowing the 
+use of the software in countries where local laws override any point of 
+the disclaimer, and so on. It definitely made them feel useful :-)
+
+
+Gabor
+
+Ps: Sorry about the top posting, no further comments, just for reference:
+
+Christian Schulte wrote:
+
+>Dear all,
+>
+>an important decision to be taken is which license should be used with
+>Gecode. In discussion with Guido we went basically for the Mozart license,
+>for your information please find it attached.
+>
+>Another important issue is about authorship. Here I have been always
+>dissatisfied with how things were run with Mozart. Here Guido's and my
+>proposal is as follows:
+>	- An author of a file is somebody who at one point in time has
+>contributed more than 10% percent 
+>        of the lines to that file.
+>	- A contributing author is somebody who has contributed more than 2%
+>but not exceeding 10% 
+>        (measure of contribution as above).
+>
+>I intend to automatize the generation of headers: years, authors,
+>contributing authors, the statement of lack of liablity will all be
+>generated automatically from the information in the CVS.
+>
+>I want that the following people agree to this by sending an okay to me:
+>	- Christian (which I do)
+>	- Guido (which he does, no Email needed)
+>	- Gabor
+>	- Gert (as Gert provides the resources for Guido and Gabor)
+>
+>Is there anything you want to add to that? The please do so as early as you
+>can.
+>
+>Cheers
+>Christian
+>
+>
+>--
+>Christian Schulte, http://www.imit.kth.se/~schulte/ 
+>  
+>
+>------------------------------------------------------------------------
+>
+>_______________________________________________
+>Gecode mailing list
+>Gecode at ps.uni-sb.de
+>http://www.ps.uni-sb.de/mailman/listinfo/gecode
+>  
+>
+
+
+
+From smolka at ps.uni-sb.de  Fri Sep  3 15:28:46 2004
+From: smolka at ps.uni-sb.de (Gert Smolka)
+Date: Fri, 3 Sep 2004 15:28:46 +0200
+Subject: [Gecode] RE: License and Authorship
+In-Reply-To: <006201c491ab$5a0245b0$acd4ed82@beule>
+Message-ID: <009001c491b9$f08e6e60$abba6086@ps.unisb.de>
+
+Fine with me!
+
+-- Gert
+
+> -----Original Message-----
+> From: Christian Schulte [mailto:schulte at imit.kth.se] 
+> Sent: Friday, September 03, 2004 1:44 PM
+> To: 'Technical discussions about Gecode'
+> Cc: 'Gert Smolka'
+> Subject: License and Authorship
+> 
+> 
+> Dear all,
+> 
+> an important decision to be taken is which license should be used with
+> Gecode. In discussion with Guido we went basically for the 
+> Mozart license,
+> for your information please find it attached.
+> 
+> Another important issue is about authorship. Here I have been always
+> dissatisfied with how things were run with Mozart. Here Guido's and my
+> proposal is as follows:
+> 	- An author of a file is somebody who at one point in time has
+> contributed more than 10% percent 
+>         of the lines to that file.
+> 	- A contributing author is somebody who has contributed 
+> more than 2%
+> but not exceeding 10% 
+>         (measure of contribution as above).
+> 
+> I intend to automatize the generation of headers: years, authors,
+> contributing authors, the statement of lack of liablity will all be
+> generated automatically from the information in the CVS.
+> 
+> I want that the following people agree to this by sending an 
+> okay to me:
+> 	- Christian (which I do)
+> 	- Guido (which he does, no Email needed)
+> 	- Gabor
+> 	- Gert (as Gert provides the resources for Guido and Gabor)
+> 
+> Is there anything you want to add to that? The please do so 
+> as early as you
+> can.
+> 
+> Cheers
+> Christian
+> 
+> 
+> --
+> Christian Schulte, http://www.imit.kth.se/~schulte/ 
+> 
+
+
+
+From schulte at imit.kth.se  Thu Sep  9 14:11:20 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 9 Sep 2004 14:11:20 +0200
+Subject: [Gecode] Header of C++ files fixed
+Message-ID: <008601c49666$1e283a80$acd4ed82@beule>
+
+Dear all,
+
+as promised, I just fixed the header of all C++ files in gecode. Please
+check whether you want to correct some stuff manually by yourself (maybe if
+you are listed as author or contributing author but don't feel that way).
+
+The alice-stuff is not tagged with it as this is will not be part of gecode.
+
+What still is required is that all the other files (Makefiles, autoconf
+stuff) are also added with the same header. Guido, Gabor could you please do
+that for the non msc stuff?
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Thu Sep  9 14:13:16 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 9 Sep 2004 14:13:16 +0200
+Subject: [Gecode] Header of C++ files fixed
+In-Reply-To: <008601c49666$1e283a80$acd4ed82@beule>
+Message-ID: <008701c49666$632b01d0$acd4ed82@beule>
+
+What I forgot. In misc/fixheader you find the perl script I used for
+generating the header... So, I actually didn't cheat!
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Christian Schulte
+Sent: Thursday, September 09, 2004 2:11 PM
+To: 'Technical discussions about Gecode'
+Subject: [Gecode] Header of C++ files fixed
+
+
+Dear all,
+
+as promised, I just fixed the header of all C++ files in gecode. Please
+check whether you want to correct some stuff manually by yourself (maybe if
+you are listed as author or contributing author but don't feel that way).
+
+The alice-stuff is not tagged with it as this is will not be part of gecode.
+
+What still is required is that all the other files (Makefiles, autoconf
+stuff) are also added with the same header. Guido, Gabor could you please do
+that for the non msc stuff?
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+
+From szokoli at ps.uni-sb.de  Thu Sep  9 15:57:01 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 09 Sep 2004 15:57:01 +0200
+Subject: [Gecode] friend template <foo> bar
+Message-ID: <4140612D.9070804@ps.uni-sb.de>
+
+Hi Christian!
+
+In kernel/core.hh class Variable, you declare a template instance as 
+friend like this:
+
+template <VarTypeId VTI, PropCond PC> friend class VarTypeProcessor;
+
+but gcc strongly prefers this notation:
+
+friend class VarTypeProcessor<VTI, PC>;
+
+(read: rejects the first.)
+Is MSC comfortable with this alternative?
+
+
+Gabor
+
+
+From schulte at imit.kth.se  Thu Sep  9 16:02:18 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Thu, 9 Sep 2004 16:02:18 +0200
+Subject: [Gecode] friend template <foo> bar
+In-Reply-To: <4140612D.9070804@ps.uni-sb.de>
+Message-ID: <009801c49675$9ea26780$acd4ed82@beule>
+
+You are absolutely right: I should have written what you say. That also
+works for MSVC. 
+
+Interestingly, also what I wrote is legal but not needed in this case. I
+guess that gcc has no built-in alpha-renaming for template variables...
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Gabor Szokoli
+Sent: Thursday, September 09, 2004 3:57 PM
+To: Technical discussions about Gecode
+Subject: [Gecode] friend template <foo> bar
+
+
+Hi Christian!
+
+In kernel/core.hh class Variable, you declare a template instance as 
+friend like this:
+
+template <VarTypeId VTI, PropCond PC> friend class VarTypeProcessor;
+
+but gcc strongly prefers this notation:
+
+friend class VarTypeProcessor<VTI, PC>;
+
+(read: rejects the first.)
+Is MSC comfortable with this alternative?
+
+
+Gabor
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From schulte at imit.kth.se  Fri Sep 24 16:57:18 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 24 Sep 2004 16:57:18 +0200
+Subject: [Gecode] Please keep the conlevel argument...
+Message-ID: <005801c4a246$c9b7e8a0$acd4ed82@beule>
+
+Hi Patrick,
+
+welcome to the club of Gecode contributors. I just happened to read through
+your checkin comments.
+
+Please always keep the consistency level agrument, even though you only have
+bnds consisten versions: this will making interfacing to Gecode much simpler
+(think of a modelling language where one is allowed to annotate entire
+expressions by conistency level). So, keep and ignore ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From tack at ps.uni-sb.de  Fri Sep 24 17:29:47 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 24 Sep 2004 17:29:47 +0200
+Subject: [Gecode] Please keep the conlevel argument...
+In-Reply-To: <005801c4a246$c9b7e8a0$acd4ed82@beule>
+References: <005801c4a246$c9b7e8a0$acd4ed82@beule>
+Message-ID: <200409241729.47227.tack@ps.uni-sb.de>
+
+On Friday 24 September 2004 16:57, Christian Schulte wrote:
+> Please always keep the consistency level agrument, even though you only
+> have bnds consisten versions: this will making interfacing to Gecode much
+> simpler (think of a modelling language where one is allowed to annotate
+> entire expressions by conistency level). So, keep and ignore ;-)
+
+It was actually my idea to remove it ;-)
+But: Of course you shouldn't do _nothing_ if the conlevel is not BND, you 
+should just _always_ post the BND version.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Fri Sep 24 18:14:24 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Fri, 24 Sep 2004 18:14:24 +0200
+Subject: [Gecode] Please keep the conlevel argument...
+In-Reply-To: <200409241729.47227.tack@ps.uni-sb.de>
+Message-ID: <005901c4a251$8ea5d5a0$acd4ed82@beule>
+
+Ignore the conlevel argument does not mean to not post, right?
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+-----Original Message-----
+From: gecode-bounces at ps.uni-sb.de [mailto:gecode-bounces at ps.uni-sb.de] On
+Behalf Of Guido Tack
+Sent: Friday, September 24, 2004 5:30 PM
+To: gecode at ps.uni-sb.de
+Subject: Re: [Gecode] Please keep the conlevel argument...
+
+
+On Friday 24 September 2004 16:57, Christian Schulte wrote:
+> Please always keep the consistency level agrument, even though you 
+> only have bnds consisten versions: this will making interfacing to 
+> Gecode much simpler (think of a modelling language where one is 
+> allowed to annotate entire expressions by conistency level). So, keep 
+> and ignore ;-)
+
+It was actually my idea to remove it ;-)
+But: Of course you shouldn't do _nothing_ if the conlevel is not BND, you 
+should just _always_ post the BND version.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+_______________________________________________
+Gecode mailing list
+Gecode at ps.uni-sb.de http://www.ps.uni-sb.de/mailman/listinfo/gecode
+
+
+
+From the_phantom_dP at web.de  Fri Sep 24 22:38:57 2004
+From: the_phantom_dP at web.de (Patrick P.)
+Date: Fri, 24 Sep 2004 22:38:57 +0200
+Subject: [Gecode] ConLevel args
+Message-ID: <000601c4a276$84510780$0100a8c0@Zion>
+
+Hi there, 
+Sorry for that discussion about the ConLevel arguments. I just
+reinserted them again and post the Bound Consistent Version.
+ 
+Does anybody has a hint for me about the Distinct-prop and its
+Bound-consistent version???
+As soon as i'm using explicitly distinct("current space", "current
+vars", CL_BND) or
+even the Distinct::Bnd<Var>::post("space","vars") i'm always getting a
+segmentation fault for
+ 
+VALGRIND:
+ 
+Invalid write of size 4 --> in function
+Distinct::Bnd<IntVar>::propagate(Space*)
+ 
+Is it the wrong way of using it?
+ 
+Thx so far
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20040924/ae752d7c/attachment.htm>
+
+From szokoli at ps.uni-sb.de  Thu Sep 30 13:51:19 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Thu, 30 Sep 2004 13:51:19 +0200
+Subject: [Gecode] NoVar novar
+Message-ID: <415BF337.8010908@ps.uni-sb.de>
+
+Hello!
+
+gecode/int/linear/novar.hh declares a global extern NoVar instance that 
+does not seem to be instantiated anywhere. As it has no state just 
+non-virtual inline methods, it is not a problem at -O3, but causes 
+inconvenience (linking errors) in a debug build. A quick-and-dirty 
+workaround is to include this header in the example being debugged, and 
+just declare the variable:
+
+#include "int/linear/novar.hh"
+NoVar novar;
+
+Also, expressinos passed as arguments may suprise some macros, an extra 
+pair of () never hurts. (Both in macro definitions and applicatoins :-) )
+Just sharing my experiences, the queens example now works (at least for 
+me) with CL_BND on gcc.
+
+
+Gabor
+
+

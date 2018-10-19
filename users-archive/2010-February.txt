@@ -1,0 +1,1210 @@
+From peter.vanhee at gmail.com  Wed Feb  3 16:29:33 2010
+From: peter.vanhee at gmail.com (Peter Vanhee)
+Date: Wed, 3 Feb 2010 16:29:33 +0100
+Subject: [gecode-users] Optimization
+Message-ID: <224F7060-17B4-47EA-9BD1-38FA45006EFC@gmail.com>
+
+Hi all,
+
+I am working on an optimization problem defined using constraints,
+to compute the lowest energy model of a protein lattice. My variables are
+implemented as integer variables that refer to a pool of protein fragments,
+and I wish to implement an optimization function that - given an assignment
+of all variables - returns an energy value (double) that should be minimized.
+
+So far, I've implemented the optimization as follows:
+
+- in the model constructor, I use synchronized execution to call a function
+c when all variables become assigned (using wait(Space&, IntVarArray&, c&)
+
+- a static variable that holds the best energy so far
+
+static BEST_ENERGY = 10000;
+
+- the continuation function c looks something like 
+
+static void c(Space& _home) {
+	// compute energy using assigned variables
+	double energy = ...;
+
+	if(energy > BEST_ENERGY) {
+ 		// fail if energy is worse
+		home.fail();
+	} else {
+		BEST_ENERGY = energy;
+	}
+}
+
+
+This works fine, and I can use different search algorithms to traverse the tree
+and move into the direction of lowest energy. However, I am not sure if this is the 
+correct way. Initially, I thought about implementing the cost() function but quickly
+discarded it because it only seems to work with integer variables. Also using the
+constrain function I need to use a static variable as well, and I don't know what
+kind of constrained I should post there (the energy function can not prune domains,
+it can either accept it as better or fail the space..)
+
+Thanks for the clarification!
+Peter
+
+From cschulte at kth.se  Wed Feb  3 16:39:28 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 3 Feb 2010 16:39:28 +0100
+Subject: [gecode-users] Optimization
+In-Reply-To: <224F7060-17B4-47EA-9BD1-38FA45006EFC@gmail.com>
+References: <224F7060-17B4-47EA-9BD1-38FA45006EFC@gmail.com>
+Message-ID: <001b01caa4e7$129adca0$37d095e0$@se>
+
+Hi,
+
+The problem with your solution is that you do not use branch and bound for
+search (as you basically say yourself): what you will do is basically find
+all solutions and pick a best one among them (provided I really understand
+what you are doing). The idea of branch and bound is to add a constraint
+after a solution has been found such that the additional constraint will
+guarantee that a better solution is found next and - crucially! - the added
+constraint can prune the search space by triggering additional propagation.
+
+Moreover, your idea is not compatible with parallel search (static
+variable).
+
+Did you think about turning your double value into a sufficiently accurate
+integer variable?
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Peter Vanhee
+Sent: Wednesday, February 03, 2010 4:30 PM
+To: users at gecode.org
+Subject: [gecode-users] Optimization
+
+Hi all,
+
+I am working on an optimization problem defined using constraints,
+to compute the lowest energy model of a protein lattice. My variables are
+implemented as integer variables that refer to a pool of protein fragments,
+and I wish to implement an optimization function that - given an assignment
+of all variables - returns an energy value (double) that should be
+minimized.
+
+So far, I've implemented the optimization as follows:
+
+- in the model constructor, I use synchronized execution to call a function
+c when all variables become assigned (using wait(Space&, IntVarArray&, c&)
+
+- a static variable that holds the best energy so far
+
+static BEST_ENERGY = 10000;
+
+- the continuation function c looks something like 
+
+static void c(Space& _home) {
+	// compute energy using assigned variables
+	double energy = ...;
+
+	if(energy > BEST_ENERGY) {
+ 		// fail if energy is worse
+		home.fail();
+	} else {
+		BEST_ENERGY = energy;
+	}
+}
+
+
+This works fine, and I can use different search algorithms to traverse the
+tree
+and move into the direction of lowest energy. However, I am not sure if this
+is the 
+correct way. Initially, I thought about implementing the cost() function but
+quickly
+discarded it because it only seems to work with integer variables. Also
+using the
+constrain function I need to use a static variable as well, and I don't know
+what
+kind of constrained I should post there (the energy function can not prune
+domains,
+it can either accept it as better or fail the space..)
+
+Thanks for the clarification!
+Peter
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From peter.vanhee at gmail.com  Wed Feb  3 16:56:04 2010
+From: peter.vanhee at gmail.com (Peter Vanhee)
+Date: Wed, 3 Feb 2010 16:56:04 +0100
+Subject: [gecode-users] Optimization
+In-Reply-To: <001b01caa4e7$129adca0$37d095e0$@se>
+References: <224F7060-17B4-47EA-9BD1-38FA45006EFC@gmail.com>
+	<001b01caa4e7$129adca0$37d095e0$@se>
+Message-ID: <72D4A282-4F7A-463A-9206-6EDEF7720399@gmail.com>
+
+Thanks for the answer. Conceptually, I see a problem in the energy constraint:
+it can only work if all variables are instantiated. Would it make sense to write
+a function that posts the energy constraint? Something like
+
+void energy(Home home, const IntVarArgs& x, double n, IntConLevel icl=ICL_DEF);
+
+that would then implement a propagator that will get called once all variables
+are instantiated, checks if the energy is better than n, and if not, fails the space.
+
+I could then probably call this constraint within the constrain() function and bypass
+use of static variables. Still, it wouldn't change the search tree, but this is
+simply because the energy constraint is unable the domains. Is this correct
+reasoning? The static variable seemed much easier to implement than implementing
+a post function.
+
+I hadn't given it a thought to convert the double to an int, but would this make
+sense if there is nothing to prune?
+
+Thanks a lot,
+Peter
+
+On 3 Feb 2010, at 16:39, Christian Schulte wrote:
+
+> Hi,
+> 
+> The problem with your solution is that you do not use branch and bound for
+> search (as you basically say yourself): what you will do is basically find
+> all solutions and pick a best one among them (provided I really understand
+> what you are doing). The idea of branch and bound is to add a constraint
+> after a solution has been found such that the additional constraint will
+> guarantee that a better solution is found next and - crucially! - the added
+> constraint can prune the search space by triggering additional propagation.
+> 
+> Moreover, your idea is not compatible with parallel search (static
+> variable).
+> 
+> Did you think about turning your double value into a sufficiently accurate
+> integer variable?
+> 
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Peter Vanhee
+> Sent: Wednesday, February 03, 2010 4:30 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Optimization
+> 
+> Hi all,
+> 
+> I am working on an optimization problem defined using constraints,
+> to compute the lowest energy model of a protein lattice. My variables are
+> implemented as integer variables that refer to a pool of protein fragments,
+> and I wish to implement an optimization function that - given an assignment
+> of all variables - returns an energy value (double) that should be
+> minimized.
+> 
+> So far, I've implemented the optimization as follows:
+> 
+> - in the model constructor, I use synchronized execution to call a function
+> c when all variables become assigned (using wait(Space&, IntVarArray&, c&)
+> 
+> - a static variable that holds the best energy so far
+> 
+> static BEST_ENERGY = 10000;
+> 
+> - the continuation function c looks something like 
+> 
+> static void c(Space& _home) {
+> 	// compute energy using assigned variables
+> 	double energy = ...;
+> 
+> 	if(energy > BEST_ENERGY) {
+> 		// fail if energy is worse
+> 		home.fail();
+> 	} else {
+> 		BEST_ENERGY = energy;
+> 	}
+> }
+> 
+> 
+> This works fine, and I can use different search algorithms to traverse the
+> tree
+> and move into the direction of lowest energy. However, I am not sure if this
+> is the 
+> correct way. Initially, I thought about implementing the cost() function but
+> quickly
+> discarded it because it only seems to work with integer variables. Also
+> using the
+> constrain function I need to use a static variable as well, and I don't know
+> what
+> kind of constrained I should post there (the energy function can not prune
+> domains,
+> it can either accept it as better or fail the space..)
+> 
+> Thanks for the clarification!
+> Peter
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+
+From yannick.parmentier at univ-orleans.fr  Wed Feb  3 22:42:07 2010
+From: yannick.parmentier at univ-orleans.fr (Yannick Parmentier)
+Date: Wed, 3 Feb 2010 22:42:07 +0100
+Subject: [gecode-users] Gecode headers not found
+Message-ID: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+
+Hi all,
+
+I am using the Qt-SDK (including Qt-creator 1.3.1) along with Gecode 3.2.2 under ubuntu linux, and it works fine.
+I installed the same environment (Gecode 3.2.2 + Qt-creator 1.3.1 + Qt libraries 4.6.1 + MinGW with gcc-4.4) on a windows XP, unfortunately I cannot get it to work. More precisely I cannot compile my Gecode-based program from Qt-creator. It seems qmake does not find Gecode libraries (I updated the PATH to include Gecode's location). The compilation returns errors such as "gecode/int.hh no such file or directory" or "Gecode has not been declared".
+
+I had a look at the following page:
+http://www.gecode.org/doc-latest/reference/PageUsage.html
+but I do not manage to adapt the recommandations for Visual Studio to Qt-creator.
+
+Did anyone suceed in using Qt-creator with Gecode under XP ?
+
+Thanks,
+
+Yannick
+
+
+
+From tack at gecode.org  Thu Feb  4 08:10:54 2010
+From: tack at gecode.org (Guido Tack)
+Date: Thu, 4 Feb 2010 08:10:54 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+Message-ID: <8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+
+Hi Yannick,
+
+as mentioned recently on the list, we don't support compiling with gcc on Windows.  In particular, the Gecode binary package is probably incompatible with MinGW gcc, so even if you get the paths right, compiling may not work.
+If you can get Qt-creator to use the Visual C++ compiler (which however the binary package on the Qt web page doesn't support), things might work.
+
+Cheers,
+	Guido
+
+Yannick Parmentier wrote:
+
+> Hi all,
+> 
+> I am using the Qt-SDK (including Qt-creator 1.3.1) along with Gecode 3.2.2 under ubuntu linux, and it works fine.
+> I installed the same environment (Gecode 3.2.2 + Qt-creator 1.3.1 + Qt libraries 4.6.1 + MinGW with gcc-4.4) on a windows XP, unfortunately I cannot get it to work. More precisely I cannot compile my Gecode-based program from Qt-creator. It seems qmake does not find Gecode libraries (I updated the PATH to include Gecode's location). The compilation returns errors such as "gecode/int.hh no such file or directory" or "Gecode has not been declared".
+> 
+> I had a look at the following page:
+> http://www.gecode.org/doc-latest/reference/PageUsage.html
+> but I do not manage to adapt the recommandations for Visual Studio to Qt-creator.
+> 
+> Did anyone suceed in using Qt-creator with Gecode under XP ?
+> 
+> Thanks,
+> 
+> Yannick
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Thu Feb  4 10:19:29 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 4 Feb 2010 10:19:29 +0100
+Subject: [gecode-users] Optimization
+In-Reply-To: <72D4A282-4F7A-463A-9206-6EDEF7720399@gmail.com>
+References: <224F7060-17B4-47EA-9BD1-38FA45006EFC@gmail.com>	<001b01caa4e7$129adca0$37d095e0$@se>
+	<72D4A282-4F7A-463A-9206-6EDEF7720399@gmail.com>
+Message-ID: <002701caa57b$27874f60$7695ee20$@se>
+
+Hi Peter,
+
+Hmm. Why are you so sure that the energy constraint only works if all
+variables are already assigned? Don't think about a double as result but try
+to think (just for the sake of argument) to express the result of the energy
+function as an integer (with some approximation). Then it would be a
+constraint between the problem variables and the variable for the energy.
+
+The thing from which search can benefit is just the opposite case: you put a
+constraint on the energy variable (derived from a solution found earlier by
+search) and there is propagation that narrows down the potential values for
+your problem variables.
+
+Waiting for all the problem variables until they become assigned, then (as I
+tried to express before) normal search will do as branch and bound search
+offers no advantage. Even implementing a propagator that waits until all
+variables become assigned and then computes an energy value would not help.
+All of this is equivalent to:
+	- find a first solution and compute its energy value
+      - keep finding all solutions and discard the worse ones and update to
+the better ones
+And this, of course, is not really feasible for most problems!
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Peter Vanhee
+Sent: Wednesday, February 03, 2010 4:56 PM
+To: Christian Schulte
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Optimization
+
+Thanks for the answer. Conceptually, I see a problem in the energy
+constraint:
+it can only work if all variables are instantiated. Would it make sense to
+write
+a function that posts the energy constraint? Something like
+
+void energy(Home home, const IntVarArgs& x, double n, IntConLevel
+icl=ICL_DEF);
+
+that would then implement a propagator that will get called once all
+variables
+are instantiated, checks if the energy is better than n, and if not, fails
+the space.
+
+I could then probably call this constraint within the constrain() function
+and bypass
+use of static variables. Still, it wouldn't change the search tree, but this
+is
+simply because the energy constraint is unable the domains. Is this correct
+reasoning? The static variable seemed much easier to implement than
+implementing
+a post function.
+
+I hadn't given it a thought to convert the double to an int, but would this
+make
+sense if there is nothing to prune?
+
+Thanks a lot,
+Peter
+
+On 3 Feb 2010, at 16:39, Christian Schulte wrote:
+
+> Hi,
+> 
+> The problem with your solution is that you do not use branch and bound for
+> search (as you basically say yourself): what you will do is basically find
+> all solutions and pick a best one among them (provided I really understand
+> what you are doing). The idea of branch and bound is to add a constraint
+> after a solution has been found such that the additional constraint will
+> guarantee that a better solution is found next and - crucially! - the
+added
+> constraint can prune the search space by triggering additional
+propagation.
+> 
+> Moreover, your idea is not compatible with parallel search (static
+> variable).
+> 
+> Did you think about turning your double value into a sufficiently accurate
+> integer variable?
+> 
+> Christian
+> 
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Peter Vanhee
+> Sent: Wednesday, February 03, 2010 4:30 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Optimization
+> 
+> Hi all,
+> 
+> I am working on an optimization problem defined using constraints,
+> to compute the lowest energy model of a protein lattice. My variables are
+> implemented as integer variables that refer to a pool of protein
+fragments,
+> and I wish to implement an optimization function that - given an
+assignment
+> of all variables - returns an energy value (double) that should be
+> minimized.
+> 
+> So far, I've implemented the optimization as follows:
+> 
+> - in the model constructor, I use synchronized execution to call a
+function
+> c when all variables become assigned (using wait(Space&, IntVarArray&, c&)
+> 
+> - a static variable that holds the best energy so far
+> 
+> static BEST_ENERGY = 10000;
+> 
+> - the continuation function c looks something like 
+> 
+> static void c(Space& _home) {
+> 	// compute energy using assigned variables
+> 	double energy = ...;
+> 
+> 	if(energy > BEST_ENERGY) {
+> 		// fail if energy is worse
+> 		home.fail();
+> 	} else {
+> 		BEST_ENERGY = energy;
+> 	}
+> }
+> 
+> 
+> This works fine, and I can use different search algorithms to traverse the
+> tree
+> and move into the direction of lowest energy. However, I am not sure if
+this
+> is the 
+> correct way. Initially, I thought about implementing the cost() function
+but
+> quickly
+> discarded it because it only seems to work with integer variables. Also
+> using the
+> constrain function I need to use a static variable as well, and I don't
+know
+> what
+> kind of constrained I should post there (the energy function can not prune
+> domains,
+> it can either accept it as better or fail the space..)
+> 
+> Thanks for the clarification!
+> Peter
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From denys.duchier at univ-orleans.fr  Thu Feb  4 20:21:49 2010
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Thu, 04 Feb 2010 20:21:49 +0100
+Subject: [gecode-users] buggy parallel search
+Message-ID: <87bpg44xiq.fsf@tiny.univ-orleans.fr>
+
+In gecode/search/parallel/engine.hh:
+
+  Engine::busy(void) {
+    m_search.acquire();
+    assert(n_busy > 0);
+    n_busy++;
+    m_search.release();
+  }
+
+is the assert correct or should it be >= 0?
+
+I am hitting this assertion with gecode compiled with --enable-debug.
+
+Cheers,
+
+--Denys
+
+
+From cschulte at kth.se  Fri Feb  5 11:04:36 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 5 Feb 2010 11:04:36 +0100
+Subject: [gecode-users] buggy parallel search
+In-Reply-To: <87bpg44xiq.fsf@tiny.univ-orleans.fr>
+References: <87bpg44xiq.fsf@tiny.univ-orleans.fr>
+Message-ID: <007701caa64a$9fb1c9a0$df155ce0$@se>
+
+Hi Denys,
+
+the assertion is correct: this function is called by a worker that has
+successfully stolen new work for search. As there is at least one other busy
+worker (the worker from which the work got stolen) it is really meant to be
+> 0.
+
+Alas, it looks as if there is a bug. Which engine? Which problem? How many
+cores? Aaargh...
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Denys Duchier
+Sent: Thursday, February 04, 2010 8:22 PM
+To: users at gecode.org
+Subject: [gecode-users] buggy parallel search
+
+In gecode/search/parallel/engine.hh:
+
+  Engine::busy(void) {
+    m_search.acquire();
+    assert(n_busy > 0);
+    n_busy++;
+    m_search.release();
+  }
+
+is the assert correct or should it be >= 0?
+
+I am hitting this assertion with gecode compiled with --enable-debug.
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From denys.duchier at univ-orleans.fr  Fri Feb  5 15:01:34 2010
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Fri, 05 Feb 2010 15:01:34 +0100
+Subject: [gecode-users] buggy parallel search
+In-Reply-To: <007701caa64a$9fb1c9a0$df155ce0$@se> (Christian Schulte's message
+	of "Fri, 5 Feb 2010 11:04:36 +0100")
+References: <87bpg44xiq.fsf@tiny.univ-orleans.fr>
+	<007701caa64a$9fb1c9a0$df155ce0$@se>
+Message-ID: <87ock3srwh.fsf@tiny.univ-orleans.fr>
+
+"Christian Schulte" <cschulte at kth.se> writes:
+
+> Alas, it looks as if there is a bug. Which engine? Which problem? How many
+> cores? Aaargh...
+
+engine : bab with 2 threads
+problem: don't know how to answer that question. it's an NLP application
+         that we have developed
+cores  : Core 2 Duo
+
+I was actually chasing another bug in parallel search where gecode
+segfaults when deleting a space in a worker.  I recompiled with
+--enable-debug.  It often takes several tries under gdb to observe the
+problem.  This time I got a different problem, which is the one I
+reported.
+
+Cheers,
+
+--Denys
+
+
+From cschulte at kth.se  Fri Feb  5 15:04:49 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 5 Feb 2010 15:04:49 +0100
+Subject: [gecode-users] buggy parallel search
+In-Reply-To: <87ock3srwh.fsf@tiny.univ-orleans.fr>
+References: <87bpg44xiq.fsf@tiny.univ-orleans.fr>	<007701caa64a$9fb1c9a0$df155ce0$@se>
+	<87ock3srwh.fsf@tiny.univ-orleans.fr>
+Message-ID: <008601caa66c$2e6fd440$8b4f7cc0$@se>
+
+Do you use anything inside your application on which we could easily blame
+the bug ;-)  Such as home-brewed propagators, branchers, etc?
+
+Seriously, would there be an opportunity to run your application on my
+machine?
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Denys Duchier
+Sent: Friday, February 05, 2010 3:02 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] buggy parallel search
+
+"Christian Schulte" <cschulte at kth.se> writes:
+
+> Alas, it looks as if there is a bug. Which engine? Which problem? How many
+> cores? Aaargh...
+
+engine : bab with 2 threads
+problem: don't know how to answer that question. it's an NLP application
+         that we have developed
+cores  : Core 2 Duo
+
+I was actually chasing another bug in parallel search where gecode
+segfaults when deleting a space in a worker.  I recompiled with
+--enable-debug.  It often takes several tries under gdb to observe the
+problem.  This time I got a different problem, which is the one I
+reported.
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From denys.duchier at univ-orleans.fr  Fri Feb  5 15:51:05 2010
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Fri, 05 Feb 2010 15:51:05 +0100
+Subject: [gecode-users] buggy parallel search
+In-Reply-To: <008601caa66c$2e6fd440$8b4f7cc0$@se> (Christian Schulte's message
+	of "Fri, 5 Feb 2010 15:04:49 +0100")
+References: <87bpg44xiq.fsf@tiny.univ-orleans.fr>
+	<007701caa64a$9fb1c9a0$df155ce0$@se>
+	<87ock3srwh.fsf@tiny.univ-orleans.fr>
+	<008601caa66c$2e6fd440$8b4f7cc0$@se>
+Message-ID: <87bpg3sply.fsf@tiny.univ-orleans.fr>
+
+"Christian Schulte" <cschulte at kth.se> writes:
+
+> Do you use anything inside your application on which we could easily blame
+> the bug ;-)  Such as home-brewed propagators, branchers, etc?
+
+no.
+
+> Seriously, would there be an opportunity to run your application on my
+> machine?
+
+sure, I'll email the code to you this evening.
+
+Cheers,
+
+--Denys
+
+
+From yannick.parmentier at univ-orleans.fr  Sat Feb  6 17:13:01 2010
+From: yannick.parmentier at univ-orleans.fr (Yannick Parmentier)
+Date: Sat, 6 Feb 2010 17:13:01 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+Message-ID: <20100206161300.GD29339@aruna2.univ-orleans.fr>
+
+
+Hi Guido,
+
+thank you for your reply. I was hoping for some other news :) 
+Apart from tweaking Qt-creator, I am considering another option: to install a virtualization machine (such as bochs) with linux + Qt-SDK on it.
+
+Cheers,
+
+Yannick
+
+On Thu, Feb 04, 2010 at 08:10:54AM +0100, Guido Tack wrote:
+> Hi Yannick,
+> 
+> as mentioned recently on the list, we don't support compiling with gcc on Windows.  In particular, the Gecode binary package is probably incompatible with MinGW gcc, so even if you get the paths right, compiling may not work.
+> If you can get Qt-creator to use the Visual C++ compiler (which however the binary package on the Qt web page doesn't support), things might work.
+> 
+> Cheers,
+> 	Guido
+> 
+> Yannick Parmentier wrote:
+> 
+> > Hi all,
+> > 
+> > I am using the Qt-SDK (including Qt-creator 1.3.1) along with Gecode 3.2.2 under ubuntu linux, and it works fine.
+> > I installed the same environment (Gecode 3.2.2 + Qt-creator 1.3.1 + Qt libraries 4.6.1 + MinGW with gcc-4.4) on a windows XP, unfortunately I cannot get it to work. More precisely I cannot compile my Gecode-based program from Qt-creator. It seems qmake does not find Gecode libraries (I updated the PATH to include Gecode's location). The compilation returns errors such as "gecode/int.hh no such file or directory" or "Gecode has not been declared".
+> > 
+> > I had a look at the following page:
+> > http://www.gecode.org/doc-latest/reference/PageUsage.html
+> > but I do not manage to adapt the recommandations for Visual Studio to Qt-creator.
+> > 
+> > Did anyone suceed in using Qt-creator with Gecode under XP ?
+> > 
+> > Thanks,
+> > 
+> > Yannick
+> > 
+> > 
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+From tack at gecode.org  Sat Feb  6 20:20:47 2010
+From: tack at gecode.org (Guido Tack)
+Date: Sat, 6 Feb 2010 20:20:47 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <20100206161300.GD29339@aruna2.univ-orleans.fr>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+	<20100206161300.GD29339@aruna2.univ-orleans.fr>
+Message-ID: <A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+
+Yannick Parmentier wrote:
+> thank you for your reply. I was hoping for some other news :) 
+
+It seems to be possible to use Qt-creator with the Microsoft compiler.  Here's a thread on that topic:
+http://lists.trolltech.com/pipermail/qt-creator/2009-January/001361.html
+
+You may have to compile Qt-creator yourself, though.
+
+> Apart from tweaking Qt-creator, I am considering another option: to install a virtualization machine (such as bochs) with linux + Qt-SDK on it.
+
+I have never tried bochs, but I can recommend VirtualBox.
+
+Cheers,
+	Guido
+
+
+
+From yannick.parmentier at univ-orleans.fr  Sun Feb  7 21:10:52 2010
+From: yannick.parmentier at univ-orleans.fr (Yannick Parmentier)
+Date: Sun, 7 Feb 2010 21:10:52 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+	<20100206161300.GD29339@aruna2.univ-orleans.fr>
+	<A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+Message-ID: <20100207201052.GB19954@aruna2.univ-orleans.fr>
+
+
+Hi Guido,
+
+> It seems to be possible to use Qt-creator with the Microsoft compiler.  Here's a thread on that topic:
+> http://lists.trolltech.com/pipermail/qt-creator/2009-January/001361.html
+
+thanks a lot for the URL. 
+Nokia provides users with a binary version of Qt-4.6.1 compiled using msvc.
+Thus, I downloaded Qt-creator-1.3.1's sources, and I am now in the middle of their compilation using msvc.
+
+> > Apart from tweaking Qt-creator, I am considering another option: to install a virtualization machine (such as bochs) with linux + Qt-SDK on it.
+> 
+> I have never tried bochs, but I can recommend VirtualBox.
+
+Thanks for the pointer. VirtualBox seems great, alas the open source version does not come as a binary, and its compilation depends on (too) many requirements. 
+
+Cheers,
+
+Yannick
+
+
+
+From tack at gecode.org  Mon Feb  8 08:33:12 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 8 Feb 2010 08:33:12 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <20100207201052.GB19954@aruna2.univ-orleans.fr>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+	<20100206161300.GD29339@aruna2.univ-orleans.fr>
+	<A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+	<20100207201052.GB19954@aruna2.univ-orleans.fr>
+Message-ID: <BEA5FEA9-B641-471E-B689-17100C5CB4A1@gecode.org>
+
+Yannick Parmentier:
+>>> Apart from tweaking Qt-creator, I am considering another option: to install a virtualization machine (such as bochs) with linux + Qt-SDK on it.
+>> 
+>> I have never tried bochs, but I can recommend VirtualBox.
+> 
+> Thanks for the pointer. VirtualBox seems great, alas the open source version does not come as a binary, and its compilation depends on (too) many requirements. 
+
+I use the binary, its under a "free for personal and academic use" license.
+
+Cheers,
+	Guido
+
+
+
+From yannick.parmentier at univ-orleans.fr  Mon Feb  8 13:54:36 2010
+From: yannick.parmentier at univ-orleans.fr (Yannick Parmentier)
+Date: Mon, 8 Feb 2010 13:54:36 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <BEA5FEA9-B641-471E-B689-17100C5CB4A1@gecode.org>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+	<20100206161300.GD29339@aruna2.univ-orleans.fr>
+	<A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+	<20100207201052.GB19954@aruna2.univ-orleans.fr>
+	<BEA5FEA9-B641-471E-B689-17100C5CB4A1@gecode.org>
+Message-ID: <20100208125435.GA23429@aruna2.univ-orleans.fr>
+
+
+Hi,
+
+I confirm that the compilation of Qt-creator 1.3.1 using msvc-2008 does not raise any problem (NB: it needs having Qt-4.6.1 for msvc installed, and takes about 1 hour on a netbook).
+
+Then, from the Qt profile related to our gecode program, qmake automatically creates a makefile pointing on Gecode lib and include repositories.
+
+Only one fix was needed in the automatically-generated makefile: msvc was called with option "-Wextra" which made it crash. I had to remove this option, then compilation went on.
+
+Regarding Gecode, everything seems to work fine, but it seems gcc and msvc does not rely on the same specification, e.g. a declaration of the form:
+    int table_id [ size ];
+raises an error when compiling with msvc.
+
+> > Thanks for the pointer. VirtualBox seems great, alas the open source version does not come as a binary, and its compilation depends on (too) many requirements. 
+> 
+> I use the binary, its under a "free for personal and academic use" license.
+
+As bochs is an open-source initiative, I'd like to try it first. Its installation from the binary file went well. I'll now install a linux on the VM.
+
+Thanks again for your help,
+cheers,
+
+Yannick
+ 
+
+
+From tack at gecode.org  Mon Feb  8 13:57:20 2010
+From: tack at gecode.org (Guido Tack)
+Date: Mon, 8 Feb 2010 13:57:20 +0100
+Subject: [gecode-users] Gecode headers not found
+In-Reply-To: <20100208125435.GA23429@aruna2.univ-orleans.fr>
+References: <20100203214207.GG16953@aruna2.univ-orleans.fr>
+	<8F9E39B9-EF10-48A6-8494-0F9C5972DC0E@gecode.org>
+	<20100206161300.GD29339@aruna2.univ-orleans.fr>
+	<A89D819B-187B-4FA0-93F3-CA4C00725D0A@gecode.org>
+	<20100207201052.GB19954@aruna2.univ-orleans.fr>
+	<BEA5FEA9-B641-471E-B689-17100C5CB4A1@gecode.org>
+	<20100208125435.GA23429@aruna2.univ-orleans.fr>
+Message-ID: <FCDA2C7E-7D44-4740-A45D-A2173B2CA261@gecode.org>
+
+Yannick Parmentier wrote:
+> I confirm that the compilation of Qt-creator 1.3.1 using msvc-2008 does not raise any problem (NB: it needs having Qt-4.6.1 for msvc installed, and takes about 1 hour on a netbook).
+> 
+> Then, from the Qt profile related to our gecode program, qmake automatically creates a makefile pointing on Gecode lib and include repositories.
+> 
+> Only one fix was needed in the automatically-generated makefile: msvc was called with option "-Wextra" which made it crash. I had to remove this option, then compilation went on.
+
+Ok, good to know that it works.
+
+> Regarding Gecode, everything seems to work fine, but it seems gcc and msvc does not rely on the same specification, e.g. a declaration of the form:
+>    int table_id [ size ];
+> raises an error when compiling with msvc.
+
+That's because it is not standard C++ but a gcc-specific extension.
+
+Cheers,
+	Guido
+
+
+
+From benouna84 at live.fr  Wed Feb 10 17:50:09 2010
+From: benouna84 at live.fr (frank lemoine)
+Date: Wed, 10 Feb 2010 17:50:09 +0100
+Subject: [gecode-users] branch methode
+Message-ID: <SNT131-w443225833EFDA9A6801877A64F0@phx.gbl>
+
+
+hello gecode users,
+
+ 
+
+i've a static data structure store in Intvararray A.
+
+.
+
+. some code between to select the data then
+
+ 
+
+i've this branch: branch(*this, A, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+
+ 
+
+i want after each branch to remove from the data structure the instance found and continu the branch with the rest of data
+
+ 
+
+Is it possible ?
+
+ 
+
+Thank you in advance.
+ 		 	   		  
+_________________________________________________________________
+T?l?chargez Internet Explorer 8 et surfez sans laisser de trace !
+http://clk.atdmt.com/FRM/go/182932252/direct/01/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100210/6f015899/attachment.htm>
+
+From cschulte at kth.se  Wed Feb 10 21:22:05 2010
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 10 Feb 2010 21:22:05 +0100
+Subject: [gecode-users] branch methode
+In-Reply-To: <SNT131-w443225833EFDA9A6801877A64F0@phx.gbl>
+References: <SNT131-w443225833EFDA9A6801877A64F0@phx.gbl>
+Message-ID: <000c01caaa8e$b7119060$2534b120$@se>
+
+Sorry, I don?t understand the question. Could you please elaborate?
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of frank lemoine
+Sent: Wednesday, February 10, 2010 5:50 PM
+To: gecode gecode
+Subject: [gecode-users] branch methode
+
+ 
+
+hello gecode users,
+ 
+i've a static data structure store in Intvararray A.
+.
+. some code between to select the data then
+ 
+i've this branch: branch(*this, A, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+ 
+i want after each branch to remove from the data structure the instance
+found and continu the branch with the rest of data
+ 
+Is it possible ?
+ 
+Thank you in advance.
+
+  _____  
+
+Vous cherchez l'int?grale des clips de Michael Jackson ? Bing ! Trouvez !
+<http://www.bing.com/videos/search?q=Michael+Jackson&FORM=MVDE6> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100210/83e22dbb/attachment.htm>
+
+From ajsecord at cs.nyu.edu  Wed Feb 24 20:51:01 2010
+From: ajsecord at cs.nyu.edu (Adrian Secord)
+Date: Wed, 24 Feb 2010 14:51:01 -0500
+Subject: [gecode-users] Recovering gracefully from a failed solution
+Message-ID: <177D365B-877A-4EF8-8B17-28DBFC4BDFB5@cs.nyu.edu>
+
+Hi, all:
+
+My colleagues and I are working on a user interface research project that uses Gecode internally to solve integer set problems.  Our experiences with Gecode have been excellent; we are limited mostly by our lack of knowledge in the field of constraint programming.
+
+In our application, the constraints in our problems come from the user via a domain-appropriate user interface and we translate them into Gecode equivalents.  The difficulty is that the user might specify constraints that lead to no solutions being found at all.  Our users are not experts.
+
+What we'd like to do is give the user feedback about what they can do to best fix the situation, or possibly fix the situation for them.  In particular, the constraints that come from the user are not necessarily set in stone -- they are vague and messy, a problem with humans. ;)  For our application, it is far better to ignore a constraint and come up with some solution than to not return a solution at all.  The user can then adjust and iterate to get to a final solution.
+
+Is there some way to determine what was the "worst" or "tightest" constraint after a solution search failed?  I'm looking for some indicator that constraint A was easy to satisfy while constraint B was difficult to satisfy.  If we had that then we could suggest that the user drop B, or drop it automatically.
+
+I could probably do this crudely by iteratively dropping each constraint in turn and counting the number of solutions obtained, but this seems unsatisfying in many respects.
+
+Is something like this possible in Gecode?  It's similar in some sense to the problem of soft constraints, but we don't need a full general solution.
+
+Any pointers or advice would be appreciated.
+
+Thanks!
+
+Adrian.
+
+
+
+
+
+
+From zayenz at gmail.com  Fri Feb 26 09:42:44 2010
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 26 Feb 2010 09:42:44 +0100
+Subject: [gecode-users] Recovering gracefully from a failed solution
+In-Reply-To: <177D365B-877A-4EF8-8B17-28DBFC4BDFB5@cs.nyu.edu>
+References: <177D365B-877A-4EF8-8B17-28DBFC4BDFB5@cs.nyu.edu>
+Message-ID: <63b5c8b01002260042y79f5e5d7o45898f74285f8a49@mail.gmail.com>
+
+Hi,
+
+Debugging failures in constraint programs is unfortunately a very hard
+problem. A main problem is that the reasons behind a failure to find
+solutions might be very global in nature. As a very simple example, think of
+a ring of less-than constraints (x1 < x2 < ... < xn < x1). There is
+obviously no solution, but the failure depends on all the constraints.
+Removing any one of the constraints gives a solution (given that the initial
+domains admit a solution that is).
+
+One possibility would be for you to implement something like QuickXplain
+[1], which was developed for use in an interactive configuration system. The
+main idea is to find a minimal set of constraints that gives no solutions by
+repeatedly finding constraints that when added lead to failure. If your
+problems are not too hard, then this is probably a good idea and reasonably
+e to implement.
+
+Another possibility, that is more akin to what you are asking, would be to
+use the afc. Afc stands for accumulated failure count, and is used for
+branching heuristics. It simply records the number of times each propagator
+has reported a failure. Note that the afc is a heuristic measure, in that
+there might be many propagators that would have reported failure, but only
+one does so. Unfortunately, while you can access all the propagators and get
+their afc (using the Propagators class), there is no way native to Gecode to
+connect the propagator instances with your model level constraints. That
+means that you would have to modify Gecode itself to use the afc.
+
+Cheers,
+Mikael
+
+[1] http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472
+
+
+On Wed, Feb 24, 2010 at 8:51 PM, Adrian Secord <ajsecord at cs.nyu.edu> wrote:
+
+> Hi, all:
+>
+> My colleagues and I are working on a user interface research project that
+> uses Gecode internally to solve integer set problems.  Our experiences with
+> Gecode have been excellent; we are limited mostly by our lack of knowledge
+> in the field of constraint programming.
+>
+> In our application, the constraints in our problems come from the user via
+> a domain-appropriate user interface and we translate them into Gecode
+> equivalents.  The difficulty is that the user might specify constraints that
+> lead to no solutions being found at all.  Our users are not experts.
+>
+> What we'd like to do is give the user feedback about what they can do to
+> best fix the situation, or possibly fix the situation for them.  In
+> particular, the constraints that come from the user are not necessarily set
+> in stone -- they are vague and messy, a problem with humans. ;)  For our
+> application, it is far better to ignore a constraint and come up with some
+> solution than to not return a solution at all.  The user can then adjust and
+> iterate to get to a final solution.
+>
+> Is there some way to determine what was the "worst" or "tightest"
+> constraint after a solution search failed?  I'm looking for some indicator
+> that constraint A was easy to satisfy while constraint B was difficult to
+> satisfy.  If we had that then we could suggest that the user drop B, or drop
+> it automatically.
+>
+> I could probably do this crudely by iteratively dropping each constraint in
+> turn and counting the number of solutions obtained, but this seems
+> unsatisfying in many respects.
+>
+> Is something like this possible in Gecode?  It's similar in some sense to
+> the problem of soft constraints, but we don't need a full general solution.
+>
+> Any pointers or advice would be appreciated.
+>
+> Thanks!
+>
+> Adrian.
+>
+>
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist,
+http://www.ict.kth.se/~zayenz/<http://www.ict.kth.se/%7Ezayenz/>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100226/4cc46677/attachment.htm>
+
+From tack at gecode.org  Fri Feb 26 11:17:06 2010
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 26 Feb 2010 11:17:06 +0100
+Subject: [gecode-users] Recovering gracefully from a failed solution
+In-Reply-To: <63b5c8b01002260042y79f5e5d7o45898f74285f8a49@mail.gmail.com>
+References: <177D365B-877A-4EF8-8B17-28DBFC4BDFB5@cs.nyu.edu>
+	<63b5c8b01002260042y79f5e5d7o45898f74285f8a49@mail.gmail.com>
+Message-ID: <3DB3C08E-36B9-4FDF-A0CA-F536DE4ADE62@gecode.org>
+
+Hi,
+I just had the idea that maybe QuickXplain could take advantage of the afc values, even if you don't have the link between propagators and high-level constraints.  Simply take the afc of the variables, and first try the constraints that are linked to the variables with high afc.
+
+Cheers,
+	Guido
+
+Mikael Zayenz Lagerkvist wrote:
+
+> Hi,
+> 
+> Debugging failures in constraint programs is unfortunately a very hard problem. A main problem is that the reasons behind a failure to find solutions might be very global in nature. As a very simple example, think of a ring of less-than constraints (x1 < x2 < ... < xn < x1). There is obviously no solution, but the failure depends on all the constraints. Removing any one of the constraints gives a solution (given that the initial domains admit a solution that is).
+> 
+> One possibility would be for you to implement something like QuickXplain [1], which was developed for use in an interactive configuration system. The main idea is to find a minimal set of constraints that gives no solutions by repeatedly finding constraints that when added lead to failure. If your problems are not too hard, then this is probably a good idea and reasonably e to implement. 
+> 
+> Another possibility, that is more akin to what you are asking, would be to use the afc. Afc stands for accumulated failure count, and is used for branching heuristics. It simply records the number of times each propagator has reported a failure. Note that the afc is a heuristic measure, in that there might be many propagators that would have reported failure, but only one does so. Unfortunately, while you can access all the propagators and get their afc (using the Propagators class), there is no way native to Gecode to connect the propagator instances with your model level constraints. That means that you would have to modify Gecode itself to use the afc.
+> 
+> Cheers,
+> Mikael
+> 
+> [1] http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472
+> 
+> 
+> On Wed, Feb 24, 2010 at 8:51 PM, Adrian Secord <ajsecord at cs.nyu.edu> wrote:
+> Hi, all:
+> 
+> My colleagues and I are working on a user interface research project that uses Gecode internally to solve integer set problems.  Our experiences with Gecode have been excellent; we are limited mostly by our lack of knowledge in the field of constraint programming.
+> 
+> In our application, the constraints in our problems come from the user via a domain-appropriate user interface and we translate them into Gecode equivalents.  The difficulty is that the user might specify constraints that lead to no solutions being found at all.  Our users are not experts.
+> 
+> What we'd like to do is give the user feedback about what they can do to best fix the situation, or possibly fix the situation for them.  In particular, the constraints that come from the user are not necessarily set in stone -- they are vague and messy, a problem with humans. ;)  For our application, it is far better to ignore a constraint and come up with some solution than to not return a solution at all.  The user can then adjust and iterate to get to a final solution.
+> 
+> Is there some way to determine what was the "worst" or "tightest" constraint after a solution search failed?  I'm looking for some indicator that constraint A was easy to satisfy while constraint B was difficult to satisfy.  If we had that then we could suggest that the user drop B, or drop it automatically.
+> 
+> I could probably do this crudely by iteratively dropping each constraint in turn and counting the number of solutions obtained, but this seems unsatisfying in many respects.
+> 
+> Is something like this possible in Gecode?  It's similar in some sense to the problem of soft constraints, but we don't need a full general solution.
+> 
+> Any pointers or advice would be appreciated.
+> 
+> Thanks!
+> 
+> Adrian.
+> 
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20100226/eb0855b6/attachment.htm>
+

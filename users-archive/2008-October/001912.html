@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] staged search
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20staged%20search&In-Reply-To=%3C63b5c8b00810082305j25ece5b6lb15f25708c0e2ca2%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001911.html">
+   <LINK REL="Next"  HREF="001913.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] staged search</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20staged%20search&In-Reply-To=%3C63b5c8b00810082305j25ece5b6lb15f25708c0e2ca2%40mail.gmail.com%3E"
+       TITLE="[gecode-users] staged search">zayenz at gmail.com
+       </A><BR>
+    <I>Thu Oct  9 08:05:32 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001911.html">[gecode-users] staged search
+</A></li>
+        <LI>Next message: <A HREF="001913.html">[gecode-users] staged search
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1912">[ date ]</a>
+              <a href="thread.html#1912">[ thread ]</a>
+              <a href="subject.html#1912">[ subject ]</a>
+              <a href="author.html#1912">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On Thu, Oct 9, 2008 at 12:19 AM, Denys Duchier
+&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">denys.duchier at univ-orleans.fr</A>&gt; wrote:
+&gt;<i> Ah! that would be great... but, I am afraid that I am a little too
+</I>&gt;<i> stupid (and short on time) to figure it out on my own.  Is there an
+</I>&gt;<i> example I can look at, that would help me understand how to do this?
+</I>
+Hi,
+
+First of all, there are two examples in Gecode that come with custom
+branchings, Black hole patience and Peaceable Coexisting Armies of
+Queens.
+
+However, I got interested in your discussion, and started thinking
+about how it could be done in a nice way. By constructing a unary
+branching that stores a member function pointer to a function in the
+space, you can get you desired functionality. I tried it (code below),
+and it works just as you wanted. The code solves the Queens-problem,
+but you could  modify it for any other problem, member-functions that
+take parameters, and so on.
+
+Searching for the first solution for Queens-6 using generate-and-test
+takes about 12 thousand failures. A pdf from Gist of the search-tree
+is at <A HREF="http://www.ict.kth.se/~zayenz/gentest.pdf.">http://www.ict.kth.se/~zayenz/gentest.pdf.</A> You can see where the
+two MemberFunctionBranchings kick in since they are unary (the first
+adds the real branching and the propagator-adding branching, the
+second adds the propagators).
+
+Cheers,
+Mikael
+
+&lt;code&gt;
+/* -*- mode: C++; c-basic-offset: 2; indent-tabs-mode: nil -*- */
+/*
+ *  Main authors:
+ *     Mikael Lagerkvist &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">lagerkvist at gecode.org</A>&gt;
+ *
+ *  Copyright:
+ *     Mikael Lagerkvist, 2008
+ *
+ *  Last modified:
+ *     $Date: 2008-10-09 07:48:15 +0200 (Wed, 09 Oct 2008) $ by
+$Author: zayenz $
+ *     $Revision: 7912 $
+ *
+ *  This file is part of Gecode, the generic constraint
+ *  development environment:
+ *     <A HREF="http://www.gecode.org">http://www.gecode.org</A>
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining
+ *  a copy of this software and associated documentation files (the
+ *  &quot;Software&quot;), to deal in the Software without restriction, including
+ *  without limitation the rights to use, copy, modify, merge, publish,
+ *  distribute, sublicense, and/or sell copies of the Software, and to
+ *  permit persons to whom the Software is furnished to do so, subject to
+ *  the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ *  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ *  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ *  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#include &quot;examples/support.hh&quot;
+#include &lt;gecode/minimodel.hh&gt;
+
+/** \brief Branching for calling a space member function.
+ */
+template &lt;class Model&gt;
+class MemberFunctionBranch : Branching {
+public:
+  /// Type of the member-function to call
+  typedef void (Model::*MemberFunction)();
+private:
+  /// Member function to call
+  MemberFunction mf;
+  /// Call member function just once
+  bool done;
+  /// Minimal branching description storing no information
+  struct Description : public BranchingDesc {
+    /// Initialize description for branching \a b, number of alternatives \a a.
+    Description(const Branching* b, unsigned int a) : BranchingDesc(b,a) {}
+    /// Report size occupied
+    virtual size_t size(void) const {
+      return sizeof(Description);
+    }
+  };
+
+  /// Construct branching
+  MemberFunctionBranch(Space* home, MemberFunction mf0)
+    : Branching(home), mf(mf0), done(false) {}
+  /// Copy constructor
+  MemberFunctionBranch(Space* home, bool share,
+                       MemberFunctionBranch&lt;Model&gt;&amp; b)
+    : Branching(home, share, b), mf(b.mf), done(b.done) {}
+
+public:
+  /// Check status of branching, return true if alternatives left.
+  virtual bool status(const Space*) const {
+    return !done;
+  }
+  /// Return branching description
+  virtual BranchingDesc* description(const Space*) const {
+    assert(!done);
+    return new Description(this, 1);
+  }
+  /// Perform commit
+  virtual ExecStatus commit(Space* home, const BranchingDesc*,
+                            unsigned int) {
+    done = true;
+    Model* model = static_cast&lt;Model*&gt;(home);
+    (void) (model-&gt;*mf)();
+    return ES_OK;
+  }
+  /// Copy branching
+  virtual Actor* copy(Space* home, bool share) {
+    return new (home) MemberFunctionBranch(home, share, *this);
+  }
+  /// Reflection name
+  virtual const char* name(void) const {
+    return &quot;MemberFunctionBranch&quot;;
+  }
+  /// Post branching
+  static void post(Space* home, MemberFunction mf) {
+    (void) new (home) MemberFunctionBranch&lt;Model&gt;(home,mf);
+  }
+};
+
+
+/**
+ * \brief %Example: n-%Queens puzzle with member function branchings
+ *
+ * \ingroup ExProblem
+ */
+class QueensMF : public Example {
+protected:
+  /// Position of queens on boards
+  IntVarArray q;
+public:
+  void addbranch(void) {
+    branch(this, q, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+    MemberFunctionBranch&lt;QueensMF&gt;::post(this, &amp;QueensMF::addprop);
+  }
+  void addprop(void) {
+    const int n = q.size();
+    for (int i = 0; i&lt;n; i++)
+      for (int j = i+1; j&lt;n; j++) {
+        post(this, q[i] != q[j]);
+        post(this, q[i]+i != q[j]+j);
+        post(this, q[i]-i != q[j]-j);
+      }
+  }
+  /// The actual problem
+  QueensMF(const SizeOptions&amp; opt)
+    : q(this,opt.size(),0,opt.size()-1) {
+    MemberFunctionBranch&lt;QueensMF&gt;::post(this, &amp;QueensMF::addbranch);
+  }
+
+  /// Constructor for cloning \a s
+  QueensMF(bool share, QueensMF&amp; s) : Example(share,s) {
+    q.update(this, share, s.q);
+  }
+
+  /// Perform copying during cloning
+  virtual Space*
+  copy(bool share) {
+    return new QueensMF(share,*this);
+  }
+
+  /// Print solution
+  virtual void
+  print(std::ostream&amp; os) {
+    os &lt;&lt; &quot;\t&quot;;
+    for (int i = 0; i &lt; q.size(); i++) {
+      os &lt;&lt; q[i] &lt;&lt; &quot;, &quot;;
+      if ((i+1) % 10 == 0)
+        os &lt;&lt; std::endl &lt;&lt; &quot;\t&quot;;
+    }
+    os &lt;&lt; std::endl;
+  }
+
+  /// Make variables available for visualisation
+  virtual void
+  getVars(Gecode::Reflection::VarMap&amp; vm, bool registerOnly) {
+    vm.putArray(this,q,&quot;q&quot;, registerOnly);
+  }
+};
+
+/** \brief Main-function
+ *  \relates QueensMF
+ */
+int
+main(int argc, char* argv[]) {
+  SizeOptions opt(&quot;QueensMF&quot;);
+  opt.iterations(500);
+  opt.size(6);
+  opt.parse(argc,argv);
+  Example::run&lt;QueensMF,DFS,SizeOptions&gt;(opt);
+  return 0;
+}
+
+// STATISTICS: example-any
+&lt;/code&gt;
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001911.html">[gecode-users] staged search
+</A></li>
+	<LI>Next message: <A HREF="001913.html">[gecode-users] staged search
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1912">[ date ]</a>
+              <a href="thread.html#1912">[ thread ]</a>
+              <a href="subject.html#1912">[ subject ]</a>
+              <a href="author.html#1912">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

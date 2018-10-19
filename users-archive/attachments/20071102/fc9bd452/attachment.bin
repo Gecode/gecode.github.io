@@ -1,0 +1,262 @@
+/* -*- indent-tabs-mode: nil -*- */
+/*
+ *  Main authors:
+ *     Mikael Lagerkvist <lagerkvist@gecode.org>
+ *     Guido Tack <tack@gecode.org>
+ *
+ *  Copyright:
+ *     Mikael Lagerkvist, 2006
+ *     Guido Tack, 2006
+ *
+ *  Last modified:
+ *     $Date: 2006-10-31 16:52:38 +0100 (Tue, 31 Oct 2006) $ by $Author: zayenz $
+ *     $Revision: 3843 $
+ *
+ *  This file is part of Gecode, the generic constraint
+ *  development environment:
+ *     http://www.gecode.org
+ *
+ *  See the file "LICENSE" for information on usage and
+ *  redistribution of this file, and for a
+ *     DISCLAIMER OF ALL WARRANTIES.
+ *
+ */
+
+
+import static org.gecode.Gecode.*;
+import static org.gecode.GecodeEnumConstants.*;
+
+import org.gecode.*;
+
+import java.util.ArrayList;
+
+/** This class implements a propagator for the not-equals constraint.
+ *
+ * \relates QueensJavaPropagator
+ */
+class Nq extends BinaryPropagator<IntVarView> {
+  public Nq(Space s, IntVarView x0, IntVarView y0) {
+    super(s, x0, y0, PC_INT_VAL);
+  }
+  public Nq(Space s, Boolean share, Nq p) {
+    super(s, share, p);
+  }
+  public PropCost cost() {
+    return PC_BINARY_HI;
+  }
+  public ExecStatus setup(Space home) { 
+    if (x.assigned() && y.assigned() && x.min()==y.min())
+      return ES_FAILED;
+    return super.setup(home);
+  }
+  public ExecStatus propagate(Space home) {
+    if (x.assigned()) {
+      return t(y.nq(home, x.min()), ES_SUBSUMED);
+    } else { // y is assigned
+      return t(x.nq(home, y.min()), ES_SUBSUMED);
+    }
+  }
+
+  static void post(Space home, IntVar x, IntVar y) {
+    Gecode.addPropagator(home, 
+                         new Nq(home, 
+                                new IntVarView(home, x), 
+                                new IntVarView(home, y)));
+  }
+}
+
+/** This class implements a value-consistent propagator for the
+ * distinct-constraint.
+ *
+ * \relates QuensJavaPropagator
+ */
+class Distinct<IV extends IntView> extends NaryPropagator<IV> {
+  private int n;
+
+  public Distinct(Space s, ViewArray<IV> iv0) {
+    super(s, iv0, PC_INT_VAL);
+    n = iv.size()-1;
+  }
+  public Distinct(Space s, Boolean share,
+                  Distinct<IV> p) {
+    super(s, share, p);
+    n = p.n;
+  }
+  public PropCost cost() {
+    return cost_hi(n, PC_LINEAR_HI);
+  }
+  public ExecStatus propagate(Space home) {
+    for (int i=0; i<=n; i++) {
+      if (iv.get(i).assigned()) {
+        int v = iv.get(i).val();
+        for (int j=0; j<i; j++) {
+          if (iv.get(j).nq(home, v).failed())
+            return ES_FAILED;
+        }
+        for (int j=i+1; j<=n; j++) {
+          if (iv.get(j).nq(home, v).failed())
+            return ES_FAILED;
+        }
+        iv.swap(i, n);
+        n--;
+        i--;
+      }
+    }
+    return ES_NOFIX;
+  }
+
+  /** Post a simple distinct-constraint.
+   */
+  static void post(Space home, VarArray<IntVar> x) {
+    ViewArray<IntVarView> xa = new ViewArray<IntVarView>(home, IntVarView.class, x);
+
+    Gecode.addPropagator(home,
+                         new Distinct<IntVarView>(home, xa));
+  }
+    
+  /** Post a distinct-constraint with offsets for the variables.
+   */
+  static void post(Space home, int[] off, VarArray<IntVar> x) {
+    ViewArray<OffsetView<IntVarView>> xa =
+      new ViewArray<OffsetView<IntVarView>>(x.size());
+    for (int i=0; i<x.size(); i++)
+      xa.add(new OffsetView<IntVarView>
+             (home, off[i], new IntVarView(home, x.get(i))));
+        
+    Gecode.addPropagator(home,
+                         new Distinct<OffsetView<IntVarView>>(home,
+                                                              xa));
+
+  }
+}
+
+/** This class implements a naive branching.
+ * <p>
+ * It is equivalent to using BVAR_NONE combined with BVAL_MIN.
+ *
+ * \relates QueensJavaPropagator
+ */
+class Naive extends Branching {
+  private ViewArray<IntVarView> x;
+    
+  private ExecStatus t(IntModEvent ime) {
+    return ime.failed()
+      ? ES_FAILED : ES_OK;
+  }
+
+  public Naive(Space home, VarArray<IntVar> x0) {
+    x = new ViewArray<IntVarView>(home, IntVarView.class, x0);
+  }
+
+  private Naive(Space home, Boolean share, Naive n) {
+    x = new ViewArray<IntVarView>(home, share, n.x);
+  }
+
+  public boolean status(Space home) {
+    return (!x.assigned());
+  }
+
+  public JavaBranchingDesc description(Space home) {
+    int index = 0;
+    for (IntVarView v: x) {
+      if (!v.assigned()) {
+        return new JavaBranchingDesc(index, v.min());
+      }
+      index++;
+    }
+    return null;
+  }
+
+  public ExecStatus commit(Space home, JavaBranchingDesc d, long a) {
+    if (a==0) {
+      return t(x.get(d.pos()).eq(home, d.val()));
+    } else {
+      return t(x.get(d.pos()).nq(home, d.val()));
+    }
+  }
+
+  public static void post(Space home, VarArray<IntVar> x) {
+    Gecode.addBranching(home, new Naive(home, x));
+  }
+}
+
+/** Script for the n-Queens puzzle.
+ * <p>
+ * This script uses propagators and branchings implemented in Java
+ * instead of the ones provided by Gecode.
+ *
+ * \ingroup Example
+ */
+public class QueensJavaPropagator extends Space {
+  private int n;
+  private VarArray<IntVar> q;
+
+  public QueensJavaPropagator(int size) {
+    super();
+    n = size;
+    q = new VarArray<IntVar>(this, size, IntVar.class, 0, n-1);
+        
+   /* int c[] = new int[n];
+
+    for (int i=0; i<n; i++)
+      c[i] = i;
+    Distinct.post(this, c, q);
+
+    for (int i=0; i<n; i++)
+      c[i] = -i;
+    Distinct.post(this, c, q);
+
+    Distinct.post(this, q);*/
+    
+    Naive.post(this, q);
+  }
+
+  public QueensJavaPropagator(Boolean share, QueensJavaPropagator queens) {
+    super(share, queens);
+    n = queens.n;
+    q = new VarArray<IntVar>(this, share, queens.q);
+  }
+
+  public String toString() {
+    String res = "";
+        
+    for (int i = 0; i < n; ++i) {
+      char[] l = new char[n];
+      for (int j=0;j<n;++j) l[j] = '\u00B7';
+
+      if (q.get(i).assigned()) {
+        l[q.get(i).val()] = 'Q';
+      } else {
+        for (Range r : new IntVarRanges(q.get(i)))
+          for (int j : r)
+            l[j] = 'q';
+      }
+      res += new String(l);
+      res += "\n";
+    }
+    return res;
+  }
+
+  public static void main(String[] args) {
+    double sumTime = 0;
+    int n=600;
+    int iter=10;
+    // Runtime r = Runtime.getRuntime();
+    for (int i = 0; i < iter ; i++) {
+		Options opt = new Options("Queens");
+		opt.size = n;
+		opt.gui = false;
+		opt.print = false;
+		opt.parse(args);
+		
+	// r.gc();	
+	double time = System.currentTimeMillis();	
+    QueensJavaPropagator queens = new QueensJavaPropagator(opt.size);
+    opt.doSearch(queens);
+    time = System.currentTimeMillis() - time;    
+		sumTime+=time;
+		System.out.println("["+i+"> " + time);	   
+    }
+    System.out.println("Moyenne " + sumTime/iter);
+  } 
+}

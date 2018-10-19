@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] dynamic cost calculation
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20dynamic%20cost%20calculation&In-Reply-To=%3C487891458.12436.1523292790452.JavaMail.www%40wwinf1t14%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="005029.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] dynamic cost calculation</H1>
+    <B>aqwzsxaqwzsx at orange.fr</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20dynamic%20cost%20calculation&In-Reply-To=%3C487891458.12436.1523292790452.JavaMail.www%40wwinf1t14%3E"
+       TITLE="[gecode-users] dynamic cost calculation">aqwzsxaqwzsx at orange.fr
+       </A><BR>
+    <I>Mon Apr  9 18:53:10 CEST 2018</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="005029.html">[gecode-users]  dynamic cost calculation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5026">[ date ]</a>
+              <a href="thread.html#5026">[ thread ]</a>
+              <a href="subject.html#5026">[ subject ]</a>
+              <a href="author.html#5026">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello,
+
+I've a problem solved with gecode where jobs must be assigned to person.
+Each (job, person) has it own cost statically given. The implementation
+looks like :
+// --------------------------------------------------------------
+   _j(*this, _nb_jobs, 0, _nb_persons - 1)
+ 
+   int _cost[] =
+      {
+         9,  2,  7,  8,
+         6,  4,  3,  7,
+         5,  8,  1,  8,
+         7,  6,  9,  4,
+      };
+ 
+   IntArgs cost(_nb_persons*_nb_jobs, _cost);
+   distinct(*this, _j);
+ 
+   for (int i = 0 ; i &lt; _nb_jobs ; ++i)
+   {
+      C &lt;&lt; expr(*this, element(cost_m.col(i), _j[i]));
+  }
+   _total_cost = expr(*this, sum(C));
+   JobBrancher::post(*this, _j);
+// --------------------------------------------------------------  
+ 
+The problem is that the _cost must be precomputed. To enable a dynamic
+cost computation (and to prepare futher improvement),
+i've modified the code this way  :
+      
+// --------------------------------------------------------------
+   _cost(*this, _nb_persons, 0, 10)  // a IntVarArray
+   JobBrancher::post(*this, _j, _cost, _nb_jobs, _nb_persons);
+// --------------------------------------------------------------
+  
+And :
+1) compute dynamically the cost in JobBrancher::choice
+2) call me_failed(_costs_views[choice._person].eq(home, choice._cost))
+   In JobBrancher::commit (for job/person affectation)
+3) call me_failed(_jobs_views[choice._job].eq(home, choice._person))
+   In JobBrancher::commit (to compute the _total_cost)
+  
+The problem is that solution can be found without having an
+assigned cost. This produce a Int::ValOfUnassignedVar as stated
+in MPG.
+ 
+I've tried to set all unassigned cost in JobBrancher::commit
+(not only the one corresponding to the choice person/job)
+just to make a try but it doesn't work :
+ 
+// --------------------------------------------------------------
+for(int i = 0 ; i &lt; choice._costs.size() ; ++i)
+{
+   const JobChoice::Info &amp; elem = choice._costs[i];
+   const int p = elem.person;
+   const int c = elem.cost;
+ 
+   if (! _costs_views[p].assigned())
+   {
+      has_failed = me_failed(_costs_views[p].eq(home, c));
+      if (has_failed)
+      {
+         return Gecode::ES_FAILED;
+      }
+   }
+}
+ 
+return Gecode::ES_OK;
+// --------------------------------------------------------------
+ 
+The first affectation seems to works. After that, i see under gist
+that the first branch is infinitely explored without any change.
+Can someone explain me what i'm doing wrong and how to correct it ?
+ 
+Thanks
+Philippe.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="005029.html">[gecode-users]  dynamic cost calculation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5026">[ date ]</a>
+              <a href="thread.html#5026">[ thread ]</a>
+              <a href="subject.html#5026">[ subject ]</a>
+              <a href="author.html#5026">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

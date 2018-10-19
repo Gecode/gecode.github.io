@@ -1,0 +1,38 @@
+#include <iostream>
+#include "gecode/minimodel.hh"
+#include "gecode/search.hh"
+
+using namespace std;
+using namespace Gecode;
+
+class Space2 : public Space {
+public : 
+    IntVar v;
+    Space2() : v(this,0,1) {}
+    Space2(bool share,Space2& ms) : Space(share,ms) {
+        v.update(this,true,ms.v);
+    }
+    Space2* copy(bool share) {return new Space2(share,*this);}
+};
+
+int main() {
+    Space2* S1 = new Space2();
+    
+    IntVarArgs v(1);
+    v[0] = S1->v;
+    
+    Space2* S2=static_cast<Space2*>(S1->clone());
+    
+    IntVarArgs w(v.size());
+    w[0].update(S2,true,v[0]);
+    branch(S2,w,INT_VAR_SIZE_MIN,INT_VAL_MIN);
+    
+    DFS<Space2> moteur(S2);
+    
+    Space2* solution = moteur.next();
+    while (solution != NULL) {
+        cout<<(solution->v)<<endl;
+        solution=moteur.next();
+    }
+    return 0;
+}

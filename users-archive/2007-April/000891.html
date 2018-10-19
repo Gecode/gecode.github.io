@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Attempt to invoke operation on failed space?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Attempt%20to%20invoke%20operation%20on%20failed%20space%3F&In-Reply-To=%3C63b5c8b00704180807q5f787785t45ca1d7df1d94ccc%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000890.html">
+   <LINK REL="Next"  HREF="000894.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Attempt to invoke operation on failed space?</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Attempt%20to%20invoke%20operation%20on%20failed%20space%3F&In-Reply-To=%3C63b5c8b00704180807q5f787785t45ca1d7df1d94ccc%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Attempt to invoke operation on failed space?">zayenz at gmail.com
+       </A><BR>
+    <I>Wed Apr 18 17:07:04 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000890.html">[gecode-users] Attempt to invoke operation on failed space?
+</A></li>
+        <LI>Next message: <A HREF="000894.html">[gecode-users] Attempt to invoke operation on failed space?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#891">[ date ]</a>
+              <a href="thread.html#891">[ thread ]</a>
+              <a href="subject.html#891">[ subject ]</a>
+              <a href="author.html#891">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+When the search-procedure recomputes a node, it will not follow
+exactly the same path as the first time - several branching decisions
+are added at once and then a fixpoint is computed (this is called
+batch recomputation). If this fails, the an error such as the one you
+observed might be thrown. This is one potential cause for your
+problem.
+
+One of the key properties that Gecode uses for enabling batch
+recomputation this is that propagators should be monotonic. Typical
+cases where propagators are non-monotonic might be: not subscribing to
+all events used, using heuristic/random propagation algorithms,
+reporting ES_FIX when that is not the case, and of course general
+bugs.
+
+The first issue is rather interesting. Subscriptions using propagation
+conditions can be viewed as a contract between the propagator and the
+system: all propagations that are done depend only on the information
+given, and when less specific events occur nothing can be done.
+
+The third issue can be more tricky than one expects. If a variable
+occurs multiply, then most usual idempotence reasonings go out the
+window. Also, for bounds propagators, one must be watchful of &quot;falling
+into holes in the domains&quot;. For example, given x={1..2, 5..7}, telling
+x&gt;3 will not lead to min(x)==4 as one could expect for pure
+range-reasoning.
+
+
+As for finding the problem in your propagator, I would recommend for
+you to use the testing-infrastructure provided in Gecode. The tests
+will interleave propagation and pruning to test that the propagator
+really obeys all properties that it must. A test is specified as a
+pair of functions for checking if an assignment is a solution to the
+constraint, and a function for posting the constraint. For an example
+to modify, see gecode_directory/test/int/distinct.cc.
+
+
+Hope this helps,
+Mikael
+
+
+On 4/18/07, Peter Tiedemann &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">petert at itu.dk</A>&gt; wrote:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I was wondering what the common causes were of the above error?
+</I>&gt;<i>
+</I>&gt;<i> Im running a DFS search on an unsolvable problem, and have a global
+</I>&gt;<i> constraint of my own design, along with some distinct constraints.
+</I>&gt;<i>
+</I>&gt;<i> Some time into the search, i return ES_FAILED from my propagate
+</I>&gt;<i> function(not for the first time), which is usually followed by a my
+</I>&gt;<i> propagators copy constructor being called, followed by my Space's copy
+</I>&gt;<i> method. However, in this case i get:
+</I>&gt;<i> &quot;Exception: Space::clone: Attempt to invoke operation on failed space.&quot;
+</I>&gt;<i>
+</I>&gt;<i> just after my propagate method returns ES_FAILED.
+</I>&gt;<i>
+</I>&gt;<i> I realize that im not providing adequate information to debug this
+</I>&gt;<i> problem, but perhaps you could give me a hint on what could cause
+</I>&gt;<i> this?
+</I>&gt;<i>
+</I>&gt;<i> Regards
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000890.html">[gecode-users] Attempt to invoke operation on failed space?
+</A></li>
+	<LI>Next message: <A HREF="000894.html">[gecode-users] Attempt to invoke operation on failed space?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#891">[ date ]</a>
+              <a href="thread.html#891">[ thread ]</a>
+              <a href="subject.html#891">[ subject ]</a>
+              <a href="author.html#891">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

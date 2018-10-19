@@ -1,0 +1,87 @@
+#include "examples/support.hh"
+#include "gecode/minimodel.hh"
+
+class ArrayEx : public Example {
+private:
+  /// Array size
+  int n;
+  /// Array 
+  IntVarArray A;
+  IntVarArray B;
+  IntVarArray C;
+public:
+  ArrayEx(const Options& opt) :
+    n(opt.size),
+    A(this,n,1,n*n), B(this,n,1,n*n), C(this, n-1, 0,n-1)  {
+
+    // fix B to contain squares to see that we assign something to A
+    for (int i = 0; i < n; i++) 
+      rel(this, B[i], IRT_EQ, (i + 1)*(i + 1));
+
+    // make C disticint so that C covers indices 
+    distinct(this, C, opt.icl);
+  
+    // due to index shift i - 1 for C start with i = 1
+    for (int i = 1; i < n; i++) {
+        element(this, B, C[i-1], A[i], opt.icl);
+    }
+
+    branch(this, A, BVAR_NONE, BVAL_MIN);
+  }
+
+  ArrayEx(bool share, ArrayEx& s) : Example(share,s), n(s.n)  {
+    A.update(this, share, s.A);
+    B.update(this, share, s.B);
+    C.update(this, share, s.C);
+  }
+
+  virtual Space*
+  copy(bool share) {
+    return new ArrayEx(share,*this);
+  }
+
+  virtual void
+  print(void) {
+    std::cout << "A\t";
+    for (int i = 0; i < n; i++) {
+      if (A[i].assigned()) {
+        std::cout << A[i] << ' ';
+      } else {
+        std::cout << "  ";
+      }
+    }
+    std::cout << std::endl;
+    std::cout << "B\t";
+    for (int i = 0; i < n; i++)  
+      std::cout << B[i] << ' ';
+    std::cout << std::endl;
+    std::cout << "C\t";
+    for (int i = 0; i < n-1; i++) 
+      std::cout << C[i] << " ";
+    std::cout << std::endl;
+
+    for (int i = 1; i < n; i++) {
+      std::cout << "i=" << i << " (A[i],C[i-1],B[C[i-1]])=";
+      std::cout << "(" << A[i] << "," << C[i-1] << ",";
+      std::cout << B[C[i-1].val()] << ")\n";
+    }
+    
+  }
+
+};
+
+
+/** \brief Main-function
+ *  \relates ArrayEx
+ */
+int
+main(int argc, char** argv) {
+  Options opt("ArrayEx");
+  opt.solutions  = 1;
+  opt.icl = ICL_DOM;
+  opt.parse(argc,argv);
+  Example::run<ArrayEx,DFS>(opt);
+  return 0;
+}
+
+// STATISTICS: example-any

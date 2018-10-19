@@ -1,0 +1,252 @@
+Index: gecode/scheduling/cumulative.hh
+===================================================================
+--- gecode/scheduling/cumulative.hh	(revision 11537)
++++ gecode/scheduling/cumulative.hh	(working copy)
+@@ -665,9 +665,9 @@
+    * \ingroup FuncSchedulingProp
+    */
+   template<class ManTask>
+-  class ManProp : public TaskProp<ManTask,Int::PC_INT_DOM> {
++  class ManProp : public TaskProp<ManTask,Int::PC_INT_BND> {
+   protected:
+-    using TaskProp<ManTask,Int::PC_INT_DOM>::t;
++    using TaskProp<ManTask,Int::PC_INT_BND>::t;
+     /// Resource capacity
+     int c;
+     /// Constructor for creation
+@@ -692,9 +692,9 @@
+    * \ingroup FuncSchedulingProp
+    */
+   template<class OptTask>
+-  class OptProp : public TaskProp<OptTask,Int::PC_INT_DOM> {
++  class OptProp : public TaskProp<OptTask,Int::PC_INT_BND> {
+   protected:
+-    using TaskProp<OptTask,Int::PC_INT_DOM>::t;
++    using TaskProp<OptTask,Int::PC_INT_BND>::t;
+     /// Resource capacity
+     int c;
+     /// Constructor for creation
+Index: gecode/scheduling/cumulative/man-prop.hpp
+===================================================================
+--- gecode/scheduling/cumulative/man-prop.hpp	(revision 11537)
++++ gecode/scheduling/cumulative/man-prop.hpp	(working copy)
+@@ -40,13 +40,13 @@
+   template<class ManTask>
+   forceinline
+   ManProp<ManTask>::ManProp(Home home, int c0, TaskArray<ManTask>& t)
+-    : TaskProp<ManTask,Int::PC_INT_DOM>(home,t), c(c0) {}
++    : TaskProp<ManTask,Int::PC_INT_BND>(home,t), c(c0) {}
+ 
+   template<class ManTask>
+   forceinline
+   ManProp<ManTask>::ManProp(Space& home, bool shared, 
+                             ManProp<ManTask>& p) 
+-    : TaskProp<ManTask,Int::PC_INT_DOM>(home,shared,p), c(p.c) {}
++    : TaskProp<ManTask,Int::PC_INT_BND>(home,shared,p), c(p.c) {}
+ 
+   template<class ManTask>
+   forceinline ExecStatus 
+@@ -69,7 +69,7 @@
+   template<class ManTask>  
+   forceinline size_t 
+   ManProp<ManTask>::dispose(Space& home) {
+-    (void) TaskProp<ManTask,Int::PC_INT_DOM>::dispose(home);
++    (void) TaskProp<ManTask,Int::PC_INT_BND>::dispose(home);
+     return sizeof(*this);
+   }
+ 
+Index: gecode/scheduling/cumulative/opt-prop.hpp
+===================================================================
+--- gecode/scheduling/cumulative/opt-prop.hpp	(revision 11537)
++++ gecode/scheduling/cumulative/opt-prop.hpp	(working copy)
+@@ -42,12 +42,12 @@
+   template<class OptTask>
+   forceinline
+   OptProp<OptTask>::OptProp(Home home, int c0, TaskArray<OptTask>& t)
+-    : TaskProp<OptTask,Int::PC_INT_DOM>(home,t), c(c0) {}
++    : TaskProp<OptTask,Int::PC_INT_BND>(home,t), c(c0) {}
+ 
+   template<class OptTask>
+   forceinline
+   OptProp<OptTask>::OptProp(Space& home, bool shared, OptProp<OptTask>& p) 
+-    : TaskProp<OptTask,Int::PC_INT_DOM>(home,shared,p), c(p.c) {}
++    : TaskProp<OptTask,Int::PC_INT_BND>(home,shared,p), c(p.c) {}
+ 
+   template<class OptTask>
+   forceinline ExecStatus 
+@@ -84,7 +84,7 @@
+   template<class OptTask>  
+   forceinline size_t 
+   OptProp<OptTask>::dispose(Space& home) {
+-    (void) TaskProp<OptTask,Int::PC_INT_DOM>::dispose(home);
++    (void) TaskProp<OptTask,Int::PC_INT_BND>::dispose(home);
+     return sizeof(*this);
+   }
+ 
+@@ -93,7 +93,7 @@
+   OptProp<OptTask>::propagate(Space& home, const ModEventDelta& med) {
+     // Did one of the Boolean views change?
+     if (Int::BoolView::me(med) == Int::ME_BOOL_VAL)
+-      GECODE_ES_CHECK((purge<OptTask,Int::PC_INT_DOM>(home,*this,t)));
++      GECODE_ES_CHECK((purge<OptTask,Int::PC_INT_BND>(home,*this,t)));
+     // Only bounds changes?
+     if (Int::IntView::me(med) != Int::ME_INT_DOM)
+       GECODE_ES_CHECK(overload(home,c,t));
+Index: gecode/scheduling/cumulative/basic.hpp
+===================================================================
+--- gecode/scheduling/cumulative/basic.hpp	(revision 11537)
++++ gecode/scheduling/cumulative/basic.hpp	(working copy)
+@@ -43,11 +43,9 @@
+     /// Event type for task with order in which they are processed
+     enum Type {
+       LRT = 0, ///< Latest required time of task
+-      LCT = 1, ///< Latest completion time of task
+-      EST = 2, ///< Earliest start time of task
+-      ZRO = 3, ///< Zero-length task start time
+-      ERT = 4, ///< Earliest required time of task
+-      END = 5  ///< End marker
++      ZRO = 1, ///< Zero-length task start time
++      ERT = 2, ///< Earliest required time of task
++      END = 3  ///< End marker
+     };
+     Type e; ///< Type of event
+     int t;  ///< Time of event
+@@ -58,14 +56,6 @@
+     bool operator <(const Event& e) const;
+   };
+ 
+-  /// Sort order for tasks by decreasing capacity
+-  template<class Task>
+-  class TaskByDecCap {
+-  public:
+-    /// Sort order
+-    bool operator ()(const Task& t1, const Task& t2) const;
+-  };
+-
+   forceinline void
+   Event::init(Event::Type e0, int t0, int i0) {
+     e=e0; t=t0; i=i0;
+@@ -78,57 +68,30 @@
+     return this->t < e.t;
+   }
+ 
++  // Basic subsumption check
+   template<class Task>
+-  forceinline bool
+-  TaskByDecCap<Task>::operator ()(const Task& t1, const Task& t2) const {
+-    return t1.c() > t2.c();
+-  }
+-
+-
+-  // Basic propagation
+-  template<class Task>
+   ExecStatus
+   basic(Space& home, Propagator& p, int c, TaskArray<Task>& t) {
+-    // Sort tasks by decreasing capacity
+-    TaskByDecCap<Task> tbdc;
+-    Support::quicksort(&t[0], t.size(), tbdc);
+-
+     Region r(home);
+ 
+-    Event* e = r.alloc<Event>(4*t.size()+1);
++    Event* e = r.alloc<Event>(2*t.size()+1);
+ 
+     // Initialize events
+-    bool assigned=true;
+     {
+-      bool required=false;
+       int n=0;
+       for (int i=t.size(); i--; ) 
+         if (t[i].assigned()) {
+           // Only add required part
+           if (t[i].pmin() > 0) {
+-            required = true;
+             e[n++].init(Event::ERT,t[i].lst(),i);
+             e[n++].init(Event::LRT,t[i].ect(),i);
+           } else if (t[i].pmax() == 0) {
+-            required = true;
+             e[n++].init(Event::ZRO,t[i].lst(),i);
+           }
+         } else {
+-          assigned = false;
+-          e[n++].init(Event::EST,t[i].est(),i);
+-          e[n++].init(Event::LCT,t[i].lct(),i);
+-          // Check whether task has required part
+-          if (t[i].lst() < t[i].ect()) {
+-            required = true;
+-            e[n++].init(Event::ERT,t[i].lst(),i);
+-            e[n++].init(Event::LRT,t[i].ect(),i);
+-          }
++          return ES_NOFIX;
+         }
+       
+-      // Check whether no task has a required part
+-      if (!required)
+-        return assigned ? home.ES_SUBSUMED(p) : ES_FIX;
+-      
+       // Write end marker
+       e[n++].init(Event::END,Int::Limits::infinity,-1);
+       
+@@ -136,9 +99,6 @@
+       Support::quicksort(e, n);
+     }
+ 
+-    // Set of current but not required tasks
+-    Support::BitSet<Region> tasks(r,static_cast<unsigned int>(t.size()));
+-
+     // Process events, use c as the capacity that is still free
+     while (e->e != Event::END) {
+       // Current time
+@@ -146,47 +106,25 @@
+ 
+       // Process events for completion of required part
+       for ( ; (e->t == time) && (e->e == Event::LRT); e++) 
+-        if (t[e->i].mandatory()) {
+-          tasks.set(static_cast<unsigned int>(e->i)); c += t[e->i].c();
+-        }
+-      // Process events for completion of task
+-      for ( ; (e->t == time) && (e->e == Event::LCT); e++)
+-        tasks.clear(static_cast<unsigned int>(e->i));
+-      // Process events for start of task
+-      for ( ; (e->t == time) && (e->e == Event::EST); e++)
+-        tasks.set(static_cast<unsigned int>(e->i));
++        if (t[e->i].mandatory())
++          c += t[e->i].c();
++
+       // Process events for zero-length task
+       for ( ; (e->t == time) && (e->e == Event::ZRO); e++)
+         if (c < t[e->i].c())
+           return ES_FAILED;
+ 
+-      // norun start time for 0-length tasks
+-      int zltime = time;
+       // Process events for start of required part
+       for ( ; (e->t == time) && (e->e == Event::ERT); e++) 
+         if (t[e->i].mandatory()) {
+-          tasks.clear(static_cast<unsigned int>(e->i)); 
+-          c -= t[e->i].c(); zltime = time+1;
++          c -= t[e->i].c();
+           if (c < 0)
+             return ES_FAILED;
+-        } else if (t[e->i].optional() && (t[e->i].c() > c)) {
+-          GECODE_ME_CHECK(t[e->i].excluded(home));
+         }
+       
+-      // Exploit that tasks are sorted according to capacity
+-      for (Iter::Values::BitSet<Support::BitSet<Region> > j(tasks); 
+-           j() && (t[j.val()].c() > c); ++j) 
+-        // Task j cannot run from time to next time - 1
+-        if (t[j.val()].mandatory()) {
+-          if (t[j.val()].pmin() > 0) {
+-            GECODE_ME_CHECK(t[j.val()].norun(home, time, e->t - 1));
+-          } else {
+-            GECODE_ME_CHECK(t[j.val()].norun(home, zltime, e->t - 1));
+-          }
+-        }
+     }
+     
+-    return assigned ? home.ES_SUBSUMED(p) : ES_NOFIX;
++    return home.ES_SUBSUMED(p);
+   }
+ 
+ }}}

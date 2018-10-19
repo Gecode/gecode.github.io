@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] strange bug in propagation
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20strange%20bug%20in%20propagation&In-Reply-To=%3C44423C55.10408%40info.ucl.ac.be%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000490.html">
+   <LINK REL="Next"  HREF="000492.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] strange bug in propagation</H1>
+    <B>Gr&#233;goire Dooms</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20strange%20bug%20in%20propagation&In-Reply-To=%3C44423C55.10408%40info.ucl.ac.be%3E"
+       TITLE="[gecode-users] strange bug in propagation">dooms at info.ucl.ac.be
+       </A><BR>
+    <I>Sun Apr 16 14:45:09 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000490.html">[gecode-users] strange bug in propagation
+</A></li>
+        <LI>Next message: <A HREF="000492.html">[gecode-users] strange bug in propagation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#491">[ date ]</a>
+              <a href="thread.html#491">[ thread ]</a>
+              <a href="subject.html#491">[ subject ]</a>
+              <a href="author.html#491">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>jeremie.vautard wrote:
+&gt;<i> Hi ! 
+</I>&gt;<i>
+</I>&gt;<i> I encountered a very strange bug while testing my extensively
+</I>&gt;<i> defined binary constraint propagator. Under some conditions
+</I>&gt;<i> that I havn't really discovered right now (it seems to be at
+</I>&gt;<i> least with 3 of my propagators posted, but this is not
+</I>&gt;<i> sufficient), I get a segmentation fault after several steps of
+</I>&gt;<i> propagation. The most strange is that the instruction causing
+</I>&gt;<i> the bug is in the gecode part : gdb tells me the crash occur
+</I>&gt;<i> here : 
+</I>&gt;<i>
+</I>&gt;<i> #0  Gecode::Int::IntVarImp::nq_full (this=0x80542f4,
+</I>&gt;<i> home=0x8053fa0, m=3) at ././kernel/memory-manager.icc:233
+</I>&gt;<i> 233         _next = n;
+</I>&gt;<i> (gdb) bt
+</I>&gt;<i> #0  Gecode::Int::IntVarImp::nq_full (this=0x80542f4,
+</I>&gt;<i> home=0x8053fa0, m=3) at ././kernel/memory-manager.icc:233
+</I>&gt;<i> #1  0x0804f047 in ExtensiveBinaryConstraint::check
+</I>&gt;<i> (this=0xbf840164, home=0x8053fa0, x=
+</I>&gt;<i>         {&lt;Gecode::VariableViewBase&lt;Gecode::Int::IntVarImp&gt;&gt; =
+</I>&gt;<i> {var = 0x805437c}, &lt;No data fields&gt;}, y=
+</I>&gt;<i>         {&lt;Gecode::VariableViewBase&lt;Gecode::Int::IntVarImp&gt;&gt; =
+</I>&gt;<i> {var = 0x80542f4}, &lt;No data fields&gt;})
+</I>&gt;<i>     at ./int/var/imp.icc:364
+</I>&gt;<i> #2  0x0804f0ed in ExtensiveBinaryPropagator::propagate
+</I>&gt;<i> (this=0x807400c, home=0x8053fa0) at QSolve.cc:666
+</I>&gt;<i> #3  0xb7f1b218 in Gecode::Space::propagators (this=0x8053fa0)
+</I>&gt;<i> at kernel/core.cc:160
+</I>&gt;<i> #4  0xb7f1b7a3 in Gecode::Space::status (this=0x8053fa0,
+</I>&gt;<i> a=@0x80300c0, pn=@0xbf840254) at kernel/core.cc:254
+</I>&gt;<i>
+</I>&gt;<i> (The ExtensiveBinaryPropagator propagate() method does nothing
+</I>&gt;<i> but call an ExtensiveBinaryConstraint::check(Space* home,
+</I>&gt;<i> Intview x,y) method which actually remove the values and
+</I>&gt;<i> returns ES_NOFIX, ES_FAILED or ES_SUBSUMED).
+</I>&gt;<i>
+</I>&gt;<i> Have you even encountered this kind of bug when creating
+</I>&gt;<i> propagators ? Do you have an idea of what I can have done
+</I>&gt;<i> wrong ? In this particular example, the IntView::nq method is
+</I>&gt;<i> called to remove 2 from a [1..4] domain...
+</I>&gt;<i>   
+</I>
+Here is a (small) check list for mistakes I did and which triggered 
+segfaults later :
+- do you do GECODE_ME_CHECK for each basic and iterator tell on IntViews 
+? if not the Space might be failed  before you do the tell.
+You can also assert(! home.failed()); in your check method before you do 
+the nq tell.
+- did you forget to call update on all of your views in the copy 
+constructor of your propagator ? If you inherit from BinaryPropagator it 
+is done in its copy constructor and you have to call that copy 
+constructor in the member initialization list of yours.
+
+Best,
+--
+Gr&#233;goire
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000490.html">[gecode-users] strange bug in propagation
+</A></li>
+	<LI>Next message: <A HREF="000492.html">[gecode-users] strange bug in propagation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#491">[ date ]</a>
+              <a href="thread.html#491">[ thread ]</a>
+              <a href="subject.html#491">[ subject ]</a>
+              <a href="author.html#491">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

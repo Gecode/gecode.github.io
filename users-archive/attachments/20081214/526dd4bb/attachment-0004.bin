@@ -1,0 +1,62 @@
+=== modified file 'gecode/serialization/register.cc'
+--- gecode/serialization/register.cc	2008-12-14 14:39:01 +0000
++++ gecode/serialization/register.cc	2008-12-14 14:50:16 +0000
+@@ -2357,6 +2357,18 @@
+           return;
+         }
+ #endif
++#if defined(GECODE_HAS_SET_VARS)
++        if (isVar<Gecode::SetVar>(vm, spec[0]) &&
++            isVar<Gecode::IntVar>(vm, spec[1]) &&
++            spec[2]->isInt())
++        {
++          Gecode::SetVar x0(vm.var(spec[0]->toVar()));
++          Gecode::IntVar x1(vm.var(spec[1]->toVar()));
++          bool x2 = static_cast<bool>(spec[2]->toInt());
++          Gecode::max(home, x0,x1,x2);
++          return;
++        }
++#endif
+         throw Gecode::Reflection::ReflectionException("Argument type mismatch for Gecode::Post::max");
+       }
+       break;
+
+=== modified file 'gecode/set.hh'
+--- gecode/set.hh	2008-12-14 14:39:01 +0000
++++ gecode/set.hh	2008-12-14 14:50:16 +0000
+@@ -820,10 +820,11 @@
+   GECODE_SET_EXPORT void
+   min(Space* home, SetVar s, IntVar x, bool b=true);
+   
+-  /** \brief Post propagator that propagates that \a x is the
+-   *  maximal element of \a s, and that \a s is not empty */
++  /** \brief When \a b is true, post propagator that propagates that \a x is the
++   *  maximal element of \a s, and that \a s is not empty.  When \a b is false,
++   *  post propagator that \a x is not the max of \a s (which may be empty) */
+   GECODE_SET_EXPORT void
+-  max(Space* home, SetVar s, IntVar x);
++  max(Space* home, SetVar s, IntVar x, bool b=true);
+   
+   /// Post propagator that propagates that \a s contains the \f$x_i\f$, which are sorted in non-descending order 
+   GECODE_SET_EXPORT void
+
+=== modified file 'gecode/set/int.cc'
+--- gecode/set/int.cc	2008-12-14 14:39:01 +0000
++++ gecode/set/int.cc	2008-12-14 14:50:16 +0000
+@@ -127,9 +127,13 @@
+     }
+   }
+   void
+-  max(Space* home, SetVar s, IntVar x){
++  max(Space* home, SetVar s, IntVar x, bool b){
+     if (home->failed()) return;
+-    GECODE_ES_FAIL(home,Set::Int::MaxElement<Set::SetView>::post(home,s,x));
++    if (b) {
++      GECODE_ES_FAIL(home,Set::Int::MaxElement<Set::SetView>::post(home,s,x));
++    } else {
++      GECODE_ES_FAIL(home,Set::Int::NotMaxElement<Set::SetView>::post(home,s,x));
++    }
+   }
+ 
+   void
+

@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Propagation condition and cloning
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagation%20condition%20and%20cloning&In-Reply-To=%3C001701ca7ca9%2432f20700%2498d61500%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002759.html">
+   <LINK REL="Next"  HREF="002765.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Propagation condition and cloning</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Propagation%20condition%20and%20cloning&In-Reply-To=%3C001701ca7ca9%2432f20700%2498d61500%24%40se%3E"
+       TITLE="[gecode-users] Propagation condition and cloning">cschulte at kth.se
+       </A><BR>
+    <I>Mon Dec 14 11:35:45 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002759.html">[gecode-users] Propagation condition and cloning
+</A></li>
+        <LI>Next message: <A HREF="002765.html">[gecode-users] Propagation condition and cloning
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2762">[ date ]</a>
+              <a href="thread.html#2762">[ thread ]</a>
+              <a href="subject.html#2762">[ subject ]</a>
+              <a href="author.html#2762">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hmmm,
+
+the first five lines in the patch look already fishy:
+
+--- gecode/int/bool/clause.hpp	2009-10-14 12:19:49.000000000 +0200
++++ gecode/int/bool/clause.hpp	2009-12-13 23:46:53.000000000 +0100
+@@ -50,6 +50,8 @@
+   (home,x0[x0.size()-1],y0[y0.size()-1]), x(x0), y(y0) {
+     assert((x.size() &gt; 0) &amp;&amp; (y.size() &gt; 0));
+     x.size(x.size()-1); y.size(y.size()-1);
++    x0.subscribe(home,*this,PC_BOOL_SAME,false);
++    x1.subscribe(home,*this,PC_BOOL_SAME,false);
+   }
+
+Here x0 in x0.subscribe refers to the argument passed to the constructor.
+You assume it refers to the member, right?
+
+Yep ;-)
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Vincent Barichard
+Sent: Monday, December 14, 2009 12:33 AM
+To: gecode list
+Subject: [gecode-users] Propagation condition and cloning
+
+Hi Everyone,
+
+I would like to put another Propagation Condition in BoolVarImp. You gave me
+good advice on how to process. For a first step, I just wanted to make some
+test. So I first modified bool.vis and add this new Propagation Condition.
+Then I tried to make existing propagators subscribe to this new propagation
+condition (without scheduling propagators and sending the corresponding
+events). Unfortunately, I failed to achieved this first step. Indeed, some
+problems occur during cloning.
+
+I first thought that It was a problem with the rewriting of propagator
+during cloning. Indeed, I didn't update all propagators, so it can't be
+possible to change a propagator by another one which doesn't subscribe to
+the same propagation conditions than the original one. 
+I disabled the rewrite of a propagator by another propagator from a
+different class during cloning. But I still have problems. I tried many
+things, without success and now I have no more ideas.
+
+For now, I just want to understand why I can't make it work. For this
+purpose, I designed an example to make gecode crash. I used the &quot;sat&quot;
+example given with Gecode, and only deal with this example (no matter if the
+other examples don't work anymore).
+My problem is reproducible by applying the patch attached in this mail to
+Gecode 3.2.2. Then, I configured and compiled Gecode with the following
+commands:
+
+./configure --enable-debug --enable-audit make
+
+The test problem can be launched by copying the test2.cnf file (attached in
+the mail) in the gecode directory and executing the command:
+./examples/sat test2.cnf
+
+If I use a debugger I get:
+
+Program received signal EXC_BAD_ACCESS, Could not access memory.
+Reason: KERN_INVALID_ADDRESS at address: 0x000000020000001b
+0x000000010146d908 in Gecode::ActorLink::prev (this=0x200000013) at
+core.hpp:2328
+2328        return _prev;
+(gdb) bt
+#0  0x000000010146d908 in Gecode::ActorLink::prev (this=0x200000013) at
+core.hpp:2328
+#1  0x000000010146e0be in
+Gecode::VarImp&lt;Gecode::Int::BoolVarImpConf&gt;::update (this=0x101896350,
+x=0x101877698, sub=@0x7fff5fbfece0) at core.hpp:3295
+#2  0x000000010146e1d9 in
+Gecode::VarImp&lt;Gecode::Int::BoolVarImpConf&gt;::update (home=@0x101503f80,
+sub=@0x7fff5fbfece0) at core.hpp:3314
+#3  0x000000010146e4b4 in Gecode::Space::update (this=0x101503f80,
+sub=0x101888798) at var-imp.hpp:343
+#4  0x000000010146bae7 in Gecode::Space::_clone (this=0x101503e20,
+share=true) at gecode/kernel/core.cpp:481
+#5  0x000000010011b58b in Gecode::Space::clone (this=0x101503e20,
+share=true) at core.hpp:2465
+#6  0x000000010011c2c0 in Gecode::Search::Sequential::Path::recompute
+(this=0x101503798, d=@0x1015037b8, a_d=2, stat=@0x101503718) at path.hh:305
+#7  0x000000010011c5be in Gecode::Search::Sequential::DFS::next
+(this=0x101503718) at dfs.hh:146
+#8  0x000000010011c615 in
+Gecode::Search::WorkerToEngine&lt;Gecode::Search::Sequential::DFS&gt;::next
+(this=0x101503710) at support.hh:74
+#9  0x0000000100007ed2 in Gecode::DFS&lt;Sat&gt;::next (this=0x7fff5fbff070) at
+dfs.hpp:53 #10 0x000000010000811b in
+Gecode::Driver::ScriptBase&lt;Gecode::Space&gt;::run&lt;Sat, Gecode::DFS, SatOptions&gt;
+(o=@0x7fff5fbff1a0) at script.hpp:198
+#11 0x0000000100001a34 in main (argc=1, argv=0x7fff5fbff4f0) at
+examples/sat.cpp:256
+
+I probably made an obvious mistake, but I can not see.
+Thanks for your help,
+
+Cheers,
+Vincent
+
+Vincent Barichard         Universit&#233; d'Angers (LERIA)
+Tel: 02 41 73 52 06      D&#233;partement Informatique
+Fax: 02 41 73 50 73     H203
+
+
+
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002759.html">[gecode-users] Propagation condition and cloning
+</A></li>
+	<LI>Next message: <A HREF="002765.html">[gecode-users] Propagation condition and cloning
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2762">[ date ]</a>
+              <a href="thread.html#2762">[ thread ]</a>
+              <a href="subject.html#2762">[ subject ]</a>
+              <a href="author.html#2762">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

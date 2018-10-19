@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Value selection when branching
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Value%20selection%20when%20branching&In-Reply-To=%3C43EB8ED7.9060506%40student.chalmers.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000381.html">
+   <LINK REL="Next"  HREF="000383.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Value selection when branching</H1>
+    <B>Lars Otten</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Value%20selection%20when%20branching&In-Reply-To=%3C43EB8ED7.9060506%40student.chalmers.se%3E"
+       TITLE="[gecode-users] Value selection when branching">ottenl at student.chalmers.se
+       </A><BR>
+    <I>Thu Feb  9 19:49:59 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000381.html">[gecode-users] Value selection when branching
+</A></li>
+        <LI>Next message: <A HREF="000383.html">[gecode-users] Value selection when branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#382">[ date ]</a>
+              <a href="thread.html#382">[ thread ]</a>
+              <a href="subject.html#382">[ subject ]</a>
+              <a href="author.html#382">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi again,
+
+On 02/07/06 17:16, Lars Otten wrote:
+&gt;<i> I've just put up an order for Knuth's book at our library, I will look into
+</I>&gt;<i> this and let you know how it works out. Thanks for the hints so far. :)
+</I>
+As promised I want to give you a brief update:
+
+Things worked out quite well. I created a new class ViewValRandBranching,
+which inherits from ViewValBranching with two additional fields (for the
+random seeds). Upon creation of the branching these fields are initialised
+to random numbers from a random number generator similar to the one in
+test/random.cc pointed out by Mikael; one field is used as random seed for
+view selection, the other one for value selection.
+
+Now the two important methods are basically just wrappers around the old ones:
+
+ViewValRandBranching&lt;View,Val,ViewSel,ValSel&gt;::branch(void) {
+  unsigned int tmpseed = ge_srand(); // get current random seed
+  ge_srand(rseedView); // set 'private' random seed
+  unsigned int s = ViewValBranching&lt;View,Val,ViewSel,ValSel&gt;::branch();
+  ge_srand(tmpseed); // restore original random seed
+  return s;
+}
+
+ViewValRandBranching&lt;View,Val,ViewSel,ValSel&gt;::commit
+(Space* home, unsigned int a, BranchingDesc* d) {
+  unsigned int tmpseed = ge_srand(); // get current random seed
+  ge_srand(rseedVal); // set 'private' random seed
+  ExecStatus s =
+    ViewValBranching&lt;View,Val,ViewSel,ValSel&gt;::commit(home, a, d);
+  ge_srand(tmpseed); // restore original random seed
+  return s;
+}
+
+And, lo and behold, now it seems to work! The same tests I did earlier (e.g.
+with all-intervall) now nicely return the same number of solutions for all
+different random seeds I tried (also the same number as the nonrandom
+version). :-)
+
+Thanks for the help with this,
+
+/Lars
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000381.html">[gecode-users] Value selection when branching
+</A></li>
+	<LI>Next message: <A HREF="000383.html">[gecode-users] Value selection when branching
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#382">[ date ]</a>
+              <a href="thread.html#382">[ thread ]</a>
+              <a href="subject.html#382">[ subject ]</a>
+              <a href="author.html#382">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

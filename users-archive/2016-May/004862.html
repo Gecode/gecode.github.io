@@ -1,0 +1,309 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Freeze with MSVC 2015 optimized build
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Freeze%20with%20MSVC%202015%20optimized%20build&In-Reply-To=%3CF3693ACFBB4CBE40894F6560386A67BF5A84BF52%40EX1.logis.local%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004861.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Freeze with MSVC 2015 optimized build</H1>
+    <B>Konvicka Filip</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Freeze%20with%20MSVC%202015%20optimized%20build&In-Reply-To=%3CF3693ACFBB4CBE40894F6560386A67BF5A84BF52%40EX1.logis.local%3E"
+       TITLE="[gecode-users] Freeze with MSVC 2015 optimized build">Filip.Konvicka at logis.cz
+       </A><BR>
+    <I>Wed May 18 11:03:56 CEST 2016</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004861.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4862">[ date ]</a>
+              <a href="thread.html#4862">[ thread ]</a>
+              <a href="subject.html#4862">[ subject ]</a>
+              <a href="author.html#4862">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Christian,
+
+Fortunately this wasn't much work in the end...  I'm happy that we can switch to MSVC 2015 now :)  I'll also run the tests in our RHEL and Debian environments to see whether we're good on those platforms as well.
+
+On the Gecode download page you're mentioning some issues with floats on the Mac OS X; I wonder whether those could have the same root cause.  So it may be worth checking whether the problems still persist.
+
+Cheers,
+Filip
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>] 
+Sent: Wednesday, May 18, 2016 10:03 AM
+To: Konvicka Filip; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi Filip,
+
+Thanks a lot for your hard work. That sounds very encouraging, indeed! The
+#ifdef is a piece of cake, of course.
+
+No blame from me on you ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Wednesday, May 18, 2016 09:57
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+
+Hi,
+
+So, I've spent some time investigating.  Until now I haven't looked into the
+&quot;new&quot; FloatVar code contributed by Vincent and you guys, and it looks like
+it inherits some ideas, maybe even files from our initial implementation for
+Gecode 2.  So, I feel some blame for using Boost's Interval Arithmetic
+library without investigating enough first: if you look at the documentation
+homepage, you'll see a big red warning :)
+
+<A HREF="http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/interval.htm">http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/interval.htm</A>
+
+which says that the library probably won't work with SSE2 (or at least not
+out of the box).  But SSE2 is the only option for x64.
+
+On the other hand, I'm not aware of any good alternative to this Boost
+library.  I think the library is actually quite good (even though it would
+use some work on supporting SSE2 better).
+
+So I thought I'd play with the library's policies to see if I could make it
+work with x64.  I looked into float.hh which defines what exact interval
+datatype is used.  It looks like changing from 'rounded_arith_opp' to
+'rounded_arith_std' fixes the issues that we're observing.  If you're
+interested the description of those types is available here:
+
+<A HREF="http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/rounding.htm">http://www.boost.org/doc/libs/1_61_0/libs/numeric/interval/doc/rounding.htm</A>
+
+I've run the Float tests with this change and they all seem to pass. 
+Compared to the _opp version the total runtime running the Float testsuite
+increased by 50%. This is still fine for me; I haven't compared this with
+the x86/x87 version.  Maybe Gecode could use some #ifdef to choose between
+_opp and _std based on whether the compiler/architecture setup is known to
+be safe for _opp or not.
+
+Cheers,
+Filip
+
+&gt;<i> Hi Filip,
+</I>&gt;<i>
+</I>&gt;<i> Thanks for all the info and checking. I'll have a look a little later.
+</I>&gt;<i>
+</I>&gt;<i> Best
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+</I>&gt;<i> Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS, 
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On 
+</I>&gt;<i> Behalf Of Filip Konvicka
+</I>&gt;<i> Sent: Monday, April 4, 2016 09:15
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> You said that you have uploaded packages recently; I assume that it 
+</I>&gt;<i> was Gecode-4.4.0-x64-2015.msi.  I compiled and linked using this with 
+</I>&gt;<i> MSVC
+</I>&gt;<i> 2015 Update 2 and it also freezes on the testcase.  Replacing this 
+</I>&gt;<i> with the MSVC 2013 package (Gecode-4.4.0-x64-2013.msi) works fine, 
+</I>&gt;<i> even using the same toolset.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Filip
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have updated to MSVC 2015 update 2, compiled the current Gecode 
+</I>&gt;&gt;<i> trunk for x64, and my testcase from the beginning of this thread 
+</I>&gt;&gt;<i> still freezes (the one from Sep 3rd 2015 - I have attached it to this 
+</I>&gt;&gt;<i> mail for convenience).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I also tried running Float::Arithmetic::Div::Sol::A and that test 
+</I>&gt;&gt;<i> still fails.  For some reason 'make check' only runs a small subset 
+</I>&gt;&gt;<i> of tests, so I ran this manually like this:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> $ test/test -test Float::Arithmetic::Div::Sol::A 
+</I>&gt;&gt;<i> Float::Arithmetic::Div::Sol::A -
+</I>&gt;&gt;<i> Options: -seed 1 -test Float::Arithmetic::Div::Sol::A
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Another try failed with a different seed number:
+</I>&gt;&gt;<i> $ test/test -test Float::Arithmetic::Div Float::Arithmetic::Div::A
+</I>&gt;&gt;<i> +++++ Float::Arithmetic::Div::B +++++ Float::Arithmetic::Div::C +++++
+</I>&gt;&gt;<i> Float::Arithmetic::Div::Sol::A -
+</I>&gt;&gt;<i> Options: -seed 1975575111 -test Float::Arithmetic::Div::Sol::A
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks,
+</I>&gt;&gt;<i> Filip
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Christian,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thanks.  I was referring to this September &amp; October thread - there 
+</I>&gt;&gt;&gt;<i> were issues with Gecode freezing on some FloatVar problems (my 
+</I>&gt;&gt;&gt;<i> testcase and your &quot;Float::Arithmetic::Div::C&quot;) with MSVC 2015, and 
+</I>&gt;&gt;&gt;<i> you said then that it might be resolved by not using SSE2 (but that 
+</I>&gt;&gt;&gt;<i> Guido would investigate more).  We also identified a number of float 
+</I>&gt;&gt;&gt;<i> tests that were failing on GCC 5 (not with GCC 4.9).
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I can try re-running our tests here with the current trunk to see if 
+</I>&gt;&gt;&gt;<i> something changed - I just thought that I would ask directly whether 
+</I>&gt;&gt;&gt;<i> you did something specific to address these issues.  The failures 
+</I>&gt;&gt;&gt;<i> seemed a bit non-deterministic...
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thanks,
+</I>&gt;&gt;&gt;<i> Filip
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> MSVC2015 works for Gecode.4.4.0 since its initial release, I in 
+</I>&gt;&gt;&gt;&gt;<i> fact uploaded packages to the Gecode website last week. Since last 
+</I>&gt;&gt;&gt;&gt;<i> week (Mar 30) the update 2 to MSVC 2015 finally also compiles the 
+</I>&gt;&gt;&gt;&gt;<i> trunk and the upcoming Gecode 5.0.0.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Don't know about GCC, though.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Cheers
+</I>&gt;&gt;&gt;&gt;<i> Christian
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;&gt;<i> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+</I>&gt;&gt;&gt;&gt;<i> Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS, 
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Filip Konvicka
+</I>&gt;&gt;&gt;&gt;<i> Sent: Friday, April 1, 2016 14:41
+</I>&gt;&gt;&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hi Christian,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Have you had any chance to look into supporting gcc 5 and MSVC 2015?
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Thanks,
+</I>&gt;&gt;&gt;&gt;<i> Filip
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hi Filip,
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Thanks for the information. This really looks like a gcc problem.
+</I>&gt;&gt;&gt;&gt;&gt;<i> Guido, can you reproduce this behavior?
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Cheers
+</I>&gt;&gt;&gt;&gt;&gt;<i> Christian
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;&gt;&gt;<i> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+</I>&gt;&gt;&gt;&gt;&gt;<i> Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A> Expert Researcher, SICS, 
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;&gt;&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Filip Konvicka
+</I>&gt;&gt;&gt;&gt;&gt;<i> Sent: Friday, October 2, 2015 09:58 AM
+</I>&gt;&gt;&gt;&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Subject: Re: [gecode-users] Freeze with MSVC 2015 optimized build
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hi,
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> We were looking a bit more into 4.4.0 on Linux where we've also 
+</I>&gt;&gt;&gt;&gt;&gt;<i> hit some issues.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> All tests worked fine with gcc 4.9.3.  However, with gcc 5.2.0 
+</I>&gt;&gt;&gt;&gt;&gt;<i> many tests failed - see the attachements for details:
+</I>&gt;&gt;&gt;&gt;&gt;<i>      gecode-4.4.0-gcc-5.2.0-failed_tests.list
+</I>&gt;&gt;&gt;&gt;&gt;<i>      ... list of failed tests (except two memory fails below)
+</I>&gt;&gt;&gt;&gt;&gt;<i>      gecode-4.4.0-gcc-5.2.0-failed_tests.log
+</I>&gt;&gt;&gt;&gt;&gt;<i>      ... log from 'test' for failed tests
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Two tests ran out of memory (allocated several GBs of memory 
+</I>&gt;&gt;&gt;&gt;&gt;<i> before getting killed by system):
+</I>&gt;&gt;&gt;&gt;&gt;<i>      Set::Branch::Sparse::3
+</I>&gt;&gt;&gt;&gt;&gt;<i>      Set::Channel::Sorted
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> gcc details:
+</I>&gt;&gt;&gt;&gt;&gt;<i> target=x86_64-linux-gnu
+</I>&gt;&gt;&gt;&gt;&gt;<i> GCC_VER=5.2.0
+</I>&gt;&gt;&gt;&gt;&gt;<i> GMP_VER=6.0.0
+</I>&gt;&gt;&gt;&gt;&gt;<i> MPFR_VER=3.1.3
+</I>&gt;&gt;&gt;&gt;&gt;<i> MPC_VER=1.0.3
+</I>&gt;&gt;&gt;&gt;&gt;<i> BINUTILS_VER=2.25
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> It could also be a gcc bug of course, hard to tell.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Thanks,
+</I>&gt;&gt;&gt;&gt;&gt;<i> Filip
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004861.html">[gecode-users] Freeze with MSVC 2015 optimized build
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4862">[ date ]</a>
+              <a href="thread.html#4862">[ thread ]</a>
+              <a href="subject.html#4862">[ subject ]</a>
+              <a href="author.html#4862">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

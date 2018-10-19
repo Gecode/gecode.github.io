@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Compiling Gecode under native Windows using the	Mingw g++ 32-bit compiler [solved][corrected]
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Compiling%20Gecode%20under%20native%20Windows%20using%20the%0A%09Mingw%20g%2B%2B%2032-bit%20compiler%20%5Bsolved%5D%5Bcorrected%5D&In-Reply-To=%3C000901cdfadc%24887dfe40%249979fac0%24%40gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003763.html">
+   <LINK REL="Next"  HREF="003765.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Compiling Gecode under native Windows using the	Mingw g++ 32-bit compiler [solved][corrected]</H1>
+    <B>Richard Croad</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Compiling%20Gecode%20under%20native%20Windows%20using%20the%0A%09Mingw%20g%2B%2B%2032-bit%20compiler%20%5Bsolved%5D%5Bcorrected%5D&In-Reply-To=%3C000901cdfadc%24887dfe40%249979fac0%24%40gmail.com%3E"
+       TITLE="[gecode-users] Compiling Gecode under native Windows using the	Mingw g++ 32-bit compiler [solved][corrected]">richard.croad at gmail.com
+       </A><BR>
+    <I>Fri Jan 25 10:15:31 CET 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003763.html">[gecode-users] Compiling Gecode under native Windows using the	Mingw g++ 32-bit compiler [solved]
+</A></li>
+        <LI>Next message: <A HREF="003765.html">[gecode-users] splitting branching in full enumeration and	first-fail check
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3764">[ date ]</a>
+              <a href="thread.html#3764">[ thread ]</a>
+              <a href="subject.html#3764">[ subject ]</a>
+              <a href="author.html#3764">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>I forgot to mention one additional, initial step, namely:
+
+Modify the &quot;configure&quot; file to replace the switch &quot;-pthread&quot; with
+&quot;-mthreads&quot; as follows:
+
+$as_echo &quot;#define GECODE_THREADS_PTHREADS 1&quot; &gt;&gt;confdefs.h
+
+ 
+
+   CFLAGS=&quot;-mthreads${CFLAGS:+ }${CFLAGS}&quot;
+
+    CXXFLAGS=&quot;-mthreads${CXXFLAGS:+ }${CXXFLAGS}&quot;
+
+   DLLFLAGS=&quot;-mthreads${DLLFLAGS:+ }${DLLFLAGS}&quot;
+
+ 
+
+else
+
+etc.
+
+Cheers . Richard
+
+From: Richard Croad [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">richard.croad at gmail.com</A>] 
+Sent: Friday, 25 January 2013 8:11 p.m.
+
+
+
+I have been able to compile and run a fair sample of the gecode examples on
+a Windows 7 (Dell computer with a core i7 Intel microprocessor) using the
+Mingw g++ 32-bit (GCC) compiler version 4.6.2 and GNU make version 3.8.1.
+Native Windows executables were created without the need for Cygwin.  All
+steps were carried out in a Msys window.  The required steps are:
+
+Run configure as follows:
+
+./configure --with-host-os=windows CC=gcc CXX=g++
+
+Manually modify the following lines in
+&quot;.\gecode-3.7.3\gecode\support\config.hpp&quot; as follows: 
+
+/* Whether unistd.h is available */
+
+/* Manually commented out -- #define GECODE_HAS_UNISTD_H 1 */
+
+/* Whether we have posix threads */
+
+/* Manually commented out -- #define GECODE_THREADS_PTHREADS 1 */
+
+Note that GECODE_THREADS_WINDOWS remains defined so that the Windows threads
+will be used. 
+
+Manually modify the following inline module in
+&quot;.\gecode-3.7.3\gecode\int\sorted\sortsup.hpp&quot; as follows (the comments
+preceding the code snippet explains the reasons for this change):
+
+/* Int &quot;small&quot; was modified to &quot;small_&quot; to eliminate an unexpected
+unqualified-id error when compiling using the Mingw g++ comiler version
+4.6.2; the underlying cause of this compiler error has not been determined.
+Int &quot;large&quot; was modified to &quot;large_&quot; purely for aesthetic reasons alongside
+&quot;small_&quot;.
+
+*/
+
+                forceinline void
+
+                OfflineMin::unite(int a, int b, int c) {
+
+                // c is the union of a and b
+
+                int ra = sequence[a].root;
+
+                int rb = sequence[b].root;
+
+                int large_ = rb;
+
+                int small_ = ra;
+
+                if (sequence[ra].rank &gt; sequence[rb].rank)  {
+
+                large_ = ra;
+
+                small_ = rb;
+
+                }
+
+                sequence[small_].parent = large_;
+
+                sequence[large_].rank  += sequence[small_].rank;
+
+                sequence[large_].name   = c;
+
+                sequence[c].root        = large_;
+
+                }
+
+ 
+
+Run make in the normal way.  The static libraries &quot;*.a&quot; will be placed in
+the gecode-3.7.3 folder, and the example executables will be found
+&quot;.\gecode-3.7.3\examples&quot; folder.
+
+ 
+
+Copy &quot;libgcc_s_dw2-1.dll&quot; and &quot;libstdc++-6.dll&quot; dynamic link library files
+from the bin folder in Mingw to the &quot;.\gecode-3.7.3\examples&quot; folder (along
+with the executables)
+
+ 
+
+Run the examples in the Msys window; they should all work.
+
+ 
+
+I have not attempted to compile Gist.
+
+ 
+
+Cheers . Richard
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130125/293de7e9/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20130125/293de7e9/attachment-0001.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003763.html">[gecode-users] Compiling Gecode under native Windows using the	Mingw g++ 32-bit compiler [solved]
+</A></li>
+	<LI>Next message: <A HREF="003765.html">[gecode-users] splitting branching in full enumeration and	first-fail check
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3764">[ date ]</a>
+              <a href="thread.html#3764">[ thread ]</a>
+              <a href="subject.html#3764">[ subject ]</a>
+              <a href="author.html#3764">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

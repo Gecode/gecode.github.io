@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Unexpected propagation/search behaviour
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Unexpected%20propagation/search%20behaviour&In-Reply-To=%3C43D40F06.4090601%40student.chalmers.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000355.html">
+   <LINK REL="Next"  HREF="000357.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Unexpected propagation/search behaviour</H1>
+    <B>Lars Otten</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Unexpected%20propagation/search%20behaviour&In-Reply-To=%3C43D40F06.4090601%40student.chalmers.se%3E"
+       TITLE="[gecode-users] Unexpected propagation/search behaviour">ottenl at student.chalmers.se
+       </A><BR>
+    <I>Mon Jan 23 00:02:30 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000355.html">[gecode-users] (adaptative) Incremental search
+</A></li>
+        <LI>Next message: <A HREF="000357.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#356">[ date ]</a>
+              <a href="thread.html#356">[ thread ]</a>
+              <a href="subject.html#356">[ subject ]</a>
+              <a href="author.html#356">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello again,
+
+I've completed the propagator implementation mentioned in my previous mails,
+thank you for your help. To recall, the propagator, called 'tunneling',
+relates three arrays of variables and upon propagation posts several new
+constraints like equality, inequality and element restrictions.
+
+With regard to the latter I've made some (for me) strange observations. What
+my propagator does is basically check which of the variables in the arrays
+have been fixed/assigned, posting a collection of the above mentioned
+propagators for each of these variables respectively.
+
+Now, if I keep track of the variables that have been 'treated' this way
+(i.e. that had the respective collection of propagators posted on it) I can
+make sure that this posting only happens once for each variable, thus
+avoiding unnecessary redundancy (or so I think).
+
+If, however, I do not keep track of this and just post the collection of new
+propagators for each assigned variable (these propagators are always the
+same for one variable) each time my tunneling propagator's propagate method
+is called, I would expect identical search behaviour (maybe a little longer
+running time due to duplicate propagators).
+
+What happens, though, is quite the opposite: the latter version (potentially
+posting the same propagators over and over again) yields a solution after a
+few seconds. The first version, however, posting the propagators (at most)
+once for each variable, ran for several minutes without finding a solution
+until I aborted.
+
+Here's a mixture of C++ and pseudo-code describing the stripped-down
+critical part, assuming the three ViewArray&lt;intView&gt; instances are called x,
+y, and z, all of length n:
+
+propagate(Space* home) {
+  for (int i=0; i&lt;n; ++i) {
+    //... do stuff for x and y
+    if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+      //... some preparations, like creating IdxView instances
+      Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i]);
+      Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i]);
+    }
+  }
+  //...
+}
+
+[in the 'real' call of the post methods, z would have to be replaced by
+IdxView instances]
+
+A few words about the overall setting: I'm employing DFS search (DFS-copy,
+to be exact) and apart from my tunneling propagator some other constraints
+(e.g. distinct on several subsets of variables) are involved -- but those
+are the same for both scenarios described above. The only difference is
+really one line of code, enabling or disabling the above-mentioned
+track-keeping mechanism (by removing the &lt;z[i] not yet treated&gt; part).
+
+I've narrowed it down to the element constraints posted wrt. assigned
+variables withing the 'tunneling' propagator (see the code above). Hence I
+wonder: Why is there a difference between posting the same element
+constraints once and posting them several times throughout the search
+process? Is it possible to give a conceptual explanation for this, without
+requiring more of the actual code?
+
+Thank you very much in advance (once more),
+
+/Lars Otten
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000355.html">[gecode-users] (adaptative) Incremental search
+</A></li>
+	<LI>Next message: <A HREF="000357.html">[gecode-users] Unexpected propagation/search behaviour
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#356">[ date ]</a>
+              <a href="thread.html#356">[ thread ]</a>
+              <a href="subject.html#356">[ subject ]</a>
+              <a href="author.html#356">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

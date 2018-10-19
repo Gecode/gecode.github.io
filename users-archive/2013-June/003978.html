@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] First step in constraint progamming
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20First%20step%20in%20constraint%20progamming&In-Reply-To=%3Cloom.20130615T101609-809%40post.gmane.org%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003977.html">
+   <LINK REL="Next"  HREF="003979.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] First step in constraint progamming</H1>
+    <B>Philippe K</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20First%20step%20in%20constraint%20progamming&In-Reply-To=%3Cloom.20130615T101609-809%40post.gmane.org%3E"
+       TITLE="[gecode-users] First step in constraint progamming">aqwzsxaqwzsx at orange.fr
+       </A><BR>
+    <I>Sat Jun 15 10:24:52 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003977.html">[gecode-users] Limiting some combinations of variables
+</A></li>
+        <LI>Next message: <A HREF="003979.html">[gecode-users] First step in constraint progamming
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3978">[ date ]</a>
+              <a href="thread.html#3978">[ thread ]</a>
+              <a href="subject.html#3978">[ subject ]</a>
+              <a href="author.html#3978">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hello Everybody,
+
+First of all, my apologize if I've posted this message in the wrong place. 
+Apologies also for my poor english level.
+
+I just start in constraint programming and I have difficulties getting the 
+right approach, the good reasoning, to pose my first problem (both
+mathematically and with geocode).
+
+Please, allow me to expose this quite interesting (and fun ?) problem.
+
+
+Given :
+--------
+
+- A set of CPU
+- 'Prioritized' tasks  (a priority of 1 is the highest priority)
+
+And knowing that :
+-------------------
+
+- A CPU can treat in parallel N tasks
+- A CPU can only runs certain tasks
+
+We have to distribute theses N tasks among these CPU such that we maximize 
+the number of allocated tasks.A distribution is invalid if there exist an 
+allocated task T and an unallocated task T' that have priority.
+
+Example 1 :
+-----------
+
+              TASK1               TASK2           MAX // TASKS
+Priority        2                   1
+---------------------------------------------------------------
+CPU1        affectable           affectable        1
+---------------------------------------------------------------
+
+
+CPU1 : { TASK1 }       is an invalid distribution since TASK2 has priority
+                       but is not affected.
+CPU1 : { TASK1 TASK2 } is an invalid distribution since the max number of 
+                       parallel tasks is 1
+CPU1 : { TASK2 }       valid distribution
+CPU1 : {  }            Means 'no distribution', Not considered since we  
+                       have a non empty valid distribution
+
+=&gt; CPU1 : { TASK2 }
+
+
+Example 2 :
+-----------
+
+
+              TASK1               TASK2        MAX // TASKS
+Priority        2                   1
+-------------------------------------------------------------
+CPU1        affectable           affectable       1
+CPU2        not affectable       affectable       2
+-------------------------------------------------------------
+
+
+
+CPU1: { }            , CPU2: { TASK1 TASK2 }: invalid distribution, Task 1 
+                                              not affectable to CPU2
+CPU1: { TASK1 }      , CPU2: { TASK2 }      : valid distribution
+CPU1: { TASK2 }      , CPU2: { TASK1 }      : invalid distribution, 
+                                              Task 1 not affectable to CPU2
+CPU1: { TASK1 TASK2 }, CPU2: { }            : invalid distribution, only 1 
+                                              tasks affectable to CPU1
+CPU1: { }            , CPU2: { }            : Not considered since we have
+                                              a non empty valid distribution
+
+
+Example 3 :
+-----------
+
+Now let's take this final example and refine it step by step.
+
+
+              TASK1           TASK2     MAX // TASKS
+Priority        2               1
+-----------------------------------------------------
+CPU1        affectable       affectable     2
+CPU2        affectable       affectable     2
+-----------------------------------------------------
+
+CPU1: { }            , CPU2: { TASK1 TASK2 } : valid distribution
+CPU1: { TASK1 }      , CPU2: { TASK2 }       : valid distribution
+CPU1: { TASK2 }      , CPU2: { TASK1 }       : valid distribution
+CPU1: { TASK1 TASK2 }, CPU2: { }             : valid distribution
+CPU1: { }            , CPU2: { }             : Not considered since we have
+                                               a non empty valid 
+                                               distributions.
+
+---------------------------------------------------------------------------
+If we have multiple valid distributions, we prefer the one where the
+&quot;Task (+ pending task) per CPU&quot; is &quot;well balanced&quot; across CPUs
+
+for instance, with 3 CPU, the 'balance' of a distribution is :
+
+|<i>(nbAffectations(CPU1)+nbPendingTask(CPU1))-
+</I>(nbAffectations(CPU2)+nbPendingTask(CPU2))| +
+
+|<i>(nbAffectations(CPU1)+nbPendingTask(CPU1))-
+</I>(nbAffectations(CPU3)+nbPendingTask(CPU3))| +
+
+|<i>(nbAffectations(CPU2)+nbPendingTask(CPU2))-
+</I>(nbAffectations(CPU3)+nbPendingTask(CPU3))|
+---------------------------------------------------------------------------
+
+              TASK1           TASK2     MAX // TASKS NB_PENDING_TASK
+Priority        2               1
+-----------------------------------------------------------------------
+CPU1        affectable       affectable     2               0
+CPU2        affectable       affectable     2               0
+-----------------------------------------------------------------------
+
+CPU1: { }          , CPU2: { TASK1 TASK2 } : rejected, not the best balance
+                                             |0+0 - 2+0| = 2
+CPU1: { TASK1 }    , CPU2: { TASK2 }       : best balance|1+0 - 1+0| = 0
+CPU1: { TASK2 }    , CPU2: { TASK1 }       : best balance : |1+0 - 1+0| = 0
+CPU1: { TASK1 TASK2 }, CPU2: { }           : rejected, not the best balance
+                                             |2+0 - 0+0| = 2
+
+----------------------------------------------------------------------------
+But since we have more than one potential distribution, we prefer the one 
+where the &quot;global affinity&quot; is maximized. The &quot;global affinity&quot; of a 
+distribution could be expressed as :
+
+Sum(CPUi) (Sum(Taskj) (isAffected(CPUi,Taskj)*Affinity(CPUi,Taskj)))
+----------------------------------------------------------------------------
+                   TASK1                       TASK2           MAX // TASKS
+Priority             2                          1
+----------------------------------------------------------------------------
+CPU1        affectable, affinity = 3    affectable, affinity = 1      2
+CPU2        affectable, affinity = 2    affectable, affinity = 4      2
+----------------------------------------------------------------------------
+
+CPU1: { TASK1 } , CPU2: { TASK2 } : affinity= (1*3 + 0*1) + (0*2 + 1*4) = 7 
+CPU1: { TASK2 } , CPU2: { TASK1 } : affinity= (0*3 + 1*1) + (1*2 + 0*4) = 3
+
+Final solution : CPU1 : { TASK1 } , CPU2 : { TASK2 } 
+----------------------------------------------------------------------------
+
+To speak honestly, I've absolutely no idea of how to express this problem in 
+a 'programming constraint' way. Is this can be expressed using geocode ? 
+Any help would be greatly appreciated to prototype this.
+
+Philippe
+
+
+
+
+
+
+
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003977.html">[gecode-users] Limiting some combinations of variables
+</A></li>
+	<LI>Next message: <A HREF="003979.html">[gecode-users] First step in constraint progamming
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3978">[ date ]</a>
+              <a href="thread.html#3978">[ thread ]</a>
+              <a href="subject.html#3978">[ subject ]</a>
+              <a href="author.html#3978">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

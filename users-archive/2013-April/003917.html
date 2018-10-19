@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] LDSB : symmetries on value tuples and depending symmetries
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20LDSB%20%3A%20symmetries%20on%20value%20tuples%20and%20depending%0A%20symmetries&In-Reply-To=%3C517F8371.1070107%40informatik.uni-freiburg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003900.html">
+   <LINK REL="Next"  HREF="003890.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] LDSB : symmetries on value tuples and depending symmetries</H1>
+    <B>Martin Mann</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20LDSB%20%3A%20symmetries%20on%20value%20tuples%20and%20depending%0A%20symmetries&In-Reply-To=%3C517F8371.1070107%40informatik.uni-freiburg.de%3E"
+       TITLE="[gecode-users] LDSB : symmetries on value tuples and depending symmetries">mmann at informatik.uni-freiburg.de
+       </A><BR>
+    <I>Tue Apr 30 10:40:17 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003900.html">[gecode-users] LDSB : symmetries on value tuples and depending symmetries
+</A></li>
+        <LI>Next message: <A HREF="003890.html">[gecode-users] IntVar class container as parameter for branchers
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3917">[ date ]</a>
+              <a href="thread.html#3917">[ thread ]</a>
+              <a href="subject.html#3917">[ subject ]</a>
+              <a href="author.html#3917">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>
+Dear Chris,
+
+thanks for your answer. Think the solution you provided wont do the 
+trick due to the following reason: say I have X=(x1,x2) where x1.x2 are 
+somehow specially dependent (also via constraints). So a symmetric 
+assignment of x1 directly defines an assignment of x2 and vice versa. It 
+is thus no simple value symmetry that can be independently applied to 
+any variable. I guess constraint propagation would ensure the symmetry 
+propagation from one to the other, but not sure if it does not actually 
+make the solver loose solutions.
+
+But I built a workaround via branch and wait statements and special 
+checks. As soon as this is running smooth I will give LDSB a second try. 
+Furthermore, I have some fixed order constraints on X that break some 
+symmetries. Will have to check how this influences the LDSB results.
+
+So long,
+Martin
+
+
+Am 26.04.2013 03:00, schrieb Chris Mears:
+&gt;<i> On Tue, 23 Apr 2013 10:55:08 +0200
+</I>&gt;<i> Martin Mann &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">mmann at informatik.uni-freiburg.de</A>&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> I have a symmetry function &quot;s&quot; that can generate for each solution
+</I>&gt;&gt;<i> &quot;a&quot; the set of symmetric assignments on X1 and on X2 (independently).
+</I>&gt;&gt;<i> The problem is defined in a way that all symmetries from X1 are
+</I>&gt;&gt;<i> theoretically combineable with symmetric assignments on X2.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thus I would like to do something like that:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> - for each assignment a1 on X1
+</I>&gt;&gt;<i>    + find assignment a2 on X2
+</I>&gt;&gt;<i>    + ensure during remaining search implication
+</I>&gt;&gt;<i>      if(a1) --&gt; [X2 not s(a2)] for all symmetries of a2
+</I>&gt;&gt;<i>    + ensure during remaining search
+</I>&gt;&gt;<i>      [X1 not s(a1)] for all symmetries of a1
+</I>&gt;&gt;<i>    + continue search
+</I>&gt;<i>
+</I>&gt;<i> Hi Martin,
+</I>&gt;<i>
+</I>&gt;<i> I'm not sure I understand exactly what you are trying to do.  Say you
+</I>&gt;<i> have a model like this:
+</I>&gt;<i>
+</I>&gt;<i> class TwoPhase : public Script {
+</I>&gt;<i> protected:
+</I>&gt;<i>    IntVarArray x;
+</I>&gt;<i>    IntVarArray y;
+</I>&gt;<i> public:
+</I>&gt;<i>    TwoPhase(const Options&amp;)
+</I>&gt;<i>      : x(*this,2,1,2), y(*this,3,1,3) {
+</I>&gt;<i>
+</I>&gt;<i>      Symmetries sx;
+</I>&gt;<i>      sx &lt;&lt; ValueSymmetry(IntArgs(2,1,2));
+</I>&gt;<i>
+</I>&gt;<i>      Symmetries sy;
+</I>&gt;<i>      sy &lt;&lt; ValueSymmetry(IntArgs(3,1,2,3));
+</I>&gt;<i>
+</I>&gt;<i>      branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN(), sx);
+</I>&gt;<i>      branch(*this, y, INT_VAR_NONE(), INT_VAL_MIN(), sy);
+</I>&gt;<i>    }
+</I>&gt;<i>    // ...
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> You would get these solutions:
+</I>&gt;<i>
+</I>&gt;<i> x: 1 1	y: 1 1 1
+</I>&gt;<i> x: 1 1	y: 1 1 2
+</I>&gt;<i> x: 1 1	y: 1 2 1
+</I>&gt;<i> x: 1 1	y: 1 2 2
+</I>&gt;<i> x: 1 1	y: 1 2 3
+</I>&gt;<i> x: 1 2	y: 1 1 1
+</I>&gt;<i> x: 1 2	y: 1 1 2
+</I>&gt;<i> x: 1 2	y: 1 2 1
+</I>&gt;<i> x: 1 2	y: 1 2 2
+</I>&gt;<i> x: 1 2	y: 1 2 3
+</I>&gt;<i>
+</I>&gt;<i> i.e. the symmetry is broken within the &quot;x&quot; and &quot;y&quot; independently.  If
+</I>&gt;<i> this is not what you are looking for, could you please explain a bit
+</I>&gt;<i> more?
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Chris
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+-- 
+Dr. Martin Mann, Postdoc
+Bioinformatics - Inst. of Computer Science
+Albert-Ludwigs-University Freiburg
+Tel: ++49-761-203-8254
+Fax: ++49-761-203-7462
+<A HREF="http://www.bioinf.uni-freiburg.de/~mmann/">http://www.bioinf.uni-freiburg.de/~mmann/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003900.html">[gecode-users] LDSB : symmetries on value tuples and depending symmetries
+</A></li>
+	<LI>Next message: <A HREF="003890.html">[gecode-users] IntVar class container as parameter for branchers
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3917">[ date ]</a>
+              <a href="thread.html#3917">[ thread ]</a>
+              <a href="subject.html#3917">[ subject ]</a>
+              <a href="author.html#3917">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

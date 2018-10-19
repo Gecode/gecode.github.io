@@ -1,0 +1,4574 @@
+From kyo.alone at gmail.com  Tue Mar  5 09:13:27 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Tue, 5 Mar 2013 09:13:27 +0100
+Subject: [gecode-users] Bug when I sort variables
+Message-ID: <CAFWj1gAdrSeZdddN9ZEWcgm_R7rNm2PRMq4fjKzNxHeouCwgDw@mail.gmail.com>
+
+Hi,
+
+I found a bug when I sort variables iv of FlatZincSpace.
+
+<code>
+template<class Var, bool Less=true>
+class VarCompare {
+public:
+    bool operator ()(const Var& lhs, const Var& rhs) {
+        return Less ? lhs.size() < rhs.size() : lhs.size() > rhs.size();
+    }
+};
+
+
+IntVarArgs iva(iv.size());
+for(int i = 0; i < iv.size(); i++) {
+              iva[i] = iv[i];
+}
+
+std::stable_sort(iva.begin(), iva.end(), VarCompare<Gecode::IntVar>());
+
+//Update index optVar
+....
+
+iv = IntVarArray(*this, iva);
+
+</code>
+
+ I get this assertion when I resolve the problem in parallel :
+Assertion failed: (i>=0) && (i<n), file
+C:\Users\REZGUI\gecode\gecode/kernel/shared-array.hpp, line 202
+
+-- 
+Best Regards,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130305/7086bab9/attachment.html>
+
+From tack at gecode.org  Tue Mar  5 11:32:32 2013
+From: tack at gecode.org (Guido Tack)
+Date: Tue, 5 Mar 2013 21:32:32 +1100
+Subject: [gecode-users] Bug when I sort variables
+In-Reply-To: <CAFWj1gAdrSeZdddN9ZEWcgm_R7rNm2PRMq4fjKzNxHeouCwgDw@mail.gmail.com>
+References: <CAFWj1gAdrSeZdddN9ZEWcgm_R7rNm2PRMq4fjKzNxHeouCwgDw@mail.gmail.com>
+Message-ID: <5AFFE0AF-4B1A-4291-8D9A-A18B80066148@gecode.org>
+
+From the code you sent it's impossible to tell anything.  If you want us to help you, you have to first make sure the bug's not in your own code (use a debugger!) and then send us something we can actually reproduce (including which version of gecode etc).
+
+Guido
+
+On 05/03/2013, at 19:13 , Mohamed Rezgui <kyo.alone at gmail.com> wrote:
+
+> Hi,
+> 
+> I found a bug when I sort variables iv of FlatZincSpace.
+> 
+> <code>
+> template<class Var, bool Less=true>
+> class VarCompare {
+> public:
+>     bool operator ()(const Var& lhs, const Var& rhs) {
+>         return Less ? lhs.size() < rhs.size() : lhs.size() > rhs.size();
+>     }
+> };
+> 
+> 
+> IntVarArgs iva(iv.size());
+> for(int i = 0; i < iv.size(); i++) {
+>               iva[i] = iv[i];
+> }
+> 
+> std::stable_sort(iva.begin(), iva.end(), VarCompare<Gecode::IntVar>());
+> 
+> //Update index optVar
+> ....
+> 
+> iv = IntVarArray(*this, iva);
+> 
+> </code>
+> 
+>  I get this assertion when I resolve the problem in parallel :
+> Assertion failed: (i>=0) && (i<n), file C:\Users\REZGUI\gecode\gecode/kernel/shared-array.hpp, line 202
+> 
+> -- 
+> Best Regards,
+> Mohamed REZGUI
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+
+
+From kyo.alone at gmail.com  Tue Mar  5 11:58:23 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Tue, 5 Mar 2013 11:58:23 +0100
+Subject: [gecode-users] Bug when I sort variables
+In-Reply-To: <5AFFE0AF-4B1A-4291-8D9A-A18B80066148@gecode.org>
+References: <CAFWj1gAdrSeZdddN9ZEWcgm_R7rNm2PRMq4fjKzNxHeouCwgDw@mail.gmail.com>
+	<5AFFE0AF-4B1A-4291-8D9A-A18B80066148@gecode.org>
+Message-ID: <CAFWj1gDtU2MtSJca4HefxAG9hCT+RP5rHNGh8QLHGtKCcgtD=A@mail.gmail.com>
+
+Hi Guido,
+
+It is fine I found my bug, it is about the sharing of data between 2 spaces
+: one with branchers and the other without.
+I must do not share the structures because in the space without branchers I
+put other branchers and constraints.
+Have you an interface to handle branchers and disable them when needed ? I
+know I can use filterbranch but I would like having a dynamic filter
+(because the branch filter is copied in branch method)
+
+I am on the latest revision 13433
+Best Regards,
+Mohamed REZGUI
+
+2013/3/5 Guido Tack <tack at gecode.org>
+
+> From the code you sent it's impossible to tell anything.  If you want us
+> to help you, you have to first make sure the bug's not in your own code
+> (use a debugger!) and then send us something we can actually reproduce
+> (including which version of gecode etc).
+>
+> Guido
+>
+> On 05/03/2013, at 19:13 , Mohamed Rezgui <kyo.alone at gmail.com> wrote:
+>
+> > Hi,
+> >
+> > I found a bug when I sort variables iv of FlatZincSpace.
+> >
+> > <code>
+> > template<class Var, bool Less=true>
+> > class VarCompare {
+> > public:
+> >     bool operator ()(const Var& lhs, const Var& rhs) {
+> >         return Less ? lhs.size() < rhs.size() : lhs.size() > rhs.size();
+> >     }
+> > };
+> >
+> >
+> > IntVarArgs iva(iv.size());
+> > for(int i = 0; i < iv.size(); i++) {
+> >               iva[i] = iv[i];
+> > }
+> >
+> > std::stable_sort(iva.begin(), iva.end(), VarCompare<Gecode::IntVar>());
+> >
+> > //Update index optVar
+> > ....
+> >
+> > iv = IntVarArray(*this, iva);
+> >
+> > </code>
+> >
+> >  I get this assertion when I resolve the problem in parallel :
+> > Assertion failed: (i>=0) && (i<n), file
+> C:\Users\REZGUI\gecode\gecode/kernel/shared-array.hpp, line 202
+> >
+> > --
+> > Best Regards,
+> > Mohamed REZGUI
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+>
+> --
+> Guido Tack,
+> http://www.csse.monash.edu/~guidot/
+>
+>
+>
+>
+
+
+-- 
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130305/bffe38af/attachment.html>
+
+From cschulte at kth.se  Tue Mar  5 13:31:10 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 5 Mar 2013 13:31:10 +0100
+Subject: [gecode-users] Bug when I sort variables
+In-Reply-To: <CAFWj1gDtU2MtSJca4HefxAG9hCT+RP5rHNGh8QLHGtKCcgtD=A@mail.gmail.com>
+References: <CAFWj1gAdrSeZdddN9ZEWcgm_R7rNm2PRMq4fjKzNxHeouCwgDw@mail.gmail.com>	<5AFFE0AF-4B1A-4291-8D9A-A18B80066148@gecode.org>
+	<CAFWj1gDtU2MtSJca4HefxAG9hCT+RP5rHNGh8QLHGtKCcgtD=A@mail.gmail.com>
+Message-ID: <00b601ce199d$53e8f920$fbbaeb60$@se>
+
+Gecode 4 will allow to disable branchers. The release should be out in a
+week or so.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mohamed Rezgui
+Sent: Tuesday, March 05, 2013 11:58 AM
+To: Guido Tack
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Bug when I sort variables
+
+ 
+
+Hi Guido,
+
+ 
+
+It is fine I found my bug, it is about the sharing of data between 2 spaces
+: one with branchers and the other without.
+
+I must do not share the structures because in the space without branchers I
+put other branchers and constraints.
+
+Have you an interface to handle branchers and disable them when needed ? I
+know I can use filterbranch but I would like having a dynamic filter
+(because the branch filter is copied in branch method)
+
+ 
+
+I am on the latest revision 13433
+
+Best Regards,
+
+Mohamed REZGUI  
+
+ 
+
+2013/3/5 Guido Tack <tack at gecode.org>
+
+>From the code you sent it's impossible to tell anything.  If you want us to
+help you, you have to first make sure the bug's not in your own code (use a
+debugger!) and then send us something we can actually reproduce (including
+which version of gecode etc).
+
+Guido
+
+
+On 05/03/2013, at 19:13 , Mohamed Rezgui <kyo.alone at gmail.com> wrote:
+
+> Hi,
+>
+> I found a bug when I sort variables iv of FlatZincSpace.
+>
+> <code>
+> template<class Var, bool Less=true>
+> class VarCompare {
+> public:
+>     bool operator ()(const Var& lhs, const Var& rhs) {
+>         return Less ? lhs.size() < rhs.size() : lhs.size() > rhs.size();
+>     }
+> };
+>
+>
+> IntVarArgs iva(iv.size());
+> for(int i = 0; i < iv.size(); i++) {
+>               iva[i] = iv[i];
+> }
+>
+> std::stable_sort(iva.begin(), iva.end(), VarCompare<Gecode::IntVar>());
+>
+> //Update index optVar
+> ....
+>
+> iv = IntVarArray(*this, iva);
+>
+> </code>
+>
+>  I get this assertion when I resolve the problem in parallel :
+> Assertion failed: (i>=0) && (i<n), file
+C:\Users\REZGUI\gecode\gecode/kernel/shared-array.hpp, line 202
+>
+> --
+> Best Regards,
+> Mohamed REZGUI
+
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+--
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+
+
+
+
+
+ 
+
+-- 
+Cordialement,
+
+Mohamed REZGUI
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130305/744d3bc4/attachment.html>
+
+From stefano.gualandi at gmail.com  Thu Mar  7 14:35:24 2013
+From: stefano.gualandi at gmail.com (Stefano Gualandi)
+Date: Thu, 7 Mar 2013 14:35:24 +0100
+Subject: [gecode-users] On posting bin packing constraints
+Message-ID: <36BA6DD5-89B2-4478-A8D1-D5CB7C73CDCE@gmail.com>
+
+Hi,
+as a user, I have a very a simple suggestions about posting a bin packing constraint when
+one of the item has size equals to zero.
+
+The documentation is quite clear (if it took a while to find this out), Gecode raises an exception whenever:
+
+>> Of type Int::OutOfLimits if s contains a non-positive number.
+
+Items with negative sizes are not supported by the filtering algorithm, fine.
+
+However, for an item with size equals to zero, this is a bit too severe.
+An item of size equals to zero never makes the constraints invalid.
+When you have several bin packing constraints over the same set of items (due to several dimensions of each item) it might be that one of the dimensions is zero for one or more items.
+
+Therefore, I would suggest to simple ignore the IntVar associated to an item of zero size, as follows
+(ugly code, but it is to give you the idea). Since you pass the variable views to the propagator, indeed you may ignore the view of zero size variables.
+
+cheers,
+Stefano
+
+
+
+file: bin-packing.cpp (geocode 3.7.3):
+
+    [?]
+    int items=s.size();
+    for (int i=s.size(); i--; )
+       if (s[i] == 0)
+          items--;
+       else
+          Limits::positive(s[i],"Int::binpacking");
+
+    [?]
+    
+    ViewArray<BinPacking::Item> bs(home,items);
+    for (int i=s.size(), j=0; i--; )
+       if ( s[i] > 0 )
+          bs[j++] = BinPacking::Item(b[i],s[i]);
+
+From schulte at gecode.org  Thu Mar  7 21:35:52 2013
+From: schulte at gecode.org (Christian Schulte)
+Date: Thu, 7 Mar 2013 21:35:52 +0100
+Subject: [gecode-users] On posting bin packing constraints
+Message-ID: <000401ce1b73$5fe7f870$1fb7e950$@gecode.org>
+
+Hi Stefano,
+
+This has been requested earlier (but not in the mailing list) and is already
+in the trunk.
+
+Best
+Christian
+
+PS: Sorry for not properly replying, but two of my three email serves are
+running amok.
+
+
+
+From cschulte at kth.se  Tue Mar 12 19:46:29 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 12 Mar 2013 19:46:29 +0100
+Subject: [gecode-users] On posting bin packing constraints
+Message-ID: <000501ce1f51$eb54ac50$c1fe04f0$@kth.se>
+
+And one more try... Christian
+
+> -----Original Message-----
+> From: Christian Schulte [mailto:schulte at gecode.org]
+> Sent: Thursday, March 07, 2013 9:36 PM
+> To: Stefano Gualandi (stefano.gualandi at gmail.com); 'users at gecode.org'
+> Subject: Re: On posting bin packing constraints
+> 
+> Hi Stefano,
+> 
+> This has been requested earlier (but not in the mailing list) and is
+already in the
+> trunk.
+> 
+> Best
+> Christian
+> 
+> PS: Sorry for not properly replying, but two of my three email serves are
+running
+> amok.
+
+
+
+From cschulte at kth.se  Tue Mar 12 19:46:29 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 12 Mar 2013 19:46:29 +0100
+Subject: [gecode-users] On posting bin packing constraints
+In-Reply-To: <36BA6DD5-89B2-4478-A8D1-D5CB7C73CDCE@gmail.com>
+References: <36BA6DD5-89B2-4478-A8D1-D5CB7C73CDCE@gmail.com>
+Message-ID: <000601ce1f51$ebd54e00$c37fea00$@kth.se>
+
+Hi Stefano,
+
+Completely agree and has already been requested by other users, so it is
+already in the trunk!
+
+But thanks for pointing out!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of Stefano Gualandi
+> Sent: Thursday, March 07, 2013 2:35 PM
+> To: users at gecode.org
+> Subject: [gecode-users] On posting bin packing constraints
+> 
+> Hi,
+> as a user, I have a very a simple suggestions about posting a bin packing
+> constraint when one of the item has size equals to zero.
+> 
+> The documentation is quite clear (if it took a while to find this out),
+Gecode
+> raises an exception whenever:
+> 
+> >> Of type Int::OutOfLimits if s contains a non-positive number.
+> 
+> Items with negative sizes are not supported by the filtering algorithm,
+fine.
+> 
+> However, for an item with size equals to zero, this is a bit too severe.
+> An item of size equals to zero never makes the constraints invalid.
+> When you have several bin packing constraints over the same set of items
+(due
+> to several dimensions of each item) it might be that one of the dimensions
+is
+> zero for one or more items.
+> 
+> Therefore, I would suggest to simple ignore the IntVar associated to an
+item of
+> zero size, as follows (ugly code, but it is to give you the idea). Since
+you pass the
+> variable views to the propagator, indeed you may ignore the view of zero
+size
+> variables.
+> 
+> cheers,
+> Stefano
+> 
+> 
+> 
+> file: bin-packing.cpp (geocode 3.7.3):
+> 
+>     [.]
+>     int items=s.size();
+>     for (int i=s.size(); i--; )
+>        if (s[i] == 0)
+>           items--;
+>        else
+>           Limits::positive(s[i],"Int::binpacking");
+> 
+>     [.]
+> 
+>     ViewArray<BinPacking::Item> bs(home,items);
+>     for (int i=s.size(), j=0; i--; )
+>        if ( s[i] > 0 )
+>           bs[j++] = BinPacking::Item(b[i],s[i]);
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From Jiri.Mitrych at rtscs.cz  Wed Mar 13 10:30:12 2013
+From: Jiri.Mitrych at rtscs.cz (=?iso-8859-2?Q?Mitrych_Ji=F8=ED?=)
+Date: Wed, 13 Mar 2013 10:30:12 +0100
+Subject: [gecode-users] Scheduling
+Message-ID: <C657E78D9574A941B0D57A888E0D1D00CD5CF1@mail.rtscs.cz>
+
+Hi,
+
+ 
+
+I have following problem to solve. I have one  resource and some tasks with starting times and durations. The constraint for scheduling is unary, it ensures no overlaying in time. To that point it is clear for me. But what to do, when I want to constrain the time gap between two consequential tasks not bigger then let's say Tmax? The complication is, that consequetial tasks from time's point of view haven't got  fixed positions in array, so I don't know, between which elements of array I should make a constraint for that Tmax.
+
+ 
+
+Best regards
+
+Jiri Mitrych
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130313/02866b6d/attachment.html>
+
+From tack at gecode.org  Wed Mar 13 11:29:07 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 13 Mar 2013 21:29:07 +1100
+Subject: [gecode-users] Scheduling
+In-Reply-To: <C657E78D9574A941B0D57A888E0D1D00CD5CF1@mail.rtscs.cz>
+References: <C657E78D9574A941B0D57A888E0D1D00CD5CF1@mail.rtscs.cz>
+Message-ID: <90F44B17-212F-42B5-B2B1-4AC7F87FBACA@gecode.org>
+
+Hi,
+
+there's no direct way to model this using the scheduling constraints in Gecode.  On workaround I could imagine would be to make an array x of all start and end times, and then use the "sort" constraint to produce a sorted array y.  On a unary resource, this should mean that the start and end times in y are still in the right order, and you can post the constraint y[i+1]-y[i] <= Tmax for i in 1,3,5,7... 
+
+Hope this helps,
+
+Guido
+
+On 13/03/2013, at 20:30 , Mitrych Ji?? <Jiri.Mitrych at rtscs.cz> wrote:
+
+> Hi,
+>  
+> I have following problem to solve. I have one  resource and some tasks with starting times and durations. The constraint for scheduling is unary, it ensures no overlaying in time. To that point it is clear for me. But what to do, when I want to constrain the time gap between two consequential tasks not bigger then let?s say Tmax? The complication is, that consequetial tasks from time?s point of view haven?t got  fixed positions in array, so I don?t know, between which elements of array I should make a constraint for that Tmax.
+>  
+> Best regards
+> Jiri Mitrych
+>  
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+
+
+From mailing-list at francq.info  Wed Mar 13 16:57:37 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Wed, 13 Mar 2013 16:57:37 +0100
+Subject: [gecode-users] initialize ViewArray<IntView> from IntVarArray
+Message-ID: <5140A1F1.90402@francq.info>
+
+Hi,
+I am developing a propagator which constructors takes an IntVarArray as
+parameter, and I want to initialize a ViewArray on this parameter.
+My current code looks like :
+
+class MyPropagator :  public Propagator
+{
+	ViewArray<IntView> C;
+	MyPropagator(Home home,IntVarArray& c)
+		: Propagator(home), C(home,c.size())
+	{
+		for(size_t j=0;j<4;j++)
+			C[j]=IntView(c[j]);
+		C.subscribe(home,*this,PC_GEN_ASSIGNED);
+	}
+};
+
+When I run the code, I have segmentation fault. I suppose that my
+constructor is not correct.
+Thanks.
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From cschulte at kth.se  Wed Mar 13 17:24:30 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 13 Mar 2013 17:24:30 +0100
+Subject: [gecode-users] initialize ViewArray<IntView> from IntVarArray
+In-Reply-To: <5140A1F1.90402@francq.info>
+References: <5140A1F1.90402@francq.info>
+Message-ID: <010401ce2007$3e24ebb0$ba6ec310$@se>
+
+Do all your arrays have size 4 (as in your loop)? ;-)
+
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Pascal Francq (Mailing lists)
+Sent: Wednesday, March 13, 2013 4:58 PM
+To: users at gecode.org
+Subject: [gecode-users] initialize ViewArray<IntView> from IntVarArray
+
+Hi,
+I am developing a propagator which constructors takes an IntVarArray as
+parameter, and I want to initialize a ViewArray on this parameter.
+My current code looks like :
+
+class MyPropagator :  public Propagator
+{
+	ViewArray<IntView> C;
+	MyPropagator(Home home,IntVarArray& c)
+		: Propagator(home), C(home,c.size())
+	{
+		for(size_t j=0;j<4;j++)
+			C[j]=IntView(c[j]);
+		C.subscribe(home,*this,PC_GEN_ASSIGNED);
+	}
+};
+
+When I run the code, I have segmentation fault. I suppose that my
+constructor is not correct.
+Thanks.
+--
+Dr. Pascal Francq
+Belgium
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From mailing-list at francq.info  Wed Mar 13 17:34:14 2013
+From: mailing-list at francq.info (Pascal Francq (Mailing lists))
+Date: Wed, 13 Mar 2013 17:34:14 +0100
+Subject: [gecode-users] initialize ViewArray<IntView> from IntVarArray
+In-Reply-To: <010401ce2007$3e24ebb0$ba6ec310$@se>
+References: <5140A1F1.90402@francq.info> <010401ce2007$3e24ebb0$ba6ec310$@se>
+Message-ID: <5140AA86.4080100@francq.info>
+
+In fact, the IntVarArray had 5 elements (a bug in another part of the
+program). Therefore, one element wasn't initialized and produced the
+segmentation fault.
+What a stupid error I should have verify this before sending the email.
+Sorry and thanks.
+
+Le 13/03/13 17:24, Christian Schulte a ?crit :
+> Do all your arrays have size 4 (as in your loop)? ;-)
+> 
+> Christian
+> 
+> --
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/
+> 
+> 
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Pascal Francq (Mailing lists)
+> Sent: Wednesday, March 13, 2013 4:58 PM
+> To: users at gecode.org
+> Subject: [gecode-users] initialize ViewArray<IntView> from IntVarArray
+> 
+> Hi,
+> I am developing a propagator which constructors takes an IntVarArray as
+> parameter, and I want to initialize a ViewArray on this parameter.
+> My current code looks like :
+> 
+> class MyPropagator :  public Propagator
+> {
+> 	ViewArray<IntView> C;
+> 	MyPropagator(Home home,IntVarArray& c)
+> 		: Propagator(home), C(home,c.size())
+> 	{
+> 		for(size_t j=0;j<4;j++)
+> 			C[j]=IntView(c[j]);
+> 		C.subscribe(home,*this,PC_GEN_ASSIGNED);
+> 	}
+> };
+> 
+> When I run the code, I have segmentation fault. I suppose that my
+> constructor is not correct.
+> Thanks.
+> --
+> Dr. Pascal Francq
+> Belgium
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+
+
+-- 
+Dr. Pascal Francq
+Belgium
+
+
+From d.schnorpfeil at web.de  Wed Mar 13 17:37:29 2013
+From: d.schnorpfeil at web.de (Dirk Schnorpfeil)
+Date: Wed, 13 Mar 2013 16:37:29 +0000 (UTC)
+Subject: [gecode-users] Getting ID of actor failing a space
+Message-ID: <loom.20130313T172922-348@post.gmane.org>
+
+Hi folks!
+
+First let me introduce myself to the list: 
+I am a software developer for scheduling and planning systems working for a 
+small company in germany. As i love gecode i put it into the heart of the 
+scheduling system i am currently working on. From the use of gecode the 
+following question came up to me:
+
+When using gecode in practice with large models (many many constraints) it is 
+sometimes hard to find out why a space is failed. This comes esp. true when 
+you implement new propagators or branchers and when you debug them (they dont 
+fail the space but because of a bug in the newly added propagator another 
+constraint failes...)
+
+I often wished a functionality that lets me tag all actors (propagators, 
+branchers) with an ID while posting them and when a space is failed i could 
+simply by retrieving that ID (of last executed actor) get some idea which 
+constraint failed the space.
+
+Is there some functionality or is there even a better way to do this?
+
+Many thanks in advance!
+
+Dirk
+
+
+
+From David.Rijsman at quintiq.com  Wed Mar 13 18:11:17 2013
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Wed, 13 Mar 2013 18:11:17 +0100
+Subject: [gecode-users] Getting ID of actor failing a space
+In-Reply-To: <loom.20130313T172922-348@post.gmane.org>
+References: <loom.20130313T172922-348@post.gmane.org>
+Message-ID: <5140C1450200008500027A0E@mail.quintiq.nl>
+
+Hi Dirk,
+
+if you still have access to the propagators you could check if the accumulated failure count has increased, you will have to know what it was before you started propagation off course. For the propagators you wrote yourself you could (un)register them to your space as (being done) propagating and then you at least know if that one created the failure directly. As you already indicated it will only tell you who was the lucky propagator to conclude failure, 
+
+
+
+
+
+David J. Rijsman
+Algorithm Lead
+Quintiq
+ 
+T +31 (0)73 691 07 39
+F +31 (0)73 691 07 54
+M +31 (0)62 127 68 29
+E david.rijsman at quintiq.com
+I www.quintiq.com
+
+
+>>> 
+From: 	Dirk Schnorpfeil <d.schnorpfeil at web.de>
+To:	<users at gecode.org>
+Date: 	13-3-2013 17:40
+Subject: 	[gecode-users] Getting ID of actor failing a space
+
+Hi folks!
+
+First let me introduce myself to the list: 
+I am a software developer for scheduling and planning systems working for a 
+small company in germany. As i love gecode i put it into the heart of the 
+scheduling system i am currently working on. From the use of gecode the 
+following question came up to me:
+
+When using gecode in practice with large models (many many constraints) it is 
+sometimes hard to find out why a space is failed. This comes esp. true when 
+you implement new propagators or branchers and when you debug them (they dont 
+fail the space but because of a bug in the newly added propagator another 
+constraint failes...)
+
+I often wished a functionality that lets me tag all actors (propagators, 
+branchers) with an ID while posting them and when a space is failed i could 
+simply by retrieving that ID (of last executed actor) get some idea which 
+constraint failed the space.
+
+Is there some functionality or is there even a better way to do this?
+
+Many thanks in advance!
+
+Dirk
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org 
+https://www.gecode.org/mailman/listinfo/gecode-users 
+
+
+
+
+From cschulte at kth.se  Wed Mar 13 21:12:47 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 13 Mar 2013 21:12:47 +0100
+Subject: [gecode-users] Getting ID of actor failing a space
+In-Reply-To: <5140C1450200008500027A0E@mail.quintiq.nl>
+References: <loom.20130313T172922-348@post.gmane.org>
+	<5140C1450200008500027A0E@mail.quintiq.nl>
+Message-ID: <003e01ce2027$222c3920$6684ab60$@kth.se>
+
+Hi,
+
+@David: nifty idea, never thought of that.
+
+There are several possibilities here of how we could help:
+
+ - Merge Groups in the release version: here you get a lot of control over
+how propagators are executed, the idea you can find here:
+	
+http://web.it.kth.se/~cschulte/paper.php?id=LagerkvistSchulte:CP:2009
+  We thought whether this should be part of Gecode 4 (which will be released
+tomorrow, most likely) but decided against it as we do not have any killer
+applications right now.
+
+ - Make Gecode's testing infrastructure accessible (documentation, make
+available as library). The testing infrastructure is very powerful and we
+know from experience that if the tests are well-designed you hardly ever
+miss a bug in a propagator.
+
+Would any of this help? Both are quite some work and we are really exhausted
+after Gecode 4 (the new features are cool, though).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On
+> Behalf Of David Rijsman
+> Sent: Wednesday, March 13, 2013 6:11 PM
+> To: users at gecode.org; Dirk Schnorpfeil
+> Subject: Re: [gecode-users] Getting ID of actor failing a space
+> 
+> Hi Dirk,
+> 
+> if you still have access to the propagators you could check if the
+accumulated
+> failure count has increased, you will have to know what it was before you
+> started propagation off course. For the propagators you wrote yourself you
+> could (un)register them to your space as (being done) propagating and then
+you
+> at least know if that one created the failure directly. As you already
+indicated it
+> will only tell you who was the lucky propagator to conclude failure,
+> 
+> 
+> 
+> 
+> 
+> David J. Rijsman
+> Algorithm Lead
+> Quintiq
+> 
+> T +31 (0)73 691 07 39
+> F +31 (0)73 691 07 54
+> M +31 (0)62 127 68 29
+> E david.rijsman at quintiq.com
+> I www.quintiq.com
+> 
+> 
+> >>>
+> From: 	Dirk Schnorpfeil <d.schnorpfeil at web.de>
+> To:	<users at gecode.org>
+> Date: 	13-3-2013 17:40
+> Subject: 	[gecode-users] Getting ID of actor failing a space
+> 
+> Hi folks!
+> 
+> First let me introduce myself to the list:
+> I am a software developer for scheduling and planning systems working for
+a
+> small company in germany. As i love gecode i put it into the heart of the
+> scheduling system i am currently working on. From the use of gecode the
+> following question came up to me:
+> 
+> 
+> When using gecode in practice with large models (many many constraints) it
+is
+> sometimes hard to find out why a space is failed. This comes esp. true
+when you
+> implement new propagators or branchers and when you debug them (they dont
+> fail the space but because of a bug in the newly added propagator another
+> constraint failes...)
+> 
+> I often wished a functionality that lets me tag all actors (propagators,
+> branchers) with an ID while posting them and when a space is failed i
+could
+> simply by retrieving that ID (of last executed actor) get some idea which
+> constraint failed the space.
+> 
+> Is there some functionality or is there even a better way to do this?
+> 
+> Many thanks in advance!
+> 
+> Dirk
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From tommaso.urli at uniud.it  Thu Mar 14 11:39:12 2013
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Thu, 14 Mar 2013 11:39:12 +0100
+Subject: [gecode-users] Elapsed time and timeout
+Message-ID: <5141A8D0.3050105@uniud.it>
+
+Hello everyone,
+     I'm a fairly new Gecode user, and I'm experimenting with heuristic 
+branchers and search engines. Now, I'd like to add some adaptivity, with 
+respect to the allowed execution time, in a brancher, but I cannot find 
+a way to access this data (timeout and elapsed time). The MPG doesn't 
+seem to mention it and I don't know where else to look, but I'm quite 
+sure it must be described somewhere. Could you point me to some 
+documentation on the matter?
+
+Thank you,
+Tommaso Urli
+
+
+From cschulte at kth.se  Thu Mar 14 12:20:11 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 14 Mar 2013 12:20:11 +0100
+Subject: [gecode-users] Elapsed time and timeout
+In-Reply-To: <5141A8D0.3050105@uniud.it>
+References: <5141A8D0.3050105@uniud.it>
+Message-ID: <011801ce20a5$e4f3aaf0$aedb00d0$@se>
+
+Hi, check for stop objects in the search chapter. There you can specify
+timeouts.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Tommaso Urli
+Sent: Thursday, March 14, 2013 11:39 AM
+To: users at gecode.org
+Subject: [gecode-users] Elapsed time and timeout
+
+Hello everyone,
+     I'm a fairly new Gecode user, and I'm experimenting with heuristic
+branchers and search engines. Now, I'd like to add some adaptivity, with
+respect to the allowed execution time, in a brancher, but I cannot find a
+way to access this data (timeout and elapsed time). The MPG doesn't seem to
+mention it and I don't know where else to look, but I'm quite sure it must
+be described somewhere. Could you point me to some documentation on the
+matter?
+
+Thank you,
+Tommaso Urli
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From d.schnorpfeil at web.de  Thu Mar 14 17:04:53 2013
+From: d.schnorpfeil at web.de (Dirk Schnorpfeil)
+Date: Thu, 14 Mar 2013 16:04:53 +0000 (UTC)
+Subject: [gecode-users] Getting ID of actor failing a space
+References: <loom.20130313T172922-348@post.gmane.org>
+	<5140C1450200008500027A0E@mail.quintiq.nl>
+	<003e01ce2027$222c3920$6684ab60$@kth.se>
+Message-ID: <loom.20130314T170208-13@post.gmane.org>
+
+Hi Christian,
+
+many thanks for your reply. I will go through that paper and come back to you. 
+But this will take a little time because i just saw that gecode 4.0 was 
+released. So i have to read the new mpg first :-)
+
+Bye, Dirk.
+
+
+
+
+From tommaso.urli at uniud.it  Thu Mar 14 17:29:42 2013
+From: tommaso.urli at uniud.it (Tommaso Urli)
+Date: Thu, 14 Mar 2013 17:29:42 +0100
+Subject: [gecode-users] Elapsed time and timeout
+In-Reply-To: <011801ce20a5$e4f3aaf0$aedb00d0$@se>
+References: <5141A8D0.3050105@uniud.it> <011801ce20a5$e4f3aaf0$aedb00d0$@se>
+Message-ID: <5141FAF6.4090707@uniud.it>
+
+> Hi, check for stop objects in the search chapter. There you can specify
+> timeouts.
+
+Hello,
+     thank you for your support, I'll have a look at that.
+
+Tommaso
+
+
+
+From tack at gecode.org  Thu Mar 14 22:01:47 2013
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 15 Mar 2013 08:01:47 +1100
+Subject: [gecode-users] Gecode 4.0.0 released
+Message-ID: <4561BF94-ABC4-49DD-A19C-12BE41D3107F@gecode.org>
+
+Dear all,
+
+we are releasing the next major version of Gecode:
+
+                           Gecode 4.0.0
+                  http://www.gecode.org
+
+This release adds a multitude of new features, fixes many bugs, and offers a number of performance improvements. There are too many major improvements to even summarize them here all, so here are just some highlights: LDSB as automatic symmetry breaking during search; restart-based search; complete redesign and reimplementation of branching enhancing the expressiveness massively (AFC with decay, activity, user-defined variable and value selection, tie-break control, better randomization, ...); half-reification; addition of floating point constraints.
+
+On our web site, you find source packages, binary packages for Windows and Mac OS, and the full documentation.
+
+As the interfaces have changed, please consult the following page for information on how to update existing code:
+http://www.gecode.org/doc-latest/reference/PageHowToChange__4.html
+
+If you have downloaded the packages before you read this message, please re-download, as we incorporated a last-minute fix.
+
+Cheers,
+Guido
+
+
+
+From tack at gecode.org  Thu Mar 14 22:03:42 2013
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 15 Mar 2013 08:03:42 +1100
+Subject: [gecode-users] Gecode 4.0.0 released
+In-Reply-To: <4561BF94-ABC4-49DD-A19C-12BE41D3107F@gecode.org>
+References: <4561BF94-ABC4-49DD-A19C-12BE41D3107F@gecode.org>
+Message-ID: <EFF3BD77-BBEE-48B4-AB72-A8771F50338C@gecode.org>
+
+Sorry for the immediate follow-up - some binary packages may only be available in about an hour or so.
+
+Cheers,
+Guido
+
+-- 
+Guido Tack
+http://www.csse.monash.edu/~guidot/
+
+
+
+On 15/03/2013, at 8:01 AM, Guido Tack <tack at gecode.org> wrote:
+
+> Dear all,
+> 
+> we are releasing the next major version of Gecode:
+> 
+>                           Gecode 4.0.0
+>                  http://www.gecode.org
+> 
+> This release adds a multitude of new features, fixes many bugs, and offers a number of performance improvements. There are too many major improvements to even summarize them here all, so here are just some highlights: LDSB as automatic symmetry breaking during search; restart-based search; complete redesign and reimplementation of branching enhancing the expressiveness massively (AFC with decay, activity, user-defined variable and value selection, tie-break control, better randomization, ...); half-reification; addition of floating point constraints.
+> 
+> On our web site, you find source packages, binary packages for Windows and Mac OS, and the full documentation.
+> 
+> As the interfaces have changed, please consult the following page for information on how to update existing code:
+> http://www.gecode.org/doc-latest/reference/PageHowToChange__4.html
+> 
+> If you have downloaded the packages before you read this message, please re-download, as we incorporated a last-minute fix.
+> 
+> Cheers,
+> Guido
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130315/d7dc6086/attachment.html>
+
+From Maria.Mannone at ircam.fr  Fri Mar 15 16:58:17 2013
+From: Maria.Mannone at ircam.fr (Maria.Mannone at ircam.fr)
+Date: Fri, 15 Mar 2013 16:58:17 +0100 (CET)
+Subject: [gecode-users] Syntax
+Message-ID: <50093.129.102.65.150.1363363097.squirrel@webmail.ircam.fr>
+
+Hello everyone,
+I'm a new Gecode user (I have started this week). I have a doubt about the
+syntax, but I hope that it isn't a too naive one. In my code, there is a
+cycle for that defines elements of the array x[i], i = 1?n-1. I must write
+the condition on the last term, x[n-1], as the result of an expression out
+of the cycle for, like
+d[n-1] = expr(*this, abs(x[0]-x[n-1]), opt.icl());
+However, this way doesn't seem the correct one, since, using it, the
+execution is aborted. The same problem if I utilize d[n-1] = expr(*this,
+abs(a+b),opt.icl()); where 'a' and 'b' have been defined.
+Could you give me some clarifications?
+Thanks very much.
+M
+
+
+From chuongdk at gmail.com  Sun Mar 17 01:08:28 2013
+From: chuongdk at gmail.com (Duong Khanh Chuong)
+Date: Sun, 17 Mar 2013 01:08:28 +0100
+Subject: [gecode-users] Possible bug in reified constraint on FloatVar
+Message-ID: <CA+bPztq98vDcROnqJ2R-A3aFwY=bhWHBYKcnnk3dtZfPB8wHow@mail.gmail.com>
+
+Hi,
+I'm trying to use FloatVar and found this bug:
+
+    FloatVar f(*this, 0, 10);
+    BoolVar test(*this, 0, 1);
+
+    rel(*this, f, FRT_GQ, 5, test);
+    rel(*this, test, IRT_EQ, 1);
+
+With this reified constraint, the domain of f should be [5, 10] but it is
+always [0, 10]
+
+If I change FRT_GQ to FRT_EQ, it works:
+
+    FloatVar f(*this, 0, 10);
+    BoolVar test(*this, 0, 1);
+    rel(*this, f, FRT_EQ, 5, test);
+    rel(*this, test, IRT_EQ, 1);
+
+Domain of f is [5,5]
+
+
+Best regards,
+Duong Khanh Chuong
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130317/fd096852/attachment.html>
+
+From cschulte at kth.se  Mon Mar 18 11:02:30 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 18 Mar 2013 11:02:30 +0100
+Subject: [gecode-users] Syntax
+In-Reply-To: <50093.129.102.65.150.1363363097.squirrel@webmail.ircam.fr>
+References: <50093.129.102.65.150.1363363097.squirrel@webmail.ircam.fr>
+Message-ID: <006201ce23bf$b5f21530$21d63f90$@se>
+
+Dear Maria,
+
+I have to admit that I do not really understand your problem. Maybe some code would help? And then what do you mean by abort?
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Maria.Mannone at ircam.fr
+Sent: Friday, March 15, 2013 4:58 PM
+To: users at gecode.org
+Subject: [gecode-users] Syntax
+
+Hello everyone,
+I'm a new Gecode user (I have started this week). I have a doubt about the syntax, but I hope that it isn't a too naive one. In my code, there is a cycle for that defines elements of the array x[i], i = 1?n-1. I must write the condition on the last term, x[n-1], as the result of an expression out of the cycle for, like d[n-1] = expr(*this, abs(x[0]-x[n-1]), opt.icl()); However, this way doesn't seem the correct one, since, using it, the execution is aborted. The same problem if I utilize d[n-1] = expr(*this, abs(a+b),opt.icl()); where 'a' and 'b' have been defined.
+Could you give me some clarifications?
+Thanks very much.
+M
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From Vincent.Barichard at univ-angers.fr  Mon Mar 18 11:10:20 2013
+From: Vincent.Barichard at univ-angers.fr (Vincent Barichard)
+Date: Mon, 18 Mar 2013 11:10:20 +0100
+Subject: [gecode-users] Possible bug in reified constraint on FloatVar
+In-Reply-To: <CA+bPztq98vDcROnqJ2R-A3aFwY=bhWHBYKcnnk3dtZfPB8wHow@mail.gmail.com>
+References: <CA+bPztq98vDcROnqJ2R-A3aFwY=bhWHBYKcnnk3dtZfPB8wHow@mail.gmail.com>
+Message-ID: <CAF6ZHe==xcCe28PgOQtSRcW+yFUFTiONvYM4occe4a34i=Kj+g@mail.gmail.com>
+
+Deer Duong Khanh,
+
+You are right, the propagation was not tight enough on these reification
+cases.
+The fix has been applied in the svn.
+
+Best regards,
+Vincent
+
+
+2013/3/17 Duong Khanh Chuong <chuongdk at gmail.com>
+
+> Hi,
+> I'm trying to use FloatVar and found this bug:
+>
+>     FloatVar f(*this, 0, 10);
+>     BoolVar test(*this, 0, 1);
+>
+>     rel(*this, f, FRT_GQ, 5, test);
+>     rel(*this, test, IRT_EQ, 1);
+>
+> With this reified constraint, the domain of f should be [5, 10] but it is
+> always [0, 10]
+>
+> If I change FRT_GQ to FRT_EQ, it works:
+>
+>     FloatVar f(*this, 0, 10);
+>     BoolVar test(*this, 0, 1);
+>     rel(*this, f, FRT_EQ, 5, test);
+>     rel(*this, test, IRT_EQ, 1);
+>
+> Domain of f is [5,5]
+>
+>
+> Best regards,
+> Duong Khanh Chuong
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+
+
+-- 
+Vincent Barichard         Universit? d'Angers (LERIA)
+Tel:  02 41 73 52 06      D?partement Informatique
+Fax: 02 41 73 50 73      H203
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130318/590e7577/attachment.html>
+
+From kyo.alone at gmail.com  Fri Mar 22 17:29:38 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Fri, 22 Mar 2013 17:29:38 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+Message-ID: <CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+
+Dear everybody,
+
+I have a problem with Gecode 4.0.0 (see the code below)
+I can exhibit the issue on the following example
+
+I solve an optimization problem in the format flatzinc
+"sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.
+Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces)
+P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+P2 is P with (x3=1, x5=2, x30=29, x31=30)
+
+First, I solve P1. This found a solution with a cost C1. Then I solve P2
+and add the cost constraint cost <C1 (ie constraint(c1) in gecode))
+
+The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+sum is 685s where the initial resolution takes 370s
+I expected to have something close to 370s
+
+It seems that I have no problem if I add constraint on the first variables
+(x0, x1,?) and that it does not work if I use any variables (like here
+x3,x5,x30?)
+
+Thanks in advance for any remark
+
+Best Regards,
+Mohammed REZGUI
+
+Here is my code:
+<code>
+//Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance
+FlatZincSpace* fg = FlatZinc::parse(...)
+fg->createBranchers(...)
+fg->shrinkArray(...)
+
+//vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+this problem
+// it is fine If I use 4 first variables but it is not interesting for me
+//
+
+
+//best solution used for P2 after
+Space* best = NULL;
+{
+          FlatZincSpace* p1 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+          //vars_index[3, 5, 30, 31, ]
+          //tuple_val[1, 2, 29, 30, ]
+          Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);
+          Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);
+          Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);
+          Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);
+
+          Gecode::Search::Options opt;
+          opt.threads = 1.0;
+          Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+opt);
+          Gecode::Space* s = bab.next();
+          while(s) {
+                      delete best;
+                      best = s;
+                      engine().solution(this);
+                      s = bab.next();
+          }
+
+}
+
+{
+          FlatZincSpace* p2 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+          //vars_index[3, 5, 30, 31, ]
+          //tuple_val[1, 2, 30, 29, ]
+          Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);
+          Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);
+          Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);
+          Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);
+
+          if (best) {
+                    p2->constrain(*best);
+          }
+
+          Gecode::Search::Options opt;
+          opt.threads = 1.0;
+          Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+opt);
+          Gecode::Space* s = bab.next();
+          while(s) {
+                      delete best;
+                      best = s;
+                      engine().solution(this);
+                      s = bab.next();
+          }
+
+}
+</code>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130322/ca0aafa5/attachment.html>
+
+From cschulte at kth.se  Fri Mar 22 17:35:04 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 22 Mar 2013 17:35:04 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+Message-ID: <00ab01ce271b$359328c0$a0b97a40$@kth.se>
+
+You might want to look at how much search is needed, just check the
+statistics. The decomposition does not guarantee that you will use less
+search.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mohamed Rezgui
+Sent: Friday, March 22, 2013 5:30 PM
+To: users at gecode.org
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+
+ 
+
+Dear everybody,
+
+ 
+
+I have a problem with Gecode 4.0.0 (see the code below)
+
+I can exhibit the issue on the following example
+
+ 
+
+I solve an optimization problem in the format flatzinc
+"sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.
+
+Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces) 
+
+P1 is P with (x3=1, x5=2, x30=30, x31=29) and                             
+
+P2 is P with (x3=1, x5=2, x30=29, x31=30)                        
+
+ 
+
+First, I solve P1. This found a solution with a cost C1. Then I solve P2 and
+add the cost constraint cost <C1 (ie constraint(c1) in gecode))
+
+ 
+
+The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+sum is 685s where the initial resolution takes 370s
+
+I expected to have something close to 370s
+
+ 
+
+It seems that I have no problem if I add constraint on the first variables
+(x0, x1,.) and that it does not work if I use any variables (like here
+x3,x5,x30.)
+
+ 
+
+Thanks in advance for any remark
+
+ 
+
+Best Regards,
+
+Mohammed REZGUI
+
+ 
+
+Here is my code:
+
+<code>
+
+//Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance
+
+FlatZincSpace* fg = FlatZinc::parse(...)
+
+fg->createBranchers(...)
+
+fg->shrinkArray(...)
+
+ 
+
+//vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+this problem
+
+// it is fine If I use 4 first variables but it is not interesting for me
+
+//       
+
+ 
+
+ 
+
+//best solution used for P2 after
+
+Space* best = NULL;
+
+{
+
+          FlatZincSpace* p1 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+         
+
+          //vars_index[3, 5, 30, 31, ]                            
+
+          //tuple_val[1, 2, 29, 30, ]
+
+          Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);
+
+          Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);
+
+          Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);
+
+          Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);
+
+            
+
+          Gecode::Search::Options opt;
+
+          opt.threads = 1.0;
+
+          Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+opt);
+
+          Gecode::Space* s = bab.next();
+
+          while(s) {
+
+                      delete best;
+
+                      best = s;
+
+                      engine().solution(this);
+
+                      s = bab.next();
+
+          }
+
+ 
+
+}
+
+ 
+
+{
+
+          FlatZincSpace* p2 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+         
+
+          //vars_index[3, 5, 30, 31, ]                            
+
+          //tuple_val[1, 2, 30, 29, ]
+
+          Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);
+
+          Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);
+
+          Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);
+
+          Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);
+
+    
+
+          if (best) {
+
+                    p2->constrain(*best);
+
+          }
+
+         
+
+          Gecode::Search::Options opt;
+
+          opt.threads = 1.0;
+
+          Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+opt);
+
+          Gecode::Space* s = bab.next();
+
+          while(s) {
+
+                      delete best;
+
+                      best = s;
+
+                      engine().solution(this);
+
+                      s = bab.next();
+
+          }
+
+ 
+
+}
+
+</code>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130322/922f6771/attachment.html>
+
+From cliffyapp at gmail.com  Tue Mar 26 22:40:16 2013
+From: cliffyapp at gmail.com (Clifford Yapp)
+Date: Tue, 26 Mar 2013 17:40:16 -0400
+Subject: [gecode-users] Floating point example?
+Message-ID: <CAHsgyAQgn5DTbj=-9+uNinBif6Wk_iTRk4-YEEzbKQatyPDnQg@mail.gmail.com>
+
+I noted with considerable interest that Gecode 4.0 lists support for floats
+in its Changelog.
+
+Does there exist a tutorial demonstrating this ability?  In particular, is
+it possible to add
+constraints along the lines of "A * B = 12.2", "B + C < 4.1", "A * C = 4"
+and have Gecode solve the system for A, B and C?  (Or is that a different
+type of constraint system than Gecode is intended for?)
+
+Thanks,
+CY
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130326/4175703c/attachment.html>
+
+From tack at gecode.org  Wed Mar 27 00:25:16 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 27 Mar 2013 10:25:16 +1100
+Subject: [gecode-users] Floating point example?
+In-Reply-To: <CAHsgyAQgn5DTbj=-9+uNinBif6Wk_iTRk4-YEEzbKQatyPDnQg@mail.gmail.com>
+References: <CAHsgyAQgn5DTbj=-9+uNinBif6Wk_iTRk4-YEEzbKQatyPDnQg@mail.gmail.com>
+Message-ID: <9482C585-A828-4AA2-A0F5-32C6B4C668F9@gecode.org>
+
+There's a whole chapter on floating point constraints in the tutorial documentation "Modelling and Programming with Gecode" (see chapter 6 and 7.1.4) as well as several examples.  The system you describe can be solved with Gecode given suitable initial bounds for A,B,C.
+
+Cheers,
+Guido
+
+On 27/03/2013, at 8:40 AM, Clifford Yapp <cliffyapp at gmail.com> wrote:
+
+> I noted with considerable interest that Gecode 4.0 lists support for floats in its Changelog.
+> 
+> Does there exist a tutorial demonstrating this ability?  In particular, is it possible to add
+> constraints along the lines of "A * B = 12.2", "B + C < 4.1", "A * C = 4" and have Gecode solve the system for A, B and C?  (Or is that a different type of constraint system than Gecode is intended for?)
+> 
+> Thanks,
+> CY
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cliffyapp at gmail.com  Wed Mar 27 01:51:45 2013
+From: cliffyapp at gmail.com (Clifford Yapp)
+Date: Tue, 26 Mar 2013 20:51:45 -0400
+Subject: [gecode-users] Floating point example?
+In-Reply-To: <9482C585-A828-4AA2-A0F5-32C6B4C668F9@gecode.org>
+References: <CAHsgyAQgn5DTbj=-9+uNinBif6Wk_iTRk4-YEEzbKQatyPDnQg@mail.gmail.com>
+	<9482C585-A828-4AA2-A0F5-32C6B4C668F9@gecode.org>
+Message-ID: <CAHsgyAQ7syH_797p2VF-V2Kw__Q_zfuet_Oby0nEErOfhQPqog@mail.gmail.com>
+
+Excellent.  Impressive to see an open source project have such up-to-date
+documentation with a release.  Thanks too for the CMake build system -
+that's much appreciated!
+
+CY
+
+
+On Tue, Mar 26, 2013 at 7:25 PM, Guido Tack <tack at gecode.org> wrote:
+
+> There's a whole chapter on floating point constraints in the tutorial
+> documentation "Modelling and Programming with Gecode" (see chapter 6 and
+> 7.1.4) as well as several examples.  The system you describe can be solved
+> with Gecode given suitable initial bounds for A,B,C.
+>
+> Cheers,
+> Guido
+>
+> On 27/03/2013, at 8:40 AM, Clifford Yapp <cliffyapp at gmail.com> wrote:
+>
+> > I noted with considerable interest that Gecode 4.0 lists support for
+> floats in its Changelog.
+> >
+> > Does there exist a tutorial demonstrating this ability?  In particular,
+> is it possible to add
+> > constraints along the lines of "A * B = 12.2", "B + C < 4.1", "A * C =
+> 4" and have Gecode solve the system for A, B and C?  (Or is that a
+> different type of constraint system than Gecode is intended for?)
+> >
+> > Thanks,
+> > CY
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130326/9ab38b7f/attachment.html>
+
+From kyo.alone at gmail.com  Wed Mar 27 09:06:18 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Wed, 27 Mar 2013 09:06:18 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <00ab01ce271b$359328c0$a0b97a40$@kth.se>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+Message-ID: <CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+
+Thank you four your answer,
+
+I correct it with choosing only first variable for decomposition .
+
+But when I decomposed the problem into either 80 or 400, or 1000 or 2000
+sub problems and I resolve them
+(one after another and best solution is applied when it is found for the
+next subproblem)
+
+I got 3 times more nodes and 3 times more failures with the same code in my
+previous message !!!
+
+Can you help me about this problem please.
+
+Best Regards,
+Mohammed REZGUI
+
+2013/3/22 Christian Schulte <cschulte at kth.se>
+
+> You might want to look at how much search is needed, just check the
+> statistics. The decomposition does not guarantee that you will use less
+> search.****
+>
+> ** **
+>
+> Christian****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Mohamed Rezgui
+> *Sent:* Friday, March 22, 2013 5:30 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Fwd: Problem with splitting Problem****
+>
+> ** **
+>
+> Dear everybody,****
+>
+>  ****
+>
+> I have a problem with Gecode 4.0.0 (see the code below)****
+>
+> I can exhibit the issue on the following example****
+>
+>  ****
+>
+> I solve an optimization problem in the format flatzinc
+> "sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.****
+>
+> Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces)
+> ****
+>
+> P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+> ****
+>
+> P2 is P with (x3=1, x5=2, x30=29, x31=30)                        ****
+>
+>  ****
+>
+> First, I solve P1. This found a solution with a cost C1. Then I solve P2
+> and add the cost constraint cost <C1 (ie constraint(c1) in gecode))****
+>
+>  ****
+>
+> The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+> sum is 685s where the initial resolution takes 370s****
+>
+> I expected to have something close to 370s****
+>
+>  ****
+>
+> It seems that I have no problem if I add constraint on the first variables
+> (x0, x1,?) and that it does not work if I use any variables (like here
+> x3,x5,x30?)****
+>
+>  ****
+>
+> Thanks in advance for any remark****
+>
+>  ****
+>
+> Best Regards,****
+>
+> Mohammed REZGUI****
+>
+>  ****
+>
+> Here is my code:****
+>
+> <code>****
+>
+> //Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance****
+>
+> FlatZincSpace* fg = FlatZinc::parse(...)****
+>
+> fg->createBranchers(...)****
+>
+> fg->shrinkArray(...)****
+>
+>  ****
+>
+> //vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+> this problem****
+>
+> // it is fine If I use 4 first variables but it is not interesting for me*
+> ***
+>
+> //       ****
+>
+>  ****
+>
+>  ****
+>
+> //best solution used for P2 after****
+>
+> Space* best = NULL;****
+>
+> {****
+>
+>           FlatZincSpace* p1 =
+> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>
+>          ****
+>
+>           //vars_index[3, 5, 30, 31, ]                            ****
+>
+>           //tuple_val[1, 2, 29, 30, ]****
+>
+>           Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);****
+>
+>           Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);****
+>
+>           Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);****
+>
+>           Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);****
+>
+>             ****
+>
+>           Gecode::Search::Options opt;****
+>
+>           opt.threads = 1.0;****
+>
+>           Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+> opt);****
+>
+>           Gecode::Space* s = bab.next();****
+>
+>           while(s) {****
+>
+>                       delete best;****
+>
+>                       best = s;****
+>
+>                       engine().solution(this);****
+>
+>                       s = bab.next();****
+>
+>           }****
+>
+>  ****
+>
+> }****
+>
+>  ****
+>
+> {****
+>
+>           FlatZincSpace* p2 =
+> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>
+>          ****
+>
+>           //vars_index[3, 5, 30, 31, ]                            ****
+>
+>           //tuple_val[1, 2, 30, 29, ]****
+>
+>           Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);****
+>
+>           Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);****
+>
+>           Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);****
+>
+>           Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);****
+>
+>     ****
+>
+>           if (best) {****
+>
+>                     p2->constrain(*best);****
+>
+>           }****
+>
+>          ****
+>
+>           Gecode::Search::Options opt;****
+>
+>           opt.threads = 1.0;****
+>
+>           Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+> opt);****
+>
+>           Gecode::Space* s = bab.next();****
+>
+>           while(s) {****
+>
+>                       delete best;****
+>
+>                       best = s;****
+>
+>                       engine().solution(this);****
+>
+>                       s = bab.next();****
+>
+>           }****
+>
+>  ****
+>
+> }****
+>
+> </code>****
+>
+
+
+
+-- 
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/acf4dfb9/attachment-0001.html>
+
+From cschulte at kth.se  Wed Mar 27 10:19:17 2013
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 27 Mar 2013 10:19:17 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+	<CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+Message-ID: <023b01ce2acc$28e87120$7ab95360$@se>
+
+Yes, please understand how branch and bound search works: there is no
+guarantee that the decompositions need the same amount of search!
+
+ 
+
+C
+
+ 
+
+--
+
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+ 
+
+From: Mohamed Rezgui [mailto:kyo.alone at gmail.com] 
+Sent: Wednesday, March 27, 2013 9:06 AM
+To: cschulte at kth.se
+Cc: users at gecode.org
+Subject: Re: [gecode-users] Fwd: Problem with splitting Problem
+
+ 
+
+Thank you four your answer,
+
+ 
+
+I correct it with choosing only first variable for decomposition .  
+
+ 
+
+But when I decomposed the problem into either 80 or 400, or 1000 or 2000 sub
+problems and I resolve them 
+
+(one after another and best solution is applied when it is found for the
+next subproblem)
+
+ 
+
+I got 3 times more nodes and 3 times more failures with the same code in my
+previous message !!!
+
+ 
+
+Can you help me about this problem please.
+
+ 
+
+Best Regards,
+
+Mohammed REZGUI 
+
+ 
+
+2013/3/22 Christian Schulte <cschulte at kth.se>
+
+You might want to look at how much search is needed, just check the
+statistics. The decomposition does not guarantee that you will use less
+search.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mohamed Rezgui
+Sent: Friday, March 22, 2013 5:30 PM
+To: users at gecode.org
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+
+ 
+
+Dear everybody,
+
+ 
+
+I have a problem with Gecode 4.0.0 (see the code below)
+
+I can exhibit the issue on the following example
+
+ 
+
+I solve an optimization problem in the format flatzinc
+"sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.
+
+Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces) 
+
+P1 is P with (x3=1, x5=2, x30=30, x31=29) and                             
+
+P2 is P with (x3=1, x5=2, x30=29, x31=30)                        
+
+ 
+
+First, I solve P1. This found a solution with a cost C1. Then I solve P2 and
+add the cost constraint cost <C1 (ie constraint(c1) in gecode))
+
+ 
+
+The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+sum is 685s where the initial resolution takes 370s
+
+I expected to have something close to 370s
+
+ 
+
+It seems that I have no problem if I add constraint on the first variables
+(x0, x1,.) and that it does not work if I use any variables (like here
+x3,x5,x30.)
+
+ 
+
+Thanks in advance for any remark
+
+ 
+
+Best Regards,
+
+Mohammed REZGUI
+
+ 
+
+Here is my code:
+
+<code>
+
+//Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance
+
+FlatZincSpace* fg = FlatZinc::parse(...)
+
+fg->createBranchers(...)
+
+fg->shrinkArray(...)
+
+ 
+
+//vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+this problem
+
+// it is fine If I use 4 first variables but it is not interesting for me
+
+//       
+
+ 
+
+ 
+
+//best solution used for P2 after
+
+Space* best = NULL;
+
+{
+
+          FlatZincSpace* p1 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+         
+
+          //vars_index[3, 5, 30, 31, ]                            
+
+          //tuple_val[1, 2, 29, 30, ]
+
+          Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);
+
+          Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);
+
+          Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);
+
+          Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);
+
+            
+
+          Gecode::Search::Options opt;
+
+          opt.threads = 1.0;
+
+          Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+opt);
+
+          Gecode::Space* s = bab.next();
+
+          while(s) {
+
+                      delete best;
+
+                      best = s;
+
+                      engine().solution(this);
+
+                      s = bab.next();
+
+          }
+
+ 
+
+}
+
+ 
+
+{
+
+          FlatZincSpace* p2 =
+static_cast<MyFlatZincSpace*>(fg->clone(false));
+
+         
+
+          //vars_index[3, 5, 30, 31, ]                            
+
+          //tuple_val[1, 2, 30, 29, ]
+
+          Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);
+
+          Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);
+
+          Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);
+
+          Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);
+
+    
+
+          if (best) {
+
+                    p2->constrain(*best);
+
+          }
+
+         
+
+          Gecode::Search::Options opt;
+
+          opt.threads = 1.0;
+
+          Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+opt);
+
+          Gecode::Space* s = bab.next();
+
+          while(s) {
+
+                      delete best;
+
+                      best = s;
+
+                      engine().solution(this);
+
+                      s = bab.next();
+
+          }
+
+ 
+
+}
+
+</code>
+
+
+
+
+
+ 
+
+-- 
+Cordialement,
+
+Mohamed REZGUI
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/f9af2960/attachment-0001.html>
+
+From kyo.alone at gmail.com  Wed Mar 27 10:39:45 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Wed, 27 Mar 2013 10:39:45 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <023b01ce2acc$28e87120$7ab95360$@se>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+	<CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+	<023b01ce2acc$28e87120$7ab95360$@se>
+Message-ID: <CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+
+Sorry,
+
+I forget about it. I choose the same search (lexicographic order) for all
+subproblems and for the entire problem.
+I used it for optimality proof. and I have the same thing. I verify all
+subproblems are distinct.
+
+That's my result with the optimality proof (obj = 11 so I set at obj-1):
+
+ENTIRE_PROBLEM :
+=====UNSATISFIABLE=====
+%%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+%%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+%%  add ub:       10
+%%  runtime:       330.538 (330538 ms)
+%%  solvetime:     330.507 (330507 ms)
+%%  status:     UNSAT
+%%  objective:     -1
+%%  decision variables:     32
+%%  variables:     791
+%%  propagators:   837
+%%  propagations:  1610969243
+%%  nodes:         12386891
+%%  failures:      6193446
+
+
+DECOMPOSITION_PROBLEM AND SOLVE ALL SUBPROBLEMS GENERATED:
+=====UNSATISFIABLE=====
+%%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+%%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+%%  add ub:       10
+%%  runtime:       833.92 (833920 ms)
+%%  status:     UNSAT
+%%  objective:     -1
+%%  decision variables:     32
+%%  variables:     791
+%%  propagators:   837
+%%  propagations:  3715375322
+%%  nodes:         31124812
+%%  failures:      15563406
+%%  time decomposition:     0.471 (471 ms)
+%%  nodes decomposition:         0
+%%  failures decomposition:      0
+%%  sum time problems:     833.404 (833404 ms)
+%%  min time problems:     0 (0 ms)
+%%  max time problems:     2.611 (2611 ms)
+%%  problems decomposition:     2000
+
+Best Regards,
+Mohammed REZGUI
+
+2013/3/27 Christian Schulte <cschulte at kth.se>
+
+> Yes, please understand how branch and bound search works: there is no
+> guarantee that the decompositions need the same amount of search!****
+>
+> ** **
+>
+> C****
+>
+> ** **
+>
+> --****
+>
+> Christian Schulte, Professor of Computer Science, KTH,
+> www.ict.kth.se/~cschulte/****
+>
+> ** **
+>
+> *From:* Mohamed Rezgui [mailto:kyo.alone at gmail.com]
+> *Sent:* Wednesday, March 27, 2013 9:06 AM
+> *To:* cschulte at kth.se
+> *Cc:* users at gecode.org
+> *Subject:* Re: [gecode-users] Fwd: Problem with splitting Problem****
+>
+> ** **
+>
+> Thank you four your answer,****
+>
+> ** **
+>
+> I correct it with choosing only first variable for decomposition .  ****
+>
+> ** **
+>
+> But when I decomposed the problem into either 80 or 400, or 1000 or 2000
+> sub problems and I resolve them ****
+>
+> (one after another and best solution is applied when it is found for the
+> next subproblem)****
+>
+> ** **
+>
+> I got 3 times more nodes and 3 times more failures with the same code in
+> my previous message !!!****
+>
+> ** **
+>
+> Can you help me about this problem please.****
+>
+> ** **
+>
+> Best Regards,****
+>
+> Mohammed REZGUI ****
+>
+> ** **
+>
+> 2013/3/22 Christian Schulte <cschulte at kth.se>****
+>
+> You might want to look at how much search is needed, just check the
+> statistics. The decomposition does not guarantee that you will use less
+> search.****
+>
+>  ****
+>
+> Christian****
+>
+>  ****
+>
+> --****
+>
+> Christian Schulte, www.ict.kth.se/~cschulte/****
+>
+>  ****
+>
+> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+> Behalf Of *Mohamed Rezgui
+> *Sent:* Friday, March 22, 2013 5:30 PM
+> *To:* users at gecode.org
+> *Subject:* [gecode-users] Fwd: Problem with splitting Problem****
+>
+>  ****
+>
+> Dear everybody,****
+>
+>  ****
+>
+> I have a problem with Gecode 4.0.0 (see the code below)****
+>
+> I can exhibit the issue on the following example****
+>
+>  ****
+>
+> I solve an optimization problem in the format flatzinc
+> "sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.****
+>
+> Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces)
+> ****
+>
+> P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+> ****
+>
+> P2 is P with (x3=1, x5=2, x30=29, x31=30)                        ****
+>
+>  ****
+>
+> First, I solve P1. This found a solution with a cost C1. Then I solve P2
+> and add the cost constraint cost <C1 (ie constraint(c1) in gecode))****
+>
+>  ****
+>
+> The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+> sum is 685s where the initial resolution takes 370s****
+>
+> I expected to have something close to 370s****
+>
+>  ****
+>
+> It seems that I have no problem if I add constraint on the first variables
+> (x0, x1,?) and that it does not work if I use any variables (like here
+> x3,x5,x30?)****
+>
+>  ****
+>
+> Thanks in advance for any remark****
+>
+>  ****
+>
+> Best Regards,****
+>
+> Mohammed REZGUI****
+>
+>  ****
+>
+> Here is my code:****
+>
+> <code>****
+>
+> //Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance****
+>
+> FlatZincSpace* fg = FlatZinc::parse(...)****
+>
+> fg->createBranchers(...)****
+>
+> fg->shrinkArray(...)****
+>
+>  ****
+>
+> //vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+> this problem****
+>
+> // it is fine If I use 4 first variables but it is not interesting for me*
+> ***
+>
+> //       ****
+>
+>  ****
+>
+>  ****
+>
+> //best solution used for P2 after****
+>
+> Space* best = NULL;****
+>
+> {****
+>
+>           FlatZincSpace* p1 =
+> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>
+>          ****
+>
+>           //vars_index[3, 5, 30, 31, ]                            ****
+>
+>           //tuple_val[1, 2, 29, 30, ]****
+>
+>           Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);****
+>
+>           Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);****
+>
+>           Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);****
+>
+>           Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);****
+>
+>             ****
+>
+>           Gecode::Search::Options opt;****
+>
+>           opt.threads = 1.0;****
+>
+>           Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace),
+> opt);****
+>
+>           Gecode::Space* s = bab.next();****
+>
+>           while(s) {****
+>
+>                       delete best;****
+>
+>                       best = s;****
+>
+>                       engine().solution(this);****
+>
+>                       s = bab.next();****
+>
+>           }****
+>
+>  ****
+>
+> }****
+>
+>  ****
+>
+> {****
+>
+>           FlatZincSpace* p2 =
+> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>
+>          ****
+>
+>           //vars_index[3, 5, 30, 31, ]                            ****
+>
+>           //tuple_val[1, 2, 30, 29, ]****
+>
+>           Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);****
+>
+>           Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);****
+>
+>           Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);****
+>
+>           Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);****
+>
+>     ****
+>
+>           if (best) {****
+>
+>                     p2->constrain(*best);****
+>
+>           }****
+>
+>          ****
+>
+>           Gecode::Search::Options opt;****
+>
+>           opt.threads = 1.0;****
+>
+>           Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace),
+> opt);****
+>
+>           Gecode::Space* s = bab.next();****
+>
+>           while(s) {****
+>
+>                       delete best;****
+>
+>                       best = s;****
+>
+>                       engine().solution(this);****
+>
+>                       s = bab.next();****
+>
+>           }****
+>
+>  ****
+>
+> }****
+>
+> </code>****
+>
+>
+>
+> ****
+>
+> ** **
+>
+> --
+> Cordialement,****
+>
+> Mohamed REZGUI
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/2b9cc77b/attachment.html>
+
+From kyo.alone at gmail.com  Wed Mar 27 10:39:54 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Wed, 27 Mar 2013 10:39:54 +0100
+Subject: [gecode-users] Fwd: Problem with splitting Problem
+In-Reply-To: <CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+	<CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+	<023b01ce2acc$28e87120$7ab95360$@se>
+	<CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+Message-ID: <CAFWj1gAs7qp13ydT77-bbxYSDQfgfjA_YEbhjFYO1Uw_drzr=g@mail.gmail.com>
+
+2013/3/27 Mohamed Rezgui <kyo.alone at gmail.com>
+
+> Sorry,
+>
+> I forget about it. I choose the same search (lexicographic order) for all
+> subproblems and for the entire problem.
+> I used it for optimality proof. and I have the same thing. I verify all
+> subproblems are distinct.
+>
+> That's my result with the optimality proof (obj = 11 so I set at obj-1):
+>
+> ENTIRE_PROBLEM :
+> =====UNSATISFIABLE=====
+> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+> %%  add ub:       10
+> %%  runtime:       330.538 (330538 ms)
+> %%  solvetime:     330.507 (330507 ms)
+> %%  status:     UNSAT
+> %%  objective:     -1
+> %%  decision variables:     32
+> %%  variables:     791
+> %%  propagators:   837
+> %%  propagations:  1610969243
+> %%  nodes:         12386891
+> %%  failures:      6193446
+>
+>
+> DECOMPOSITION_PROBLEM AND SOLVE ALL SUBPROBLEMS GENERATED:
+> =====UNSATISFIABLE=====
+> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+> %%  add ub:       10
+> %%  runtime:       833.92 (833920 ms)
+> %%  status:     UNSAT
+> %%  objective:     -1
+> %%  decision variables:     32
+> %%  variables:     791
+> %%  propagators:   837
+> %%  propagations:  3715375322
+> %%  nodes:         31124812
+> %%  failures:      15563406
+> %%  time decomposition:     0.471 (471 ms)
+> %%  nodes decomposition:         0
+> %%  failures decomposition:      0
+> %%  sum time problems:     833.404 (833404 ms)
+> %%  min time problems:     0 (0 ms)
+> %%  max time problems:     2.611 (2611 ms)
+> %%  problems decomposition:     2000
+>
+> Best Regards,
+> Mohammed REZGUI
+>
+> 2013/3/27 Christian Schulte <cschulte at kth.se>
+>
+>> Yes, please understand how branch and bound search works: there is no
+>> guarantee that the decompositions need the same amount of search!****
+>>
+>> ** **
+>>
+>> C****
+>>
+>> ** **
+>>
+>> --****
+>>
+>> Christian Schulte, Professor of Computer Science, KTH,
+>> www.ict.kth.se/~cschulte/****
+>>
+>> ** **
+>>
+>> *From:* Mohamed Rezgui [mailto:kyo.alone at gmail.com]
+>> *Sent:* Wednesday, March 27, 2013 9:06 AM
+>> *To:* cschulte at kth.se
+>> *Cc:* users at gecode.org
+>> *Subject:* Re: [gecode-users] Fwd: Problem with splitting Problem****
+>>
+>> ** **
+>>
+>> Thank you four your answer,****
+>>
+>> ** **
+>>
+>> I correct it with choosing only first variable for decomposition .  ****
+>>
+>> ** **
+>>
+>> But when I decomposed the problem into either 80 or 400, or 1000 or 2000
+>> sub problems and I resolve them ****
+>>
+>> (one after another and best solution is applied when it is found for the
+>> next subproblem)****
+>>
+>> ** **
+>>
+>> I got 3 times more nodes and 3 times more failures with the same code in
+>> my previous message !!!****
+>>
+>> ** **
+>>
+>> Can you help me about this problem please.****
+>>
+>> ** **
+>>
+>> Best Regards,****
+>>
+>> Mohammed REZGUI ****
+>>
+>> ** **
+>>
+>> 2013/3/22 Christian Schulte <cschulte at kth.se>****
+>>
+>> You might want to look at how much search is needed, just check the
+>> statistics. The decomposition does not guarantee that you will use less
+>> search.****
+>>
+>>  ****
+>>
+>> Christian****
+>>
+>>  ****
+>>
+>> --****
+>>
+>> Christian Schulte, www.ict.kth.se/~cschulte/****
+>>
+>>  ****
+>>
+>> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+>> Behalf Of *Mohamed Rezgui
+>> *Sent:* Friday, March 22, 2013 5:30 PM
+>> *To:* users at gecode.org
+>> *Subject:* [gecode-users] Fwd: Problem with splitting Problem****
+>>
+>>  ****
+>>
+>> Dear everybody,****
+>>
+>>  ****
+>>
+>> I have a problem with Gecode 4.0.0 (see the code below)****
+>>
+>> I can exhibit the issue on the following example****
+>>
+>>  ****
+>>
+>> I solve an optimization problem in the format flatzinc
+>> "sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.****
+>>
+>> Then I cut the problem in two disjoint sub-problems P1 and P2 (Two
+>> Spaces) ****
+>>
+>> P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+>> ****
+>>
+>> P2 is P with (x3=1, x5=2, x30=29, x31=30)                        ****
+>>
+>>  ****
+>>
+>> First, I solve P1. This found a solution with a cost C1. Then I solve P2
+>> and add the cost constraint cost <C1 (ie constraint(c1) in gecode))****
+>>
+>>  ****
+>>
+>> The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The
+>> sum is 685s where the initial resolution takes 370s****
+>>
+>> I expected to have something close to 370s****
+>>
+>>  ****
+>>
+>> It seems that I have no problem if I add constraint on the first
+>> variables (x0, x1,?) and that it does not work if I use any variables (like
+>> here x3,x5,x30?)****
+>>
+>>  ****
+>>
+>> Thanks in advance for any remark****
+>>
+>>  ****
+>>
+>> Best Regards,****
+>>
+>> Mohammed REZGUI****
+>>
+>>  ****
+>>
+>> Here is my code:****
+>>
+>> <code>****
+>>
+>> //Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance****
+>>
+>> FlatZincSpace* fg = FlatZinc::parse(...)****
+>>
+>> fg->createBranchers(...)****
+>>
+>> fg->shrinkArray(...)****
+>>
+>>  ****
+>>
+>> //vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in
+>> this problem****
+>>
+>> // it is fine If I use 4 first variables but it is not interesting for me
+>> ****
+>>
+>> //       ****
+>>
+>>  ****
+>>
+>>  ****
+>>
+>> //best solution used for P2 after****
+>>
+>> Space* best = NULL;****
+>>
+>> {****
+>>
+>>           FlatZincSpace* p1 =
+>> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>>
+>>          ****
+>>
+>>           //vars_index[3, 5, 30, 31, ]                            ****
+>>
+>>           //tuple_val[1, 2, 29, 30, ]****
+>>
+>>           Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);****
+>>
+>>           Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);****
+>>
+>>           Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);****
+>>
+>>           Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);****
+>>
+>>             ****
+>>
+>>           Gecode::Search::Options opt;****
+>>
+>>           opt.threads = 1.0;****
+>>
+>>           Gecode::Search::Sequential::BAB bab(p1,
+>> sizeof(MyFlatZincSpace), opt);****
+>>
+>>           Gecode::Space* s = bab.next();****
+>>
+>>           while(s) {****
+>>
+>>                       delete best;****
+>>
+>>                       best = s;****
+>>
+>>                       engine().solution(this);****
+>>
+>>                       s = bab.next();****
+>>
+>>           }****
+>>
+>>  ****
+>>
+>> }****
+>>
+>>  ****
+>>
+>> {****
+>>
+>>           FlatZincSpace* p2 =
+>> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>>
+>>          ****
+>>
+>>           //vars_index[3, 5, 30, 31, ]                            ****
+>>
+>>           //tuple_val[1, 2, 30, 29, ]****
+>>
+>>           Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);****
+>>
+>>           Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);****
+>>
+>>           Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);****
+>>
+>>           Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);****
+>>
+>>     ****
+>>
+>>           if (best) {****
+>>
+>>                     p2->constrain(*best);****
+>>
+>>           }****
+>>
+>>          ****
+>>
+>>           Gecode::Search::Options opt;****
+>>
+>>           opt.threads = 1.0;****
+>>
+>>           Gecode::Search::Sequential::BAB bab(p2,
+>> sizeof(MyFlatZincSpace), opt);****
+>>
+>>           Gecode::Space* s = bab.next();****
+>>
+>>           while(s) {****
+>>
+>>                       delete best;****
+>>
+>>                       best = s;****
+>>
+>>                       engine().solution(this);****
+>>
+>>                       s = bab.next();****
+>>
+>>           }****
+>>
+>>  ****
+>>
+>> }****
+>>
+>> </code>****
+>>
+>>
+>>
+>> ****
+>>
+>> ** **
+>>
+>> --
+>> Cordialement,****
+>>
+>> Mohamed REZGUI
+>>
+>
+
+
+-- 
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/8f982b14/attachment-0001.html>
+
+From tack at gecode.org  Wed Mar 27 10:57:13 2013
+From: tack at gecode.org (Guido Tack)
+Date: Wed, 27 Mar 2013 20:57:13 +1100
+Subject: [gecode-users] Problem with splitting Problem
+In-Reply-To: <CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+	<CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+	<023b01ce2acc$28e87120$7ab95360$@se>
+	<CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+Message-ID: <BA773FE9-3C8D-476F-B9EB-E0A70C9DD7A7@gecode.org>
+
+I couldn't find the attachment in the original mail so I can't verify this, but could you explain the difference between "decision variables" and "variables"? Are "decision variables" the ones you mention in the int_search annotation, and "variables" all variables in the model?
+If that is the case, then the problem could be that the search strategy on the 791-32=759 remaining variables is dynamic (it uses AFC-based search). The search tree of a smaller problem is therefore not necessarily smaller.  You could try to add more int_search annotations with static strategies to the FlatZinc so that all variables are covered and see if that changes the behaviour.
+
+Cheers,
+Guido
+
+On 27/03/2013, at 20:39 , Mohamed Rezgui <kyo.alone at gmail.com> wrote:
+
+> Sorry,
+> 
+> I forget about it. I choose the same search (lexicographic order) for all subproblems and for the entire problem.
+> I used it for optimality proof. and I have the same thing. I verify all subproblems are distinct.
+> 
+> That's my result with the optimality proof (obj = 11 so I set at obj-1):
+> 
+> ENTIRE_PROBLEM :
+> =====UNSATISFIABLE=====
+> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+> %%  add ub:       10
+> %%  runtime:       330.538 (330538 ms)
+> %%  solvetime:     330.507 (330507 ms)
+> %%  status:     UNSAT
+> %%  objective:     -1
+> %%  decision variables:     32
+> %%  variables:     791
+> %%  propagators:   837
+> %%  propagations:  1610969243
+> %%  nodes:         12386891
+> %%  failures:      6193446
+> 
+> 
+> DECOMPOSITION_PROBLEM AND SOLVE ALL SUBPROBLEMS GENERATED:
+> =====UNSATISFIABLE=====
+> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+> %%  add ub:       10
+> %%  runtime:       833.92 (833920 ms)
+> %%  status:     UNSAT
+> %%  objective:     -1
+> %%  decision variables:     32
+> %%  variables:     791
+> %%  propagators:   837
+> %%  propagations:  3715375322
+> %%  nodes:         31124812
+> %%  failures:      15563406
+> %%  time decomposition:     0.471 (471 ms)
+> %%  nodes decomposition:         0
+> %%  failures decomposition:      0
+> %%  sum time problems:     833.404 (833404 ms)
+> %%  min time problems:     0 (0 ms)
+> %%  max time problems:     2.611 (2611 ms)
+> %%  problems decomposition:     2000
+> 
+> Best Regards,
+> Mohammed REZGUI
+> 
+> 2013/3/27 Christian Schulte <cschulte at kth.se>
+> Yes, please understand how branch and bound search works: there is no guarantee that the decompositions need the same amount of search!
+> 
+>  
+> 
+> C
+> 
+>  
+> 
+> --
+> 
+> Christian Schulte, Professor of Computer Science, KTH, www.ict.kth.se/~cschulte/
+> 
+>  
+> 
+> From: Mohamed Rezgui [mailto:kyo.alone at gmail.com] 
+> Sent: Wednesday, March 27, 2013 9:06 AM
+> To: cschulte at kth.se
+> Cc: users at gecode.org
+> Subject: Re: [gecode-users] Fwd: Problem with splitting Problem
+> 
+>  
+> 
+> Thank you four your answer,
+> 
+>  
+> 
+> I correct it with choosing only first variable for decomposition .  
+> 
+>  
+> 
+> But when I decomposed the problem into either 80 or 400, or 1000 or 2000 sub problems and I resolve them 
+> 
+> (one after another and best solution is applied when it is found for the next subproblem)
+> 
+>  
+> 
+> I got 3 times more nodes and 3 times more failures with the same code in my previous message !!!
+> 
+>  
+> 
+> Can you help me about this problem please.
+> 
+>  
+> 
+> Best Regards,
+> 
+> Mohammed REZGUI 
+> 
+>  
+> 
+> 2013/3/22 Christian Schulte <cschulte at kth.se>
+> 
+> You might want to look at how much search is needed, just check the statistics. The decomposition does not guarantee that you will use less search.
+> 
+>  
+> 
+> Christian
+> 
+>  
+> 
+> --
+> 
+> Christian Schulte, www.ict.kth.se/~cschulte/
+> 
+>  
+> 
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Mohamed Rezgui
+> Sent: Friday, March 22, 2013 5:30 PM
+> To: users at gecode.org
+> Subject: [gecode-users] Fwd: Problem with splitting Problem
+> 
+>  
+> 
+> Dear everybody,
+> 
+>  
+> 
+> I have a problem with Gecode 4.0.0 (see the code below)
+> 
+> I can exhibit the issue on the following example
+> 
+>  
+> 
+> I solve an optimization problem in the format flatzinc "sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.
+> 
+> Then I cut the problem in two disjoint sub-problems P1 and P2 (Two Spaces) 
+> 
+> P1 is P with (x3=1, x5=2, x30=30, x31=29) and                             
+> 
+> P2 is P with (x3=1, x5=2, x30=29, x31=30)                        
+> 
+>  
+> 
+> First, I solve P1. This found a solution with a cost C1. Then I solve P2 and add the cost constraint cost <C1 (ie constraint(c1) in gecode))
+> 
+>  
+> 
+> The issue is that P1 is solved in 355 seconds and P2 in 329 seconds ! The sum is 685s where the initial resolution takes 370s
+> 
+> I expected to have something close to 370s
+> 
+>  
+> 
+> It seems that I have no problem if I add constraint on the first variables (x0, x1,?) and that it does not work if I use any variables (like here x3,x5,x30?)
+> 
+>  
+> 
+> Thanks in advance for any remark
+> 
+>  
+> 
+> Best Regards,
+> 
+> Mohammed REZGUI
+> 
+>  
+> 
+> Here is my code:
+> 
+> <code>
+> 
+> //Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance
+> 
+> FlatZincSpace* fg = FlatZinc::parse(...)
+> 
+> fg->createBranchers(...)
+> 
+> fg->shrinkArray(...)
+> 
+>  
+> 
+> //vars_index[3, 5, 30, 31, ] => variables have the minimum doman size in this problem
+> 
+> // it is fine If I use 4 first variables but it is not interesting for me
+> 
+> //       
+> 
+>  
+> 
+>  
+> 
+> //best solution used for P2 after
+> 
+> Space* best = NULL;
+> 
+> {
+> 
+>           FlatZincSpace* p1 = static_cast<MyFlatZincSpace*>(fg->clone(false));
+> 
+>          
+> 
+>           //vars_index[3, 5, 30, 31, ]                            
+> 
+>           //tuple_val[1, 2, 29, 30, ]
+> 
+>           Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);
+> 
+>           Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);
+> 
+>           Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);
+> 
+>           Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);
+> 
+>             
+> 
+>           Gecode::Search::Options opt;
+> 
+>           opt.threads = 1.0;
+> 
+>           Gecode::Search::Sequential::BAB bab(p1, sizeof(MyFlatZincSpace), opt);
+> 
+>           Gecode::Space* s = bab.next();
+> 
+>           while(s) {
+> 
+>                       delete best;
+> 
+>                       best = s;
+> 
+>                       engine().solution(this);
+> 
+>                       s = bab.next();
+> 
+>           }
+> 
+>  
+> 
+> }
+> 
+>  
+> 
+> {
+> 
+>           FlatZincSpace* p2 = static_cast<MyFlatZincSpace*>(fg->clone(false));
+> 
+>          
+> 
+>           //vars_index[3, 5, 30, 31, ]                            
+> 
+>           //tuple_val[1, 2, 30, 29, ]
+> 
+>           Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);
+> 
+>           Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);
+> 
+>           Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);
+> 
+>           Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);
+> 
+>     
+> 
+>           if (best) {
+> 
+>                     p2->constrain(*best);
+> 
+>           }
+> 
+>          
+> 
+>           Gecode::Search::Options opt;
+> 
+>           opt.threads = 1.0;
+> 
+>           Gecode::Search::Sequential::BAB bab(p2, sizeof(MyFlatZincSpace), opt);
+> 
+>           Gecode::Space* s = bab.next();
+> 
+>           while(s) {
+> 
+>                       delete best;
+> 
+>                       best = s;
+> 
+>                       engine().solution(this);
+> 
+>                       s = bab.next();
+> 
+>           }
+> 
+>  
+> 
+> }
+> 
+> </code>
+> 
+> 
+> 
+> 
+>  
+> 
+> -- 
+> Cordialement,
+> 
+> Mohamed REZGUI
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/f6121d17/attachment-0001.html>
+
+From kyo.alone at gmail.com  Wed Mar 27 16:16:19 2013
+From: kyo.alone at gmail.com (Mohamed Rezgui)
+Date: Wed, 27 Mar 2013 16:16:19 +0100
+Subject: [gecode-users] Problem with splitting Problem
+In-Reply-To: <CAFWj1gDGE4SPRYs3hJyeOov0uw4ECqpt1FwHH_jYmFhhWhU4Hw@mail.gmail.com>
+References: <CAFWj1gD0VGYeGXEX6Z9nkHwfB5UaeCpGJvrX0m2nAHhUFH814g@mail.gmail.com>
+	<CAFWj1gCU8xpaVQJotfsronWN+TN2dgkxfYp7-Q2nf8qXGxN=qw@mail.gmail.com>
+	<00ab01ce271b$359328c0$a0b97a40$@kth.se>
+	<CAFWj1gDKNPTPAHTHksPrKgzGkYYbgbtPWuda6xZjpQUE8HeOyA@mail.gmail.com>
+	<023b01ce2acc$28e87120$7ab95360$@se>
+	<CAFWj1gBX-2s2=Vpv28cazcPigmDPJtj_hPXNa7VG88uRXHmouQ@mail.gmail.com>
+	<BA773FE9-3C8D-476F-B9EB-E0A70C9DD7A7@gecode.org>
+	<CAFWj1gBAKBcQFszOOHOSVjsCKvQipO4dqMrO=sBjM4d_v1a==Q@mail.gmail.com>
+	<CAFWj1gDe5tP1zMh6_DJzOyVmTJZ1avN4+tid3okEK9K+TgZzMQ@mail.gmail.com>
+	<CAFWj1gDGE4SPRYs3hJyeOov0uw4ECqpt1FwHH_jYmFhhWhU4Hw@mail.gmail.com>
+Message-ID: <CAFWj1gDDjeWcVHVvKxDNRptMa7GpqiK4dCw_WK12mpxxvkmX=A@mail.gmail.com>
+
+Hi,
+
+I give you the results when I make the fllowing changes
+in createBranchers method:
+           branch(*this, iv_sol, Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+           branch(*this, bv_sol, Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+instead of
+           // branch(*this, iv_sol, INT_VAR_AFC_SIZE_MAX(0.99),
+INT_VAL_MIN());
+           // branch(*this, bv_sol, INT_VAR_AFC_MAX(0.99), INT_VAL_MIN());
+
+
+and in choice method of AuxVarBranchers :
+           branch(fzs,fzs.iv_aux,Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+           branch(fzs,fzs.bv_aux,Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+instead of
+           // branch(fzs,fzs.iv_aux,INT_VAR_AFC_SIZE_MAX(),INT_VAL_MIN());
+           // branch(fzs,fzs.bv_aux,INT_VAR_AFC_MAX(),INT_VAL_MIN());
+
+The results are made with optimality proof. I decompose the problem into 80
+suproblems
+
+ENTIRE_PROBLEM :
+=====UNSATISFIABLE=====
+%%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+%%  branch:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+%%  add ub:       10
+%%  runtime:       342.183 (342183 ms)
+%%  solvetime:     342.159 (342159 ms)
+%%  workers:     1
+%%  solutions:     0
+%%  type instance:     OPTIMISATION
+%%  status:     UNSAT
+%%  objective:     -1
+%%  decision variables:     32
+%%  variables:     791
+%%  propagators:   837
+%%  propagations:  1610969243
+%%  nodes:         12386891
+%%  failures:      6193446
+%%  peak depth:    32
+%%  peak memory:   771 KB
+
+DECOMPOSITION_PROBLEM AND SOLVE ALL SUBPROBLEMS GENERATED
+=====UNSATISFIABLE=====
+
+%%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+%%  branch:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+%%  add ub:       10
+%%  runtime:       877.188 (877188 ms)
+%%  solvetime:     877.151 (877151 ms)
+%%  workers:     1
+%%  time decomposition:     0.008 (8 ms)
+%%  solutions:     0
+%%  type instance:     OPTIMISATION
+%%  status:     UNSAT
+%%  objective:     -1
+%%  decision variables:     32
+%%  variables:     791
+%%  propagators:   837
+%%  propagations:  3716058417
+%%  nodes:         31126832
+%%  failures:      15563456
+%%  peak depth:    28
+%%  peak memory:   727 KB
+%%  depth decomposition:     5
+%%  problems decomposition:     80
+%%  nodes decomposition:         68
+%%  failures decomposition:      1
+%%  peak memory decomposition:   129 KB
+%%  sum time problems:     877.136 (877136 ms)
+%%  min time problems:     0.001 (1 ms)
+%%  max time problems:     39.986 (39986 ms)
+%%  time problems:     0.006 0.004 0.004 0.006 0.006 0.001 0.149 0.065
+0.167 0.1
+52 0.143 0.184 0.071 0.942 0.221 0.858 1.123 0.202 0.852 0.818 2.988 2.508
+0.949
+ 3.16 2.596 0.78 6.419 2.923 7.218 4.022 3.852 6.93 3.031 14.584 5.063
+10.064 11
+.907 7.164 8.711 12.403 15.884 4.434 12.474 8.652 10.853 10.593 8.973
+12.513 4.6
+81 15.722 22.308 8.595 16.719 13.976 15.346 14.864 14.749 17.478 9.523
+22.677 30
+.464 14.172 22.169 19.844 20.718 19.951 20.451 21.455 14.463 30.439 39.986
+20.43
+4 28.129 26.596 25.985 24.996 27.071 27.233 20.379 37.941
+
+All subproblems are distincts and I apply the constraint
+Gecode::extensional(*space, iv, tuples) for each subproblem (that they are
+a clone(false) of the flatzinc space.
+iv are the variables I use for decomposition.
+
+I give you all suproblems :
+
+Problem 0
+tuple[0, 0, 3, 1, 4]
+tuple[0, 0, 3, 1, 5]
+tuple[0, 0, 3, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 1
+tuple[0, 0, 3, 1, 7]
+tuple[0, 0, 4, 1, 3]
+tuple[0, 0, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 2
+tuple[0, 0, 4, 1, 6]
+tuple[0, 0, 4, 1, 7]
+tuple[0, 0, 5, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 3
+tuple[0, 0, 5, 1, 4]
+tuple[0, 0, 5, 1, 6]
+tuple[0, 0, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 4
+tuple[0, 0, 6, 1, 3]
+tuple[0, 0, 6, 1, 4]
+tuple[0, 0, 6, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 5
+tuple[0, 0, 6, 1, 7]
+tuple[0, 0, 7, 1, 3]
+tuple[0, 0, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 6
+tuple[0, 0, 7, 1, 5]
+tuple[0, 0, 7, 1, 6]
+tuple[1, 1, 3, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 7
+tuple[1, 1, 3, 1, 5]
+tuple[1, 1, 3, 1, 6]
+tuple[1, 1, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 8
+tuple[1, 1, 4, 1, 3]
+tuple[1, 1, 4, 1, 5]
+tuple[1, 1, 4, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 9
+tuple[1, 1, 4, 1, 7]
+tuple[1, 1, 5, 1, 3]
+tuple[1, 1, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 10
+tuple[1, 1, 5, 1, 6]
+tuple[1, 1, 5, 1, 7]
+tuple[1, 1, 6, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 11
+tuple[1, 1, 6, 1, 4]
+tuple[1, 1, 6, 1, 5]
+tuple[1, 1, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 12
+tuple[1, 1, 7, 1, 3]
+tuple[1, 1, 7, 1, 4]
+tuple[1, 1, 7, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 13
+tuple[1, 1, 7, 1, 6]
+tuple[2, 2, 3, 1, 4]
+tuple[2, 2, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 14
+tuple[2, 2, 3, 1, 6]
+tuple[2, 2, 3, 1, 7]
+tuple[2, 2, 4, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 15
+tuple[2, 2, 4, 1, 5]
+tuple[2, 2, 4, 1, 6]
+tuple[2, 2, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 16
+tuple[2, 2, 5, 1, 3]
+tuple[2, 2, 5, 1, 4]
+tuple[2, 2, 5, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 17
+tuple[2, 2, 5, 1, 7]
+tuple[2, 2, 6, 1, 3]
+tuple[2, 2, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 18
+tuple[2, 2, 6, 1, 5]
+tuple[2, 2, 6, 1, 7]
+tuple[2, 2, 7, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 19
+tuple[2, 2, 7, 1, 4]
+tuple[2, 2, 7, 1, 5]
+tuple[2, 2, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 20
+tuple[3, 3, 3, 1, 4]
+tuple[3, 3, 3, 1, 5]
+tuple[3, 3, 3, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 21
+tuple[3, 3, 3, 1, 7]
+tuple[3, 3, 4, 1, 3]
+tuple[3, 3, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 22
+tuple[3, 3, 4, 1, 6]
+tuple[3, 3, 4, 1, 7]
+tuple[3, 3, 5, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 23
+tuple[3, 3, 5, 1, 4]
+tuple[3, 3, 5, 1, 6]
+tuple[3, 3, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 24
+tuple[3, 3, 6, 1, 3]
+tuple[3, 3, 6, 1, 4]
+tuple[3, 3, 6, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 25
+tuple[3, 3, 6, 1, 7]
+tuple[3, 3, 7, 1, 3]
+tuple[3, 3, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 26
+tuple[3, 3, 7, 1, 5]
+tuple[3, 3, 7, 1, 6]
+tuple[4, 4, 3, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 27
+tuple[4, 4, 3, 1, 5]
+tuple[4, 4, 3, 1, 6]
+tuple[4, 4, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 28
+tuple[4, 4, 4, 1, 3]
+tuple[4, 4, 4, 1, 5]
+tuple[4, 4, 4, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 29
+tuple[4, 4, 4, 1, 7]
+tuple[4, 4, 5, 1, 3]
+tuple[4, 4, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 30
+tuple[4, 4, 5, 1, 6]
+tuple[4, 4, 5, 1, 7]
+tuple[4, 4, 6, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 31
+tuple[4, 4, 6, 1, 4]
+tuple[4, 4, 6, 1, 5]
+tuple[4, 4, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 32
+tuple[4, 4, 7, 1, 3]
+tuple[4, 4, 7, 1, 4]
+tuple[4, 4, 7, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 33
+tuple[4, 4, 7, 1, 6]
+tuple[5, 5, 3, 1, 4]
+tuple[5, 5, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 34
+tuple[5, 5, 3, 1, 6]
+tuple[5, 5, 3, 1, 7]
+tuple[5, 5, 4, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 35
+tuple[5, 5, 4, 1, 5]
+tuple[5, 5, 4, 1, 6]
+tuple[5, 5, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 36
+tuple[5, 5, 5, 1, 3]
+tuple[5, 5, 5, 1, 4]
+tuple[5, 5, 5, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 37
+tuple[5, 5, 5, 1, 7]
+tuple[5, 5, 6, 1, 3]
+tuple[5, 5, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 38
+tuple[5, 5, 6, 1, 5]
+tuple[5, 5, 6, 1, 7]
+tuple[5, 5, 7, 1, 3]
+iv[0, 1, 2, 3, 4]
+
+Problem 39
+tuple[5, 5, 7, 1, 4]
+tuple[5, 5, 7, 1, 5]
+tuple[5, 5, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 40
+tuple[6, 6, 3, 1, 4]
+tuple[6, 6, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 41
+tuple[6, 6, 3, 1, 6]
+tuple[6, 6, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 42
+tuple[6, 6, 4, 1, 3]
+tuple[6, 6, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 43
+tuple[6, 6, 4, 1, 6]
+tuple[6, 6, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 44
+tuple[6, 6, 5, 1, 3]
+tuple[6, 6, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 45
+tuple[6, 6, 5, 1, 6]
+tuple[6, 6, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 46
+tuple[6, 6, 6, 1, 3]
+tuple[6, 6, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 47
+tuple[6, 6, 6, 1, 5]
+tuple[6, 6, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 48
+tuple[6, 6, 7, 1, 3]
+tuple[6, 6, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 49
+tuple[6, 6, 7, 1, 5]
+tuple[6, 6, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 50
+tuple[7, 7, 3, 1, 4]
+tuple[7, 7, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 51
+tuple[7, 7, 3, 1, 6]
+tuple[7, 7, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 52
+tuple[7, 7, 4, 1, 3]
+tuple[7, 7, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 53
+tuple[7, 7, 4, 1, 6]
+tuple[7, 7, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 54
+tuple[7, 7, 5, 1, 3]
+tuple[7, 7, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 55
+tuple[7, 7, 5, 1, 6]
+tuple[7, 7, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 56
+tuple[7, 7, 6, 1, 3]
+tuple[7, 7, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 57
+tuple[7, 7, 6, 1, 5]
+tuple[7, 7, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 58
+tuple[7, 7, 7, 1, 3]
+tuple[7, 7, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 59
+tuple[7, 7, 7, 1, 5]
+tuple[7, 7, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 60
+tuple[8, 8, 3, 1, 4]
+tuple[8, 8, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 61
+tuple[8, 8, 3, 1, 6]
+tuple[8, 8, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 62
+tuple[8, 8, 4, 1, 3]
+tuple[8, 8, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 63
+tuple[8, 8, 4, 1, 6]
+tuple[8, 8, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 64
+tuple[8, 8, 5, 1, 3]
+tuple[8, 8, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 65
+tuple[8, 8, 5, 1, 6]
+tuple[8, 8, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 66
+tuple[8, 8, 6, 1, 3]
+tuple[8, 8, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 67
+tuple[8, 8, 6, 1, 5]
+tuple[8, 8, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 68
+tuple[8, 8, 7, 1, 3]
+tuple[8, 8, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 69
+tuple[8, 8, 7, 1, 5]
+tuple[8, 8, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+Problem 70
+tuple[9, 9, 3, 1, 4]
+tuple[9, 9, 3, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 71
+tuple[9, 9, 3, 1, 6]
+tuple[9, 9, 3, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 72
+tuple[9, 9, 4, 1, 3]
+tuple[9, 9, 4, 1, 5]
+iv[0, 1, 2, 3, 4]
+
+Problem 73
+tuple[9, 9, 4, 1, 6]
+tuple[9, 9, 4, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 74
+tuple[9, 9, 5, 1, 3]
+tuple[9, 9, 5, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 75
+tuple[9, 9, 5, 1, 6]
+tuple[9, 9, 5, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 76
+tuple[9, 9, 6, 1, 3]
+tuple[9, 9, 6, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 77
+tuple[9, 9, 6, 1, 5]
+tuple[9, 9, 6, 1, 7]
+iv[0, 1, 2, 3, 4]
+
+Problem 78
+tuple[9, 9, 7, 1, 3]
+tuple[9, 9, 7, 1, 4]
+iv[0, 1, 2, 3, 4]
+
+Problem 79
+tuple[9, 9, 7, 1, 5]
+tuple[9, 9, 7, 1, 6]
+iv[0, 1, 2, 3, 4]
+
+>
+>> 2013/3/27 Guido Tack <tack at gecode.org>
+>>
+>>> I couldn't find the attachment in the original mail so I can't verify
+>>> this, but could you explain the difference between "decision variables" and
+>>> "variables"? Are "decision variables" the ones you mention in the
+>>> int_search annotation, and "variables" all variables in the model?
+>>> If that is the case, then the problem could be that the search strategy
+>>> on the 791-32=759 remaining variables is dynamic (it uses AFC-based
+>>> search). The search tree of a smaller problem is therefore not necessarily
+>>> smaller.  You could try to add more int_search annotations with static
+>>> strategies to the FlatZinc so that all variables are covered and see if
+>>> that changes the behaviour.
+>>>
+>>> Cheers,
+>>> Guido
+>>>
+>>> On 27/03/2013, at 20:39 , Mohamed Rezgui <kyo.alone at gmail.com> wrote:
+>>>
+>>> Sorry,
+>>>
+>>> I forget about it. I choose the same search (lexicographic order) for
+>>> all subproblems and for the entire problem.
+>>> I used it for optimality proof. and I have the same thing. I verify all
+>>> subproblems are distinct.
+>>>
+>>> That's my result with the optimality proof (obj = 11 so I set at obj-1):
+>>>
+>>> ENTIRE_PROBLEM :
+>>> =====UNSATISFIABLE=====
+>>> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+>>> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+>>> %%  add ub:       10
+>>> %%  runtime:       330.538 (330538 ms)
+>>> %%  solvetime:     330.507 (330507 ms)
+>>> %%  status:     UNSAT
+>>> %%  objective:     -1
+>>> %%  decision variables:     32
+>>> %%  variables:     791
+>>> %%  propagators:   837
+>>> %%  propagations:  1610969243
+>>> %%  nodes:         12386891
+>>> %%  failures:      6193446
+>>>
+>>>
+>>> DECOMPOSITION_PROBLEM AND SOLVE ALL SUBPROBLEMS GENERATED:
+>>> =====UNSATISFIABLE=====
+>>> %%  instance:       sugiyama2_g5_7_7_7_7_2.fzn
+>>> %%  search:       Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN()
+>>> %%  add ub:       10
+>>> %%  runtime:       833.92 (833920 ms)
+>>> %%  status:     UNSAT
+>>> %%  objective:     -1
+>>> %%  decision variables:     32
+>>> %%  variables:     791
+>>> %%  propagators:   837
+>>> %%  propagations:  3715375322
+>>> %%  nodes:         31124812
+>>> %%  failures:      15563406
+>>> %%  time decomposition:     0.471 (471 ms)
+>>> %%  nodes decomposition:         0
+>>> %%  failures decomposition:      0
+>>> %%  sum time problems:     833.404 (833404 ms)
+>>> %%  min time problems:     0 (0 ms)
+>>> %%  max time problems:     2.611 (2611 ms)
+>>> %%  problems decomposition:     2000
+>>>
+>>> Best Regards,
+>>> Mohammed REZGUI
+>>>
+>>> 2013/3/27 Christian Schulte <cschulte at kth.se>
+>>>
+>>>> Yes, please understand how branch and bound search works: there is no
+>>>> guarantee that the decompositions need the same amount of search!****
+>>>>
+>>>> ** **
+>>>>
+>>>> C****
+>>>>
+>>>> ** **
+>>>>
+>>>> --****
+>>>>
+>>>> Christian Schulte, Professor of Computer Science, KTH,
+>>>> www.ict.kth.se/~cschulte/****
+>>>>
+>>>> ** **
+>>>>
+>>>> *From:* Mohamed Rezgui [mailto:kyo.alone at gmail.com]
+>>>> *Sent:* Wednesday, March 27, 2013 9:06 AM
+>>>> *To:* cschulte at kth.se
+>>>> *Cc:* users at gecode.org
+>>>> *Subject:* Re: [gecode-users] Fwd: Problem with splitting Problem****
+>>>>
+>>>> ** **
+>>>>
+>>>> Thank you four your answer,****
+>>>>
+>>>> ** **
+>>>>
+>>>> I correct it with choosing only first variable for decomposition .  ***
+>>>> *
+>>>>
+>>>> ** **
+>>>>
+>>>> But when I decomposed the problem into either 80 or 400, or 1000 or
+>>>> 2000 sub problems and I resolve them ****
+>>>>
+>>>> (one after another and best solution is applied when it is found for
+>>>> the next subproblem)****
+>>>>
+>>>> ** **
+>>>>
+>>>> I got 3 times more nodes and 3 times more failures with the same code
+>>>> in my previous message !!!****
+>>>>
+>>>> ** **
+>>>>
+>>>> Can you help me about this problem please.****
+>>>>
+>>>> ** **
+>>>>
+>>>> Best Regards,****
+>>>>
+>>>> Mohammed REZGUI ****
+>>>>
+>>>> ** **
+>>>>
+>>>> 2013/3/22 Christian Schulte <cschulte at kth.se>****
+>>>>
+>>>> You might want to look at how much search is needed, just check the
+>>>> statistics. The decomposition does not guarantee that you will use less
+>>>> search.****
+>>>>
+>>>>  ****
+>>>>
+>>>> Christian****
+>>>>
+>>>>  ****
+>>>>
+>>>> --****
+>>>>
+>>>> Christian Schulte, www.ict.kth.se/~cschulte/****
+>>>>
+>>>>  ****
+>>>>
+>>>> *From:* users-bounces at gecode.org [mailto:users-bounces at gecode.org] *On
+>>>> Behalf Of *Mohamed Rezgui
+>>>> *Sent:* Friday, March 22, 2013 5:30 PM
+>>>> *To:* users at gecode.org
+>>>> *Subject:* [gecode-users] Fwd: Problem with splitting Problem****
+>>>>
+>>>>  ****
+>>>>
+>>>> Dear everybody,****
+>>>>
+>>>>  ****
+>>>>
+>>>> I have a problem with Gecode 4.0.0 (see the code below)****
+>>>>
+>>>> I can exhibit the issue on the following example****
+>>>>
+>>>>  ****
+>>>>
+>>>> I solve an optimization problem in the format flatzinc
+>>>> "sugiyama2_g5_7_7_7_7_2.fzn" (it is attached). It takes 370s.****
+>>>>
+>>>> Then I cut the problem in two disjoint sub-problems P1 and P2 (Two
+>>>> Spaces) ****
+>>>>
+>>>> P1 is P with (x3=1, x5=2, x30=30, x31=29) and
+>>>>   ****
+>>>>
+>>>> P2 is P with (x3=1, x5=2, x30=29, x31=30)                        ****
+>>>>
+>>>>  ****
+>>>>
+>>>> First, I solve P1. This found a solution with a cost C1. Then I solve
+>>>> P2 and add the cost constraint cost <C1 (ie constraint(c1) in gecode))*
+>>>> ***
+>>>>
+>>>>  ****
+>>>>
+>>>> The issue is that P1 is solved in 355 seconds and P2 in 329 seconds !
+>>>> The sum is 685s where the initial resolution takes 370s****
+>>>>
+>>>> I expected to have something close to 370s****
+>>>>
+>>>>  ****
+>>>>
+>>>> It seems that I have no problem if I add constraint on the first
+>>>> variables (x0, x1,?) and that it does not work if I use any variables (like
+>>>> here x3,x5,x30?)****
+>>>>
+>>>>  ****
+>>>>
+>>>> Thanks in advance for any remark****
+>>>>
+>>>>  ****
+>>>>
+>>>> Best Regards,****
+>>>>
+>>>> Mohammed REZGUI****
+>>>>
+>>>>  ****
+>>>>
+>>>> Here is my code:****
+>>>>
+>>>> <code>****
+>>>>
+>>>> //Init fg with sugiyama2_g5_7_7_7_7_2.fzn instance****
+>>>>
+>>>> FlatZincSpace* fg = FlatZinc::parse(...)****
+>>>>
+>>>> fg->createBranchers(...)****
+>>>>
+>>>> fg->shrinkArray(...)****
+>>>>
+>>>>  ****
+>>>>
+>>>> //vars_index[3, 5, 30, 31, ] => variables have the minimum doman size
+>>>> in this problem****
+>>>>
+>>>> // it is fine If I use 4 first variables but it is not interesting for
+>>>> me****
+>>>>
+>>>> //       ****
+>>>>
+>>>>  ****
+>>>>
+>>>>  ****
+>>>>
+>>>> //best solution used for P2 after****
+>>>>
+>>>> Space* best = NULL;****
+>>>>
+>>>> {****
+>>>>
+>>>>           FlatZincSpace* p1 =
+>>>> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>>>>
+>>>>          ****
+>>>>
+>>>>           //vars_index[3, 5, 30, 31, ]                            ****
+>>>>
+>>>>           //tuple_val[1, 2, 29, 30, ]****
+>>>>
+>>>>           Gecode::rel(*p1, p1->iv[3], Gecode::IRT_EQ, 1);****
+>>>>
+>>>>           Gecode::rel(*p1, p1->iv[5], Gecode::IRT_EQ, 2);****
+>>>>
+>>>>           Gecode::rel(*p1, p1->iv[30], Gecode::IRT_EQ, 29);****
+>>>>
+>>>>           Gecode::rel(*p1, p1->iv[31], Gecode::IRT_EQ, 30);****
+>>>>
+>>>>             ****
+>>>>
+>>>>           Gecode::Search::Options opt;****
+>>>>
+>>>>           opt.threads = 1.0;****
+>>>>
+>>>>           Gecode::Search::Sequential::BAB bab(p1,
+>>>> sizeof(MyFlatZincSpace), opt);****
+>>>>
+>>>>           Gecode::Space* s = bab.next();****
+>>>>
+>>>>           while(s) {****
+>>>>
+>>>>                       delete best;****
+>>>>
+>>>>                       best = s;****
+>>>>
+>>>>                       engine().solution(this);****
+>>>>
+>>>>                       s = bab.next();****
+>>>>
+>>>>           }****
+>>>>
+>>>>  ****
+>>>>
+>>>> }****
+>>>>
+>>>>  ****
+>>>>
+>>>> {****
+>>>>
+>>>>           FlatZincSpace* p2 =
+>>>> static_cast<MyFlatZincSpace*>(fg->clone(false));****
+>>>>
+>>>>          ****
+>>>>
+>>>>           //vars_index[3, 5, 30, 31, ]                            ****
+>>>>
+>>>>           //tuple_val[1, 2, 30, 29, ]****
+>>>>
+>>>>           Gecode::rel(*p2, p2->iv[3], Gecode::IRT_EQ, 1);****
+>>>>
+>>>>           Gecode::rel(*p2, p2->iv[5], Gecode::IRT_EQ, 2);****
+>>>>
+>>>>           Gecode::rel(*p2, p2->iv[30], Gecode::IRT_EQ, 30);****
+>>>>
+>>>>           Gecode::rel(*p2, p2->iv[31], Gecode::IRT_EQ, 29);****
+>>>>
+>>>>     ****
+>>>>
+>>>>           if (best) {****
+>>>>
+>>>>                     p2->constrain(*best);****
+>>>>
+>>>>           }****
+>>>>
+>>>>          ****
+>>>>
+>>>>           Gecode::Search::Options opt;****
+>>>>
+>>>>           opt.threads = 1.0;****
+>>>>
+>>>>           Gecode::Search::Sequential::BAB bab(p2,
+>>>> sizeof(MyFlatZincSpace), opt);****
+>>>>
+>>>>           Gecode::Space* s = bab.next();****
+>>>>
+>>>>           while(s) {****
+>>>>
+>>>>                       delete best;****
+>>>>
+>>>>                       best = s;****
+>>>>
+>>>>                       engine().solution(this);****
+>>>>
+>>>>                       s = bab.next();****
+>>>>
+>>>>           }****
+>>>>
+>>>>  ****
+>>>>
+>>>> }****
+>>>>
+>>>> </code>****
+>>>>
+>>>>
+>>>>
+>>>> ****
+>>>>
+>>>> ** **
+>>>>
+>>>> --
+>>>> Cordialement,****
+>>>>
+>>>> Mohamed REZGUI
+>>>>
+>>>  _______________________________________________
+>>> Gecode users mailing list
+>>> users at gecode.org
+>>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>>
+>>>     --
+>>> Guido Tack,
+>>> http://www.csse.monash.edu/~guidot/
+>>>
+>>>
+>>>
+>>>
+>>
+>>
+>> --
+>> Cordialement,
+>> Mohamed REZGUI
+>>
+>
+>
+>
+> --
+> Cordialement,
+> Mohamed REZGUI
+>
+
+
+
+-- 
+Cordialement,
+Mohamed REZGUI
+
+
+
+-- 
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130327/cc1358ae/attachment-0001.html>
+
+From David.Rijsman at quintiq.com  Thu Mar 28 15:28:06 2013
+From: David.Rijsman at quintiq.com (David Rijsman)
+Date: Thu, 28 Mar 2013 15:28:06 +0100
+Subject: [gecode-users] BinPacking constraint crash
+Message-ID: <5154618602000085000282F5@mail.quintiq.nl>
+
+Hi,
+
+minor issue (I think in all versions with a bin packing constraint); I am not sure to what degree we want Gecode to protect me from invoking constraint with nonsense arguments but I noticed that the bin packing constraint:
+
+binpacking(Home home, const IntVarArgs& l, const IntVarArgs& b, const IntArgs& s, IntConLevel)
+
+crashed when you pass an empty list of b and s (I have one load variable). This due to line 64 in bin-packing.cpp where it is assumed there is at least one bin.
+
+
+
+David J. Rijsman
+Algorithm Lead
+Quintiq
+ 
+T +31 (0)73 691 07 39
+F +31 (0)73 691 07 54
+M +31 (0)62 127 68 29
+E david.rijsman at quintiq.com
+I www.quintiq.com
+
+
+
+
+From hiller at employees.org  Thu Mar 28 17:18:43 2013
+From: hiller at employees.org (Dean Hiller)
+Date: Thu, 28 Mar 2013 12:18:43 -0400
+Subject: [gecode-users] Gecode BAB Questions
+Message-ID: <op.wunzlhbpvqe8uy@hiller-t60p>
+
+I am very new to constraint programming, but by using the MPG have been
+able to develop a fairly large Gecode application in a relatively
+short period of time. Due to my lack of constraint programming
+knowledge, I may not have selected the best methods for solving
+my particular problem, but what I have done appears to work
+with two exceptions which are shown in the attached program.
+This program is the minimum program I could generate to show
+what I am doing and to replicate my two problems.
+
+In the attached program, I have an IntVar X which is to
+receive ordered values from Y0, Y1, and Y2 along with an
+indication of from which Y the value came.
+
+The first problem I am having is that the program stops
+after finding 6 of the 10 possible solutions and I don't
+understand how to debug this problem.
+
+The second problem I am having is that the program fails
+to find any solutions if the constraints on one of the
+Y variables results in it not having any solutions even
+though there are other solutions for X.
+
+I have this problem with both the 3.7.3 release and the
+4.0.0 release.
+
+I would appreciate any assistance you can provide.
+
+Thanks,
+Dean
+
+#include <gecode/int.hh>
+#include <gecode/search.hh>
+#include <gecode/minimodel.hh>
+
+using namespace Gecode;
+
+typedef struct Y_s
+{
+	IntVar nY;
+} Y;
+
+class GecodeTest3 : public Space {
+protected:
+	int m_nMin;
+	int m_nMax;
+	int m_nNumY;
+	IntVar m_nX;
+	IntVarArray m_naX;
+	BoolVarArray m_baX;
+	int m_nYIndex;
+	IntVar m_nY0;
+	IntVar m_nY1;
+	IntVar m_nY2;
+	IntVar *m_vY[3];
+	IntVar m_nCost;
+	IntVarArray m_nValue;
+	IntArgs m_nC;
+
+public:
+	void AddY(int* naY, int nSize)
+	{
+		m_nYIndex++;
+		*m_vY[m_nYIndex] = IntVar(*this, m_nMin, m_nMax);
+		ConstrainY(naY, nSize);
+		rel(*this, m_naX[m_nYIndex] == *m_vY[m_nYIndex]);
+		rel(*this, m_baX[m_nYIndex] == (m_naX[m_nYIndex] == m_nX));
+		branch(*this, *m_vY[m_nYIndex], INT_VAL_MIN());
+	}
+
+	void ConstrainY(int *naY, int nSize)
+	{
+		IntArgs nTemp;
+		for (int i = 0; i < nSize; i++)
+		{
+			nTemp << naY[i];
+		}
+		IntSet nsTemp(nTemp);
+		dom(*this, *m_vY[m_nYIndex], nsTemp);
+	}
+
+	int GetX(void)
+	{
+		return m_nX.val();
+	}
+
+	int GetWhichY(void)
+	{
+		return m_nValue[0].val();
+	}
+
+	int GetCost(void)
+	{
+		return m_nCost.val();
+	}
+
+	GecodeTest3(int nMin, int nMax, int nNumY) :
+	m_nMin(nMin), m_nMax(nMax), m_nNumY(nNumY), m_nYIndex(-1)
+	{
+		if (m_nMin < 0)
+		{
+			std::cout << "m_nMin must not be negative" << std::endl;
+		}
+		m_vY[0] = &m_nY0;
+		m_vY[1] = &m_nY1;
+		m_vY[2] = &m_nY2;
+		m_nX = IntVar(*this, m_nMin, m_nMax);
+		m_naX = IntVarArray(*this, m_nNumY, m_nMin, m_nMax);
+		m_baX = BoolVarArray(*this, m_nNumY, 0, 1);
+		m_nC << 1;
+		m_nC << m_nNumY;
+		int nTemp =  m_nNumY * m_nMax + m_nNumY;
+		m_nCost = IntVar(*this, 0, nTemp);
+		nTemp = m_nMax > nNumY ? m_nMax : nNumY;
+		m_nValue = IntVarArray(*this, 2, 0, nTemp);
+		rel(*this, m_nX == min(m_naX));
+		element(*this, m_baX, m_nValue[0], 1);
+		rel(*this, m_nValue[1] == m_nX);
+		linear(*this, m_nC, m_nValue, IRT_EQ, m_nCost);
+		branch(*this, m_naX, INT_VAR_MIN_MIN(), INT_VAL_MIN());
+		branch(*this, m_nX, INT_VAL_MIN());
+		branch(*this, m_nValue[0], INT_VAL_MIN());
+	}
+	// search support
+	GecodeTest3(bool share, GecodeTest3& s) : Space(share, s) {
+		// s.print(std::cout);
+		m_vY[0] = &m_nY0;
+		m_vY[1] = &m_nY1;
+		m_vY[2] = &m_nY2;
+		m_nX.update(*this, share, s.m_nX);
+		m_naX.update(*this, share, s.m_naX);
+		m_baX.update(*this, share, s.m_baX);
+		m_nCost.update(*this, share, s.m_nCost);
+		m_nY0.update(*this, share, s.m_nY0);
+		m_nY1.update(*this, share, s.m_nY1);
+		m_nY2.update(*this, share, s.m_nY2);
+		m_nValue.update(*this, share, s.m_nValue);
+		for (int i = 0; i < 2; i++)
+		{
+			m_nC << s.m_nC[i];
+		}
+	}
+	virtual Space* copy(bool share) {
+		return new GecodeTest3(share,*this);
+	}
+	virtual void constrain(const Space& _b)
+	{
+		const GecodeTest3& b = static_cast<const GecodeTest3&>(_b);
+		rel(*this, m_nCost > b.m_nCost);
+	}
+
+	// print solution
+	void print(std::ostream& os) const {
+		os << "m_nX:         " << m_nX << std::endl;
+		for (int i = 0;  i < m_naX.size(); i++)
+		{
+			os << "m_naX[" << i << "]:   " << m_naX[i] << "   ";
+               os << "m_baX[" << i << "]:   " << m_baX[i] << "   ";
+			os << std::endl;
+		}
+		for (int i = 0; i < m_nC.size(); i++)
+		{
+			os << "m_nC[" << i << "]:  " << m_nC[i] << std::endl;
+		}
+		for (int i = 0; i < m_nValue.size(); i++)
+		{
+			os << "m_nValue[" << i << "]:  " << m_nValue[i] << std::endl;
+		}
+		os << "m_nCost:  " << m_nCost << std::endl;
+	}
+};
+
+void BuildAndSolve(bool b2Y1)
+{
+	int Y0[3] = {1, 3, 7};
+	int Y1[3] = {2, 4, 5};
+	int Y2[4] = {4, 6, 8, 9};
+	int Y1a[3] = {1, 3, 8};
+
+	// create model and search engine
+	GecodeTest3 *m = new GecodeTest3(0, 20, 3);
+	m->AddY(Y0, sizeof(Y0)/sizeof(int));
+	m->AddY(Y1, sizeof(Y1)/sizeof(int));
+	if (b2Y1)
+	{
+		m->ConstrainY(Y1a, sizeof(Y1a)/sizeof(int));
+	}
+	m->AddY(Y2, sizeof(Y2)/sizeof(int));
+	// m->print(std::cout);
+	bool bFailed = true;
+	BAB<GecodeTest3> e(m);
+	GecodeTest3 *s;
+	while (((s = e.next()) != 0))
+	{
+		bFailed = false;
+		// s->print(std::cout);
+		int X = s->GetX();
+		int whichY = s->GetWhichY();
+		int nCost = s->GetCost();
+		std::cout << "X=" << X << " from Y" << whichY << ". Cost=" << nCost <<
+std::endl;
+		// std::cout << std::endl;
+		delete s;
+	}
+	
+	if (bFailed)
+	{
+		std::cout << "Model failed" << std::endl;
+	}
+
+	Search::Statistics stat = e.statistics();
+	std::cout << "Search Statistics" << std::endl;
+	std::cout << "  Propagations: " << stat.propagate << std::endl;
+	std::cout << "  Nodes:        " << stat.node << std::endl;
+	std::cout << "  Failures:     " << stat.fail << std::endl;
+	std::cout << "  Depth:        " << stat.depth << std::endl;
+	int nPeakMemoryKB = static_cast<int>((stat.memory+1023) / 1024);
+	std::cout << "  Peak Memory   " << nPeakMemoryKB << "KB" << std::endl;
+	std::cout << std::endl;
+	delete m;
+	return;
+}
+
+int GecodeTest3Main(int argc, char* argv[])
+{
+	std::cout << "One Y1 constraint" << std::endl;
+	BuildAndSolve(false);
+	std::cout << "Two Y1 constraints" << std::endl;
+	BuildAndSolve(true);
+	return 0;
+}
+
+Sample output:
+One Y1 constraint
+X=1 from Y0. Cost=3
+X=2 from Y1. Cost=7
+X=3 from Y0. Cost=9
+X=4 from Y1. Cost=13
+X=4 from Y2. Cost=14
+X=5 from Y1. Cost=16
+Search Statistics
+     Propagations: 149
+     Nodes:        21
+     Failures:     5
+     Depth:        3
+     Peak Memory   8KB
+
+Two Y1 constraints
+Model failed
+Search Statistics
+     Propagations: 0
+     Nodes:        0
+     Failures:     1
+     Depth:        0
+     Peak Memory   4KB
+
+
+From tack at gecode.org  Thu Mar 28 22:25:36 2013
+From: tack at gecode.org (Guido Tack)
+Date: Fri, 29 Mar 2013 08:25:36 +1100
+Subject: [gecode-users] BinPacking constraint crash
+In-Reply-To: <5154618602000085000282F5@mail.quintiq.nl>
+References: <5154618602000085000282F5@mail.quintiq.nl>
+Message-ID: <E1E70B92-DE34-4E75-BB91-6C2BD967F9E0@gecode.org>
+
+Hi,
+
+thanks, that should definitely not crash.  I've committed a fix so that l[i]=0 for all i if b.size()==0 (that's consistent with the semantics we describe in the doc comment).
+
+Cheers,
+Guido
+
+On 29/03/2013, at 1:28 , David Rijsman <David.Rijsman at quintiq.com> wrote:
+
+> Hi,
+> 
+> minor issue (I think in all versions with a bin packing constraint); I am not sure to what degree we want Gecode to protect me from invoking constraint with nonsense arguments but I noticed that the bin packing constraint:
+> 
+> binpacking(Home home, const IntVarArgs& l, const IntVarArgs& b, const IntArgs& s, IntConLevel)
+> 
+> crashed when you pass an empty list of b and s (I have one load variable). This due to line 64 in bin-packing.cpp where it is assumed there is at least one bin.
+> 
+> 
+> 
+> David J. Rijsman
+> Algorithm Lead
+> Quintiq
+> 
+> T +31 (0)73 691 07 39
+> F +31 (0)73 691 07 54
+> M +31 (0)62 127 68 29
+> E david.rijsman at quintiq.com
+> I www.quintiq.com
+> 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+-- 
+Guido Tack,
+http://www.csse.monash.edu/~guidot/
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20130329/f1b7001f/attachment.html>
+

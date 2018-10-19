@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20rtest_eq_dom%20doesnt%20lead%20to%20RT_TRUE%20%21%3F%21%3F%21&In-Reply-To=%3C44880663.20602%40informatik.uni-freiburg.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000574.html">
+   <LINK REL="Next"  HREF="000578.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!</H1>
+    <B>Martin Mann</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20rtest_eq_dom%20doesnt%20lead%20to%20RT_TRUE%20%21%3F%21%3F%21&In-Reply-To=%3C44880663.20602%40informatik.uni-freiburg.de%3E"
+       TITLE="[gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!">mmann at informatik.uni-freiburg.de
+       </A><BR>
+    <I>Thu Jun  8 13:13:39 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000574.html">[gecode-users] access to Space during branching?
+</A></li>
+        <LI>Next message: <A HREF="000578.html">[gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#577">[ date ]</a>
+              <a href="thread.html#577">[ thread ]</a>
+              <a href="subject.html#577">[ subject ]</a>
+              <a href="author.html#577">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+first of all: I am using the trunc version... but I checked and the 
+corresponding source for the stable version is the same!
+
+I found a strange behavior of the Gecode::rel function using IRT_NQ as 
+an reified constraint.
+
+I used 2 variables with the following domains:
+
+d1 = (1)
+d2 = (0,2)
+
+also I ve got a reified constraint like that
+
+rel(home, d1, IRT_NQ, d2, isNQ, ICL_DOM)
+
+so isNQ should be true if d1 an d2 are unequal!
+
+BUT: isNQ is NOT assigned!
+
+i dived into the source and followed the my instance of the rel function:
+
+rel
+-&gt; Rel::ReEqDom&lt;IntView,NegBoolView&gt;
+-&gt; ReEqDom&lt;View,CtrlView&gt;::propagate()
+-&gt; rtest_eq_dom()
+-&gt;
+and found this...
+===================================
+   template &lt;class View&gt;
+   forceinline RelTest
+   rtest_eq_dom(View x, View y) {
+     RelTest rt = rtest_eq_bnd(x,y);
+     if (rt != RT_MAYBE) return rt;
+     return (x.range() || y.range()) ? RT_MAYBE :
+        test_eq_dom_check(x,y);
+   }
+==================================
+   template &lt;class View&gt;
+   RelTest
+   rtest_eq_dom_check(View x, View y) {
+     ViewRanges&lt;View&gt; rx(x), ry(y);
+     while (rx() &amp;&amp; ry()) {
+       if (rx.max() &lt; ry.min()) {
+	++rx;
+       } else if (ry.max() &lt; rx.min()) {
+	++ry;
+       } else return RT_MAYBE;
+     }
+     return RT_FALSE;
+   }
+==================================
+   template &lt;class View&gt;
+   forceinline RelTest
+   rtest_eq_bnd(View x, View y) {
+     if ((x.min() &gt; y.max()) || (x.max() &lt; y.min())) return RT_FALSE;
+     return (x.assigned() &amp;&amp; y.assigned()) ? RT_TRUE : RT_MAYBE;
+   }
+==================================
+
+
+if I m right... rtest_eq_dom will never return RT_TRUE if this cant be 
+determinated via bound constraint.... ???
+this is because the called rtest_eq_dom_check() function will never 
+return RT_TRUE ...
+
+but this isnt what i expect if i am using ICL_DOM or?
+
+in my case non of the 2 called functions lead to RT_TRUE but at least 
+one should do ...
+
+is it a bug or a feature? ;)
+
+thanks for a closer look
+
+Martin
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000574.html">[gecode-users] access to Space during branching?
+</A></li>
+	<LI>Next message: <A HREF="000578.html">[gecode-users] rtest_eq_dom doesnt lead to RT_TRUE !?!?!
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#577">[ date ]</a>
+              <a href="thread.html#577">[ thread ]</a>
+              <a href="subject.html#577">[ subject ]</a>
+              <a href="author.html#577">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

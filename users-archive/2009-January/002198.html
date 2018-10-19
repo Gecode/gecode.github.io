@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Interfacing GeCode to ECLiPSe
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C000901c97ff3%2433f8e5a0%249beab0e0%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002197.html">
+   <LINK REL="Next"  HREF="002205.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Interfacing GeCode to ECLiPSe</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C000901c97ff3%2433f8e5a0%249beab0e0%24%40se%3E"
+       TITLE="[gecode-users] Interfacing GeCode to ECLiPSe">cschulte at kth.se
+       </A><BR>
+    <I>Mon Jan 26 21:18:06 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002197.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+        <LI>Next message: <A HREF="002205.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2198">[ date ]</a>
+              <a href="thread.html#2198">[ thread ]</a>
+              <a href="subject.html#2198">[ subject ]</a>
+              <a href="author.html#2198">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Kish,
+
+As it comes to the search interface: I have been discussing with other
+LP-minded people and from these discussions I do recall the following design
+outline:
+
+Search:
+ (1) Eclipse tells Gecode to create a choicepoint
+ (2) Eclipse tells Gecode to backtrack until the next choicepoint (or some
+choicepoint if you want it to be
+     more powerful than that)
+
+Interfacing:
+ (3) Eclipse tells Gecode about variable modifications
+ (4) Eclipse tells Gecode to create new variables and propagators
+ (5) Eclipse instructs Gecode to do propagation and queries Gecode about
+changes to variable domains 
+
+Then, a starting point for implementing backtracking would be to just use
+cloning to make it work (that should be really use but inefficient). Then,
+in a second step one could use a hybrid of recomputation and cloning (just
+replay what has been done by (3) and (4) and redo propagation). For a
+realistic interface Gecode must use recomputation.
+
+I think this kind of interface would be quite useful also for other
+languages/systems based on backtracking. Provided that:
+ - you come up with a na&#239;ve implementation that is not Eclipse specific
+(say, there will be one part that is Gecode specific and then a separate
+part that is Eclipse specific, and the Gecode part can be used without
+Eclipse)
+ - you put the Gecode-specific part under the MIT license
+
+We could optimize the Gecode-specific part including adding recomputation,
+include the Gecode-specific part with Gecode and hence adopt and maintain
+it.
+
+What do you think?
+Christian
+ 
+
+--
+Christian Schulte, www.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Monday, January 26, 2009 7:27 PM
+To: Kish Shen
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Interfacing GeCode to ECLiPSe
+
+Kish Shen wrote:
+
+&gt;<i> I am not sure what are the trade-offs between the two APIs Guido
+</I>&gt;<i> outlined -- is it simply that using reflection will be less flexible?
+</I>
+In a way, it's more flexible.  All constraints and variable types  
+available in Gecode will be automatically available through the  
+interface.  When constraints or variable types are added to Gecode,  
+they are available without changing the interface code (and maybe even  
+without recompiling the interface).
+
+&gt;<i> I am not very familiar with interface generators like SWIG, although I
+</I>&gt;<i> did take a look at it briefly several years ago, and my impression was
+</I>&gt;<i> that it mainly serve to map the data structures between C/C++ and the
+</I>&gt;<i> target language. In ECLiPSe's interface to MP solvers such as CPLEX,  
+</I>&gt;<i> we
+</I>&gt;<i> needed to do quite a lot of extra coding in C, in addition to the data
+</I>&gt;<i> transformation between C and ECLiPSe, and I suspect we might require
+</I>&gt;<i> such extra coding for the interface to GeCode as well. In  
+</I>&gt;<i> particular, I
+</I>&gt;<i> don't expect a direct mapping from ECLiPSe to the GeCode methods at  
+</I>&gt;<i> the
+</I>&gt;<i> ECLiPSe level.
+</I>
+Yes, that's how they work.  For our Java interface (which is generated  
+by swig), we had to write quite some glue code, too.
+
+&gt;<i> I expect that at the ECLiPSe level, we will use syntax that looks a  
+</I>&gt;<i> lot
+</I>&gt;<i> like the existing syntacx for the native solvers. I expect that at a
+</I>&gt;<i> minimum, we would need to be able to add both constraints and  
+</I>&gt;<i> variables
+</I>&gt;<i> dynamically.
+</I>
+Sure, that shouldn't be a problem.  Gecode is quite dynamic anyway, it  
+would be an artificial restriction to make this static.
+
+&gt;<i> In the backbox search approach, I think we will also need
+</I>&gt;<i> to be able to be able to `backtrack' into the search to obtain further
+</I>&gt;<i> solutions after the initially one.
+</I>
+The other interfaces usually solve this by providing an object that  
+represents the search, and which has a &quot;next&quot; method that you can call  
+as often as there are solutions.  I guess you could provide a similar  
+interface in Eclipse.
+
+&gt;<i> In the case where the search is done
+</I>&gt;<i> by ECLiPSe, my initial thought is that we need to do only the
+</I>&gt;<i> propagation in GeCode, but do the search in ECLiPSe. This would mean
+</I>&gt;<i> that we need someway of `undoing' the effects of a propagation step,
+</I>&gt;<i> without directly using the search/branching facilities of GeCode.
+</I>
+Right.  But Gecode does not provide a mechanism for undoing these  
+effects. You can only keep a copy of a space and then redo the effects  
+instead.  But this can be hidden behind some layer of abstraction.
+
+&gt;<i> Do you
+</I>&gt;<i> expect that I can use Reflection API for both the black-box and the
+</I>&gt;<i> ECLiPSe search approach?
+</I>
+Yes.  As reflection will only be used to set up the initial space, it  
+should work with both approaches.
+
+Cheers,
+	Guido
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002197.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+	<LI>Next message: <A HREF="002205.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2198">[ date ]</a>
+              <a href="thread.html#2198">[ thread ]</a>
+              <a href="subject.html#2198">[ subject ]</a>
+              <a href="author.html#2198">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

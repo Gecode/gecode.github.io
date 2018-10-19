@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] (no subject)
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20%28no%20subject%29&In-Reply-To=%3C000101c797b8%24f80ebac0%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000934.html">
+   <LINK REL="Next"  HREF="000936.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] (no subject)</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20%28no%20subject%29&In-Reply-To=%3C000101c797b8%24f80ebac0%24acd4ed82%40beule%3E"
+       TITLE="[gecode-users] (no subject)">cschulte at kth.se
+       </A><BR>
+    <I>Wed May 16 14:51:48 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000934.html">[gecode-users] (no subject)
+</A></li>
+        <LI>Next message: <A HREF="000936.html">[gecode-users] (no subject)
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#935">[ date ]</a>
+              <a href="thread.html#935">[ thread ]</a>
+              <a href="subject.html#935">[ subject ]</a>
+              <a href="author.html#935">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>The easiest is to design your container class such that it registers with
+the CSPsubset class: then invoking update, for example, on the CSPclass
+could call an appropriate member function on all registered container
+classes.
+
+But this is not really Gecode specific but rather software design.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: S&#233;bastien Mouthuy [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">smouthuy at gmail.com</A>] 
+Sent: Wednesday, May 16, 2007 12:21 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: 'Guido Tack'; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] (no subject)
+
+
+
+Well here is exactly what I want to do:
+
+I have a class inheriting Space
+
+class CSPSubset : Space{
+
+	SetVar S;	
+	IntVar C;
+
+	CSPSubset(...) {
+		
+		post some constraints on S and C
+	}
+	
+	CSPSubset(bool share, CSPSubset&amp; csps) 
+	  : Space(share,csps)
+	{
+		S.update(this, share, csps.S);
+		C.update(this, share, csps.C);
+	}
+
+	Actor* copy(..)...
+
+
+	...
+};
+
+The fact is that this CSP is only partial. I want to let an external user to
+specify more constraints on S and C. Of course, I could ask the user to
+extend CSPSubset, but I have several classes like CSPSubset using SetVar S
+that I must constrain as the user wants. And I don't want to ask the user to
+write one class extending each CSP I wrote. 
+
+Thus what I would like, is that the user would write a class like
+
+class SVconstrainer {
+
+	//eventually some IntVar and SetVar
+	SetVar S1, S2;
+
+	IntVar Tmp;
+
+	constrain( Space *home, SetVar S, IntVar C){
+
+		// post of some propagators
+		cardinality(home, S , 1 , 3);
+		rel(home, S1, SRT_NEQ, S);
+
+		weight(home, .., .., S, C);
+
+		...
+	}
+
+	SVConstrainer (Space *home, bool share, SVconstrainer&amp; svc){
+		S1.update(home, share, svc.S1);
+		S2.update(home, share, svc.S2;
+		Tmp.update(home, sharfe, svc.Tmp);
+	}
+};
+
+And then CSPSubset would look like as
+
+
+class CSPSubset : Space{
+
+	SetVar S;	
+	IntVar C;
+
+	SVconstrainer sv;
+
+	CSPSubset(SVconstrainer svc) {
+		
+		post some constraints on S and C
+	
+		svc.constrain(this, S, C);
+
+		sv = svc;
+		
+	}
+	
+	CSPSubset(bool share, CSPSubset&amp; csps) 
+	  : Space(share,csps), sv(this, share, csps.sv)
+	{
+		S.update(this, share, csps.S);
+		C.update(this, share, csps.C);
+	}
+
+	Actor* copy(..)...
+
+
+	...
+};	
+	
+Hope this is precise enough. Because I am designing a global constraint, I
+need that in order to have a nice interface with the user that will use it.
+
+Thanks in advance.
+
+Cheers,
+
+sebastien
+
+
+Le mercredi 16 mai 2007 &#224; 10:28 +0200, Christian Schulte a &#233;crit :
+&gt;<i> Still, you need to be more detailled. What is clear, you need to 
+</I>&gt;<i> follow a structure where your variables are updated, check the 
+</I>&gt;<i> examples that tell you how to. So, whatever you do, you must inherit 
+</I>&gt;<i> from a Space, maintain the variables you want to use in that space and 
+</I>&gt;<i> update your variables through that space.
+</I>&gt;<i> 
+</I>&gt;<i> Christian
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On 
+</I>&gt;<i> Behalf Of S&#233;bastien Mouthuy
+</I>&gt;<i> Sent: Wednesday, May 16, 2007 8:51 AM
+</I>&gt;<i> To: Guido Tack
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] (no subject)
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> Le mercredi 16 mai 2007 &#224; 07:57 +0200, Guido Tack a &#233;crit :
+</I>&gt;<i> &gt; Hi.
+</I>&gt;<i> &gt; 
+</I>&gt;<i> &gt; S&#233;bastien Mouthuy wrote:
+</I>&gt;<i> &gt; 
+</I>&gt;<i> &gt; &gt; I want to create a class with a static function that could post
+</I>&gt;<i> &gt; &gt; propagators on a SetVar. i.e. something like [...]
+</I>&gt;<i> &gt; &gt;
+</I>&gt;<i> &gt; &gt; I tried this but it seems not to work.
+</I>&gt;<i> &gt; 
+</I>&gt;<i> &gt; What exactly do you mean by &quot;does not work&quot;? Does it crash, or do 
+</I>&gt;<i> &gt; you simply not get the result you expect?
+</I>&gt;<i> I don't get the result I expected, like variables not updated, 
+</I>&gt;<i> somethong strange...
+</I>&gt;<i> 
+</I>&gt;<i> &gt; What is the context, from where
+</I>&gt;<i> &gt; do you call &quot;constrainSetVar&quot;?
+</I>&gt;<i> 
+</I>&gt;<i> I want to write a generic CSP with some SetVar (this is easy). But I 
+</I>&gt;<i> want an external user to be able to post constraints on these SetVar 
+</I>&gt;<i> (this is the problem). Thus my generic CSP should be able to call a 
+</I>&gt;<i> function (given by template or parameter) that will post propagators 
+</I>&gt;<i> on some SetVar.
+</I>&gt;<i> 
+</I>&gt;<i> I would also need a way to update SetVar when copying. I cannot simply 
+</I>&gt;<i> extends the class defining the generic CSP, because I have several 
+</I>&gt;<i> generic CSP that need to constraint SetVar in the same way (specified 
+</I>&gt;<i> by the user).
+</I>&gt;<i> 
+</I>&gt;<i> Thanks in advance,
+</I>&gt;<i> 
+</I>&gt;<i> sebastien
+</I>&gt;<i> &gt; 
+</I>&gt;<i> &gt; Cheers,
+</I>&gt;<i> &gt; 	Guido
+</I>&gt;<i> &gt; 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> 
+</I>
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000934.html">[gecode-users] (no subject)
+</A></li>
+	<LI>Next message: <A HREF="000936.html">[gecode-users] (no subject)
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#935">[ date ]</a>
+              <a href="thread.html#935">[ thread ]</a>
+              <a href="subject.html#935">[ subject ]</a>
+              <a href="author.html#935">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

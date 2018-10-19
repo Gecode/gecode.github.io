@@ -1,0 +1,58 @@
+#include <gecode/driver.hh>
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+
+// this is just to test NaryUnion
+
+using namespace std;
+using namespace Gecode;
+//using namespace Gecode::Iter::Ranges;
+
+class RangeTest : public Script {
+protected:
+    IntVarArray x;
+public:
+    RangeTest(const Options& opt) : x(*this,4,0,6) {
+        
+        rel(*this, x[0]==3);
+        rel(*this, x[1]>=3);
+        rel(*this, x[1]<=5);
+        rel(*this, x[2]>=3);
+        rel(*this, x[2]<=6);
+        rel(*this, x[3]==5);
+        
+        this->status();
+
+        Region myRegion(*this);
+        Iter::Ranges::NaryUnion narr[2];
+        IntVarRanges* varRange = myRegion.alloc<IntVarRanges>(x.size());
+        for (int r=0; r < x.size(); r++) {
+            varRange[r].init(x[r]);
+        }
+
+        narr[0] =  Iter::Ranges::NaryUnion(myRegion, varRange, x.size()); // Causes segmentation fault
+//        Iter::Ranges::NaryUnion uni(myRegion, varRange, x.size()); // This works fine.
+        
+        branch(*this, x, INT_VAR_NONE(), INT_VAL_MIN());
+    }
+    
+    RangeTest(bool share, RangeTest& s) : Script(share,s) {
+        x.update(*this, share, s.x);
+    }
+    
+    virtual void print(std::ostream& os) const{
+        std::cout << "PassVar solution: " << x << std::endl;
+    }
+    
+    virtual Space* copy(bool share) {
+        return new RangeTest(share,*this);
+    }
+};
+
+int main(int argc, const char * argv[])
+{
+    Options opt("RangeTest test!");
+    Script::run<RangeTest, DFS, Options>(opt);
+    
+    return 0;
+}

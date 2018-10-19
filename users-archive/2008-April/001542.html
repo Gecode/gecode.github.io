@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] FloatVar implementation
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20FloatVar%20implementation&In-Reply-To=%3CC422D9FC.C80%25cschulte%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001541.html">
+   <LINK REL="Next"  HREF="001544.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] FloatVar implementation</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20FloatVar%20implementation&In-Reply-To=%3CC422D9FC.C80%25cschulte%40kth.se%3E"
+       TITLE="[gecode-users] FloatVar implementation">cschulte at kth.se
+       </A><BR>
+    <I>Wed Apr  9 20:39:24 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001541.html">[gecode-users] FloatVar implementation
+</A></li>
+        <LI>Next message: <A HREF="001544.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1542">[ date ]</a>
+              <a href="thread.html#1542">[ thread ]</a>
+              <a href="subject.html#1542">[ subject ]</a>
+              <a href="author.html#1542">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>What you intend to do sounds very reasonable.
+
+As it comes to integration versus contribution: we would wish integration
+but we might have to settle for contribution. We can or want to integrate
+only if:
+ - The code is not tainted by a too restricted license, so only MIT.
+ - The code is of high quality such that it is well tested, well
+   documented, useful for many people, and realistic as it comes to
+   performance. We will not integrate code that we can not fix or port
+   ourselves.
+ - The code must be portable and conform to the C++ standard.
+
+I believe that you should make it for all three criteria. But let's see. We
+can first go for contribution and later promote to integration.
+
+Cheers
+Christian
+
+On 4/9/08 5:36 PM, &quot;Filip Konvi&#269;ka&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>&gt; wrote:
+
+&gt;<i> 
+</I>&gt;&gt;<i> If you check the stubs for all the different variable types you will see
+</I>&gt;&gt;<i> that there are two aspects in which they differ. Both of which depend on the
+</I>&gt;&gt;<i> variable implementation specification you deliver:
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i>  - Propagation conditions: a stub class allocates one slot for each
+</I>&gt;&gt;<i>    propagation condition you specify. This is used to find all propagators
+</I>&gt;&gt;<i>    with a particular propagation condition.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i>    As cloning is controlled by the kernel, the kernel needs to know
+</I>&gt;&gt;<i>    how many slots a variable has so that all of its slots are copied.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i>  - Modification events: a modification event on a variable determines
+</I>&gt;&gt;<i>    what are the propagators that must be propagated. For example, for
+</I>&gt;&gt;<i>    integer variables, if the the min or max of a variable changes, this
+</I>&gt;&gt;<i>    results in a ME_INT_BND modification event (one of the bounds changed).
+</I>&gt;&gt;<i>    The specification contains the information that all propagators
+</I>&gt;&gt;<i>    for that variable with conditions PC_INT_DOM (run if anything changes)
+</I>&gt;&gt;<i>    and PC_INT_BND (run if the bounds change) must be run.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i>    The code that runs (actually schedules propagators for later execution)
+</I>&gt;&gt;<i>    is generated from the specification as, again, this is done in the
+</I>&gt;&gt;<i>    kernel. Moreover, the code is super optimized (really with number
+</I>&gt;&gt;<i>    of assembly instructions in mind) as it is at the core of the kernel.
+</I>&gt;&gt;<i> 
+</I>&gt;&gt;<i> There is one more thing that happens (computing an optimal bit layout for
+</I>&gt;&gt;<i> modification event deltas) but I won't go into that.
+</I>&gt;&gt;<i>   
+</I>&gt;<i> I see. No problem, as I said, we already added float.vis to generate
+</I>&gt;<i> this stuff into the kernel. As I understand it, if we later choose to
+</I>&gt;<i> use the specs for multiple variable implementations, they'll share some
+</I>&gt;<i> behavior, like - as you describe - modification event triggering
+</I>&gt;<i> specific kinds of propagators. But IMHO that should be of little concern
+</I>&gt;<i> since a FloatVar is still a FloatVar regardless of the internal domain
+</I>&gt;<i> representation.
+</I>&gt;<i> 
+</I>&gt;<i> (This makes me believe we could even use IntVarImplBase &amp; Int ModEvents
+</I>&gt;<i> for floats if we find out that they share these properties.)
+</I>&gt;&gt;<i> So you see, generating the stuff is somewhat less powerful (you need to
+</I>&gt;&gt;<i> recompile) but has a great return if investment as it comes to speed.
+</I>&gt;&gt;<i>   
+</I>&gt;<i> I agree, after all I've done a consistency engine for my runtime system
+</I>&gt;<i> so I do appreciate your compile-time efforts. (And I thought that I'd
+</I>&gt;<i> never use topological sort in real life!)
+</I>&gt;&gt;<i> Moreover, a kernel that has been compiled with a particular variable type
+</I>&gt;&gt;<i> enabled can still be used without linking your programs to code that
+</I>&gt;&gt;<i> implements the variable proper.
+</I>&gt;&gt;<i>   
+</I>&gt;<i> My intention is releasing our implementation as a part of Gecode or as a
+</I>&gt;<i> contribution, depending on what you like more. (I'll have to get an
+</I>&gt;<i> approval for this but I think I'll get it.) Our current plan is to do a
+</I>&gt;<i> template FloatVar and an identity view, a template FloatVarImp
+</I>&gt;<i> parametrized by domain representation, provide an implementation of
+</I>&gt;<i> FloatVarImp for Boost.Interval, and some basic arithmetic propagators
+</I>&gt;<i> (add, mul, min, max, relational, reified relational).
+</I>&gt;<i> 
+</I>&gt;<i> Christian, thanks for all the information, it's very helpful. And the
+</I>&gt;<i> code we've been dealing with is all documented very well, nice work!
+</I>&gt;<i> 
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Filip
+</I>&gt;<i> 
+</I>
+--
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+
+
+
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001541.html">[gecode-users] FloatVar implementation
+</A></li>
+	<LI>Next message: <A HREF="001544.html">[gecode-users] FloatVar implementation
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1542">[ date ]</a>
+              <a href="thread.html#1542">[ thread ]</a>
+              <a href="subject.html#1542">[ subject ]</a>
+              <a href="author.html#1542">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

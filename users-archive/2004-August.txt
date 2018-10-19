@@ -1,0 +1,324 @@
+From tack at ps.uni-sb.de  Tue Aug  3 09:36:05 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 3 Aug 2004 09:36:05 +0200
+Subject: [Gecode] Logo
+Message-ID: <200408030936.05720.tack@ps.uni-sb.de>
+
+Enjoy a brand-new, colourful version of Marco's logo at
+http://www.gecode.org/gecode-logo-mkgt/
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From tack at ps.uni-sb.de  Tue Aug  3 11:31:56 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 3 Aug 2004 11:31:56 +0200
+Subject: [Gecode] CVS log mailing list
+Message-ID: <200408031131.56551.tack@ps.uni-sb.de>
+
+I have added a new mailing list, gecode-cvs, that contains all log messages 
+from the gecode CVS. You can subscribe to the list through
+http://www.ps.uni-sb.de/mailman/listinfo/gecode-cvs
+
+The archives are currently private, so you have to subscribe to see them - we 
+could of course change that, because currently all cvs logs are public anyway 
+on ps.cvs - btw, is that group really supposed to be publically available?
+
+I haven't yet shut down the logging to the ps.cvs newsgroup, because I'm not 
+100% sure that the mailing list solution is completely satisfying... Just try 
+it and let me know what you think about it.
+
+Guido
+
+-- 
+Guido Tack
+Programming Systems Lab
+http://www.ps.uni-sb.de/~tack
+
+
+From kuhlmann at ps.uni-sb.de  Wed Aug  4 09:01:32 2004
+From: kuhlmann at ps.uni-sb.de (Marco Kuhlmann)
+Date: Wed, 4 Aug 2004 09:01:32 +0200
+Subject: [Gecode] CVS log mailing list
+In-Reply-To: <200408031131.56551.tack@ps.uni-sb.de>
+References: <200408031131.56551.tack@ps.uni-sb.de>
+Message-ID: <1E3BA84A-E5E4-11D8-A163-000A95E52F26@ps.uni-sb.de>
+
+* 3. Aug 2004 11:31 (Guido Tack):
+
+> The archives are currently private, so you have to subscribe to see 
+> them - we
+> could of course change that, because currently all cvs logs are public 
+> anyway
+> on ps.cvs - btw, is that group really supposed to be publically 
+> available?
+
+Probably not.  I therefore changed this, adopting the policy that world 
+can only read publicly advertised newsgroups.
+
+     - Marco
+
+
+
+From schulte at imit.kth.se  Tue Aug 17 14:28:12 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 17 Aug 2004 14:28:12 +0200
+Subject: [Gecode] Important change for commiting to alternatives
+Message-ID: <000501c48455$a9687ba0$acd4ed82@beule>
+
+Dear all,
+
+I just rectified an annoying design inconsistency in the way how commit for
+spaces and branchings has been handeled: for a space with n alternatives the
+alternatives were referred to by 1...n (which is of course bad in a C/C++
+context). I fixed it to go from 0...(n-1).
+
+This means that you have to adapt the search engines in Alice.
+
+Cheers
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+
+From schulte at imit.kth.se  Tue Aug 17 17:01:46 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Tue, 17 Aug 2004 17:01:46 +0200
+Subject: [Gecode] Unary branchings...
+Message-ID: <000701c4846b$1dab28e0$acd4ed82@beule>
+
+Dear all,
+
+the kernel used to handle unary branchings (useful for assigning values
+determinstically after propagation has stopped) implicitly. However, this
+idea clashes with batch recomputation.
+
+Therefore, every search engine must be prepared to handle unary branchings:
+in particulat, watch out that you don't waste stack space for these guys if
+you don't have to.
+
+Christian
+
+--
+Christian Schulte, http://www.imit.kth.se/~schulte/ 
+
+
+
+From tack at ps.uni-sb.de  Fri Aug 20 19:44:13 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Fri, 20 Aug 2004 19:44:13 +0200
+Subject: [Gecode] New variable/view structure in place
+Message-ID: <200408201944.13890.tack@ps.uni-sb.de>
+
+Hi everyone.
+
+I updated the sets to reflect a new structure concerning variables and views:
+
+* Variables are the things a user sees, they have a read-only interface, and    
+they can be used to post propagators and branchings
+* Views are the things that propagators work on.
+
+So far, only the sets have been adjusted to the new schema. The system 
+compiles, both with gcc and cl.
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From schulte at imit.kth.se  Mon Aug 30 21:51:14 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 30 Aug 2004 21:51:14 +0200
+Subject: [Gecode] Fundamental change of managing the current space
+Message-ID: <000a01c48eca$b58b26b0$579ee151@dator>
+
+Dear all,
+
+One deficiency of the gecode design has been that it relied on a global
+variable refering to the current space. This has been done just out of
+laziness and now was the time to do it right (TM).
+
+Now all operations which need access to the current space (that is
+pretty much everything as one gets the memory from the current space)
+take as first argument 'Space* home': the home will always refer to the
+current space.
+
+The rewrite has been brutal, Guido is still working on the set stuff...
+And there has to be done alittle more to the notification boards and
+propagator pools (also global state). This will be done by introducing a
+worker which comprises all the state required to perform copying and
+propagation.
+
+The advantages of course are clear: no problems on Windows any longer
+with gcc. And, most notably, now the way is open for parallel search
+engines using several threads running in parallel. Interestingly, the
+kernel will be completely ignorant of any parallelism, all this is
+encapsulated in the search engine.
+
+Christian
+ 
+
+
+
+From schulte at imit.kth.se  Mon Aug 30 21:55:53 2004
+From: schulte at imit.kth.se (Christian Schulte)
+Date: Mon, 30 Aug 2004 21:55:53 +0200
+Subject: [Gecode] Some minor changes...
+Message-ID: <000b01c48ecb$5c00ad30$579ee151@dator>
+
+Dear all,
+
+In order to make things more consistent, I did the following:
+
+ - ME_GEN_FALSE, me_false are now called ME_GEN_FAILED, me_failed (to be
+consistent with the ExecStatus).
+ - The different status types for posting, propagation, committing, etc
+has been unified to a single type ExecStatus.
+   The macros have been adopted accordingly.
+ - BranchDesc is now BranchingDesc (as it does not provide information
+about a single branch but an entire node!)
+ - Abstractions for common branchings (variable, value selection) have
+been added
+ - And more stuff.
+
+What I am still thinking about is to rename priority in cost (after all,
+it is about cost!): currently BINARY_HI means high cost but low
+priority. So also misnomed. Don't know wether I want to change to cost.
+
+I also fixed a major bug in processing the modified set variables: here
+the event was always assigned...
+
+Cheers
+Christian
+
+
+
+From szokoli at ps.uni-sb.de  Tue Aug 31 09:10:44 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Tue, 31 Aug 2004 09:10:44 +0200
+Subject: [Gecode] Fundamental change of managing the current space
+In-Reply-To: <000a01c48eca$b58b26b0$579ee151@dator>
+References: <000a01c48eca$b58b26b0$579ee151@dator>
+Message-ID: <41342474.4010706@ps.uni-sb.de>
+
+Christian Schulte wrote:
+
+>One deficiency of the gecode design has been that it relied on a global
+>variable refering to the current space. This has been done just out of
+>laziness and now was the time to do it right (TM).
+>  
+>
+
+I for one welcome our new explicit parameter :-)
+
+As of this morning, I beleive to have adapted the automake process and 
+the alice binding.
+If build problems persist, let me know.
+
+
+Gabor
+
+
+From tack at ps.uni-sb.de  Tue Aug 31 09:17:38 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 31 Aug 2004 09:17:38 +0200
+Subject: [Gecode] Fundamental change of managing the current space
+In-Reply-To: <41342474.4010706@ps.uni-sb.de>
+References: <000a01c48eca$b58b26b0$579ee151@dator>
+	<41342474.4010706@ps.uni-sb.de>
+Message-ID: <200408310917.39087.tack@ps.uni-sb.de>
+
+On Tuesday 31 August 2004 09:10, Gabor Szokoli wrote:
+> As of this morning, I beleive to have adapted the automake process and
+> the alice binding.
+> If build problems persist, let me know.
+
+Please don't commit anything else for the next hour or so. I've got quite a 
+lot of changes, and the recent check ins really messed up everything here. 
+I've been chasing conflicts now for half an hour already... 
+
+Guido
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+
+From szokoli at ps.uni-sb.de  Tue Aug 31 09:26:41 2004
+From: szokoli at ps.uni-sb.de (Gabor Szokoli)
+Date: Tue, 31 Aug 2004 09:26:41 +0200
+Subject: [Gecode] Fundamental change of managing the current space
+In-Reply-To: <200408310917.39087.tack@ps.uni-sb.de>
+References: <000a01c48eca$b58b26b0$579ee151@dator>	<41342474.4010706@ps.uni-sb.de>
+	<200408310917.39087.tack@ps.uni-sb.de>
+Message-ID: <41342831.80200@ps.uni-sb.de>
+
+Guido Tack wrote:
+
+>On Tuesday 31 August 2004 09:10, Gabor Szokoli wrote:
+>  
+>
+>>As of this morning, I beleive to have adapted the automake process and
+>>the alice binding.
+>>If build problems persist, let me know.
+>>    
+>>
+>
+>Please don't commit anything else for the next hour or so.
+>
+Sure thing.
+
+> I've got quite a 
+>lot of changes, and the recent check ins really messed up everything here. 
+>I've been chasing conflicts now for half an hour already... 
+>  
+>
+You can roll it back if you want to, my changes are tiny, they only took 
+forever to find, but won't take too much effort for me to apply again if 
+needed.
+A snapshot before 8am this morning should be clean from my meddling.
+
+Are you working on the binding or the makefiles?
+Christian said you were working on sets, so I thought these were left to 
+me, sorry.
+
+
+Gabor
+
+
+From tack at ps.uni-sb.de  Tue Aug 31 09:34:42 2004
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Tue, 31 Aug 2004 09:34:42 +0200
+Subject: [Gecode] Fundamental change of managing the current space
+In-Reply-To: <41342831.80200@ps.uni-sb.de>
+References: <000a01c48eca$b58b26b0$579ee151@dator>
+	<200408310917.39087.tack@ps.uni-sb.de>
+	<41342831.80200@ps.uni-sb.de>
+Message-ID: <200408310934.42729.tack@ps.uni-sb.de>
+
+On Tuesday 31 August 2004 09:26, Gabor Szokoli wrote:
+> Are you working on the binding or the makefiles?
+> Christian said you were working on sets, so I thought these were left to
+> me, sorry.
+
+It was not only your check ins, but also Christian's that broke what I had in 
+the queue. I updated the complete set stuff to use the new scheme, and 
+changed the binding and Makefiles accordingly. Problem is that I did that 
+yesterday evening (or night, really ;-) and I can't check in from my hotel 
+room.
+
+-- 
+Guido Tack
+http://www.ps.uni-sb.de/~tack
+
+

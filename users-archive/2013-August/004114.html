@@ -1,0 +1,256 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Adding restart-based search to	ECLiPSe's	interface to Gecode
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Adding%20restart-based%20search%20to%0A%09ECLiPSe%27s%09interface%20to%20Gecode&In-Reply-To=%3C011e01cea302%248faa7c60%24aeff7520%24%40se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004113.html">
+   <LINK REL="Next"  HREF="004120.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Adding restart-based search to	ECLiPSe's	interface to Gecode</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Adding%20restart-based%20search%20to%0A%09ECLiPSe%27s%09interface%20to%20Gecode&In-Reply-To=%3C011e01cea302%248faa7c60%24aeff7520%24%40se%3E"
+       TITLE="[gecode-users] Adding restart-based search to	ECLiPSe's	interface to Gecode">cschulte at kth.se
+       </A><BR>
+    <I>Tue Aug 27 10:51:02 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004113.html">[gecode-users] Adding restart-based search to ECLiPSe's	interface to Gecode
+</A></li>
+        <LI>Next message: <A HREF="004120.html">[gecode-users] Adding restart-based search to ECLiPSe's	interface to Gecode
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4114">[ date ]</a>
+              <a href="thread.html#4114">[ thread ]</a>
+              <a href="subject.html#4114">[ subject ]</a>
+              <a href="author.html#4114">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Kish,
+
+Here is a solution built on top of Gecode. It defines a type
+Kish::EngineBase that can be passed around irrespective of which engine it
+actual is. The other stuff is just for illustration and how to recast
+Gecode's engines as engines of type Kish::EngineBase.
+
+Hope this helps.
+
+Best
+Christian
+
+
+namespace Kish {
+
+  class EngineBase {
+  public:
+    EngineBase(void) {}
+    virtual Gecode::Space* next(void) = 0;
+    virtual Gecode::Search::Statistics statistics(void) const = 0;
+    virtual bool stopped(void) const = 0;
+    virtual ~EngineBase(void) {}
+  };
+
+  class DFS : public EngineBase {
+  protected:
+    Gecode::DFS&lt;Gecode::Space&gt; e;
+  public:
+    DFS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) { 
+      return e.next(); 
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~DFS(void) {}
+  };
+
+  class BAB : public EngineBase {
+  protected:
+    Gecode::BAB&lt;Gecode::Space&gt; e;
+  public:
+    BAB(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) { 
+      return e.next(); 
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~BAB(void) {}
+  };
+
+  template&lt;template&lt;class&gt; class E&gt;
+  class RBS : public EngineBase {
+  protected:
+    Gecode::RBS&lt;E,Gecode::Space&gt; e;
+  public:
+    RBS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) { 
+      return e.next(); 
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~RBS(void) {}
+  };
+
+  enum WhichEngine {
+    WE_DFS, WE_BAB, 
+    WE_RBS_DFS, WE_RBS_BAB
+  };
+
+  EngineBase* engine(WhichEngine we,
+                     Gecode::Space* s, 
+                     const Gecode::Search::Options&amp; o) {
+    switch (we) {
+    case WE_DFS: return new DFS(s,o);
+    case WE_BAB: return new BAB(s,o);
+    case WE_RBS_DFS: return new RBS&lt;Gecode::DFS&gt;(s,o);
+    case WE_RBS_BAB: return new RBS&lt;Gecode::BAB&gt;(s,o);
+    }
+  }
+}
+
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Christian Schulte
+Sent: Thursday, August 22, 2013 9:50 AM
+To: 'Kish Shen'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Kish,
+
+My bad... There is really no common basetype for search engines, the type I
+mentioned is actually for the implementations and not the interfaces...
+
+I think you will have to wait until I have added a common basetype (there is
+a basetype, but it is not powerful enough), I might be able to do it until
+the end of the week.
+
+Sorry for the confusion!
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Thursday, August 22, 2013 9:45 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks again!
+
+On 21/08/2013 19:17, Christian Schulte wrote:
+&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>follows:
+&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will 
+</I>&gt;<i> work for RBS, and you do not have to create a second engine yourself, 
+</I>&gt;<i> this will the RBS class do for you.
+</I>&gt;<i>
+</I>&gt;<i> And do not forget to delete e eventually!
+</I>&gt;<i>
+</I>
+This is the part that I don't know how to do correct -- probably because of
+my lack of C++ knowledge, but as far as I can tell, Gecode::DFS etc are not
+of class Engine*, according to the doc:
+
+template&lt;class T&gt;
+class Gecode::DFS&lt;T&gt;
+
+for subclasses T of Space
+
+T is GecodeSpace in my case, I assume. I am not sure what class DFS is, but
+I can't see how it could be Engine*.
+
+Anway, I tried to do the assignment as you suggested:
+
+
+Search::Engine* segine;
+...
+sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+
+cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+
+(I first tried sengine = new DFS(solver, o) but got an error 'expected
+type-specifier')
+
+So I am not sure what to do -- do I need to change the type of sengine,
+and/or the way I assign an engine to sengine?
+
+Cheers,
+
+Kish
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004113.html">[gecode-users] Adding restart-based search to ECLiPSe's	interface to Gecode
+</A></li>
+	<LI>Next message: <A HREF="004120.html">[gecode-users] Adding restart-based search to ECLiPSe's	interface to Gecode
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4114">[ date ]</a>
+              <a href="thread.html#4114">[ thread ]</a>
+              <a href="subject.html#4114">[ subject ]</a>
+              <a href="author.html#4114">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

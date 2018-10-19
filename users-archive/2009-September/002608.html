@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Not all solutions, BAB vs. DFS
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Not%20all%20solutions%2C%20BAB%20vs.%20DFS&In-Reply-To=%3C7FCDF1EF-A8C3-4629-9102-E5ABF67928BF%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002607.html">
+   <LINK REL="Next"  HREF="002609.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Not all solutions, BAB vs. DFS</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Not%20all%20solutions%2C%20BAB%20vs.%20DFS&In-Reply-To=%3C7FCDF1EF-A8C3-4629-9102-E5ABF67928BF%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] Not all solutions, BAB vs. DFS">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Fri Sep  4 15:12:12 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002607.html">[gecode-users] Not all solutions, BAB vs. DFS
+</A></li>
+        <LI>Next message: <A HREF="002609.html">[gecode-users] Not all solutions, BAB vs. DFS
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2608">[ date ]</a>
+              <a href="thread.html#2608">[ thread ]</a>
+              <a href="subject.html#2608">[ subject ]</a>
+              <a href="author.html#2608">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Your copy constructor lacks a call to the Space copy constructor:
+
+CSP( bool share, CSP&amp; s ) : Space(share, s) {
+	v.update(*this, share, s.v);
+}
+
+Then it should work (I get three solutions).
+
+Cheers,
+	Guido
+
+Martin Krei&#223;ig wrote:
+
+&gt;<i> Hi again,
+</I>&gt;<i>
+</I>&gt;<i> I tried my best to create a small example, but then I got stuck during
+</I>&gt;<i> debugging at creating the DFS engine. (I was lead to core.hpp line  
+</I>&gt;<i> 3165
+</I>&gt;<i> (gecode 3.1.0)).
+</I>&gt;<i> So I don't know yet if this example produces the problem I have.
+</I>&gt;<i>
+</I>&gt;<i> The algorithm creates an array with different sets (here 5 sets with 2
+</I>&gt;<i> values each) and these sets are constrained by some equations (two in
+</I>&gt;<i> this case) that result in 0.
+</I>&gt;<i>
+</I>&gt;<i> Here is the code:
+</I>&gt;<i>
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i> #include &lt;gecode/driver.hh&gt;
+</I>&gt;<i> #include &lt;iostream&gt;
+</I>&gt;<i>
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i> class CSP : public Space {
+</I>&gt;<i> 	protected:
+</I>&gt;<i> 	IntVarArray v;
+</I>&gt;<i> 	
+</I>&gt;<i> 	public:
+</I>&gt;<i> 	CSP( int arr[5][2] ) {
+</I>&gt;<i>
+</I>&gt;<i> 	// create array with different sets
+</I>&gt;<i> 	int tmp[2];
+</I>&gt;<i>
+</I>&gt;<i> 	for (int i=0; i&lt;5; i++){
+</I>&gt;<i> 		tmp[0] = arr[i][0]; tmp[1] = arr[i][1];
+</I>&gt;<i> 		IntVar i(*this, IntSet( tmp, 2));
+</I>&gt;<i> 		v.add( *this, i );
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	// formulate equations coefficients
+</I>&gt;<i> 	IntArgs ia(5,0,-1,1,1,0);
+</I>&gt;<i> 	IntArgs ib(5,-1,1,-1,0,1);
+</I>&gt;<i>
+</I>&gt;<i> 	// constraints
+</I>&gt;<i> 	linear (*this,ia,v,IRT_EQ, 0, ICL_DEF );
+</I>&gt;<i> 	linear (*this,ib,v,IRT_EQ, 0, ICL_DEF );
+</I>&gt;<i>
+</I>&gt;<i> 	branch ( *this,v,INT_VAR_SIZE_MAX,INT_VAL_MIN );
+</I>&gt;<i>
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> CSP( bool share, CSP&amp; s ) {
+</I>&gt;<i> 	v.update(*this, share, s.v);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> virtual Space* copy( bool share ) {
+</I>&gt;<i> 	return new CSP(share,*this);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> void print( void ) {
+</I>&gt;<i> 	std::cout &lt;&lt; v &lt;&lt; std::endl;
+</I>&gt;<i> }};
+</I>&gt;<i>
+</I>&gt;<i> int main( void ) {
+</I>&gt;<i> 	int arr[5][2] = {{-2,1},{-1,5},{3,2},{-4,3},{2,-2}};
+</I>&gt;<i> 	CSP* c = new CSP(arr);
+</I>&gt;<i> 	c-&gt;print();
+</I>&gt;<i> 	DFS&lt;CSP&gt; dfs(c);
+</I>&gt;<i> 	delete c;
+</I>&gt;<i> 	CSP* cc;
+</I>&gt;<i>
+</I>&gt;<i> 	while ( cc=dfs.next() ) {
+</I>&gt;<i> 		cc-&gt;print();
+</I>&gt;<i> 		delete cc;
+</I>&gt;<i> 	}
+</I>&gt;<i> 	
+</I>&gt;<i> 	return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> best
+</I>&gt;<i> Martin
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On Fri, 2009-09-04 at 10:34 +0200, Guido Tack wrote:
+</I>&gt;&gt;<i> Martin Krei&#223;ig wrote:
+</I>&gt;&gt;&gt;&gt;<i> You can use opt.solutions(0) with DFS, too.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Alright, but how do I pass opt to my CSP object?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> You don't.  The Options class is for use with the driver
+</I>&gt;&gt;<i> infrastructure.  So either you use the driver, and Script::run, or  
+</I>&gt;&gt;<i> you
+</I>&gt;&gt;<i> don't use options.  There's a different options class controlling the
+</I>&gt;&gt;<i> search itself (it's documented).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> The problem is: When testing I insert - lets say 3 - specific
+</I>&gt;&gt;&gt;<i> combination of variables that fulfil the constraints. Then every
+</I>&gt;&gt;&gt;<i> variable gets its set (of size 3). So the output should be (at
+</I>&gt;&gt;&gt;<i> least) 3 combinations. What I get is some of my original solutions,
+</I>&gt;&gt;&gt;<i> some mixed solutions, but some of the originals are skipped.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Can it be that some values are deleted? but that shouldnt be the  
+</I>&gt;&gt;&gt;<i> case.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> That's impossible to answer without seeing the actual problem.  Maybe
+</I>&gt;&gt;<i> you can post a simple, small example.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> 	Guido
+</I>&gt;<i> -- 
+</I>&gt;<i> Martin Krei&#223;ig &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">martin.kreissig at lss.uni-stuttgart.de</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002607.html">[gecode-users] Not all solutions, BAB vs. DFS
+</A></li>
+	<LI>Next message: <A HREF="002609.html">[gecode-users] Not all solutions, BAB vs. DFS
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2608">[ date ]</a>
+              <a href="thread.html#2608">[ thread ]</a>
+              <a href="subject.html#2608">[ subject ]</a>
+              <a href="author.html#2608">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

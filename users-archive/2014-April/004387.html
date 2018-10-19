@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Multithreading executions crash
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Multithreading%20executions%20crash&In-Reply-To=%3CCAGTgUnNmv4dG8cTqWXfU%2Bhb4f-98%2B-SkCH%3DabKki9Fg0NKii2w%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="004386.html">
+   <LINK REL="Next"  HREF="004388.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Multithreading executions crash</H1>
+    <B>Andrea Peano</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Multithreading%20executions%20crash&In-Reply-To=%3CCAGTgUnNmv4dG8cTqWXfU%2Bhb4f-98%2B-SkCH%3DabKki9Fg0NKii2w%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Multithreading executions crash">andrea.peano at unife.it
+       </A><BR>
+    <I>Tue Apr 15 17:07:31 CEST 2014</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="004386.html">[gecode-users] Multithreading executions crash
+</A></li>
+        <LI>Next message: <A HREF="004388.html">[gecode-users] Multithreading executions crash
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4387">[ date ]</a>
+              <a href="thread.html#4387">[ thread ]</a>
+              <a href="subject.html#4387">[ subject ]</a>
+              <a href="author.html#4387">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Thanks for your reply.
+
+I tried to simplify my real architecture, maybe too much!
+
+I create a &quot;backup&quot; space before starting the search, that is a copy of the
+original space used during the search, and it is a global variable of the
+code.
+
+Within the ::post function I create a copy of the backup model, I update
+this space by passing the current (partial) solution, and then I search the
+first sol, like that:
+MyModel *inner_model=static_cast&lt;MyModel *&gt;(backup-&gt;clone(true));
+inner_model-&gt;update_variables(this-&gt;partial_sol_values());
+inner_model-&gt;status();
+...
+inner_dfs.next();
+
+Scary stuff again, I guess!
+
+In general, I need of a partial solution before starting the second step in
+order to run some scary heuristics :)
+
+You refer to this discussion:
+<A HREF="http://www.gecode.org/pipermail/users/2013-January/003769.html">http://www.gecode.org/pipermail/users/2013-January/003769.html</A>
+don't you?
+
+Thanks,
+Andrea
+
+
+On Tue, Apr 15, 2014 at 4:27 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i> Hi Andrea,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Whoa! Scary stuff ;-) That's not possible to clone a space that is
+</I>&gt;<i> currently in use for propagation (because that is what is still going on
+</I>&gt;<i> when the ::post function is executed).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> However it should work much much easier: there has been a discussion in
+</I>&gt;<i> this users group a while ago on how to split search into two parts. Then
+</I>&gt;<i> you can parallelize each one. Just go through the archive (or maybe one of
+</I>&gt;<i> the users who took part in the discussion can help here).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Andrea Peano
+</I>&gt;<i> *Sent:* Tuesday, April 15, 2014 2:35 PM
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Multithreading executions crash
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hello everyone,
+</I>&gt;<i>
+</I>&gt;<i> my model is solved by a two-steps search. The first step can be a DFS as
+</I>&gt;<i> well as a BAB search, the second step is always a DFS.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I implemented this search by following the section &quot;Executing code between
+</I>&gt;<i> branchers&quot; of the Gecode's guide, like this:
+</I>&gt;<i>
+</I>&gt;<i> branch(*this, MyModel::post)
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> The function &quot;post&quot; copies the current space into a local variable, then
+</I>&gt;<i> instantiates a new DFS engine and finally calls the method &quot;next&quot;, in order
+</I>&gt;<i> to compute only the first solution.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> MyModel *inner_model=static_cast&lt;MyModel *&gt;(this-&gt;clone(true));
+</I>&gt;<i>
+</I>&gt;<i> inner_model-&gt;status();
+</I>&gt;<i>
+</I>&gt;<i> ...
+</I>&gt;<i>
+</I>&gt;<i> inner_dfs.next();
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> The idea is to parallelize the first level of the search... but if I use
+</I>&gt;<i> only one thread everything works fine, otherwise every time the execution
+</I>&gt;<i> crashes on a different instruction of the function &quot;post&quot;.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Do you have any clue about this behavior?
+</I>&gt;<i>
+</I>&gt;<i> The worst scenario I see is that this solving architecture is totally
+</I>&gt;<i> incompatible with the multithreading system implemented in Gecode.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i>
+</I>&gt;<i> Andrea
+</I>&gt;<i>
+</I>
+
+
+-- 
+
+Andrea Peano - PhD student
+Department of Engineering - University of Ferrara
+Tel: +39 0532 97 4827
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140415/90037855/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20140415/90037855/attachment-0001.html</A>&gt;
+</PRE>
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="004386.html">[gecode-users] Multithreading executions crash
+</A></li>
+	<LI>Next message: <A HREF="004388.html">[gecode-users] Multithreading executions crash
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#4387">[ date ]</a>
+              <a href="thread.html#4387">[ thread ]</a>
+              <a href="subject.html#4387">[ subject ]</a>
+              <a href="author.html#4387">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

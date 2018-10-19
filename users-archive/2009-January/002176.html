@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Any Advise on Delta
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Any%20Advise%20on%20Delta&In-Reply-To=%3C63b5c8b00901210648x4c5f031fg3dc25be342db6095%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002174.html">
+   <LINK REL="Next"  HREF="002178.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Any Advise on Delta</H1>
+    <B>Mikael Zayenz Lagerkvist</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Any%20Advise%20on%20Delta&In-Reply-To=%3C63b5c8b00901210648x4c5f031fg3dc25be342db6095%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Any Advise on Delta">zayenz at kth.se
+       </A><BR>
+    <I>Wed Jan 21 15:48:24 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002174.html">[gecode-users] Any Advise on Delta
+</A></li>
+        <LI>Next message: <A HREF="002178.html">[gecode-users] Any Advise on Delta
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2176">[ date ]</a>
+              <a href="thread.html#2176">[ thread ]</a>
+              <a href="subject.html#2176">[ subject ]</a>
+              <a href="author.html#2176">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi,
+
+In the case of cumulatives, the domain information could be reported
+in a better way since singleton ranges are removed, mapping naturally
+onto the integer delta abstraction. Unfortunately, this would
+complicate the code for the minus_r operation, and thus it is not
+clear that we will do it.
+
+If your interest is to check if the upper bound of a variable has
+changed, then caching the maximum value in the advisor is simple and
+rather efficient. This is probably what I would do, and it is
+independent of the delta-information that is computed.
+
+Cheers,
+Mikael
+
+On Wed, Jan 21, 2009 at 2:38 PM, David Rijsman
+&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt; wrote:
+&gt;<i> Christian,
+</I>&gt;<i>
+</I>&gt;<i> in a previous conversation on 'Any Advise on assignment delta' you mentioned &quot;the other operations that lead to 'any' are iterator-based variable domain updates which in most cases just remove a single value or a range (and hence the delta information is accurate).&quot;. Concerning this I have the following question:
+</I>&gt;<i>
+</I>&gt;<i> I have been implementing a propagator which implements its own advise method. The intention of the advise method is to only schedule the invoking propagator if the maximum has changed. This is relatively easy to implement but I noticed that the 'delta' reporting is rather 'rough' implemented and my propagator gets scheduled quite often to conclude nothing. That is I am getting a lot of 'any' hits when there could have been more information. Specifically in my use case I have a cumulatives constraint whose propagator uses View::minus_r a lot and this propagator only reports 'any' deltas (as far as I can conclude). In the example in this e-mail clearly shows we could be more informative in the delta, it streams 1-0 (any) although I would expect 0-50.
+</I>&gt;<i>
+</I>&gt;<i> My question is if this is done for a reason and if so if this is done for many operators on the views?
+</I>&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> #include &quot;gecode/kernel.hh&quot;
+</I>&gt;<i> #include &quot;gecode/int.hh&quot;
+</I>&gt;<i> #include &quot;gecode/iter.hh&quot;
+</I>&gt;<i>
+</I>&gt;<i> namespace Gecode
+</I>&gt;<i> {
+</I>&gt;<i>  class MyPropagator : public Propagator
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MyPropagator(Space *home, Int::IntView v):
+</I>&gt;<i>        Propagator(home),
+</I>&gt;<i>        MView(v)
+</I>&gt;<i>    {
+</I>&gt;<i>      MView.subscribe(home, new (home) ViewAdvisor&lt;Int::IntView&gt;(home,this,MCouncil,MView));
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MyPropagator* copy (Space* home, bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return 0;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus propagate(Space *home, ModEventDelta med)
+</I>&gt;<i>    {
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    PropCost  cost (ModEventDelta med) const
+</I>&gt;<i>    {
+</I>&gt;<i>      return PC_LINEAR_LO;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus  advise (Space *home, Advisor *a, const Delta *d)
+</I>&gt;<i>    {
+</I>&gt;<i>      ViewAdvisor&lt;Int::IntView&gt;&amp; advisor = static_cast&lt;ViewAdvisor&lt;Int::IntView&gt;&amp;&gt;(*a);
+</I>&gt;<i>
+</I>&gt;<i>      std::cout &lt;&lt; advisor.view().min(d) &lt;&lt; &quot;-&quot; &lt;&lt; advisor.view().max(d) &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>  private:
+</I>&gt;<i>    Int::IntView MView;
+</I>&gt;<i>    Council&lt;ViewAdvisor&lt;Int::IntView&gt;&gt; MCouncil;
+</I>&gt;<i>  };
+</I>&gt;<i>
+</I>&gt;<i>  class MySpace : public Space
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MySpace()
+</I>&gt;<i>    {
+</I>&gt;<i>      MX.init(this,0,100);
+</I>&gt;<i>
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace(bool share, MySpace &amp;s):
+</I>&gt;<i>      Space(share,s)
+</I>&gt;<i>    {
+</I>&gt;<i>       MX.update(this,share,s.MX);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace* copy(bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return new MySpace(share, *this);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    IntVar MX;
+</I>&gt;<i>  };
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> int main()
+</I>&gt;<i> {
+</I>&gt;<i>  Gecode::MySpace space;
+</I>&gt;<i>
+</I>&gt;<i>  new (&amp;space) Gecode::MyPropagator(&amp;space,space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Int::IntView view(space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Iter::Ranges::Singleton d(0,50);
+</I>&gt;<i>
+</I>&gt;<i>  view.minus_r(&amp;space,d,false);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> David
+</I>&gt;<i>
+</I>&gt;<i> Quintiq Conference &quot;Quintessence 09&quot; Tuesday May 12th, 2009, Country Estate Duin &amp; Kruidberg, near Amsterdam Schiphol, The Netherlands - for more information visit www.quintiq.com
+</I>&gt;<i>
+</I>&gt;<i> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+-- 
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002174.html">[gecode-users] Any Advise on Delta
+</A></li>
+	<LI>Next message: <A HREF="002178.html">[gecode-users] Any Advise on Delta
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2176">[ date ]</a>
+              <a href="thread.html#2176">[ thread ]</a>
+              <a href="subject.html#2176">[ subject ]</a>
+              <a href="author.html#2176">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

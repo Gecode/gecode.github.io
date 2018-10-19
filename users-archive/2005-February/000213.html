@@ -1,0 +1,203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Gecode] Propgator copy
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Propgator%20copy&In-Reply-To=%3C05b001c50f7d%24232b8330%24acd4ed82%40beule%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000214.html">
+   <LINK REL="Next"  HREF="000215.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Gecode] Propgator copy</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20Propgator%20copy&In-Reply-To=%3C05b001c50f7d%24232b8330%24acd4ed82%40beule%3E"
+       TITLE="[Gecode] Propgator copy">schulte at imit.kth.se
+       </A><BR>
+    <I>Thu Feb 10 15:30:58 CET 2005</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000214.html">[Gecode] Problem compiling gecode.
+</A></li>
+        <LI>Next message: <A HREF="000215.html">[Gecode] gcc 3.4 build problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#213">[ date ]</a>
+              <a href="thread.html#213">[ thread ]</a>
+              <a href="subject.html#213">[ subject ]</a>
+              <a href="author.html#213">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Please have a look to the DFA implementation (or to sharedArray) in
+int/regular/dfa.*. There you will see that also reference counting is used.
+This is done in the proper C++ way with overloading the copy
+constructor/assignment operators.
+
+However, you should also provide a real copy operation for reference
+counting: the clone operation of a space can be given an additional argument
+telling whether to share data or to completely copy it.
+
+The reasoning behind this is to allow for thread-safety (I have a master
+student doing a parallel thread-based search engine): if you want to have
+spaces to be run in parallel, you have to copy rather than share. Otherwise
+reference counting will introduce race conditions.
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A> 
+
+-----Original Message-----
+From: Gustavo Gutierrez [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ggutierrez at atlas.puj.edu.co</A>] 
+Sent: Thursday, February 10, 2005 3:18 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>
+Subject: RE: [Gecode] Propgator copy
+
+
+Hi all,
+
+Thanks for the answer.
+
+Looking at int/distinct/dom.icc gave me some implementations hints. My case
+is a little distinct since it is better (i.e. time) to maintain a reference
+to the tree than to build the tree at every propagate method invocation.
+
+What i am doing is not to copy the tree in the copy method. Instead i am
+passing a reference to the tree. Additionally each copy has a counter to the
+number of references to the tree structure. This allows to free the memory
+allocated by the tree when there are only one reference to it.
+
+This is my code. I hope any of you can give me your opinion.
+
+template &lt;class Var&gt;
+class HC4 : public NaryPropagator&lt;Var,PC_RI_LAST&gt; {
+	private:
+		/*An object to store the constraint in user form (A TREE)*/
+		Constraint* _cst;
+		/*An integer to count how many rerefences are to _cst*/
+		int _copies;
+	protected:
+		HC4(Space*,Constraint*,VarArray&lt;Var&gt;);
+		HC4(Space*,HC4&lt;Var&gt;&amp;);
+	public:
+		virtual Actor* copy(Space*,bool);
+		virtual PropCost   cost(void) const;
+		virtual ExecStatus propagate(Space*);
+		static  ExecStatus post(Space*,Constraint*,VarArray&lt;Var&gt;);
+		~HC4(void);
+};
+
+template &lt;class Var&gt;
+HC4&lt;Var&gt;::HC4(Space* home, Constraint* c, VarArray&lt;Var&gt; vars) 
+	: NaryPropagator&lt;Var,PC_RI_LAST&gt;(home,vars), _cst(c), _copies(1) {}
+
+template &lt;class Var&gt;
+HC4&lt;Var&gt;::HC4(Space* home, HC4&lt;Var&gt;&amp; p)
+	: NaryPropagator&lt;Var,PC_RI_LAST&gt;(home,*this), _cst(p._cst),     
+_copies(p._copies+1) {}
+ 
+emplate &lt;class Var&gt;
+HC4&lt;Var&gt;::~HC4(void) {
+	if (copies == 1) 
+		delete _cst;
+	copies--;
+	NaryPropagator&lt;Var,PC_RI_LAST&gt;::~NaryPropagator();
+}
+
+template &lt;class Var&gt;
+Actor* 
+HC4&lt;Var&gt;::copy(Space* hom,bool){
+	return new (home) HC4&lt;Var&gt;(home, *this);
+}
+
+
+Regards,
+Gustavo Gutierrez
+On Thu, 10 Feb 2005 09:22:27 +0100, Christian Schulte wrote
+&gt;<i> The first issue is that of course your propagator is in charge of
+</I>&gt;<i> copying, if needed.
+</I>&gt;<i> 
+</I>&gt;<i> Secondly, consider whether you really want to always copy! Have a
+</I>&gt;<i> look to int/distinct/dom.icc. There the propagator also needs a 
+</I>&gt;<i> graph only during propagation. It maintains this graph as follows: 
+</I>&gt;<i> when the propagator is created or copied set the graph to empty. If 
+</I>&gt;<i> the propagate function is invoked, check whether the graph exists. 
+</I>&gt;<i> If not, create it. If yes, update it accordingly. Upon destruction 
+</I>&gt;<i> delete it, if it exists. Make sure that the destructor is called! 
+</I>&gt;<i> This you have to do by giving a special flag to the propagator. 
+</I>&gt;<i> Again see the above mentioned example.
+</I>&gt;<i> 
+</I>&gt;<i> All the best
+</I>&gt;<i> Christian
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-</A> 
+</I>&gt;<i> sb.de] On Behalf Of Gustavo Gutierrez Sent: Wednesday, February 09,  
+</I>&gt;<i> 2005 6:01 PM To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at ps.uni-sb.de</A> Subject: [Gecode] Propgator copy
+</I>&gt;<i> 
+</I>&gt;<i> Hi,
+</I>&gt;<i> 
+</I>&gt;<i> First of all congratulations, GECODE is a really good piece of
+</I>&gt;<i> software! it is very useful and really *easily* extensible. Source 
+</I>&gt;<i> code is very clear, at least the parts i've read.
+</I>&gt;<i> 
+</I>&gt;<i> I have a question about propagators. I am writing a propagator, for 
+</I>&gt;<i> instance Prop, which needs to maintain a binary tree with some 
+</I>&gt;<i> information and a variable vector (VarArray). This propagator inherits 
+</I>&gt;<i> from NaryPropagator. Is there any special issue with this tree 
+</I>&gt;<i> structure i need to take into account?
+</I>&gt;<i> 
+</I>&gt;<i> The tree is used only by the propagate method and  it doesn't change
+</I>&gt;<i> its structure along propagation. I have some doubts implementing two 
+</I>&gt;<i> methods:
+</I>&gt;<i> 
+</I>&gt;<i> Prop(Space* home, Prop&lt;Var&gt;&amp; p);
+</I>&gt;<i> 
+</I>&gt;<i> Call the super class NaryPropagator method to do this is not enough,
+</I>&gt;<i> what would happened with the tree?
+</I>&gt;<i> 
+</I>&gt;<i> Actor* copy(Space* home, bool);
+</I>&gt;<i> This method call the constructor i mentioned before, so i think all 
+</I>&gt;<i> depends on that implementation.
+</I>&gt;<i> 
+</I>&gt;<i> Finally, i think the memory allocated by the tree must be freed only
+</I>&gt;<i> at propagator destructor method.
+</I>&gt;<i> 
+</I>&gt;<i> Thanks in advance and hope to be clear. Feel free to ask for more 
+</I>&gt;<i> details.
+</I>&gt;<i> 
+</I>&gt;<i> Gustavo Gutierrez _______________________________________________
+</I>&gt;<i> Gecode mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000214.html">[Gecode] Problem compiling gecode.
+</A></li>
+	<LI>Next message: <A HREF="000215.html">[Gecode] gcc 3.4 build problems
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#213">[ date ]</a>
+              <a href="thread.html#213">[ thread ]</a>
+              <a href="subject.html#213">[ subject ]</a>
+              <a href="author.html#213">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,971 @@
+From kisshen at cisco.com  Fri Aug  7 20:00:02 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Fri, 7 Aug 2015 19:00:02 +0100
+Subject: [gecode-users] bin_packing with 0 item sizes
+Message-ID: <55C4F222.8090602@cisco.com>
+
+Hi,
+
+In writing unit tests for ECLiPSe's Gecode interface, I noticed that for 
+the bin packing constraint, if an item size is 0, then its corresponding 
+bin variable is not constrained:
+
+binpacking(home, l, b, s) where
+
+b = {b1, b2}
+
+s = {0, 1}
+
+then b2 is constrained to [0,1], but b1's domain is not constrained 
+(i.e. has whatever the domain it was given).
+
+Cheers,
+
+Kish
+
+
+From cschulte at kth.se  Mon Aug 10 10:00:26 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 10 Aug 2015 10:00:26 +0200
+Subject: [gecode-users] bin_packing with 0 item sizes
+In-Reply-To: <55C4F222.8090602@cisco.com>
+References: <55C4F222.8090602@cisco.com>
+Message-ID: <038801d0d342$9e75d8d0$db618a70$@kth.se>
+
+Hi Kish, thanks. Fixed in the trunk. Cheers Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Friday, August 07, 2015 8:00 PM
+To: users at gecode.org
+Subject: [gecode-users] bin_packing with 0 item sizes
+
+Hi,
+
+In writing unit tests for ECLiPSe's Gecode interface, I noticed that for the
+bin packing constraint, if an item size is 0, then its corresponding bin
+variable is not constrained:
+
+binpacking(home, l, b, s) where
+
+b = {b1, b2}
+
+s = {0, 1}
+
+then b2 is constrained to [0,1], but b1's domain is not constrained (i.e.
+has whatever the domain it was given).
+
+Cheers,
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kisshen at cisco.com  Mon Aug 10 14:11:18 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Mon, 10 Aug 2015 13:11:18 +0100
+Subject: [gecode-users] multi-dimensional binpacking gives fatal signal 11
+Message-ID: <55C894E6.8060405@cisco.com>
+
+Hi,
+
+I am gettng a fatal signal 11 (on Linux, Gecode 4.4.0) with the 
+multi-dimensional binpacking for some arguments values. The simplest 
+case that I can generate the problem is:
+
+binpacking(home, 2, l, b, s, c)
+
+l = {0, 0, l1, l2} (0 is where the IntVar has a singleton domain of 0)
+b = {0, b1}
+s = {0,0,0,0}
+c = {5,5}
+
+The binpacking constraint is called from ECLiPSe, and some of the 
+arguments are generated. I haven't tried to call binpacking 
+independently of ECLiPSe, but it does look like the problem is happening 
+in Gecode: valgrind (a memory checker) detected the first problem in
+
+BinPacking::Pack::post(...)
+
+which is called by binpacking
+
+with a Conditional jump or move depends on uninitialised value(s)
+
+(Sorry, I don't know how to cut and paste from my xterm window in a VNC 
+session to my Windows mailer).
+
+The first message may not be a real error, but the next, also in the 
+Pack::post function, does seem to be an error: Invalid red of size 4.
+
+I haven't really written a stand-alone Gecode program, so I thought I 
+should report this issue before trying to do so -- please let me know if 
+you want me to do this.
+
+Thanks and cheers,
+
+Kish
+
+
+
+From cschulte at kth.se  Tue Aug 11 11:23:33 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 11 Aug 2015 11:23:33 +0200
+Subject: [gecode-users] multi-dimensional binpacking gives fatal signal
+	11
+In-Reply-To: <55C894E6.8060405@cisco.com>
+References: <55C894E6.8060405@cisco.com>
+Message-ID: <003101d0d417$65b10260$31130720$@kth.se>
+
+Hi Kish,
+
+Thanks! The bug is due to the fact that all items have size zero. Fixed in
+the trunk.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Monday, August 10, 2015 2:11 PM
+To: users at gecode.org
+Subject: [gecode-users] multi-dimensional binpacking gives fatal signal 11
+
+Hi,
+
+I am gettng a fatal signal 11 (on Linux, Gecode 4.4.0) with the
+multi-dimensional binpacking for some arguments values. The simplest case
+that I can generate the problem is:
+
+binpacking(home, 2, l, b, s, c)
+
+l = {0, 0, l1, l2} (0 is where the IntVar has a singleton domain of 0) b =
+{0, b1} s = {0,0,0,0} c = {5,5}
+
+The binpacking constraint is called from ECLiPSe, and some of the arguments
+are generated. I haven't tried to call binpacking independently of ECLiPSe,
+but it does look like the problem is happening in Gecode: valgrind (a memory
+checker) detected the first problem in
+
+BinPacking::Pack::post(...)
+
+which is called by binpacking
+
+with a Conditional jump or move depends on uninitialised value(s)
+
+(Sorry, I don't know how to cut and paste from my xterm window in a VNC
+session to my Windows mailer).
+
+The first message may not be a real error, but the next, also in the
+Pack::post function, does seem to be an error: Invalid red of size 4.
+
+I haven't really written a stand-alone Gecode program, so I thought I should
+report this issue before trying to do so -- please let me know if you want
+me to do this.
+
+Thanks and cheers,
+
+Kish
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From ahungsky at gmail.com  Tue Aug 11 15:26:27 2015
+From: ahungsky at gmail.com (Hung Hoang Dieu)
+Date: Tue, 11 Aug 2015 15:26:27 +0200
+Subject: [gecode-users] Reversible data structures
+Message-ID: <CADf9xOQjbZ9jwgk2B31DJhYxRmQH6zFB7N7bQ+V2_OVD_0GSyg@mail.gmail.com>
+
+Hi all,
+
+I want to implement a propagator which rollbacks the integer when a
+backtracking happens. Ilog CP provides the reversible integer IlcRevInt.
+How can I do this in Gecode?
+
+Thank you very much for your help
+Hung
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150811/b14a4cda/attachment.html>
+
+From cschulte at kth.se  Tue Aug 11 15:30:02 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 11 Aug 2015 15:30:02 +0200
+Subject: [gecode-users] Reversible data structures
+In-Reply-To: <CADf9xOQjbZ9jwgk2B31DJhYxRmQH6zFB7N7bQ+V2_OVD_0GSyg@mail.gmail.com>
+References: <CADf9xOQjbZ9jwgk2B31DJhYxRmQH6zFB7N7bQ+V2_OVD_0GSyg@mail.gmail.com>
+Message-ID: <00c101d0d439$d43100b0$7c930210$@kth.se>
+
+You don?t need it. Please read a little bit about Gecode works. It is based on copying and not reversible data structures. Christian
+
+ 
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, cschulte at kth.se
+
+Expert Researcher, SICS, cschulte at sics.se
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Hung Hoang Dieu
+Sent: Tuesday, August 11, 2015 3:26 PM
+To: users at gecode.org
+Subject: [gecode-users] Reversible data structures
+
+ 
+
+Hi all,
+
+ 
+
+I want to implement a propagator which rollbacks the integer when a backtracking happens. Ilog CP provides the reversible integer IlcRevInt. How can I do this in Gecode?
+
+ 
+
+Thank you very much for your help
+
+Hung
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20150811/fae832e0/attachment.html>
+
+From kisshen at cisco.com  Tue Aug 11 21:17:09 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Tue, 11 Aug 2015 20:17:09 +0100
+Subject: [gecode-users] multi-dimensional binpacking gives fatal signal
+	11
+In-Reply-To: <003101d0d417$65b10260$31130720$@kth.se>
+References: <55C894E6.8060405@cisco.com>
+	<003101d0d417$65b10260$31130720$@kth.se>
+Message-ID: <55CA4A35.8020307@cisco.com>
+
+On 11/08/2015 10:23, Christian Schulte wrote:
+> Hi Kish,
+>
+> Thanks! The bug is due to the fact that all items have size zero. Fixed in
+> the trunk.
+
+Hi Christian,
+
+I assume it is the same problem, but just in case it isn't -- I also get 
+crashes when not all the item sizes are zero, for example, for a 2D item 
+with size {0,1} (so the sizes are {0,0,0,1} -- there is always a dummy 
+0'th element).
+
+Cheers,
+
+Kish
+
+
+From cschulte at kth.se  Thu Aug 13 15:49:52 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 13 Aug 2015 15:49:52 +0200
+Subject: [gecode-users] multi-dimensional binpacking gives fatal
+	signal	11
+In-Reply-To: <55CA4A35.8020307@cisco.com>
+References: <55C894E6.8060405@cisco.com>	<003101d0d417$65b10260$31130720$@kth.se>
+	<55CA4A35.8020307@cisco.com>
+Message-ID: <005b01d0d5ce$ef0cff10$cd26fd30$@kth.se>
+
+Yes, it is. The problem is if the projection on one dimension had only zero
+entries. Cheers Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Tuesday, August 11, 2015 9:17 PM
+To: cschulte at kth.se; users at gecode.org
+Subject: Re: [gecode-users] multi-dimensional binpacking gives fatal signal
+11
+
+On 11/08/2015 10:23, Christian Schulte wrote:
+> Hi Kish,
+>
+> Thanks! The bug is due to the fact that all items have size zero. 
+> Fixed in the trunk.
+
+Hi Christian,
+
+I assume it is the same problem, but just in case it isn't -- I also get
+crashes when not all the item sizes are zero, for example, for a 2D item
+with size {0,1} (so the sizes are {0,0,0,1} -- there is always a dummy 0'th
+element).
+
+Cheers,
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Mon Aug 17 14:48:43 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Mon, 17 Aug 2015 14:48:43 +0200
+Subject: [gecode-users] ~Event nothrow issue
+Message-ID: <mqsl7c$cbm$1@ger.gmane.org>
+
+Hi,
+
+I've tried compiling Gecode 4.4.0 with MSVC 2015 and it produces 
+warnings about ~Event being (implicitly) nothrow but throwing exceptions 
+at the same time.
+
+I was thinking whether or not it is worth fixing in Gecode code, and 
+found this nice explanation:
+
+http://denisbider.blogspot.cz/2015/07/exceptions-in-destructors-and-visual.html
+
+I believe either noexcept(false) (portable but probably C++11 only 
+syntax) or throw(...) might help - possibly replacing "..." with 
+something reasonable.
+
+Cheers,
+Filip
+
+
+
+From cschulte at kth.se  Mon Aug 17 16:08:54 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 17 Aug 2015 16:08:54 +0200
+Subject: [gecode-users] ~Event nothrow issue
+In-Reply-To: <mqsl7c$cbm$1@ger.gmane.org>
+References: <mqsl7c$cbm$1@ger.gmane.org>
+Message-ID: <000801d0d8f6$40fd7050$c2f850f0$@kth.se>
+
+Hi Filip,
+
+Thanks! I also recently installed MSVC 2015 and hence have already fixed the
+issue in the trunk.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Monday, August 17, 2015 2:49 PM
+To: users at gecode.org
+Subject: [gecode-users] ~Event nothrow issue
+
+Hi,
+
+I've tried compiling Gecode 4.4.0 with MSVC 2015 and it produces warnings
+about ~Event being (implicitly) nothrow but throwing exceptions at the same
+time.
+
+I was thinking whether or not it is worth fixing in Gecode code, and found
+this nice explanation:
+
+http://denisbider.blogspot.cz/2015/07/exceptions-in-destructors-and-visual.h
+tml
+
+I believe either noexcept(false) (portable but probably C++11 only
+syntax) or throw(...) might help - possibly replacing "..." with something
+reasonable.
+
+Cheers,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Mon Aug 17 18:21:35 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Mon, 17 Aug 2015 18:21:35 +0200
+Subject: [gecode-users] ~Event nothrow issue
+In-Reply-To: <000801d0d8f6$40fd7050$c2f850f0$@kth.se>
+References: <mqsl7c$cbm$1@ger.gmane.org>
+	<000801d0d8f6$40fd7050$c2f850f0$@kth.se>
+Message-ID: <mqt1mg$b8b$1@ger.gmane.org>
+
+Hi Christian,
+
+Cool, thanks.  Out of curiosity I looked in the SVN but I don't see the 
+change in there yet, but maybe my repo browser is just too lazy today :)
+
+Another useful link for those interested - I was trying to build a x64 
+debug version with PDBs using the x64 command prompt + cygwin (with 
+--enable-debug), but that failed due to a bug in MSVC leading to
+
+LINK : fatal error LNK1101: incorrect MSPDB140.DLL version; recheck 
+installation of this product
+
+The following link helped:
+
+https://connect.microsoft.com/VisualStudio/feedback/details/1651822/incorrect-mspdb140-dll-version-picked-in-x86-x64-cross-tools-environment
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> Thanks! I also recently installed MSVC 2015 and hence have already fixed the
+> issue in the trunk.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte
+> Professor of Computer Science, KTH, cschulte at kth.se
+> Expert Researcher, SICS, cschulte at sics.se
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Filip Konvicka
+> Sent: Monday, August 17, 2015 2:49 PM
+> To: users at gecode.org
+> Subject: [gecode-users] ~Event nothrow issue
+>
+> Hi,
+>
+> I've tried compiling Gecode 4.4.0 with MSVC 2015 and it produces warnings
+> about ~Event being (implicitly) nothrow but throwing exceptions at the same
+> time.
+>
+> I was thinking whether or not it is worth fixing in Gecode code, and found
+> this nice explanation:
+>
+> http://denisbider.blogspot.cz/2015/07/exceptions-in-destructors-and-visual.h
+> tml
+>
+> I believe either noexcept(false) (portable but probably C++11 only
+> syntax) or throw(...) might help - possibly replacing "..." with something
+> reasonable.
+>
+> Cheers,
+> Filip
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+
+From cschulte at kth.se  Tue Aug 18 09:58:10 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 18 Aug 2015 09:58:10 +0200
+Subject: [gecode-users] ~Event nothrow issue
+In-Reply-To: <mqt1mg$b8b$1@ger.gmane.org>
+References: <mqsl7c$cbm$1@ger.gmane.org>	<000801d0d8f6$40fd7050$c2f850f0$@kth.se>
+	<mqt1mg$b8b$1@ger.gmane.org>
+Message-ID: <008d01d0d98b$a0a95d80$e1fc1880$@kth.se>
+
+Hi Filip,
+
+Thanks for the info. I forgot to check in the fix, now it is in the trunk.
+
+Best
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Filip Konvicka
+Sent: Monday, August 17, 2015 6:22 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] ~Event nothrow issue
+
+Hi Christian,
+
+Cool, thanks.  Out of curiosity I looked in the SVN but I don't see the
+change in there yet, but maybe my repo browser is just too lazy today :)
+
+Another useful link for those interested - I was trying to build a x64 debug
+version with PDBs using the x64 command prompt + cygwin (with
+--enable-debug), but that failed due to a bug in MSVC leading to
+
+LINK : fatal error LNK1101: incorrect MSPDB140.DLL version; recheck
+installation of this product
+
+The following link helped:
+
+https://connect.microsoft.com/VisualStudio/feedback/details/1651822/incorrec
+t-mspdb140-dll-version-picked-in-x86-x64-cross-tools-environment
+
+Cheers,
+Filip
+
+> Hi Filip,
+>
+> Thanks! I also recently installed MSVC 2015 and hence have already 
+> fixed the issue in the trunk.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.gecode.org/~schulte Professor of Computer 
+> Science, KTH, cschulte at kth.se Expert Researcher, SICS, 
+> cschulte at sics.se
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+> Behalf Of Filip Konvicka
+> Sent: Monday, August 17, 2015 2:49 PM
+> To: users at gecode.org
+> Subject: [gecode-users] ~Event nothrow issue
+>
+> Hi,
+>
+> I've tried compiling Gecode 4.4.0 with MSVC 2015 and it produces 
+> warnings about ~Event being (implicitly) nothrow but throwing 
+> exceptions at the same time.
+>
+> I was thinking whether or not it is worth fixing in Gecode code, and 
+> found this nice explanation:
+>
+> http://denisbider.blogspot.cz/2015/07/exceptions-in-destructors-and-vi
+> sual.h
+> tml
+>
+> I believe either noexcept(false) (portable but probably C++11 only
+> syntax) or throw(...) might help - possibly replacing "..." with 
+> something reasonable.
+>
+> Cheers,
+> Filip
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From filip.konvicka at logis.cz  Wed Aug 19 10:23:40 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Wed, 19 Aug 2015 10:23:40 +0200
+Subject: [gecode-users] multi_index member key extractors crash MSVC 2015
+Message-ID: <mr1eed$hnu$1@ger.gmane.org>
+
+Hi,
+
+it looks like using boost::multi_index::member<> crashes MSVC 2015 RTM 
+when a const-qualified type is passed to it as the 2nd argument, but the 
+member is actually non-const.
+
+#include <boost\multi_index_container.hpp>
+#include <boost\multi_index\member.hpp>
+#include <boost\multi_index\indexed_by.hpp>
+#include <boost\multi_index\ordered_index.hpp>
+
+struct X {
+   int number; // non-const
+};
+using namespace boost::multi_index;
+int main() {
+   typedef multi_index_container<X, indexed_by<ordered_unique<member<X, 
+const int, &X::number> > > > C;
+   C c;
+   c.find(1); // C1001
+   return 0;
+}
+
+...\include\boost\multi_index\member.hpp(65): fatal error C1001: An 
+internal error has occurred in the compiler.
+   (compiler file 'f:\dd\vctools\compiler\utc\src\p2\main.c', line 246)
+
+I found the following on a related subject, but I'm not sure whether 
+this is a separate issue or not.
+
+http://www.boost.org/development/tests/master/developer/output/teeks99-08l-win2012R2-64on64-boost-bin-v2-libs-multi_index-test-test_key_extractors-test-msvc-14-0-dbg-adrs-mdl-64-thrd-mlt.html
+
+https://connect.microsoft.com/VisualStudio/feedback/details/1577162/vc-internal-compiler-error-for-a-non-type-template-instantiation
+
+https://groups.google.com/forum/#!topic/boost-devel-archive/gi-xGnCkvPI
+
+Thanks,
+Filip
+
+
+
+From filip.konvicka at logis.cz  Wed Aug 19 10:26:43 2015
+From: filip.konvicka at logis.cz (=?UTF-8?Q?Filip_Konvi=c4=8dka?=)
+Date: Wed, 19 Aug 2015 10:26:43 +0200
+Subject: [gecode-users] multi_index member key extractors crash MSVC 2015
+In-Reply-To: <mr1eed$hnu$1@ger.gmane.org>
+References: <mr1eed$hnu$1@ger.gmane.org>
+Message-ID: <mr1ek3$hnu$2@ger.gmane.org>
+
+Oops, sorry, wrong list. My apologies.
+
+Filip
+
+
+
+From kisshen at cisco.com  Wed Aug 26 20:30:28 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 26 Aug 2015 19:30:28 +0100
+Subject: [gecode-users] circuit constraint: differences between ICL_DOM and
+	ICL_VAL
+Message-ID: <55DE05C4.9050906@cisco.com>
+
+I am writing more unit tests for our Gecode interface, and for the 
+circuit constraint (without costs), I would like to write tests for the 
+supported propagation levels (ICL_DOM and ICL_VAL), and see some 
+difference between the two levels, but I am unable to do so:
+
+I tried with circuits with up to 7 nodes, and then assigning a value to 
+one of the nodes. For both ICL_DOM and ICL_VAL, and both seem to produce 
+the same domains for the variables. Is this expected? If so, what do I 
+need to do to get a difference between the two propagations?
+
+If the propagation is supposed to be different, this may indicate there 
+is a problem in the interface and the constraint is not actually posted 
+with the stated propagation levels...
+
+Thanks and cheers,
+
+Kish
+
+
+
+
+
+From kisshen at cisco.com  Wed Aug 26 22:21:06 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Wed, 26 Aug 2015 21:21:06 +0100
+Subject: [gecode-users] propagation consistency of count (single value)
+	constraint
+Message-ID: <55DE1FB2.90108@cisco.com>
+
+I noticed an inconsistency in my (ECLiPSe) documentation for the count 
+(for single values) constraint in the Gecode interface, and the current 
+Gecode reference documentation for these constraints:
+
+count(home, x, y, INT_EQ, z)
+
+this is for IntVarArg x, while y and z can be int or IntVar
+
+My documentation states that the constraint can be posted with ICL_DOM.
+but this seems to be inconstent with the current reference documentation.
+
+Looking at Gecode's reference documentation, it seems that depending on 
+if y and z are int or IntVar, either the constraint is propagated at 
+ICL_DEF only (not achieving domain consistency), or at two different 
+consistency levels:
+
+ICL_DOM, which does stronger propagation (but not domain consistent), 
+and less propagation with all other IntConLev.
+
+So if I understand the reference documentation correctly, ICL_DOM is 
+used only to distinguish it from an alternative that perform less 
+propagation (where the alternative exist, otherwise there is only one 
+level of propagation). How does the propagation achived compared to 
+bound and value consistencies?
+
+I also noticed a minor typo in the reference documentation: in at least 
+two places, domain is spelt as comain, as in 'propagation is not comain 
+consistent'.
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+From cschulte at kth.se  Thu Aug 27 11:37:18 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 27 Aug 2015 11:37:18 +0200
+Subject: [gecode-users] circuit constraint: differences between ICL_DOM
+	and	ICL_VAL
+In-Reply-To: <55DE05C4.9050906@cisco.com>
+References: <55DE05C4.9050906@cisco.com>
+Message-ID: <022301d0e0ab$f835f6e0$e8a1e4a0$@kth.se>
+
+Nope, that's alright. The difference is how the distinct part of circuit is
+enforced. Getting a difference in propagation is not that straightforward if
+only using assignments (try to impose Hall sets and you will see the
+difference).
+
+Cheers Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Wednesday, August 26, 2015 08:30 PM
+To: users at gecode.org
+Subject: [gecode-users] circuit constraint: differences between ICL_DOM and
+ICL_VAL
+
+I am writing more unit tests for our Gecode interface, and for the circuit
+constraint (without costs), I would like to write tests for the supported
+propagation levels (ICL_DOM and ICL_VAL), and see some difference between
+the two levels, but I am unable to do so:
+
+I tried with circuits with up to 7 nodes, and then assigning a value to one
+of the nodes. For both ICL_DOM and ICL_VAL, and both seem to produce the
+same domains for the variables. Is this expected? If so, what do I need to
+do to get a difference between the two propagations?
+
+If the propagation is supposed to be different, this may indicate there is a
+problem in the interface and the constraint is not actually posted with the
+stated propagation levels...
+
+Thanks and cheers,
+
+Kish
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From cschulte at kth.se  Thu Aug 27 17:11:42 2015
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 27 Aug 2015 17:11:42 +0200
+Subject: [gecode-users] propagation consistency of count (single
+	value)	constraint
+In-Reply-To: <55DE1FB2.90108@cisco.com>
+References: <55DE1FB2.90108@cisco.com>
+Message-ID: <003c01d0e0da$af7de460$0e79ad20$@kth.se>
+
+Hi,
+
+It is better than value consistency and bounds consistency but for some
+special cases not domain consistent.
+
+Thanks for the error report, I fixed them.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, SICS, cschulte at sics.se
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Kish Shen
+Sent: Wednesday, August 26, 2015 10:21 PM
+To: users at gecode.org
+Subject: [gecode-users] propagation consistency of count (single value)
+constraint
+
+I noticed an inconsistency in my (ECLiPSe) documentation for the count (for
+single values) constraint in the Gecode interface, and the current Gecode
+reference documentation for these constraints:
+
+count(home, x, y, INT_EQ, z)
+
+this is for IntVarArg x, while y and z can be int or IntVar
+
+My documentation states that the constraint can be posted with ICL_DOM.
+but this seems to be inconstent with the current reference documentation.
+
+Looking at Gecode's reference documentation, it seems that depending on if y
+and z are int or IntVar, either the constraint is propagated at ICL_DEF only
+(not achieving domain consistency), or at two different consistency levels:
+
+ICL_DOM, which does stronger propagation (but not domain consistent), and
+less propagation with all other IntConLev.
+
+So if I understand the reference documentation correctly, ICL_DOM is used
+only to distinguish it from an alternative that perform less propagation
+(where the alternative exist, otherwise there is only one level of
+propagation). How does the propagation achived compared to bound and value
+consistencies?
+
+I also noticed a minor typo in the reference documentation: in at least two
+places, domain is spelt as comain, as in 'propagation is not comain
+consistent'.
+
+Cheers,
+
+Kish
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+From kisshen at cisco.com  Thu Aug 27 17:48:02 2015
+From: kisshen at cisco.com (Kish Shen)
+Date: Thu, 27 Aug 2015 16:48:02 +0100
+Subject: [gecode-users] propagation consistency of count (single value)
+ constraint
+In-Reply-To: <55DE1FB2.90108@cisco.com>
+References: <55DE1FB2.90108@cisco.com>
+Message-ID: <55DF3132.8080407@cisco.com>
+
+As a follow up to my previous post on this, then from the reference 
+documentation, for
+
+count(home, x, y, IRT_EQ, z)
+
+where y and z are int, then there is only one consistency level 
+supported, and it is not domain consistent.
+
+We have a rostering program (originally written for our ic solvder), 
+which I used to test the Gecode interface, and it uses count 
+constraints, and changing the consistency level affected the execution 
+times significantly for certasin problem instances. I took a look again 
+at the code, and the count constraints are with y and z being integers.
+(the execution times are faster with ICL_BND than ICL_DOM)
+
+The count single vsalue constraint is posted to Gecode using only one 
+propagator, the version with y and z being IntVar (and if they are 
+integers, they are posted as IntVar with a singleton domain). This is 
+done for all constraints that have variants that accept both IntVar and 
+int, as this avoid me having to write a lot of code to distinguish the 
+argument types, and I remember asking about this here a while ago and I 
+think Chirstian said that Gecode will figure out the best propagator to 
+use for the argument.
+
+So my questions are: is the propagator posted the one with y and z being 
+int? If so, is there more than consistency level for the propagator, as 
+my result seem to suggest? The difference is very significant, e.g. for 
+one instance:
+
+ICL_BND: 0.73s  ICL_DOM: 198s
+
+the ICL_BND times are more than 100 times faster, and the only 
+difference between the two runs are the count constraint posted with 
+ICL_BND rather than ICL_DOM (running on the same machine, of course).
+
+
+Cheers,
+
+Kish
+
+
+
+
+
+
+From matthias.goldhoorn at uni-bremen.de  Mon Aug 31 08:46:24 2015
+From: matthias.goldhoorn at uni-bremen.de (Matthias Goldhoorn)
+Date: Mon, 31 Aug 2015 08:46:24 +0200
+Subject: [gecode-users] Slow performance on large domains before branching
+Message-ID: <55E3F840.7040909@uni-bremen.de>
+
+Hello Developers and Users,
+i have a quite big domain/searchspace.
+However gecode performs currently well and solves my problem. But i 
+recognized a strange behavior.
+
+Berfore ma actual branching/search starts, gecodes does a lot of 
+internal calculations. I'm not sure if i have done the setup wrong of if 
+there is some optimization that i can do?
+I attached [1] a picture of the most time and instruction consuming 
+calls. Maybe somone can give me a recommendation where i can start tuning..
+
+Setup (class instanciation and bracer setup ~15 sek)
+first call of BAB until code-flow reaches my first (self written) 
+brancher: ~3min
+Actual branching/searching: 10sek.
+Overall Memory consumption ~5GB
+
+Best Regard,
+Matthias
+
+[1] https://www.dropbox.com/s/21aqlbnjs3zx1rd/callgrind-gecode.png?dl=0
+
+-- 
+  Dipl.-Inf. Matthias Goldhoorn
+  Space and Underwater Robotic
+
+  Universit?t Bremen
+  FB 3 - Mathematik und Informatik
+  AG Robotik
+  Robert-Hooke-Stra?e 5
+  28359 Bremen, Germany
+
+  Tel.:     +49 421 178 45-4193
+  Zentrale: +49 421 178 45-6550
+  Fax:      +49 421 178 45-4150
+  E-Mail:   matthias.goldhoorn at uni-bremen.de
+
+  Weitere Informationen: http://www.informatik.uni-bremen.de/robotik
+
+
+

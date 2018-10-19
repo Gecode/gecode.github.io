@@ -1,0 +1,324 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Question about: Float variables,	Literals and/or 	Constants
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%3A%20Float%20variables%2C%0A%09Literals%20and/or%20%09Constants&In-Reply-To=%3C8eb8d34d0912171308l4521cb3k1175fb5cddfa8916%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002777.html">
+   <LINK REL="Next"  HREF="002781.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Question about: Float variables,	Literals and/or 	Constants</H1>
+    <B>Holger Winnemoeller</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Question%20about%3A%20Float%20variables%2C%0A%09Literals%20and/or%20%09Constants&In-Reply-To=%3C8eb8d34d0912171308l4521cb3k1175fb5cddfa8916%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Question about: Float variables,	Literals and/or 	Constants">holger.winnemoeller at gmail.com
+       </A><BR>
+    <I>Thu Dec 17 22:08:17 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002777.html">[gecode-users] Question about: Float variables,	Literals and/or 	Constants
+</A></li>
+        <LI>Next message: <A HREF="002781.html">[gecode-users] gecode error &quot;do not send&quot;
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2778">[ date ]</a>
+              <a href="thread.html#2778">[ thread ]</a>
+              <a href="subject.html#2778">[ subject ]</a>
+              <a href="author.html#2778">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Great! Again, this was totally the solution. Thank you.
+
+Just in case this is ever relevant to someone else, I am attaching my little
+demo program that I used to test the approach.
+
+Cheers,
+Holger.
+
+On Wed, Dec 16, 2009 at 10:53 PM, Mikael Zayenz Lagerkvist &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">zayenz at gmail.com</A>
+&gt;<i> wrote:
+</I>
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> The float variables are not yet truly integrated into Gecode, so I would
+</I>&gt;<i> not advise to use them currently.
+</I>&gt;<i>
+</I>&gt;<i> As for how to express the multiplication with a constant, I would suggest
+</I>&gt;<i> you use the minimodel interface:
+</I>&gt;<i>     post(*this, d*mutualSize == n*resultSize);
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Mikael
+</I>&gt;<i>
+</I>&gt;<i>
+</I>-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20091217/90328ac0/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20091217/90328ac0/attachment.htm</A>&gt;
+-------------- next part --------------
+// 12/16/2009 By Holger Winnemoeller
+// License: Do with this what you will - hope it helps...
+#include &lt;gecode/set.hh&gt;
+#include &lt;gecode/support.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;vector&gt;
+#include &lt;algorithm&gt;
+
+#include &quot;quotient.hpp&quot;
+
+using namespace std;
+using namespace Gecode;
+
+struct SubSet : public vector&lt;int&gt;
+{
+	Quotient quota;
+	SubSet(){}
+	SubSet(vector&lt;int&gt;&amp; inventory, int takeNumItems, const Quotient&amp; quota) : vector&lt;int&gt; (takeNumItems), quota(quota)
+	{
+		for(int i=0; i&lt;takeNumItems; ++i) // fill data from allItems
+		{
+			(*this)[i] = inventory.back();
+			inventory.pop_back();
+			sort(begin(), end());
+		}
+	}
+	bool contains(int val) const
+	{
+		for(size_t i=0; i &lt; size(); ++i)
+			if((*this)[i] == val) return true;
+		return false;
+	}
+};
+
+// A &quot;Minimal&quot; space definition for the problem
+class MiniSpace: public Space
+{
+	SetVarArray mSetStore;
+	void RequestFromSubset(SubSet&amp; subset, IntVar&amp; resultSetSize, int numRequestedSize)
+	{
+		// 1.) Create a new set domain that holds the &quot;special&quot; items
+		IntSet specialSet(&amp;subset[0], (int)subset.size());
+		// 2.) Create a set variable that we'll associate with that set later on
+		SetVar specialSelected(*this);
+		// 3.) Set &quot;specialSelected&quot; to the intersection of whatever a possible solution is, and
+		//     the &quot;specialSet&quot;. This ensures that we can talk about items that are included
+		//     in the solution, but also belong to the special set
+		rel(*this, mSetStore[0], SOT_INTER, specialSet, SRT_EQ, specialSelected);
+		// 4.) Now ensure that we only have &quot;requestFromEachCategory&quot; of these overlapping items
+		IntVar intersectionSize (*this, 0, (int)subset.size());
+		cardinality(*this, specialSelected, intersectionSize);
+
+#if 1	// Using the Minimodel interface
+		post(*this, subset.quota.numerator * resultSetSize == subset.quota.denominator * intersectionSize);
+#else	// Using the clunky Holger way...
+		const Quotient&amp; requestFromEachCategory = subset.quota;
+		IntVar lhs (*this, 0, requestFromEachCategory.denominator * (int)subset.size());				
+		IntVar rhs (*this, 0, requestFromEachCategory.numerator   * numRequestedSize);	
+		
+		IntVar numerator(*this, requestFromEachCategory.numerator, requestFromEachCategory.numerator);
+		IntVar denominator(*this, requestFromEachCategory.denominator, requestFromEachCategory.denominator);
+
+		mult(*this, intersectionSize, denominator, lhs);				
+		mult(*this, resultSetSize,    numerator,   rhs);	
+
+		rel(*this, lhs, IRT_EQ, rhs);
+#endif
+		branch(*this, specialSelected, SET_VAL_MIN_INC); //  THIS IS THE SAVER!!!!!
+	}
+
+public:
+	MiniSpace(int problemSize, vector&lt;SubSet&gt;&amp; subsets, int numRequestedSize)
+	{
+		puts(&quot;Setting up problem...&quot;);
+		// Create a SetVariable array (only need one element really, but this allows me to define the domain in one step)
+		mSetStore = SetVarArray(*this, 1, IntSet::empty, 0, problemSize);
+		SetVar resultSet = mSetStore[0]; // get the one variable that was defined in the above line
+
+		// impose the constraint that we only want &quot;numRequestedSize&quot; items in the result set
+		IntVar resultSetSize(*this, 0, numRequestedSize);
+		cardinality(*this, resultSet, resultSetSize);
+		rel(*this, resultSetSize, IRT_EQ, numRequestedSize);
+
+		for(size_t i=0; i&lt;subsets.size(); ++i)
+			RequestFromSubset(subsets[i], resultSetSize, numRequestedSize); 
+
+		// Given these constraints, branch
+		branch(*this, mSetStore, SET_VAR_NONE, SET_VAL_MIN_INC);
+	}
+	MiniSpace(bool share, MiniSpace&amp; s) : Space(share, s) {mSetStore.update(*this, share, s.mSetStore);}
+	virtual Space* copy(bool share) {return new MiniSpace(share, *this);}
+	void print(const vector&lt;SubSet&gt;&amp; subsets) const
+	{   // Print out a result set, but also a distribution of what subsets of an inventory the items belong to
+		// the last number is for items that don't belong to any subset (i.e. inventory diff (union subsets))
+		vector&lt;int&gt; scores (subsets.size()+1);
+		for(size_t i=0; i&lt;scores.size(); ++i)
+			scores[i] = 0;
+		int nonSubSetIdx = (int) subsets.size();
+		for(SetVarGlbValues d(mSetStore[0]);d();++d)
+		{
+			int id = d.val();
+			bool fromSet = false;
+			for(size_t i=0; i&lt;subsets.size(); ++i)
+				if(subsets[i].contains(id))
+				{
+					scores[i]++;
+					fromSet = true;
+					break;
+				}
+			if(!fromSet)
+				scores[nonSubSetIdx]++;
+			std::cout &lt;&lt; d.val() &lt;&lt; &quot; &quot;;
+		}
+		printf(&quot;. Dist(&quot;);
+		int total = 0;
+		for(size_t i=0; i&lt;scores.size(); ++i)
+		{
+			total += scores[i];
+			printf(&quot;%s%i&quot;,i?&quot;,&quot;:&quot;&quot;,scores[i]);
+		}
+		printf(&quot;), Sum = %i\n&quot;, total);
+
+	}
+};
+
+int main(int argc, char* argv[])
+{
+	// Generate an inventory
+	int problemSize = 3000;
+	int numItemsInCategories = 200;
+	int numSubCategories = 4;
+	int requestedSize = 40;
+
+	vector&lt;int&gt; inventory (problemSize);
+	for(int i=0; i&lt;problemSize; ++i) inventory[i] = problemSize-1-i; // init items
+	
+	// just to make it a bit more realistic
+	random_shuffle(inventory.begin(), inventory.end()); // shuffle items
+
+	// Float support in Gecode still experimental, apparently. Use quotients instead
+	Quotient quotas [] = {Quotient(0.5), Quotient(0.25), Quotient(0.1), Quotient(0.1)};
+
+	vector&lt;SubSet&gt; subsets(numSubCategories);
+	for(int i=0; i&lt;numSubCategories; ++i)
+		subsets[i] = SubSet(inventory, numItemsInCategories, quotas[i]);
+
+	// Run the problem
+	MiniSpace problem (
+		problemSize,	// total number of items in inventory
+		subsets,		// several sub-inventories (non-overlapping) 
+		requestedSize	// requesting X items
+	); // space instance
+
+	// Gimme my solutions
+	DFS&lt;MiniSpace&gt; solver (&amp;problem);
+	int count=0;
+	puts(&quot;Looking for solutions...&quot;);
+	while(true){
+		MiniSpace* solution = solver.next();
+		if(!solution) break;
+		std::cout &lt;&lt; &quot;Solution Nr.&quot; &lt;&lt; count++ &lt;&lt; std::endl;
+		solution-&gt;print(subsets);
+		std::cout &lt;&lt; std::endl;
+		delete solution;
+	}
+	std::cout &lt;&lt; &quot;Done...&quot; &lt;&lt; std::endl;
+	system(&quot;pause&quot;);
+	return 0;
+}
+
+-------------- next part --------------
+// Conversion from float adapted from: <A HREF="http://stackoverflow.com/questions/1656945/how-can-i-turn-a-floating-point-number-into-the-closest-fraction-represented-by-a">http://stackoverflow.com/questions/1656945/how-can-i-turn-a-floating-point-number-into-the-closest-fraction-represented-by-a</A> 
+// License: whatever it says in the above link
+#pragma once
+
+#include &lt;math.h&gt;
+
+struct Quotient
+{
+	int numerator, denominator;
+	Quotient() : numerator(0), denominator(1){} // equiv = 0
+	Quotient(int numerator, int denominator) : numerator(numerator), denominator(denominator){}
+	Quotient (float val)
+	{
+		float input = val;
+		int p0 = 1;
+		int q0 = 0;
+		int p1 = (int) floorf(input);
+		int q1 = 1;
+		int p2;
+		int q2;
+
+		float r = input - p1;
+		float next_cf;
+		while(r != 0.0f)
+		{
+			r = 1.0f / r;
+			next_cf = floorf(r);
+			p2 = (int) (next_cf * p1 + p0);
+			q2 = (int) (next_cf * q1 + q0);
+
+			// Limit the numerator and denominator to be 256 or less
+			if(p2 &gt; 256 || q2 &gt; 256)
+				break;
+
+			// remember the last two fractions
+			p0 = p1;
+			p1 = p2;
+			q0 = q1;
+			q1 = q2;
+
+			r -= next_cf;
+		}
+
+		input = (float) p1 / q1;
+		// hard upper and lower bounds for ratio
+		if(input &gt; 256.0f)
+		{
+			p1 = 256;
+			q1 = 1;
+		}
+		else if(input &lt; 1.0f / 256.0f)
+		{
+			p1 = 1;
+			q1 = 256;
+		}
+		numerator = p1;
+		denominator = q1;
+		float error = (toFloat() - val) / val;
+		printf(&quot;%f = %i / %i with %.2f %% error\n&quot;,val, numerator, denominator, 100.0f * error);
+	}
+	float toFloat() const 
+	{
+		return (float) numerator / (float) denominator;
+	}
+};
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002777.html">[gecode-users] Question about: Float variables,	Literals and/or 	Constants
+</A></li>
+	<LI>Next message: <A HREF="002781.html">[gecode-users] gecode error &quot;do not send&quot;
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2778">[ date ]</a>
+              <a href="thread.html#2778">[ thread ]</a>
+              <a href="subject.html#2778">[ subject ]</a>
+              <a href="author.html#2778">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

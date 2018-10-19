@@ -1,0 +1,71 @@
+#ifndef ___ILC_GECODE_TO_STL_ALLOCATOR__
+#define ___ILC_GECODE_TO_STL_ALLOCATOR__
+#include <gecode/kernel.hh>
+using namespace Gecode;
+
+using namespace std;
+
+namespace std {
+	template <class T> class gecode_to_stl_allocator;
+
+	// specialize for void:
+	template <> class gecode_to_stl_allocator<void> {
+		public:
+		typedef void*       pointer;
+		typedef const void* const_pointer;
+		// reference to void members are impossible.
+		typedef void value_type;
+		template <class U> struct rebind { typedef gecode_to_stl_allocator<U>
+						 other; };
+	};
+
+	template <class T> class gecode_to_stl_allocator {
+		public:
+		Space *home;
+		typedef size_t    size_type;
+		typedef ptrdiff_t difference_type;
+		typedef T*        pointer;
+		typedef const T*  const_pointer;
+		typedef T&        reference;
+		typedef const T&  const_reference;
+		typedef T         value_type;
+		template <class U> struct rebind { 
+				typedef gecode_to_stl_allocator<U> other; 
+		};
+
+		gecode_to_stl_allocator() throw() {};
+		gecode_to_stl_allocator(Gecode::Space &home_) throw() : home(&home_) {};
+		gecode_to_stl_allocator(const gecode_to_stl_allocator&al) throw() : home(al.home) {};
+		template <class U> gecode_to_stl_allocator(const gecode_to_stl_allocator<U>&al) throw() : home(al.home) {};
+		~gecode_to_stl_allocator() throw() {};
+
+		pointer address(reference x) const {return &x;};
+
+		const_pointer address(const_reference x) const {return &x;} ;
+
+		pointer allocate(size_type count, gecode_to_stl_allocator<void>::const_pointer hint = 0) {
+			return reinterpret_cast<T*>( home->alloc<T>(count*sizeof(T)));
+		};
+
+		void deallocate(pointer p, size_type n) {
+		};
+
+		size_type max_size() const throw() {return 0xffffffff;};
+
+		void construct(pointer element, const T& val) {new( element ) T( val ); };	
+		void destroy(pointer element) {
+			element->~T();
+		};
+	};
+
+  template <class T1, class T2>
+  bool operator==(const gecode_to_stl_allocator<T1>&, const gecode_to_stl_allocator<T2>&)
+                  throw() { return true; };
+
+  template <class T1, class T2>
+  bool operator!=(const gecode_to_stl_allocator<T1>&, const gecode_to_stl_allocator<T2>&)
+                  throw() { return false; };
+
+};
+
+#endif

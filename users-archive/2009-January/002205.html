@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Interfacing GeCode to ECLiPSe
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C497F321A.7010406%40cisco.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002198.html">
+   <LINK REL="Next"  HREF="002206.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Interfacing GeCode to ECLiPSe</H1>
+    <B>Kish Shen</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Interfacing%20GeCode%20to%20ECLiPSe&In-Reply-To=%3C497F321A.7010406%40cisco.com%3E"
+       TITLE="[gecode-users] Interfacing GeCode to ECLiPSe">kisshen at cisco.com
+       </A><BR>
+    <I>Tue Jan 27 17:11:06 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002198.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+        <LI>Next message: <A HREF="002206.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2205">[ date ]</a>
+              <a href="thread.html#2205">[ thread ]</a>
+              <a href="subject.html#2205">[ subject ]</a>
+              <a href="author.html#2205">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Christian and Guido,
+
+Thanks for your replies!
+
+Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i> 
+</I>&gt;<i> As it comes to the search interface: I have been discussing with other
+</I>&gt;<i> LP-minded people and from these discussions I do recall the following design
+</I>&gt;<i> outline:
+</I>&gt;<i> 
+</I>&gt;<i> Search:
+</I>&gt;<i>  (1) Eclipse tells Gecode to create a choicepoint
+</I>&gt;<i>  (2) Eclipse tells Gecode to backtrack until the next choicepoint (or some
+</I>&gt;<i> choicepoint if you want it to be
+</I>&gt;<i>      more powerful than that)
+</I>&gt;<i> 
+</I>&gt;<i> Interfacing:
+</I>&gt;<i>  (3) Eclipse tells Gecode about variable modifications
+</I>&gt;<i>  (4) Eclipse tells Gecode to create new variables and propagators
+</I>&gt;<i>  (5) Eclipse instructs Gecode to do propagation and queries Gecode about
+</I>&gt;<i> changes to variable domains 
+</I>&gt;<i> 
+</I>&gt;<i> Then, a starting point for implementing backtracking would be to just use
+</I>&gt;<i> cloning to make it work (that should be really use but inefficient). Then,
+</I>&gt;<i> in a second step one could use a hybrid of recomputation and cloning (just
+</I>&gt;<i> replay what has been done by (3) and (4) and redo propagation). For a
+</I>&gt;<i> realistic interface Gecode must use recomputation.
+</I>
+After Guido's last post, I remember some of our (you, Joachim Schimpf 
+and I)  discussion about this during CP a couple of years ago.
+
+My thinking is that for ECLiPSe (and I suspect for other Prolog-like 
+languages), it is difficult to be explicit about the creation of a 
+choicepoint, so potentially any changes ECLiPSe tells GeCode about 
+(poinys 3,4) are possible choicepoints.
+
+After reading Guido's e-mail (but before seeing yours), I was thinking 
+of maintaining a chronological list of the `events' that are sent to 
+GeCode, with a counter incremented for each event. I think this 
+corresponds to the `choicepoint' you mentioned. So ECLiPSe can tell 
+GeCode to `backtrack' (or more properly recreate) the GeCode state when 
+counter = N.
+
+Can this be done with GeCode with the existing API, without the ECLiPSe 
+side maintaining the list of events?
+
+3) and 4) are needed for the backbox interface, because to keep close 
+ECLiPSe's native finite domain solvers' semantics, propagation happens 
+when a constraint is posted.
+
+So if I use the Reflection interface, I need to be able to incrementally 
+add variables and propagators.
+
+&gt;<i> 
+</I>&gt;<i> I think this kind of interface would be quite useful also for other
+</I>&gt;<i> languages/systems based on backtracking. Provided that:
+</I>&gt;<i>  - you come up with a na&#239;ve implementation that is not Eclipse specific
+</I>&gt;<i> (say, there will be one part that is Gecode specific and then a separate
+</I>&gt;<i> part that is Eclipse specific, and the Gecode part can be used without
+</I>&gt;<i> Eclipse)
+</I>&gt;<i>  - you put the Gecode-specific part under the MIT license
+</I>&gt;<i>
+</I>
+ From our perspective, we'd like the ECLiPSe interface to be as general 
+as possible, i.e. ideally we can plug in another constraint solver 
+engine other than GeCode with ease.
+
+I think your points 1) and 2) are not solver specific, and indeed can be 
+used by
+other backtracking languages. I guess this will be the `ECLiPSe 
+specific' part,
+as well as the actual 'events' themselves -- ideally I'd like the events 
+to be non-GeCode specific.
+
+Then there is the part of getting GeCode to recreate the state at a 
+choicepoint/counter. This is probably specific to GeCode (or at least a 
+recomputation system). As I asked earlier, can you do this with the 
+GeCode APU, and if not, should the code for this be put into GeCode, 
+rather than be on the `ECLiPSe side'?
+
+ECLiPSe is now under a &quot;Cisco style&quot; Mozilla license (I am not a lawyer, 
+but I believe Cisco style means that Cisco was substituted for Mozilla 
+in the license, i.e. Cisco has the right to change the licensing terms 
+etc.). I guess the question of license will only kick in if some of the 
+GeCode specific code needs to be kept on the ECLiPSe side (i.e. 
+distributed as part of ECLiPSe). I don't know if the MIT license is 
+compatible with Mozilla license (i.e. can you have a distribution with 
+code that has both licenses). I do recall the lawyers telling me that 
+the Mozilla license is not compatible with GPL, and we had to remove 
+some GPL licensed code from the ECLiPSe distribution.
+
+Cheers,
+
+Kish
+
+
+
+-- 
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002198.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+	<LI>Next message: <A HREF="002206.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2205">[ date ]</a>
+              <a href="thread.html#2205">[ thread ]</a>
+              <a href="subject.html#2205">[ subject ]</a>
+              <a href="author.html#2205">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

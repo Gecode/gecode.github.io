@@ -1,0 +1,411 @@
+From aqwzsxaqwzsx at orange.fr  Mon Apr  9 18:53:10 2018
+From: aqwzsxaqwzsx at orange.fr (aqwzsxaqwzsx at orange.fr)
+Date: Mon, 9 Apr 2018 18:53:10 +0200 (CEST)
+Subject: [gecode-users] dynamic cost calculation
+Message-ID: <487891458.12436.1523292790452.JavaMail.www@wwinf1t14>
+
+Hello,
+
+I've a problem solved with gecode where jobs must be assigned to person.
+Each (job, person) has it own cost statically given. The implementation
+looks like :
+// --------------------------------------------------------------
+   _j(*this, _nb_jobs, 0, _nb_persons - 1)
+ 
+   int _cost[] =
+      {
+         9,  2,  7,  8,
+         6,  4,  3,  7,
+         5,  8,  1,  8,
+         7,  6,  9,  4,
+      };
+ 
+   IntArgs cost(_nb_persons*_nb_jobs, _cost);
+   distinct(*this, _j);
+ 
+   for (int i = 0 ; i < _nb_jobs ; ++i)
+   {
+      C << expr(*this, element(cost_m.col(i), _j[i]));
+  }
+   _total_cost = expr(*this, sum(C));
+   JobBrancher::post(*this, _j);
+// --------------------------------------------------------------  
+ 
+The problem is that the _cost must be precomputed. To enable a dynamic
+cost computation (and to prepare futher improvement),
+i've modified the code this way  :
+      
+// --------------------------------------------------------------
+   _cost(*this, _nb_persons, 0, 10)  // a IntVarArray
+   JobBrancher::post(*this, _j, _cost, _nb_jobs, _nb_persons);
+// --------------------------------------------------------------
+  
+And :
+1) compute dynamically the cost in JobBrancher::choice
+2) call me_failed(_costs_views[choice._person].eq(home, choice._cost))
+   In JobBrancher::commit (for job/person affectation)
+3) call me_failed(_jobs_views[choice._job].eq(home, choice._person))
+   In JobBrancher::commit (to compute the _total_cost)
+  
+The problem is that solution can be found without having an
+assigned cost. This produce a Int::ValOfUnassignedVar as stated
+in MPG.
+ 
+I've tried to set all unassigned cost in JobBrancher::commit
+(not only the one corresponding to the choice person/job)
+just to make a try but it doesn't work :
+ 
+// --------------------------------------------------------------
+for(int i = 0 ; i < choice._costs.size() ; ++i)
+{
+   const JobChoice::Info & elem = choice._costs[i];
+   const int p = elem.person;
+   const int c = elem.cost;
+ 
+   if (! _costs_views[p].assigned())
+   {
+      has_failed = me_failed(_costs_views[p].eq(home, c));
+      if (has_failed)
+      {
+         return Gecode::ES_FAILED;
+      }
+   }
+}
+ 
+return Gecode::ES_OK;
+// --------------------------------------------------------------
+ 
+The first affectation seems to works. After that, i see under gist
+that the first branch is infinitely explored without any change.
+Can someone explain me what i'm doing wrong and how to correct it ?
+ 
+Thanks
+Philippe.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+From albert at math.uni-goettingen.de  Fri Apr 13 19:47:50 2018
+From: albert at math.uni-goettingen.de (Sebastian Albert)
+Date: Fri, 13 Apr 2018 19:47:50 +0200
+Subject: [gecode-users] Can a propagator hide domain wipe-out of a variable?
+Message-ID: <1698a177-7af6-37c5-fef3-dbd09bb930b5@math.uni-goettingen.de>
+
+Dear list
+
+I consider using "conditional variables", i.e., similar to "conditional
+constraints" (a.k.a. reified constraints), I want to have a set (array)
+of variables among which only (exactly) one will be actually "active" in
+any solution, selected by another variable (call it the "selection"
+variable), and only the active/selected one has to fulfill its
+constraints. Now I would implement propagators that are aware of this,
+and when their propagation finds out that one of the candidates from the
+conditional variables has no possible values left in its domain (via
+pruning its view completely, resulting in a "failed" modification
+event), then, instead of failing the current space, the propagator
+should "hide" this failure and instead prune this candidate from the
+domain of the selection variable.
+
+Is this a possible way to go in Gecode? If I understand MPG, page 310,
+correctly, this should be possible, since it's the propagator's
+obligation to report any failure. However, in chapter 25, reification is
+not implemented by checking for some ME_FAIL, but rather by inspecting
+the domain individually (which is easy in bounds propagation, but seems
+unnecessarily intricate in case of domain propagation).
+Furthermore, is there an existing name for this concept (like there is
+"reification" on constraints)? Maybe it really is just reification in
+disguise.
+
+Regards
+Sebastian
+
+
+From cschulte at kth.se  Mon Apr 16 10:31:59 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 16 Apr 2018 08:31:59 +0000
+Subject: [gecode-users] Can a propagator hide domain wipe-out of a
+ variable?
+In-Reply-To: <1698a177-7af6-37c5-fef3-dbd09bb930b5@math.uni-goettingen.de>
+References: <1698a177-7af6-37c5-fef3-dbd09bb930b5@math.uni-goettingen.de>
+Message-ID: <bc5cab2692e84cc69549e50e2f4edc66@exdb01.ug.kth.se>
+
+Hi, no you can't do that. If a variable operation returns failure, the propagator _must_ report failure as well. This has to do with the fact that the variable domain in most cases has been modified in a way that violates certain invariants. The only thing you can do with a variable like that is inspect it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science, KTH, cschulte at kth.se
+Expert Researcher, RISE SICS, christian.schulte at ri.se
+
+-----Original Message-----
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Sebastian Albert
+Sent: 13 April 2018 19:48
+To: users at gecode.org
+Subject: [gecode-users] Can a propagator hide domain wipe-out of a variable?
+
+Dear list
+
+I consider using "conditional variables", i.e., similar to "conditional constraints" (a.k.a. reified constraints), I want to have a set (array) of variables among which only (exactly) one will be actually "active" in any solution, selected by another variable (call it the "selection"
+variable), and only the active/selected one has to fulfill its constraints. Now I would implement propagators that are aware of this, and when their propagation finds out that one of the candidates from the conditional variables has no possible values left in its domain (via pruning its view completely, resulting in a "failed" modification event), then, instead of failing the current space, the propagator should "hide" this failure and instead prune this candidate from the domain of the selection variable.
+
+Is this a possible way to go in Gecode? If I understand MPG, page 310, correctly, this should be possible, since it's the propagator's obligation to report any failure. However, in chapter 25, reification is not implemented by checking for some ME_FAIL, but rather by inspecting the domain individually (which is easy in bounds propagation, but seems unnecessarily intricate in case of domain propagation).
+Furthermore, is there an existing name for this concept (like there is "reification" on constraints)? Maybe it really is just reification in disguise.
+
+Regards
+Sebastian
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+From aqwzsxaqwzsx at orange.fr  Tue Apr 17 23:56:08 2018
+From: aqwzsxaqwzsx at orange.fr (aqwzsxaqwzsx)
+Date: Tue, 17 Apr 2018 23:56:08 +0200
+Subject: [gecode-users]  dynamic cost calculation
+In-Reply-To: <487891458.12436.1523292790452.JavaMail.www@wwinf1t14>
+References: <487891458.12436.1523292790452.JavaMail.www@wwinf1t14>
+Message-ID: <504f25dc-1898-5ab7-a601-fb1342ba4caa@orange.fr>
+
+
+Hi,
+
+The mistakes was easy to solve since I have simply forgotten to
+
+retrieve the return value of a me_failed call.
+
+Bye.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180417/6cac6322/attachment.html>
+
+From aqwzsxaqwzsx at orange.fr  Wed Apr 18 00:33:32 2018
+From: aqwzsxaqwzsx at orange.fr (aqwzsxaqwzsx)
+Date: Wed, 18 Apr 2018 00:33:32 +0200
+Subject: [gecode-users] custom brancher and failures count
+Message-ID: <f2de1d67-3afe-369b-1ada-95a799bbc4a2@orange.fr>
+
+Hello, I developed a custom brancher that works as expected. However, 
+sometimes a choice is made that leads to lot of failures. When this 
+situation occurs, I would like to call an external function that decides 
+whether or not the subtree should fail. I don't think afc or cutoff can 
+help here. Am I wrong ? Thank you for your help.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180418/e4a4829d/attachment.html>
+
+From aqwzsxaqwzsx at orange.fr  Wed Apr 18 11:16:43 2018
+From: aqwzsxaqwzsx at orange.fr (aqwzsxaqwzsx at orange.fr)
+Date: Wed, 18 Apr 2018 11:16:43 +0200 (CEST)
+Subject: [gecode-users] gecode 6 compilation error
+Message-ID: <1677050315.4231.1524043003267.JavaMail.www@wwinf1t09>
+
+Hello
+
+Under cygwin, after a configure command without parameters, I?ve tried to compile gecode 6 with  Microsoft (R) C/C++ Optimizing Compiler Version 18.00.31101 for x86
+ But i get the following compilation error:
+ 
+$ make
+
+make[1]: ? gecode/kernel/var-type.hpp ? est ? jour.
+make[1]: ? gecode/kernel/var-imp.hpp ? est ? jour.
+cl -I. -arch:SSE2 -MD -GS- -wd4355 -O2 -EHsc -nologo -bigobj -DNDEBUG -I. -arch:SSE2 -MD -GS- -wd4355 -O2 -EHsc -nologo -bigobj -DNDEBUG   -DGECODE_BUILD_SUPPORT \
+-c -Fogecode/support/exception.obj -Tpgecode/support/exception.cpp
+exception.cpp
+.\gecode/support/hash.hpp(61) : error C2084: function 'void Gecode::cmb_hash(size_t &,size_t)' already has a body
+        .\gecode/support/hash.hpp(43) : see previous definition of 'cmb_hash'
+.\gecode/support/hash.hpp(62) : error C2264: 'Gecode::cmb_hash' : error in function definition or declaration; function not called
+make[1]: *** [Makefile:1334: gecode/support/exception.obj] Error 2
+
+
+
+From albert at math.uni-goettingen.de  Wed Apr 18 18:27:13 2018
+From: albert at math.uni-goettingen.de (Sebastian Albert)
+Date: Wed, 18 Apr 2018 18:27:13 +0200
+Subject: [gecode-users] Is it allowed to rewrite or subsume in the advise
+ function of a propagator?
+Message-ID: <129bd22d-8ca4-ab67-38aa-921c0246869e@math.uni-goettingen.de>
+
+Dear list
+
+The subject says it all: Can I do GECODE_REWRITE and/or return
+home.ES_SUBSUMED directly from the advise function? Any caveats?
+
+Thanks
+Sebastian
+
+
+From kurt.vandenbranden at agfa.com  Tue Apr 24 17:03:25 2018
+From: kurt.vandenbranden at agfa.com (Kurt Van Den Branden)
+Date: Tue, 24 Apr 2018 17:03:25 +0200
+Subject: [gecode-users] gecode 6 exception
+Message-ID: <OF37F2B192.4881B214-ONC1258279.005244BC-C1258279.0052B5EC@agfa.com>
+
+hi,
+
+here is some simple example code:
+
+                FloatVar x (*this, -100, 100);
+                FloatVar t1 = expr (*this, abs (x * 100)); // OK
+                FloatVar t2 = expr (*this, abs (x) * 100); // NOK
+
+variable t1 doesn't cause a problem
+when creating variable t2, an exception is thrown (OutOfLimits(
+"Float::linear"))
+
+the same code compiled with gecode 4.3.2 doesn't cause problems.
+
+am I doing something wrong?
+
+Kind Regards,
+
+Kurt Van Den Branden | Agfa Graphics
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180424/39179511/attachment.html>
+
+From cschulte at kth.se  Tue Apr 24 19:00:32 2018
+From: cschulte at kth.se (Christian Schulte)
+Date: Tue, 24 Apr 2018 17:00:32 +0000
+Subject: [gecode-users] gecode 6 exception
+In-Reply-To: <OF37F2B192.4881B214-ONC1258279.005244BC-C1258279.0052B5EC@agfa.com>
+References: <OF37F2B192.4881B214-ONC1258279.005244BC-C1258279.0052B5EC@agfa.com>
+Message-ID: <e426106317fe4921ae1825e3f9df8c41@exdb01.ug.kth.se>
+
+Hi, hmm that?s a bug. There has been a change in Gecode 6 for FloatVal (if used as coefficients in linear constraints which expr creates, they are not allowed to extend from negative to positive and include zero) but not for FloatVar. I?ll have a look sometime this week and get back to you.
+
+Cheers
+Christian
+
+--
+Christian Schulte, https://chschulte.github.io/
+Professor of Computer Science, KTH, cschulte at kth.se<mailto:cschulte at kth.se>
+Expert Researcher, RISE SICS, christian.schulte at ri.se<mailto:christian.schulte at ri.se>
+
+From: users-bounces at gecode.org <users-bounces at gecode.org> On Behalf Of Kurt Van Den Branden
+Sent: 24 April 2018 17:03
+To: users at gecode.org
+Subject: [gecode-users] gecode 6 exception
+
+hi,
+
+here is some simple example code:
+
+                FloatVar x (*this, -100, 100);
+                FloatVar t1 = expr (*this, abs (x * 100)); // OK
+                FloatVar t2 = expr (*this, abs (x) * 100); // NOK
+
+variable t1 doesn't cause a problem
+when creating variable t2, an exception is thrown (OutOfLimits("Float::linear"))
+
+the same code compiled with gecode 4.3.2 doesn't cause problems.
+
+am I doing something wrong?
+
+Kind Regards,
+
+Kurt Van Den Branden | Agfa Graphics
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.gecode.org/pipermail/users/attachments/20180424/1f4bcdac/attachment.html>
+
+From johannes.waldmann at htwk-leipzig.de  Thu Apr 26 17:15:25 2018
+From: johannes.waldmann at htwk-leipzig.de (Johannes Waldmann)
+Date: Thu, 26 Apr 2018 17:15:25 +0200
+Subject: [gecode-users] from 3 to 6?
+Message-ID: <05b3b1e5-d65f-e7e6-342b-16a14b3aa292@htwk-leipzig.de>
+
+Hi,
+
+
+I am trying to convert some code that was written
+for gecode-3 API up to 6.
+
+The original code is here:
+https://github.com/JTiko/monadiccp-gecode/blob/master/Control/CP/FD/Gecode/Interface.hsc
+
+So far, I have this (ICL => IPL, omit "share", add () to some macros -
+but this is already guesswork on my part)
+https://github.com/jwaldmann/monadiccp-gecode/commit/0ddf6630597b1c734ddcc178cf586b3fd6626b0c
+
+I am now seeing a lot of errors like these:
+
+no matching function for call to ?branch(HaskellModel&,
+Gecode::BoolVarArgs&, Gecode::IntVarBranch, Gecode::IntValBranch)?
+...
+note:   candidate expects 2 arguments, 4 provided
+
+and I don't know how to fix this. I guess
+http://www.gecode.org/doc-latest/reference/PageHowToChange__4.html
+is related but I still don't see what to do. Any hints?
+
+
+On the other hand (This is a separate issue) perhaps I shouldn't.
+My motivation is that I want to write Haskell, not C++,
+but still use the power of gecode. The "monadic-cp" approach
+does look really nice, e.g., note how "exists $ \ y -> ..." creates
+a Haskell name (not a string), in
+https://github.com/JTiko/monadiccp-gecode/blob/master/examples/LangfordNumber.hs
+
+Perhaps go via minizinc? But that looks like a lot more work
+(a fresh back-end for monadic-cp). I am hoping that the API issue
+mentioned above could be fixed more easily.
+
+
+- J.
+
+
+PS: I tried to run this on travis to show exact build errors
+but they only have gecode-5 (in their docker images),
+and building 6 from source takes too long (I think they kill the job)
+https://travis-ci.org/jwaldmann/monadiccp-gecode
+
+
+From johannes.waldmann at htwk-leipzig.de  Sat Apr 28 15:43:23 2018
+From: johannes.waldmann at htwk-leipzig.de (Johannes Waldmann)
+Date: Sat, 28 Apr 2018 15:43:23 +0200
+Subject: [gecode-users] update of gecode back-end for monadic-cp,
+	was: Re: from 3 to 6?
+In-Reply-To: <05b3b1e5-d65f-e7e6-342b-16a14b3aa292@htwk-leipzig.de>
+References: <05b3b1e5-d65f-e7e6-342b-16a14b3aa292@htwk-leipzig.de>
+Message-ID: <015c03e6-861c-44b8-a171-77870bd098ef@htwk-leipzig.de>
+
+Hi, I think I got this working. The actual error was
+that a branch on BoolVars had IntVar control parameters.
+To give some more context:
+
+The "Monadic Constraint Programming Framework" (Schrijvers et al.)
+http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.184.9140
+https://doi.org/10.1017/S0956796809990086
+is a way of representing constraint systems and search strategies
+via a DSL that is embedded in (i.e., uses the syntax and semantics,
+in particular the type system, of) Haskell.
+Gecode can be used as a back-end
+https://lirias.kuleuven.be/handle/123456789/242221
+
+The implementation
+http://hackage.haskell.org/package/monadiccp-gecode
+was bit-rotted. I updated it to work
+with current Gecode (6.0.0) and Haskell compiler (ghc-8.2.2)
+(working test case in this CI build
+https://travis-ci.org/jwaldmann/monadiccp-gecode/builds/372165385 )
+Source is at https://github.com/jwaldmann/monadiccp-gecode
+and we'll see about publishing this on hackage soon.
+
+- J.W.
+
+

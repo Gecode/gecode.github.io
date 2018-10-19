@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Any Advise on Delta
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Any%20Advise%20on%20Delta&In-Reply-To=%3C49773361.D4D3.0085.0%40quintiq.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002206.html">
+   <LINK REL="Next"  HREF="002176.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Any Advise on Delta</H1>
+    <B>David Rijsman</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Any%20Advise%20on%20Delta&In-Reply-To=%3C49773361.D4D3.0085.0%40quintiq.com%3E"
+       TITLE="[gecode-users] Any Advise on Delta">David.Rijsman at quintiq.com
+       </A><BR>
+    <I>Wed Jan 21 14:38:26 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002206.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+        <LI>Next message: <A HREF="002176.html">[gecode-users] Any Advise on Delta
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2174">[ date ]</a>
+              <a href="thread.html#2174">[ thread ]</a>
+              <a href="subject.html#2174">[ subject ]</a>
+              <a href="author.html#2174">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Christian,
+
+in a previous conversation on 'Any Advise on assignment delta' you mentioned &quot;the other operations that lead to 'any' are iterator-based variable domain updates which in most cases just remove a single value or a range (and hence the delta information is accurate).&quot;. Concerning this I have the following question:
+
+I have been implementing a propagator which implements its own advise method. The intention of the advise method is to only schedule the invoking propagator if the maximum has changed. This is relatively easy to implement but I noticed that the 'delta' reporting is rather 'rough' implemented and my propagator gets scheduled quite often to conclude nothing. That is I am getting a lot of 'any' hits when there could have been more information. Specifically in my use case I have a cumulatives constraint whose propagator uses View::minus_r a lot and this propagator only reports 'any' deltas (as far as I can conclude). In the example in this e-mail clearly shows we could be more informative in the delta, it streams 1-0 (any) although I would expect 0-50. 
+
+My question is if this is done for a reason and if so if this is done for many operators on the views?
+
+//----------------------------------
+
+#include &quot;gecode/kernel.hh&quot;
+#include &quot;gecode/int.hh&quot;
+#include &quot;gecode/iter.hh&quot; 
+
+namespace Gecode
+{
+  class MyPropagator : public Propagator
+  {
+  public:
+    MyPropagator(Space *home, Int::IntView v):
+        Propagator(home),
+        MView(v)
+    {
+      MView.subscribe(home, new (home) ViewAdvisor&lt;Int::IntView&gt;(home,this,MCouncil,MView));
+    }
+
+    MyPropagator* copy (Space* home, bool share)
+    {
+      return 0; 
+    }
+
+    ExecStatus propagate(Space *home, ModEventDelta med)
+    {
+      return ES_OK;
+    }
+
+    PropCost  cost (ModEventDelta med) const
+    {
+      return PC_LINEAR_LO;
+    }
+
+    ExecStatus  advise (Space *home, Advisor *a, const Delta *d) 
+    {
+      ViewAdvisor&lt;Int::IntView&gt;&amp; advisor = static_cast&lt;ViewAdvisor&lt;Int::IntView&gt;&amp;&gt;(*a);
+      
+      std::cout &lt;&lt; advisor.view().min(d) &lt;&lt; &quot;-&quot; &lt;&lt; advisor.view().max(d) &lt;&lt; std::endl;
+      
+      return ES_OK;
+    }
+  private:
+    Int::IntView MView;
+    Council&lt;ViewAdvisor&lt;Int::IntView&gt;&gt; MCouncil;
+  };
+
+  class MySpace : public Space
+  {
+  public:
+    MySpace()
+    {
+      MX.init(this,0,100);
+
+    }
+
+    MySpace(bool share, MySpace &amp;s):
+      Space(share,s)
+    {
+       MX.update(this,share,s.MX);
+    }
+
+    MySpace* copy(bool share)
+    {
+      return new MySpace(share, *this);
+    }
+
+    IntVar MX;
+  };
+}
+
+int main()
+{
+  Gecode::MySpace space;
+
+  new (&amp;space) Gecode::MyPropagator(&amp;space,space.MX);
+
+  Gecode::Int::IntView view(space.MX);
+
+  Gecode::Iter::Ranges::Singleton d(0,50);
+
+  view.minus_r(&amp;space,d,false);
+}
+
+//----------------------------------
+
+David
+
+Quintiq Conference &quot;Quintessence 09&quot; Tuesday May 12th, 2009, Country Estate Duin &amp; Kruidberg, near Amsterdam Schiphol, The Netherlands - for more information visit www.quintiq.com
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002206.html">[gecode-users] Interfacing GeCode to ECLiPSe
+</A></li>
+	<LI>Next message: <A HREF="002176.html">[gecode-users] Any Advise on Delta
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2174">[ date ]</a>
+              <a href="thread.html#2174">[ thread ]</a>
+              <a href="subject.html#2174">[ subject ]</a>
+              <a href="author.html#2174">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

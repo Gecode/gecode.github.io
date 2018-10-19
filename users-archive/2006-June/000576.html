@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] access to Space during branching?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20access%20to%20Space%20during%20branching%3F&In-Reply-To=%3C001101c68970%2454862de0%240401a8c0%40tiny%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000575.html">
+   <LINK REL="Next"  HREF="000567.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] access to Space during branching?</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20access%20to%20Space%20during%20branching%3F&In-Reply-To=%3C001101c68970%2454862de0%240401a8c0%40tiny%3E"
+       TITLE="[gecode-users] access to Space during branching?">schulte at imit.kth.se
+       </A><BR>
+    <I>Tue Jun  6 15:51:36 CEST 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000575.html">[gecode-users] access to Space during branching?
+</A></li>
+        <LI>Next message: <A HREF="000567.html">[gecode-users] Disjunction of linear expressions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#576">[ date ]</a>
+              <a href="thread.html#576">[ thread ]</a>
+              <a href="subject.html#576">[ subject ]</a>
+              <a href="author.html#576">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Yes, please keep in mind we are talking a snapshot! So segfaults are to be
+expected: in particular we started to change how memory is released
+completely...
+
+Christian
+
+-----Original Message-----
+From: Martin Mann [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">qyu at gmx.de</A>] 
+Sent: Tuesday, June 06, 2006 3:14 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>
+Cc: 'gecode user list'
+Subject: Re: Re: [gecode-users] access to Space during branching?
+
+
+Dear Christian,
+
+I checked the current trunk version and it's exactly what I needed! 
+Thanks a lot!
+
+One thing remains: the &quot;make; make test; ./test/test&quot; crashes for the 
+trunk version like that:
+
+===================================================
+...
+Stress::Exec: +++++
+Stress::MinSort: +++++
+Stress::Regular: Segmentation fault (core dumped)
+===================================================
+
+Doesnt matter for the moment. All of my stuff is still working well, but 
+I think it's worthy to tell you! (I'm using a cygwin system on winXP prof.)
+
+Cheers,
+
+Martin
+
+
+&gt;<i> Hmm, you are absolutely right: also branch should take a space 
+</I>&gt;<i> argument. I'll do that right now on the trunk version.
+</I>&gt;<i> 
+</I>&gt;<i> There is no other way to obtain a space...
+</I>&gt;<i> 
+</I>&gt;<i> Christian
+</I>&gt;<i> 
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i> 
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On 
+</I>&gt;<i> Behalf Of Martin Mann
+</I>&gt;<i> Sent: Friday, June 02, 2006 3:28 PM
+</I>&gt;<i> To: gecode user list
+</I>&gt;<i> Subject: [gecode-users] access to Space during branching?
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> I know the weekend is near, but I ve got another question.
+</I>&gt;<i> 
+</I>&gt;<i> what exactly is done in this private Space function?
+</I>&gt;<i> ist it possible to get some comments about that?
+</I>&gt;<i> 
+</I>&gt;<i> ============================
+</I>&gt;<i>    /*
+</I>&gt;<i>     * Performing branching after propagation
+</I>&gt;<i>     *
+</I>&gt;<i>     */
+</I>&gt;<i> 
+</I>&gt;<i>    unsigned int
+</I>&gt;<i>    Space::branchings(void) {
+</I>&gt;<i>      while (b_fst != &amp;a_actors) {
+</I>&gt;<i>        unsigned int alt = b_fst-&gt;branch();
+</I>&gt;<i>        if (alt &gt; 0)
+</I>&gt;<i> 	return alt;
+</I>&gt;<i>        Branching* b = b_fst;
+</I>&gt;<i>        b_fst = static_cast&lt;Branching*&gt;(b-&gt;next());
+</I>&gt;<i>        b-&gt;unlink();
+</I>&gt;<i>        b-&gt;unlink_delete();
+</I>&gt;<i>        delete b;
+</I>&gt;<i>        mm.reuse(reinterpret_cast&lt;MemoryManager::ReuseChunk*&gt;(b));
+</I>&gt;<i>      }
+</I>&gt;<i>      return 0;
+</I>&gt;<i>    }
+</I>&gt;<i> =============================
+</I>&gt;<i> 
+</I>&gt;<i> the reason why i m diving so deep in the source code is that i try to
+</I>&gt;<i> implement my own branching class derived from ViewValBranching. this class
+</I>&gt;<i> need the access to the space to branch not only to the variables.
+</I>&gt;<i> 
+</I>&gt;<i> the only way i see at the moment to do something like that is to use 
+</I>&gt;<i> the
+</I>&gt;<i> calling space as parameter for the branching call...
+</I>&gt;<i> like
+</I>&gt;<i> 
+</I>&gt;<i> unsigned int alt = b_fst-&gt;branch(this);
+</I>&gt;<i> 
+</I>&gt;<i> but therefor i ve got to understand the mechanisms done in 
+</I>&gt;<i> branchings().. ;)
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> additionally .. if you see another possibility to get access to the 
+</I>&gt;<i> home
+</I>&gt;<i> Space from a Branching derived class e.g. via the ViewArray etc. please 
+</I>&gt;<i> let me know!
+</I>&gt;<i> 
+</I>&gt;<i> the only thing i need is access in the &quot;branch(void)&quot; function in a
+</I>&gt;<i> ViewValBranching derived class (e.g. MyBranching) to the calling 
+</I>&gt;<i> &quot;fatherspace&quot; (a Space derived class.. e.g. MySpace). for simplification 
+</I>&gt;<i> at the moment it is a preliminary that the calling space is an instance 
+</I>&gt;<i> of MySpace if MyBranching is used.
+</I>&gt;<i> 
+</I>&gt;<i> hope you can help
+</I>&gt;<i> 
+</I>&gt;<i> at the end just for sure: is there only one Branching instance for a
+</I>&gt;<i> space? and this is not cloned etc?
+</I>&gt;<i> 
+</I>&gt;<i> Thanks a lot
+</I>&gt;<i> 
+</I>&gt;<i> Martin
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> 
+</I>&gt;<i> 
+</I>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000575.html">[gecode-users] access to Space during branching?
+</A></li>
+	<LI>Next message: <A HREF="000567.html">[gecode-users] Disjunction of linear expressions
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#576">[ date ]</a>
+              <a href="thread.html#576">[ thread ]</a>
+              <a href="subject.html#576">[ subject ]</a>
+              <a href="author.html#576">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

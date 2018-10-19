@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Gecode] design question
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20design%20question&In-Reply-To=%3C20050303194314.GA11639%40atlas.puj.edu.co%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000221.html">
+   <LINK REL="Next"  HREF="000223.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Gecode] design question</H1>
+    <B>Gustavo Gutierrez</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5BGecode%5D%20design%20question&In-Reply-To=%3C20050303194314.GA11639%40atlas.puj.edu.co%3E"
+       TITLE="[Gecode] design question">ggutierrez at atlas.puj.edu.co
+       </A><BR>
+    <I>Thu Mar  3 20:43:14 CET 2005</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000221.html">[Gecode] design question
+</A></li>
+        <LI>Next message: <A HREF="000223.html">[Gecode] propagators, events, updated variables and domain deltas
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#222">[ date ]</a>
+              <a href="thread.html#222">[ thread ]</a>
+              <a href="subject.html#222">[ subject ]</a>
+              <a href="author.html#222">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>On Thu, Mar 03, 2005 at 04:07:41PM +0100, Guido Tack wrote:
+&gt;<i> On Thursday 03 March 2005 15:51, Christian Schulte wrote:
+</I>&gt;<i> &gt; I am sorry but from what you say I cannot come up with any suggestion but
+</I>&gt;<i> &gt; to use a debugger...
+</I>&gt;<i> 
+</I>&gt;<i> &gt;From what I see here, you may have hit one of the main design decisions in 
+</I>&gt;<i> Gecode: When a space fails, it can be in an arbitrarily screwed up state. If 
+</I>&gt;<i> I understand you correctly, you perform some propagation, and if that fails, 
+</I>&gt;<i> you go on with some other propagation in the same space. If failing the first 
+</I>&gt;<i> propagation means that one variable is actually failed, you may not use the 
+</I>&gt;<i> space any longer. I think this can easily lead to segmentation faults, can't 
+</I>&gt;<i> it, Christian?
+</I>&gt;<i>
+</I>
+I will write a part of the corresponding propagator as a
+pseudo-algorithm:
+
+Suppose Bc is a propagator already implemented.
+I am interested on writing K3b which has the VarArray x.
+K3b&lt;Var,Bc&gt;::propagate(Space* home) {
+	VarArray&lt;Var&gt; clone(x);
+	for (int i = n; i--; ){
+		//new guess upper bound
+		double new_upper = clone[i].lower() + 2.0;
+		clone[i].upper(home,new_upper);
+		Bc narr(home,clone);
+		if(narr::propagate(home) == ES_FAILED)
+			x[i].lower(home,new_upper);
+	}
+}
+
+&gt;<i>From Guido's answer i infer the problem occurs because both propagators
+</I>share the same space. Another way to accomplish the same behavior is by creating a new Space and to put there the propagator. This will prevent the parent
+space to become failed or &quot;...in an arbitrarily screwed up state&quot;.
+
+I will try to write the function guessing some space primitives because
+i have not seen much about spaces.
+
+K3b&lt;Var,Bc&gt;::propagate(Space* home) {
+        VarArray&lt;Var&gt; clone(x);
+	for (int i = n; i--; ){
+		//compute a guess upper bound
+		double new_upper = clone[i].lower() + 2.0;
+		//Create a new space
+		Space test();
+		Bc narr(test,clone);
+		clone[i].upper(test,new_upper);
+		if(narr::propagate(test)==ES_FAILED)
+			x[i].lower(home,new_upper);
+	}
+}
+
+In this new version, the space 'test' is created to test the propagator
+(narr) in another independent space.  Note that the processes performed on test influence subsequent propagation on home. I don't know if this can work
+but i don't feel so good creating additional spaces in propagation steps.
+										All the best,
+										Gustavo Gutierrez
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000221.html">[Gecode] design question
+</A></li>
+	<LI>Next message: <A HREF="000223.html">[Gecode] propagators, events, updated variables and domain deltas
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#222">[ date ]</a>
+              <a href="thread.html#222">[ thread ]</a>
+              <a href="subject.html#222">[ subject ]</a>
+              <a href="author.html#222">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

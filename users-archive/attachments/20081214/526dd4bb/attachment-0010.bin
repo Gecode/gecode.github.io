@@ -1,0 +1,617 @@
+=== added file 'reminmax-unit-tests.cc'
+--- reminmax-unit-tests.cc	1970-01-01 00:00:00 +0000
++++ reminmax-unit-tests.cc	2008-12-14 15:22:16 +0000
+@@ -0,0 +1,612 @@
++#include "gecode/int.hh"
++#include "gecode/set.hh"
++
++#include <iostream>
++#include <string>
++#include <sstream>
++
++using namespace std;
++using namespace Gecode;
++
++class SandBox;
++
++struct Test
++{
++  // label of test
++  const string label;
++  // are we testing not min or not max
++  const bool use_min;
++  // expected result
++  const string expect;
++  Test(const char* l, bool b, const char* e)
++    : label(l), use_min(b), expect(e) {}
++  virtual void post(SandBox* s) const = 0;
++};
++
++struct SandBox : public Space
++{
++  IntVar I;
++  SetVar S;
++
++  SandBox(Test& test)
++    : I(this, 0, 20),
++      S(this, IntSet::empty, IntSet(0,20), 0, 20)
++  {
++    if (test.use_min)
++      min(this, S, I, false);
++    else
++      max(this, S, I, false);
++    test.post(this);
++  }
++
++  SandBox(bool share, SandBox& s) : Space(share, s)
++  { I.update(this, share, s.I);
++    S.update(this, share, s.S); }
++
++  virtual Space* copy(bool share)
++  { return new SandBox(share, *this); }
++
++  virtual void print(ostream& os)
++  { os << I << " " << S; }
++    
++};
++
++template <typename T>
++void run()
++{
++  T test;
++  cout << test.label << ": " << flush;
++  typename T::box_type box(test);
++  ostringstream out;
++  int status = box.status();
++  int props = box.propagators();
++  out << status << "/" << props << ": ";
++  box.print(out);
++  string got(out.str());
++  if (test.expect == got)
++    cout << "+" << endl;
++  else {
++    cout << "-" << endl
++	 << "  expected: " << test.expect << endl
++	 << "       got: " << got << endl;
++  }
++}
++
++// NotMinElement
++
++struct NotMin : public Test
++{
++  typedef SandBox box_type;
++  NotMin(const char* l, const char* e) : Test(l,true,e) {}
++};
++
++struct NotMin1 : public NotMin
++{
++  NotMin1() : NotMin("notmin: x0 empty",
++		     "1/0: [0..20] {}#(0)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet::empty);
++  }
++};
++
++struct NotMin2 : public NotMin
++{
++  NotMin2() : NotMin("notmin: max(x1) < min(x0.lub)",
++		     "1/0: [0..3] {}..{4..10}#(0,7)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 0, 3);
++    dom(box, box->S, SRT_SUB, IntSet(4, 10));
++  }
++};
++
++struct NotMin3 : public NotMin
++{
++  NotMin3() : NotMin("notmin: min(x1) > max(x0.lub)",
++		     "1/0: [5..10] {}..{0..4}#(0,5)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUB, IntSet(0, 4));
++  }
++};
++
++struct NotMin4 : public NotMin
++{
++  NotMin4() : NotMin("notmin: min(x0.glb) < min(x1)",
++		     "1/0: [5..10] {2}..{0..20}#(1,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUP, IntSet(2,2));
++  }
++};
++
++struct NotMin5 : public NotMin
++{
++  NotMin5() : NotMin("notmin: x1 det and = min(x0.lub)",
++		     "1/0: 2 {}..{3..20}#(0,18)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 2, 2);
++    dom(box, box->S, SRT_SUB, IntSet(2,20));
++  }
++};
++
++struct NotMin6 : public NotMin
++{
++  NotMin6() : NotMin("notmin: min(x0) decided",
++		     "1/0: {0..1,3..20} {2}..{2..20}#(1,19)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(2,20));
++    dom(box, box->S, SRT_SUP, IntSet(2,2));
++  }
++};
++
++struct NotMin7 : public NotMin
++{
++  NotMin7() : NotMin("notmin: x1 det and = min(x0.glb)",
++		     "1/1: 2 {2}..{0..20}#(2,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUP, 2, 2);
++    dom(box, box->I, 2, 2);
++  }
++};
++
++struct NotMin8 : public NotMin
++{
++  NotMin8() : NotMin("notmin: x1 det and = min(x0.glb) and only 1 unknown below",
++		     "1/0: 2 {0,2}..{0,2..20}#(2,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUP, 2, 2);
++    dom(box, box->S, SRT_DISJ, 1, 1);
++    dom(box, box->I, 2, 2);
++  }
++};
++
++struct NotMin9 : public NotMin
++{
++  NotMin9() : NotMin("notmin: dom(x1) and x0.lub disjoint",
++		     "1/0: {2,5..6} {}..{0,1,3,4,7}#(0,5)") {}
++  virtual void post(SandBox* box) const {
++    int _d1[] = { 2,5,6 };
++    IntSet d1(_d1,3);
++    int _d0[] = {0,1,3,4,7};
++    IntSet d0(_d0,5);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d0);
++  }
++};
++
++struct NotMin10 : public NotMin
++{
++  NotMin10() : NotMin("notmin: x1 > x0.cardMin-th largest of x0.lub",
++		      "1/0: {4,6..7} {}..{0,1,3,4,8,9}#(4,6)") {}
++  virtual void post(SandBox* box) const {
++    int _d1[] = { 4,6,7 };
++    IntSet d1(_d1,3);
++    int _d2[] = {0,1,3,4,8,9};
++    IntSet d2(_d2,6);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d2);
++    cardinality(box, box->S, 4, 6);
++  }
++};
++
++// NotMaxElement
++
++struct NotMax : public Test
++{
++  typedef SandBox box_type;
++  NotMax(const char* l, const char* e) : Test(l,false,e) {}
++};
++
++struct NotMax1 : public NotMax
++{
++  NotMax1() : NotMax("notmax: x0 empty",
++		     "1/0: [0..20] {}#(0)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet::empty);
++  }
++};
++
++struct NotMax2 : public NotMax
++{
++  NotMax2() : NotMax("notmax: max(x1) < min(x0.lub)",
++		     "1/0: [0..3] {}..{4..10}#(0,7)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 0, 3);
++    dom(box, box->S, SRT_SUB, IntSet(4, 10));
++  }
++};
++
++struct NotMax3 : public NotMax
++{
++  NotMax3() : NotMax("notmax: min(x1) > max(x0.lub)",
++		     "1/0: [5..10] {}..{0..4}#(0,5)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUB, IntSet(0, 4));
++  }
++};
++
++struct NotMax4 : public NotMax
++{
++  NotMax4() : NotMax("notmax: max(x0.glb) > max(x1)",
++		     "1/0: [0..5] {7}..{0..20}#(1,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 0, 5);
++    dom(box, box->S, SRT_SUP, IntSet(7,7));
++  }
++};
++
++struct NotMax5 : public NotMax
++{
++  NotMax5() : NotMax("notmax: x1 det and = max(x0.lub)",
++		     "1/0: 7 {}..{0..6}#(0,7)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 7, 7);
++    dom(box, box->S, SRT_SUB, IntSet(0,7));
++  }
++};
++
++struct NotMax6 : public NotMax
++{
++  NotMax6() : NotMax("notmax: max(x0) decided",
++		     "1/0: {0..16,18..20} {17}..{2..17}#(1,16)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUB, 2, 17);
++    dom(box, box->S, SRT_SUP, IntSet(17,17));
++  }
++};
++
++struct NotMax7 : public NotMax
++{
++  NotMax7() : NotMax("notmax: x1 det and = max(x0.glb)",
++		     "1/1: 10 {10}..{0..20}#(2,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUP, 10, 10);
++    dom(box, box->I, 10, 10);
++  }
++};
++
++struct NotMax8 : public NotMax
++{
++  NotMax8() : NotMax("notmax: x1 det and = max(x0.glb) and only 1 unknown above",
++		     "1/0: 7 {7,10}..{0..7,10}#(2,9)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->S, SRT_SUB, 0, 10);
++    dom(box, box->S, SRT_DISJ, 8, 9);
++    dom(box, box->S, SRT_SUP, 7, 7);
++    dom(box, box->I, 7, 7);
++  }
++};
++
++struct NotMax9 : public NotMax
++{
++  NotMax9() : NotMax("notmax: dom(x1) and x0.lub disjoint",
++		     "1/0: {2,5..6} {}..{0,1,3,4,7}#(0,5)") {}
++  virtual void post(SandBox* box) const {
++    int _d1[] = { 2,5,6 };
++    IntSet d1(_d1,3);
++    int _d0[] = {0,1,3,4,7};
++    IntSet d0(_d0,5);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d0);
++  }
++};
++
++struct NotMax10 : public NotMax
++{
++  NotMax10() : NotMax("notmax: x1 < x0.cardMin-th smallest of x0.lub",
++		      "1/0: [0..5] {}..{0..2,4..20}#(6,20)") {}
++  virtual void post(SandBox* box) const {
++    dom(box, box->I, 0, 5);
++    dom(box, box->S, SRT_DISJ, 3, 3);
++    cardinality(box, box->S, 6, 20);
++  }
++};
++
++// reified propagators
++
++struct ReSandBox;
++
++struct ReTest
++{
++  const string label;
++  const bool use_min;
++  const string expect;
++  ReTest(const char* l, bool b, const char* e)
++    : label(l), use_min(b), expect(e) {}
++  virtual void post(ReSandBox* s) const = 0;
++};
++
++struct ReSandBox : public Space
++{
++  IntVar I;
++  SetVar S;
++  BoolVar B;
++  ReSandBox(ReTest& test)
++    : I(this, 0, 20),
++      S(this, IntSet::empty, IntSet(0,20), 0, 20),
++      B(this,0,1)
++  {
++    if (test.use_min)
++      min(this, S, I, B);
++    else
++      max(this, S, I, B);
++    test.post(this);
++  }
++
++  ReSandBox(bool share, ReSandBox& s) : Space(share, s)
++  { I.update(this, share, s.I);
++    S.update(this, share, s.S);
++    B.update(this, share, s.B); }
++
++  virtual Space* copy(bool share)
++  { return new ReSandBox(share, *this); }
++
++  virtual void print(ostream& os)
++  { os << B << " " << I << " " << S; }
++};
++
++// ReMinElement
++
++struct ReMin : public ReTest
++{
++  typedef ReSandBox box_type;
++  ReMin(const char* l, const char* e) : ReTest(l,true,e) {}
++};
++
++struct ReMin1 : public ReMin
++{
++  ReMin1() : ReMin("remin: x0 empty",
++		   "1/0: 0 [0..20] {}#(0)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet::empty);
++  }
++};
++
++struct ReMin2 : public ReMin
++{
++  ReMin2() : ReMin("remin: max(x1) < min(x0.lub)",
++		   "1/0: 0 [0..3] {}..{4..10}#(0,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 0, 3);
++    dom(box, box->S, SRT_SUB, IntSet(4, 10));
++  }
++};
++
++struct ReMin3 : public ReMin
++{
++  ReMin3() : ReMin("remin: min(x1) > max(x0.lub)",
++		   "1/0: 0 [5..10] {}..{0..4}#(0,5)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUB, IntSet(0, 4));
++  }
++};
++
++struct ReMin4 : public ReMin
++{
++  ReMin4() : ReMin("remin: min(x0.glb) < min(x1)",
++		   "1/0: 0 [5..10] {2}..{0..20}#(1,20)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUP, IntSet(2,2));
++  }
++};
++
++struct ReMin5 : public ReMin
++{
++  ReMin5() : ReMin("remin: min(x0) decided and = x1 det",
++		   "1/0: 1 5 {5}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(5,5));
++    dom(box, box->I, 5, 5);
++  }
++};
++
++struct ReMin6 : public ReMin
++{
++  ReMin6() : ReMin("remin: min(x0) decided and != x1 det",
++		   "1/0: 0 6 {5}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(5,5));
++    dom(box, box->I, 6, 6);
++  }
++};
++
++struct ReMin7 : public ReMin
++{
++  ReMin7() : ReMin("remin: min(x0) decided and not in dom(x1)",
++		   "1/0: 0 {2,4,6..7,10} {5}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(5,5));
++    int _d[] = { 2,4,6,7,10 };
++    IntSet d(_d,5);
++    dom(box, box->I, d);
++  }
++};
++
++struct ReMin8 : public ReMin
++{
++  ReMin8() : ReMin("remin: dom(x1) and x0.lub disjoint",
++		   "1/0: 0 {2,5..6} {}..{0,1,3,4,7}#(0,5)") {}
++  virtual void post(ReSandBox* box) const {
++    int _d1[] = { 2,5,6 };
++    IntSet d1(_d1,3);
++    int _d0[] = {0,1,3,4,7};
++    IntSet d0(_d0,5);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d0);
++  }
++};
++
++struct ReMin9 : public ReMin
++{
++  ReMin9() : ReMin("remin: x1 > x0.cardMin-th largest of x0.lub",
++		   "1/0: 0 {4,6..7} {}..{0,1,3,4,8,9}#(4,6)") {}
++  virtual void post(ReSandBox* box) const {
++    int _d1[] = { 4,6,7 };
++    IntSet d1(_d1,3);
++    int _d2[] = {0,1,3,4,8,9};
++    IntSet d2(_d2,6);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d2);
++    cardinality(box, box->S, 4, 6);
++  }
++};
++
++// ReMaxElement
++
++struct ReMax : public ReTest
++{
++  typedef ReSandBox box_type;
++  ReMax(const char* l, const char* e) : ReTest(l,false,e) {}
++};
++
++struct ReMax1 : public ReMax
++{
++  ReMax1() : ReMax("remax: x0 empty",
++		   "1/0: 0 [0..20] {}#(0)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet::empty);
++  }
++};
++
++struct ReMax2 : public ReMax
++{
++  ReMax2() : ReMax("remax: max(x1) < min(x0.lub)",
++		   "1/0: 0 [0..3] {}..{4..10}#(0,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 0, 3);
++    dom(box, box->S, SRT_SUB, IntSet(4, 10));
++  }
++};
++
++struct ReMax3 : public ReMax
++{
++  ReMax3() : ReMax("remax: min(x1) > max(x0.lub)",
++		   "1/0: 0 [5..10] {}..{0..4}#(0,5)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 5, 10);
++    dom(box, box->S, SRT_SUB, IntSet(0, 4));
++  }
++};
++
++struct ReMax4 : public ReMax
++{
++  ReMax4() : ReMax("remax: max(x0.glb) > max(x1)",
++		   "1/0: 0 [0..5] {7}..{0..20}#(1,20)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->I, 0, 5);
++    dom(box, box->S, SRT_SUP, IntSet(7,7));
++  }
++};
++
++struct ReMax5 : public ReMax
++{
++  ReMax5() : ReMax("remax: max(x0) decided and = x1 det",
++		   "1/0: 1 11 {11}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(11,11));
++    dom(box, box->I, 11, 11);
++  }
++};
++
++struct ReMax6 : public ReMax
++{
++  ReMax6() : ReMax("remax: max(x0) decided and != x1 det",
++		   "1/0: 0 10 {11}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(11,11));
++    dom(box, box->I, 10, 10);
++  }
++};
++
++struct ReMax7 : public ReMax
++{
++  ReMax7() : ReMax("remax: max(x0) decided and not in dom(x1)",
++		   "1/0: 0 {2,4,6..7,10} {11}..{5..11}#(1,7)") {}
++  virtual void post(ReSandBox* box) const {
++    dom(box, box->S, SRT_SUB, IntSet(5, 11));
++    dom(box, box->S, SRT_SUP, IntSet(11,11));
++    int _d[] = { 2,4,6,7,10 };
++    IntSet d(_d,5);
++    dom(box, box->I, d);
++  }
++};
++
++struct ReMax8 : public ReMax
++{
++  ReMax8() : ReMax("remax: dom(x1) and x0.lub disjoint",
++		   "1/0: 0 {2,5..6} {}..{0,1,3,4,7}#(0,5)") {}
++  virtual void post(ReSandBox* box) const {
++    int _d1[] = { 2,5,6 };
++    IntSet d1(_d1,3);
++    int _d0[] = {0,1,3,4,7};
++    IntSet d0(_d0,5);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d0);
++  }
++};
++
++struct ReMax9 : public ReMax
++{
++  ReMax9() : ReMax("remax: x1 < x0.cardMin-th smallest of x0.lub",
++		   "1/0: 0 {0,2..3} {}..{0,1,3,4,8,9}#(4,6)") {}
++  virtual void post(ReSandBox* box) const {
++    int _d1[] = { 0,2,3 };
++    IntSet d1(_d1,3);
++    int _d2[] = {0,1,3,4,8,9};
++    IntSet d2(_d2,6);
++    dom(box, box->I, d1);
++    dom(box, box->S, SRT_SUB, d2);
++    cardinality(box, box->S, 4, 6);
++  }
++};
++
++int main()
++{
++  run<NotMin1>();
++  run<NotMin2>();
++  run<NotMin3>();
++  run<NotMin4>();
++  run<NotMin5>();
++  run<NotMin6>();
++  run<NotMin7>();
++  run<NotMin8>();
++  run<NotMin9>();
++  run<NotMin10>();
++  run<NotMax1>();
++  run<NotMax2>();
++  run<NotMax3>();
++  run<NotMax4>();
++  run<NotMax5>();
++  run<NotMax6>();
++  run<NotMax7>();
++  run<NotMax8>();
++  run<NotMax9>();
++  run<NotMax10>();
++  run<ReMin1>();
++  run<ReMin2>();
++  run<ReMin3>();
++  run<ReMin4>();
++  run<ReMin5>();
++  run<ReMin6>();
++  run<ReMin7>();
++  run<ReMin8>();
++  run<ReMin9>();
++  run<ReMax1>();
++  run<ReMax2>();
++  run<ReMax3>();
++  run<ReMax4>();
++  run<ReMax5>();
++  run<ReMax6>();
++  run<ReMax7>();
++  run<ReMax8>();
++  run<ReMax9>();
++  return 0;
++}
+

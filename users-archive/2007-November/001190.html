@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Views and serialization
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Views%20and%20serialization&In-Reply-To=%3CC003ACA6-6851-47EC-9297-67E020F1323A%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001189.html">
+   <LINK REL="Next"  HREF="001192.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Views and serialization</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Views%20and%20serialization&In-Reply-To=%3CC003ACA6-6851-47EC-9297-67E020F1323A%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] Views and serialization">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Fri Nov 23 23:04:56 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001189.html">[gecode-users] Views and serialization
+</A></li>
+        <LI>Next message: <A HREF="001192.html">[gecode-users] Views and serialization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1190">[ date ]</a>
+              <a href="thread.html#1190">[ thread ]</a>
+              <a href="subject.html#1190">[ subject ]</a>
+              <a href="author.html#1190">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi Gustavo,
+
+Gustavo Gutierrez wrote:
+
+&gt;<i> I am working on merging a space SC in a S. For this to work i need to
+</I>&gt;<i> create all actors available in SC into S. This is fine as the Space
+</I>&gt;<i> class has method to return an iterator on space actors.
+</I>
+Now that's an application of reflection that I hadn't thought of yet.   
+Nice.
+
+&gt;<i> I think the
+</I>&gt;<i> following code will do the job (SC is the source and S is the target):
+</I>&gt;<i>
+</I>&gt;<i> ---- inside the queens class
+</I>&gt;<i>
+</I>&gt;<i> VarMap * exportVars(void) {
+</I>&gt;<i>    VarMap *vmp = new VarMap();
+</I>&gt;<i>    Support::Symbol symb(&quot;root&quot;,true);
+</I>&gt;<i>    //vmp-&gt;registerArray(this,q,symb);
+</I>&gt;<i>    vmp-&gt;putArray(this,q,symb);
+</I>&gt;<i>    return vmp;
+</I>&gt;<i>  }
+</I>&gt;<i> ----
+</I>&gt;<i>
+</I>&gt;<i> --- outside the class
+</I>&gt;<i> void merge(Queens *target, Queens *source) {
+</I>&gt;<i>  // Print some useful information
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+</I>&gt;<i> target-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in source &quot; &lt;&lt;
+</I>&gt;<i> source-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>  // Ask source to build a Map of its variables
+</I>&gt;<i>  VarMap *vmp = target-&gt;exportVars();
+</I>&gt;<i>
+</I>&gt;<i>  // Create an iterator over home's actors
+</I>&gt;<i>  Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Serialization::Deserializer *ds = new Deserializer(target,  
+</I>&gt;<i> *vmp);
+</I>&gt;<i>
+</I>&gt;<i>  while (si()) {
+</I>&gt;<i>    ds-&gt;post(si.actor());
+</I>&gt;<i>    ++si;
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i>  // Test the number of actors in target
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+</I>&gt;<i> target-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i> }
+</I>&gt;<i> ----
+</I>&gt;<i>
+</I>&gt;<i> Is it right or did i miss something?
+</I>
+It's nearly right.  You need a fresh VarMap for the Deserializer.  The  
+idea is that the correspondence between variables in source and target  
+is purely by name.  So the code could look like this:
+
+void merge(Queens *target, Queens *source) {
+   VarMap *vmp = target-&gt;exportVars();
+   Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+
+   VarMap vm_target;
+   Gecode::Serialization::Deserializer ds(target, vm_target);
+
+   while (si()) {
+     ds.post(si.actor());
+     ++si;
+   }
+}
+
+&gt;<i> The other step is to create all variables in SC in S. For this part i
+</I>&gt;<i> have reading the documenttion and found that IntView and SetView
+</I>&gt;<i> classes have a method called spec that returns an specification of a
+</I>&gt;<i> variable. For the Queens problem this would be fine as all variables
+</I>&gt;<i> are IntVars so creating IntView is easy. The problem raises when i
+</I>&gt;<i> have a collection of variables of different types (an array of
+</I>&gt;<i> VarBase*) and need to get the specification for each one. Is there any
+</I>&gt;<i> way to do this?. Note that i don't know each variable's type so
+</I>&gt;<i> creating the corresponding view is not possible.
+</I>
+After iterating all the actors, vmp will contain all variables in  
+source, and you can iterate them using a VarMapIter.  For each  
+variable, you get a VarSpec that tells you what type the variable  
+has.  Furthermore, you can use the spec you get to recreate the  
+variable in target:
+
+for (VarMapIter vmi(*vmp); vmi(); ++vmi) {
+   ds.var(vmi.var());
+}
+
+If you want to link the variables you create to existing variables in  
+target, you just have to put the variables from target into vm_target  
+before iterating vmp.  Remember, variables are only identified by the  
+name you give them.
+
+&gt;<i> I prefer to ask this before doing some changes to my design, so sorry
+</I>&gt;<i> if my question sounds a little lazy.By the way, is there some example
+</I>&gt;<i> that use space serialization or reflection mechanisms?
+</I>
+You can have a look at the file test/int.cc, the cloneWithReflection  
+function might help you.  Please keep in mind that the reflection API  
+is still experimental, the interface might change.  In fact, if you  
+find things that don't work as you expect, or would like to have  
+additional functionality, please let us know!
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071123/2ff47e9c/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20071123/2ff47e9c/attachment.bin</A>&gt;
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001189.html">[gecode-users] Views and serialization
+</A></li>
+	<LI>Next message: <A HREF="001192.html">[gecode-users] Views and serialization
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1190">[ date ]</a>
+              <a href="thread.html#1190">[ thread ]</a>
+              <a href="subject.html#1190">[ subject ]</a>
+              <a href="author.html#1190">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

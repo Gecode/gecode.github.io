@@ -1,0 +1,306 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Consecutive instances of Gecode	produce	different results
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Consecutive%20instances%20of%20Gecode%0A%09produce%09different%20results&In-Reply-To=%3C018101ce5be4%2499dfdfa0%24cd9f9ee0%24%40kth.se%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003959.html">
+   <LINK REL="Next"  HREF="003969.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Consecutive instances of Gecode	produce	different results</H1>
+    <B>Christian Schulte</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Consecutive%20instances%20of%20Gecode%0A%09produce%09different%20results&In-Reply-To=%3C018101ce5be4%2499dfdfa0%24cd9f9ee0%24%40kth.se%3E"
+       TITLE="[gecode-users] Consecutive instances of Gecode	produce	different results">cschulte at kth.se
+       </A><BR>
+    <I>Tue May 28 22:47:42 CEST 2013</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003959.html">[gecode-users] Consecutive instances of Gecode produce	different results
+</A></li>
+        <LI>Next message: <A HREF="003969.html">[gecode-users] Consecutive instances of Gecode produce	different results
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3960">[ date ]</a>
+              <a href="thread.html#3960">[ thread ]</a>
+              <a href="subject.html#3960">[ subject ]</a>
+              <a href="author.html#3960">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Yes, that was also my suspicion: maybe it is a rounding issue.
+
+ 
+
+Best
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Tuesday, May 28, 2013 10:45 PM
+To: Pascal Francq
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Consecutive instances of Gecode produce
+different results
+
+ 
+
+The propagator looks ok (waiting for all variables to be assigned is
+definitely monotonic). I think I'd add some debugging output to your
+propagate function, printing the v and l arrays and the resulting Cost
+whenever it is computed successfully.  Perhaps that at least gives you an
+idea if the integer variables are already different or if it's the floating
+point computation.
+
+ 
+
+Cheers,
+
+Guido
+
+ 
+
+-- 
+
+Guido Tack
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+ 
+
+ 
+
+ 
+
+On 24/05/2013, at 6:51 AM, Pascal Francq (Mailing lists)
+&lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">mailing-list at francq.info</A>&gt; wrote:
+
+
+
+
+
+1. My propagator is very simple : It waits until all v and I are
+assigned. Then, it computes a cost function (to optimize) depending from
+these variables.
+
+
+//--------------------------------------------------------------------------
+---
+PropCost RChoquetPropagator::cost(const Space&amp;, const ModEventDelta&amp;) const
+{
+          return PropCost::binary(PropCost::HI);
+}
+
+//--------------------------------------------------------------------------
+---
+ExecStatus RChoquetPropagator::propagate(Space&amp; home, const ModEventDelta&amp;)
+{
+          if((!v.assigned())||(!I.assigned()))
+                      return (ES_NOFIX);
+          double Res(Compute(*this)); // Make some computation
+          if(Res&lt;-1.0||Res&gt;1.0)
+                      throw std::range_error(&quot;Cost function must be in
+[-1,1]&quot;);
+          if(Cost.eq(home,Res)==Float::ME_FLOAT_FAILED)
+                      return ES_FAILED;
+          return home.ES_SUBSUMED(*this);
+}
+
+2. I don't have program any parallel searches.
+
+I will check 22.9 in MPG (for the moment, I relaunch the program several
+times rather than calling a function multiple times in the same program
+run).
+
+Le 23/05/13 21:27, Christian Schulte a &#233;crit :
+
+
+
+Oh, I see. That means that there is most likely a bug (could also be ok) in
+your own propagator.
+
+Normally, a propagator must be monotonic: it never propagates more when it
+is run on bigger variables domains. Or with other words: the smaller the
+domains the more it propagates.
+
+Some propagation algorithms do not follow this which might lead to
+indeterminstic behavior as you observed. Check 22.9 in MPG.
+
+But most likely it is a bug in your propagator.
+
+Or do you use parallel search with several threads? This can also lead to
+non-deterministic behavior.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+
+
+-----Original Message-----
+From: Pascal Francq (Mailing lists) [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">mailing-list at francq.info</A>]
+Sent: Thursday, May 23, 2013 5:43 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: Re: [gecode-users] Consecutive instances of Gecode produce
+
+different
+
+
+
+results
+
+I use two Gecode::IntVarArray variables I and v. The code for the
+
+constraints and
+
+
+
+the branching is the following one :
+
+// Maximal value &lt;= 1
+rel(*this,1&gt;=sum(v));
+
+// Sum_(i)(2*v[i]-Sum_(j,j&lt;&gt;i)(I[i,j])&gt;=0
+for(size_t i=0;i&lt;4;i++)
+{
+  IntVar tmp[3];
+  size_t idx(0);
+  for(size_t j=0;j&lt;4;j++)
+  {
+     if(i==j)
+        continue;
+     if(idx)
+        tmp[idx]=expr(*this,tmp[idx-1]-abs(I[i,j]));
+     else
+        tmp[idx]=expr(*this,-abs(I[i,j]));
+     idx++;
+   }
+   rel(*this, 0&lt;=2*v[i]+tmp[idx-1]);
+}
+
+// Call my own propagator
+choquetPropagator(*this,Test,v,I,Cost);
+
+// Make the branch
+branch(*this,v,INT_VAR_SIZE_MIN(),INT_VAL_MIN());
+branch(*this,I,INT_VAR_SIZE_MIN(),INT_VAL_MIN());
+
+
+Le 23/05/13 17:23, Christian Schulte a &#233;crit :
+
+
+
+Could you tell us which constraints and which branchings you are using?
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+Behalf Of Pascal Francq (Mailing lists)
+Sent: Thursday, May 23, 2013 4:59 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Consecutive instances of Gecode produce
+different results
+
+Hi,
+I have a strange problem : I have a function that runs a Gecode
+instance for a particular problem. When I call the function several
+times, the result of the first run sometimes differs from those of the
+
+other
+
+
+
+ones.
+
+
+
+I have make some runs with valgrind, but I see nothing. Has anyone an
+idea where to search ?
+--
+Dr. Pascal Francq
+Belgium
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+Dr. Pascal Francq
+Belgium
+
+ 
+
+
+
+-- 
+Dr. Pascal Francq
+Belgium
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+ 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130528/8ed616e3/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130528/8ed616e3/attachment.html</A>&gt;
+</PRE>
+
+
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003959.html">[gecode-users] Consecutive instances of Gecode produce	different results
+</A></li>
+	<LI>Next message: <A HREF="003969.html">[gecode-users] Consecutive instances of Gecode produce	different results
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3960">[ date ]</a>
+              <a href="thread.html#3960">[ thread ]</a>
+              <a href="subject.html#3960">[ subject ]</a>
+              <a href="author.html#3960">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Extending integer and set variables to quantified	variables.
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20integer%20and%20set%20variables%20to%20quantified%0A%09variables.&In-Reply-To=%3C200603091509.34686.tack%40ps.uni-sb.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000410.html">
+   <LINK REL="Next"  HREF="000413.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Extending integer and set variables to quantified	variables.</H1>
+    <B>Guido Tack</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Extending%20integer%20and%20set%20variables%20to%20quantified%0A%09variables.&In-Reply-To=%3C200603091509.34686.tack%40ps.uni-sb.de%3E"
+       TITLE="[gecode-users] Extending integer and set variables to quantified	variables.">tack at ps.uni-sb.de
+       </A><BR>
+    <I>Thu Mar  9 15:09:34 CET 2006</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000410.html">[gecode-users] Extending integer and set variables to quantified	variables.
+</A></li>
+        <LI>Next message: <A HREF="000413.html">[gecode-users] Problem with he creation of a &quot;branching&quot; class
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#411">[ date ]</a>
+              <a href="thread.html#411">[ thread ]</a>
+              <a href="subject.html#411">[ subject ]</a>
+              <a href="author.html#411">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Hi!
+
+&gt;<i> I am trying to extend Gecode in order to make it solve
+</I>&gt;<i> quantified constraints. I would like to stop propagation and
+</I>&gt;<i> directly fail if a universally quantified variable is reduced.
+</I>&gt;<i> I began to have a look at the IntVar and SetVar classes to see
+</I>&gt;<i> how to extend them to add a quantifier information (ForAll our
+</I>&gt;<i> Exists), and have them raise an exception if the domain is
+</I>&gt;<i> reduced and the quantifier is ForAll.
+</I>
+If I understand you correctly, you want failure if some value is removed from 
+a variable's domain. You could easily write a propagator that implements 
+exactly this behaviour: as soon as it is invoked, it fails. This works 
+because propagators are only invoked if the domain of their variable changes.
+
+&gt;<i> I've been surprised to see that the IntVar class has only
+</I>&gt;<i> methods to read information on the variable domain, and that
+</I>&gt;<i> the only way to reduce it is : first to access it, using the
+</I>&gt;<i> method Variable(), to the IntVarImp object the IntVar
+</I>&gt;<i> contains, and only then to invoke the modifying methods to the
+</I>&gt;<i> IntVarImp itself (am I right on this point ?). 
+</I>
+You can create an IntView from an IntVar, without going through the IntVarImp. 
+Views provide the modifying operations. The rationale behind this design is 
+to separate between modelling and writing propagators. For modelling, you 
+only use variables. If you write propagators, you use views. One important 
+thing is that you may not simply modify a variables domain, you are also 
+responsible for checking whether this resulted in failure. If it did, you 
+must signal this to the space - otherwise, failure may be overlooked.
+
+&gt;<i> As the methods 
+</I>&gt;<i> of the IntVar class to read informations on the variable
+</I>&gt;<i> domain is only en encapsulation of the same IntVarDomain
+</I>&gt;<i> methods, why are the modifying methods not encapsulated in the
+</I>&gt;<i> IntVar class too ?
+</I>
+It's just a matter of clean interfaces. Vars and Views are supposed to be used 
+for different things, so we have different interfaces.
+
+&gt;<i> Another thing. I don't know if that would be useful for
+</I>&gt;<i> anything else than my issue, but would it be possible to
+</I>&gt;<i> declare the value access methode of the IntVar as virtual ?
+</I>
+In the current setup, this wouldn't make much sense. We want to keep as many 
+classes non-virtual as possible, as virtual method calls always have a 
+significant overhead. What exactly do you plan the overridden value access to 
+do? Maybe you could have a look at the Views concept we use in Gecode. This 
+allows us to write propagators in terms of &quot;slightly modified variables&quot;, and 
+maybe that's what you need.
+
+&gt;<i> All this would allow me to only extend gecode with my own
+</I>&gt;<i> classes, without having to add a single line in the original
+</I>&gt;<i> source code...
+</I>
+If you can express what you want using Views, it would be possible to use an 
+unaltered Gecode. Maybe you can tell us in a little more detail what you're 
+up to. We'll be glad to help you fit it in!
+
+Cheers,
+	Guido
+
+-- 
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000410.html">[gecode-users] Extending integer and set variables to quantified	variables.
+</A></li>
+	<LI>Next message: <A HREF="000413.html">[gecode-users] Problem with he creation of a &quot;branching&quot; class
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#411">[ date ]</a>
+              <a href="thread.html#411">[ thread ]</a>
+              <a href="subject.html#411">[ subject ]</a>
+              <a href="author.html#411">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://www.ps.uni-sb.de/mailman/listinfo/users">More information about the gecode-users
+mailing list</a><br>
+</body></html>

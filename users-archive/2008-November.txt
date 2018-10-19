@@ -1,0 +1,4041 @@
+From boysen at itu.dk  Wed Nov  5 22:24:33 2008
+From: boysen at itu.dk (Morten Boysen)
+Date: Wed, 05 Nov 2008 22:24:33 +0100
+Subject: [gecode-users] FlatZinc parser
+Message-ID: <49120F11.3070504@itu.dk>
+
+Hi
+
+As part of my thesis work, I have to build a configurator on top of 
+Gecode (A configurator simply finds the valid domains of all variables 
+in a CSP and allows assignment to variables). Since I need to read and 
+parse FlatZinc models, I have looked at the FlatZinc interface to Gecode 
+  to see if there is any code I can reuse.
+
+I found the FlatZincGecode class, which looks like it suits my needs 
+perfectly: I can access the different variable and do valid domain 
+computations on them. However, I have run into some problems with the 
+source, as I am struggling to find out how the following problems can 
+solved. Is there already functionality for it, or do I have to modify 
+the source:
+
+1) How do I as simple as possible create a FlatZincGecode instance from 
+a FlatZinc file? No propagation should occur or anything. The variables 
+should just simply be added to the FlatZincGecode instance along with 
+the constraints. This FlatZincGecode instance will then work as the 
+initial model.
+
+2) Is there a way to get the original name of a variable in the 
+FlatZincGecode instance and vice versa (I took a look at the Registry 
+class and it looked like it might have something to do with it, but I am 
+not sure).
+
+3) What is the easiest way to read the entire domain of an integer 
+variable (not just the currently valid values, but also all the invalid 
+ones). This includes cases where the domain is not a range?
+
+4) Is there a way to read only the values of variables that has support, 
+and the values that have no support?
+
+Kind regards,
+Morten Boysen
+
+
+
+From tack at ps.uni-sb.de  Thu Nov  6 08:03:07 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 6 Nov 2008 08:03:07 +0100
+Subject: [gecode-users] FlatZinc parser
+In-Reply-To: <49120F11.3070504@itu.dk>
+References: <49120F11.3070504@itu.dk>
+Message-ID: <2D91D921-9ED4-42E5-BA2D-1436DBA7342C@ps.uni-sb.de>
+
+Hi!
+
+Morten Boysen wrote:
+> 1) How do I as simple as possible create a FlatZincGecode instance  
+> from
+> a FlatZinc file? No propagation should occur or anything. The  
+> variables
+> should just simply be added to the FlatZincGecode instance along with
+> the constraints. This FlatZincGecode instance will then work as the
+> initial model.
+
+Look at main.cc.  It uses the (probably not very intuitively named)  
+function solve from the flatzinc.hh header:
+
+FZPrinter p;
+FlatZincGecode* fg = FlatZinc::solve(filename, p);
+
+> 2) Is there a way to get the original name of a variable in the
+> FlatZincGecode instance and vice versa (I took a look at the Registry
+> class and it looked like it might have something to do with it, but  
+> I am
+> not sure).
+
+The names are currently only represented indirectly as strings in the  
+FZPrinter, since they are only needed for output.  If you need the  
+names more explicitly, you'll have to transfer the intvarTable,  
+boolvarTable, and setvarTable from the FParseParm object (usually  
+called pp in the parser) to the FlatZincGecode object.  The tables map  
+names to the indices in the *VarArrays in FlatZincGecode.  In  
+flazinc.yxx, there's a function initfg that creates all the  
+variables.  In that function, you could create additional mappings in  
+FlatZincGecode for the names.
+
+> 3) What is the easiest way to read the entire domain of an integer
+> variable (not just the currently valid values, but also all the  
+> invalid
+> ones). This includes cases where the domain is not a range?
+
+That information is not maintained (as the solver never needs it  
+anywhere).  The closest you can get is the domain specification from  
+the FlatZinc, which might already be smaller than the domain in the  
+original MiniZinc.  Again, you'd have to memorize that somewhere in  
+FlatZincGecode, this should be possible in the newIntVar, newBoolVar,  
+newSetVar functions.
+
+> 4) Is there a way to read only the values of variables that has  
+> support,
+> and the values that have no support?
+
+Inconsistent values are removed from the domains.  The only way to do  
+this would be to store the original domain, and compute the difference  
+(which you can do using our iterators).
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081106/854f326c/attachment.bin>
+
+From boysen at itu.dk  Thu Nov  6 21:37:28 2008
+From: boysen at itu.dk (Morten Boysen)
+Date: Thu, 06 Nov 2008 21:37:28 +0100
+Subject: [gecode-users] FlatZinc parser
+In-Reply-To: <2D91D921-9ED4-42E5-BA2D-1436DBA7342C@ps.uni-sb.de>
+References: <49120F11.3070504@itu.dk>
+	<2D91D921-9ED4-42E5-BA2D-1436DBA7342C@ps.uni-sb.de>
+Message-ID: <49135588.8090308@itu.dk>
+
+Hi Guido
+
+Thank you very much for the reply and the hints on where to look. I do 
+have another question to you and the other developers of Gecode: What is 
+the best environment to develop for Gecode in?
+
+I have so far tried to use Visual Studio with the binary installation. 
+This works well if I am simply using the interface as provided by the 
+headers and dlls in the code.
+
+However, I believe that what I am trying now with the FlatZinc parser is 
+a bit unstandard and working with the FlatZinc parser code from within 
+Visual Studio (this includes building the code) has proven to be quite a 
+hassle. I have looked at the mailing list archive and I can see that 
+Christian Schulte uses Windows to develop, but the build is performed 
+using the GNU toolchain. What editors do you use, and how do you debug 
+when you build using the GNU toolchain?
+
+Do you have any recommendations on what is easiest if we are planning to 
+modify the FlatZinc to Gecode program?
+
+I apologize if this question has been answered before.
+
+Kind regards
+Morten Boysen
+
+Guido Tack skrev:
+> Hi!
+> 
+> Morten Boysen wrote:
+>> 1) How do I as simple as possible create a FlatZincGecode instance from
+>> a FlatZinc file? No propagation should occur or anything. The variables
+>> should just simply be added to the FlatZincGecode instance along with
+>> the constraints. This FlatZincGecode instance will then work as the
+>> initial model.
+> 
+> Look at main.cc.  It uses the (probably not very intuitively named) 
+> function solve from the flatzinc.hh header:
+> 
+> FZPrinter p;
+> FlatZincGecode* fg = FlatZinc::solve(filename, p);
+> 
+>> 2) Is there a way to get the original name of a variable in the
+>> FlatZincGecode instance and vice versa (I took a look at the Registry
+>> class and it looked like it might have something to do with it, but I am
+>> not sure).
+> 
+> The names are currently only represented indirectly as strings in the 
+> FZPrinter, since they are only needed for output.  If you need the names 
+> more explicitly, you'll have to transfer the intvarTable, boolvarTable, 
+> and setvarTable from the FParseParm object (usually called pp in the 
+> parser) to the FlatZincGecode object.  The tables map names to the 
+> indices in the *VarArrays in FlatZincGecode.  In flazinc.yxx, there's a 
+> function initfg that creates all the variables.  In that function, you 
+> could create additional mappings in FlatZincGecode for the names.
+> 
+>> 3) What is the easiest way to read the entire domain of an integer
+>> variable (not just the currently valid values, but also all the invalid
+>> ones). This includes cases where the domain is not a range?
+> 
+> That information is not maintained (as the solver never needs it 
+> anywhere).  The closest you can get is the domain specification from the 
+> FlatZinc, which might already be smaller than the domain in the original 
+> MiniZinc.  Again, you'd have to memorize that somewhere in 
+> FlatZincGecode, this should be possible in the newIntVar, newBoolVar, 
+> newSetVar functions.
+> 
+>> 4) Is there a way to read only the values of variables that has support,
+>> and the values that have no support?
+> 
+> Inconsistent values are removed from the domains.  The only way to do 
+> this would be to store the original domain, and compute the difference 
+> (which you can do using our iterators).
+> 
+> Cheers,
+>     Guido
+> 
+
+
+
+
+From tack at ps.uni-sb.de  Thu Nov  6 22:28:06 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Thu, 6 Nov 2008 22:28:06 +0100
+Subject: [gecode-users] FlatZinc parser
+In-Reply-To: <49135588.8090308@itu.dk>
+References: <49120F11.3070504@itu.dk>
+	<2D91D921-9ED4-42E5-BA2D-1436DBA7342C@ps.uni-sb.de>
+	<49135588.8090308@itu.dk>
+Message-ID: <6565413D-1646-417D-A902-48DD8F3BA24C@ps.uni-sb.de>
+
+Morten Boysen wrote:
+> Thank you very much for the reply and the hints on where to look. I do
+> have another question to you and the other developers of Gecode:  
+> What is
+> the best environment to develop for Gecode in?
+
+We actually use quite different setups, but none of us uses any IDE  
+(neither Eclipse, nor VS, nor XCode).  We're somehow used to working  
+with just an editor and a shell.
+
+> I have so far tried to use Visual Studio with the binary installation.
+> This works well if I am simply using the interface as provided by the
+> headers and dlls in the code.
+>
+> However, I believe that what I am trying now with the FlatZinc  
+> parser is
+> a bit unstandard and working with the FlatZinc parser code from within
+> Visual Studio (this includes building the code) has proven to be  
+> quite a
+> hassle.
+
+I think it should be possible (see below).
+
+> I have looked at the mailing list archive and I can see that
+> Christian Schulte uses Windows to develop, but the build is performed
+> using the GNU toolchain. What editors do you use, and how do you debug
+> when you build using the GNU toolchain?
+
+We don't actually use the GNU compiler toolchain on Windows, just the  
+Unix tools (make, perl, bash, grep, sed etc).  We compile using cl,  
+and debug using the VS debugger.
+
+> Do you have any recommendations on what is easiest if we are  
+> planning to
+> modify the FlatZinc to Gecode program?
+
+You will need at least some of the GNU tools, because the FlatZinc  
+parser is generated using flex/bison.  Compiling the generated stuff  
+shouldn't be too hard, actually, even directly from Visual Studio.   
+It's not a lot of files, you could just create a Visual Studio project  
+with all the files, and then compile and link against the binary  
+version of Gecode.
+
+Alternatively, just use Visual Studio as an editor if you're used to  
+it, and then compile the stuff using make on the command line.
+
+Cheers,
+	Guido
+
+
+
+
+From patrik.haslum at anu.edu.au  Thu Nov 13 05:05:43 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Thu, 13 Nov 2008 15:05:43 +1100
+Subject: [gecode-users] member function branching
+Message-ID: <491BA797.3020401@anu.edu.au>
+
+
+Hi,
+
+Looking for hints for an easy way to customise the branching strategy in 
+a solver implemented using Gecode, I searched through the archive of 
+this list and found the MemberFunctionBranch code (thread "staged 
+search", from early october this year).
+
+I found this piece of code very helpful in implementing my branching 
+strategy. (So many thanks to both the one who asked the original 
+question and the one who provided the answer!) Abstracted a bit, what 
+I've done is:
+
+In "my space" constructor:
+
+  MemberFunctionBranch<my space>::post(my_branching_function);
+
+in my_branching_function:
+
+  next_var = <some calculations to figure out next branching variable>;
+  IntVarArgs va(1);
+  va[0] = my_var_array[next_var];
+  branch(this, va, ..., ...);
+  MemberFunctionBranch<my space>::post(my_branching_function);
+  return ES_OK;
+
+That is, the branching function re-installs itself as the next branch 
+point after each "real" branching point (on a variable).
+
+However, when used with branch-and-bound search, this gives me incorrect 
+results: On one example problem, I get a sequence of solutions with 
+decreasing cost, 486, 344, 324, 304, after which it reports that there 
+are no more solutions. But if I start the same branch-and-bound search 
+with an initial upper bound of, say, 300, it finds a solution with cost 
+284 (which is what I think is optimal).
+
+Does anyone know why this happens?
+
+As an additional comment, something I would appreciate in future 
+versions of Gecode is some more "helpers" for custom branching, like the 
+MemberFunctionBranch. It may be possible to implement any branching 
+strategy with the current interface, but it's not exactly easy. Why not 
+a branch function/object that takes as argument a vector of constraint 
+expressions (the kind that you post by "post(tt(...))", don't remember 
+what the type is called) and branches by posting one of them? That would 
+make it easy to use a branching such as for example, "x < y" or "y > x", 
+which I don't know how to do (simply!) with the current interface.
+
+Regards,
+
+P at trik Haslum
+
+
+
+From zayenz at gmail.com  Thu Nov 13 09:36:10 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 13 Nov 2008 09:36:10 +0100
+Subject: [gecode-users] member function branching
+In-Reply-To: <491BA797.3020401@anu.edu.au>
+References: <491BA797.3020401@anu.edu.au>
+Message-ID: <63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+
+Hi,
+
+The MemberFunctionBranch that was posted earlier can not be used in
+the way that you propose. The problem is in the part:
+    next_var = <some calculations to figure out next branching variable>;
+Due to batch recomputation, the MemberFunctionBranch must not depend
+on the values of the variables, since the space in most cases has not
+been propagated yet. For example, changing the c-d-parameter should
+give you different results.
+
+While we are aware that some helpers for creating branchings would be
+good, we don't know how to implement a good and simple system yet. On
+the bright side, while a full custom branching (as in queen-armies.cc
+and black-hole.cc) might not be very pretty, they are fairly easy to
+write. The main parts are status, description, and commit. The parts
+are described below
+ - status
+    Checks whether there is anything left to do for this branching.
+Typically looks for an unassigned variable.
+ - description
+    Computes the actual branching to be done. How to do the branching
+is encoded in a BranchingDesc, and is returned. This description is
+often used in another Space than the Space it was constructed in, so
+the description can not contain a variable for example, only
+unchanging data such as variable-array indices.
+ - commit
+    Performs alternative number a of a BranchingDesc d. Note that
+commit cannot rely on anything about the variables - they may have
+fewer values, more values, or even an incomparable set of values to
+the values of the variables when the description was computed. This is
+due to batch recomputation and/or optimization.
+
+
+Hope this helps,
+Mikael
+
+On Thu, Nov 13, 2008 at 5:05 AM, Patrik Haslum <patrik.haslum at anu.edu.au> wrote:
+>
+> Hi,
+>
+> Looking for hints for an easy way to customise the branching strategy in
+> a solver implemented using Gecode, I searched through the archive of
+> this list and found the MemberFunctionBranch code (thread "staged
+> search", from early october this year).
+>
+> I found this piece of code very helpful in implementing my branching
+> strategy. (So many thanks to both the one who asked the original
+> question and the one who provided the answer!) Abstracted a bit, what
+> I've done is:
+>
+> In "my space" constructor:
+>
+>  MemberFunctionBranch<my space>::post(my_branching_function);
+>
+> in my_branching_function:
+>
+>  next_var = <some calculations to figure out next branching variable>;
+>  IntVarArgs va(1);
+>  va[0] = my_var_array[next_var];
+>  branch(this, va, ..., ...);
+>  MemberFunctionBranch<my space>::post(my_branching_function);
+>  return ES_OK;
+>
+> That is, the branching function re-installs itself as the next branch
+> point after each "real" branching point (on a variable).
+>
+> However, when used with branch-and-bound search, this gives me incorrect
+> results: On one example problem, I get a sequence of solutions with
+> decreasing cost, 486, 344, 324, 304, after which it reports that there
+> are no more solutions. But if I start the same branch-and-bound search
+> with an initial upper bound of, say, 300, it finds a solution with cost
+> 284 (which is what I think is optimal).
+>
+> Does anyone know why this happens?
+>
+> As an additional comment, something I would appreciate in future
+> versions of Gecode is some more "helpers" for custom branching, like the
+> MemberFunctionBranch. It may be possible to implement any branching
+> strategy with the current interface, but it's not exactly easy. Why not
+> a branch function/object that takes as argument a vector of constraint
+> expressions (the kind that you post by "post(tt(...))", don't remember
+> what the type is called) and branches by posting one of them? That would
+> make it easy to use a branching such as for example, "x < y" or "y > x",
+> which I don't know how to do (simply!) with the current interface.
+>
+> Regards,
+>
+> P at trik Haslum
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From pds at di.uevora.pt  Thu Nov 13 10:52:36 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Thu, 13 Nov 2008 09:52:36 +0000
+Subject: [gecode-users] Custom constraint to external progam
+Message-ID: <1226569956.5000.262.camel@rebirth>
+
+Hi!
+
+I have been experimenting Gecode for a while, and now I want to make
+something wich I don't know if its possible:
+
+I want to create a new "custom" constraint that allows to
+relate/constraint a variable with a function that receives two other
+gecode variables as parameters. This function will be something
+completely external to gecode, and evan c++, so, by the the this
+function is called the gecode variables that are used on it should
+already have some values assigned to it.
+
+Here's how it would look:
+
+post(this, cvars[0] < 5)
+post(this, cvars[1] < cvars[0] + 2)
+post(this, new_constraint(cvars[2], run_something(cvars[0], cvars[1])
+
+In this example, we could just assume that the "new_constraint" is used
+to make sure that cvars[2] "<" run_something(cvars[0],cvars[1]).
+
+Is this possible to do? If so, where should I start?
+
+Thank you all
+Pedro Salgueiro
+
+
+
+
+From pds at di.uevora.pt  Thu Nov 13 11:51:21 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Thu, 13 Nov 2008 10:51:21 +0000
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+Message-ID: <1226573481.5000.265.camel@rebirth>
+
+Ok, I think thats what I want to do.
+
+Is there any examples in Gecode that implement a custom propagator?
+
+Pedro Salgueiro
+
+On Thu, 2008-11-13 at 11:10 +0100, Mauricio Toro wrote:
+> Hello,
+> 
+> 
+> I made something similar once.
+> My approach was writting a propagator 
+> that waits until cvars[0] and cvars[1]
+> are assigned. Once they are assigned
+> it calls run_something.
+> 
+> 
+> I hope that helps,
+> 
+> 
+> Mauricio
+> 
+> 2008/11/13 Pedro Salgueiro <pds at di.uevora.pt>
+>         Hi!
+>         
+>         I have been experimenting Gecode for a while, and now I want
+>         to make
+>         something wich I don't know if its possible:
+>         
+>         I want to create a new "custom" constraint that allows to
+>         relate/constraint a variable with a function that receives two
+>         other
+>         gecode variables as parameters. This function will be
+>         something
+>         completely external to gecode, and evan c++, so, by the the
+>         this
+>         function is called the gecode variables that are used on it
+>         should
+>         already have some values assigned to it.
+>         
+>         Here's how it would look:
+>         
+>         post(this, cvars[0] < 5)
+>         post(this, cvars[1] < cvars[0] + 2)
+>         post(this, new_constraint(cvars[2], run_something(cvars[0],
+>         cvars[1])
+>         
+>         In this example, we could just assume that the
+>         "new_constraint" is used
+>         to make sure that cvars[2] "<"
+>         run_something(cvars[0],cvars[1]).
+>         
+>         Is this possible to do? If so, where should I start?
+>         
+>         Thank you all
+>         Pedro Salgueiro
+>         
+>         
+>         _______________________________________________
+>         Gecode users mailing list
+>         users at gecode.org
+>         https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+> 
+> -- 
+> Mauricio Toro Bermudez
+> Estudiante de Ingenier?a de Sistemas
+> Pontificia Universidad Javeriana, Colombia
+> 
+> Stagiare ? l'Ircam
+> 1, place Igor-Stravinsky 75004 Paris, 
+> France de 2008 ? 2009
+> 
+
+
+
+
+From zayenz at gmail.com  Thu Nov 13 12:05:07 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 13 Nov 2008 12:05:07 +0100
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <1226573481.5000.265.camel@rebirth>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+	<1226573481.5000.265.camel@rebirth>
+Message-ID: <63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+
+Hi,
+
+There are no examples currently in Gecode that implement custom propagators.
+
+There is an old post in the mailinglist with a custom
+propagator-example [1]. Note that there is a bug in the logic, the
+line
+    GECODE_ME_CHECK(x1.inter_r(home, u12, false));
+should be
+    GECODE_ME_CHECK(x0.inter_r(home, u12, false));
+I missed that on a variable-renaming before posting it.
+
+Hope that helps,
+Mikael
+
+[1] http://article.gmane.org/gmane.comp.lib.gecode.user/1276/
+
+
+On Thu, Nov 13, 2008 at 11:51 AM, Pedro Salgueiro <pds at di.uevora.pt> wrote:
+> Ok, I think thats what I want to do.
+>
+> Is there any examples in Gecode that implement a custom propagator?
+>
+> Pedro Salgueiro
+>
+> On Thu, 2008-11-13 at 11:10 +0100, Mauricio Toro wrote:
+>> Hello,
+>>
+>>
+>> I made something similar once.
+>> My approach was writting a propagator
+>> that waits until cvars[0] and cvars[1]
+>> are assigned. Once they are assigned
+>> it calls run_something.
+>>
+>>
+>> I hope that helps,
+>>
+>>
+>> Mauricio
+>>
+>> 2008/11/13 Pedro Salgueiro <pds at di.uevora.pt>
+>>         Hi!
+>>
+>>         I have been experimenting Gecode for a while, and now I want
+>>         to make
+>>         something wich I don't know if its possible:
+>>
+>>         I want to create a new "custom" constraint that allows to
+>>         relate/constraint a variable with a function that receives two
+>>         other
+>>         gecode variables as parameters. This function will be
+>>         something
+>>         completely external to gecode, and evan c++, so, by the the
+>>         this
+>>         function is called the gecode variables that are used on it
+>>         should
+>>         already have some values assigned to it.
+>>
+>>         Here's how it would look:
+>>
+>>         post(this, cvars[0] < 5)
+>>         post(this, cvars[1] < cvars[0] + 2)
+>>         post(this, new_constraint(cvars[2], run_something(cvars[0],
+>>         cvars[1])
+>>
+>>         In this example, we could just assume that the
+>>         "new_constraint" is used
+>>         to make sure that cvars[2] "<"
+>>         run_something(cvars[0],cvars[1]).
+>>
+>>         Is this possible to do? If so, where should I start?
+>>
+>>         Thank you all
+>>         Pedro Salgueiro
+>>
+>>
+>>         _______________________________________________
+>>         Gecode users mailing list
+>>         users at gecode.org
+>>         https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>>
+>>
+>> --
+>> Mauricio Toro Bermudez
+>> Estudiante de Ingenier?a de Sistemas
+>> Pontificia Universidad Javeriana, Colombia
+>>
+>> Stagiare ? l'Ircam
+>> 1, place Igor-Stravinsky 75004 Paris,
+>> France de 2008 ? 2009
+>>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From tias.guns at cs.kuleuven.be  Thu Nov 13 13:24:56 2008
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Thu, 13 Nov 2008 13:24:56 +0100
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+	<1226573481.5000.265.camel@rebirth>
+	<63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+Message-ID: <op.ukj4ruq3qa8xjr@demerzel.cs.kuleuven.be>
+
+Cool, I didn't know adding a custom propagator could be as easy as  
+including the implementation in your model directly !
+
+Note that in the example the 'propagate' function misses the ModEventDelta  
+parameter:
+line 57 should be:     virtual ExecStatus propagate(Space* home,  
+ModEventDelta);
+line 93 should be:   DisEq<View>::propagate(Space* home, ModEventDelta) {
+
+
+Thanks for the tip,
+Tias
+
+On Thu, 13 Nov 2008 12:05:07 +0100, Mikael Zayenz Lagerkvist  
+<zayenz at gmail.com> wrote:
+
+> Hi,
+>
+> There are no examples currently in Gecode that implement custom  
+> propagators.
+>
+> There is an old post in the mailinglist with a custom
+> propagator-example [1]. Note that there is a bug in the logic, the
+> line
+>     GECODE_ME_CHECK(x1.inter_r(home, u12, false));
+> should be
+>     GECODE_ME_CHECK(x0.inter_r(home, u12, false));
+> I missed that on a variable-renaming before posting it.
+>
+> Hope that helps,
+> Mikael
+>
+> [1] http://article.gmane.org/gmane.comp.lib.gecode.user/1276/
+>
+>
+> On Thu, Nov 13, 2008 at 11:51 AM, Pedro Salgueiro <pds at di.uevora.pt>  
+> wrote:
+>> Ok, I think thats what I want to do.
+>>
+>> Is there any examples in Gecode that implement a custom propagator?
+>>
+>> Pedro Salgueiro
+>>
+>> On Thu, 2008-11-13 at 11:10 +0100, Mauricio Toro wrote:
+>>> Hello,
+>>>
+>>>
+>>> I made something similar once.
+>>> My approach was writting a propagator
+>>> that waits until cvars[0] and cvars[1]
+>>> are assigned. Once they are assigned
+>>> it calls run_something.
+>>>
+>>>
+>>> I hope that helps,
+>>>
+>>>
+>>> Mauricio
+>>>
+>>> 2008/11/13 Pedro Salgueiro <pds at di.uevora.pt>
+>>>         Hi!
+>>>
+>>>         I have been experimenting Gecode for a while, and now I want
+>>>         to make
+>>>         something wich I don't know if its possible:
+>>>
+>>>         I want to create a new "custom" constraint that allows to
+>>>         relate/constraint a variable with a function that receives two
+>>>         other
+>>>         gecode variables as parameters. This function will be
+>>>         something
+>>>         completely external to gecode, and evan c++, so, by the the
+>>>         this
+>>>         function is called the gecode variables that are used on it
+>>>         should
+>>>         already have some values assigned to it.
+>>>
+>>>         Here's how it would look:
+>>>
+>>>         post(this, cvars[0] < 5)
+>>>         post(this, cvars[1] < cvars[0] + 2)
+>>>         post(this, new_constraint(cvars[2], run_something(cvars[0],
+>>>         cvars[1])
+>>>
+>>>         In this example, we could just assume that the
+>>>         "new_constraint" is used
+>>>         to make sure that cvars[2] "<"
+>>>         run_something(cvars[0],cvars[1]).
+>>>
+>>>         Is this possible to do? If so, where should I start?
+>>>
+>>>         Thank you all
+>>>         Pedro Salgueiro
+>>>
+>>>
+>>>         _______________________________________________
+>>>         Gecode users mailing list
+>>>         users at gecode.org
+>>>         https://www.gecode.org/mailman/listinfo/gecode-users
+>>>
+>>>
+>>>
+>>> --
+>>> Mauricio Toro Bermudez
+>>> Estudiante de Ingenier?a de Sistemas
+>>> Pontificia Universidad Javeriana, Colombia
+>>>
+>>> Stagiare ? l'Ircam
+>>> 1, place Igor-Stravinsky 75004 Paris,
+>>> France de 2008 ? 2009
+>>>
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+
+
+
+
+
+From pds at di.uevora.pt  Thu Nov 13 13:30:14 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Thu, 13 Nov 2008 12:30:14 +0000
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+	<1226573481.5000.265.camel@rebirth>
+	<63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+Message-ID: <1226579414.5000.273.camel@rebirth>
+
+Hi!
+
+That example seems very help-full and I think now I can do what I want. 
+
+Any way, I am not beeing able to build your example:
+
+teste1.cc: In static member function ?static Gecode::ExecStatus Extra::DisEq<View>::post(Gecode::Space*, View, View, View) [with View = Gecode::Int::IntView]?:
+teste1.cc:115:   instantiated from here
+teste1.cc:70: error: cannot allocate an object of abstract type ?Extra::DisEq<Gecode::Int::IntView>?
+teste1.cc:41: note:   because the following virtual functions are pure within ?Extra::DisEq<Gecode::Int::IntView>?:
+/usr/local/include/gecode/kernel/core.icc:719: note: 	virtual Gecode::ExecStatus Gecode::Propagator::propagate(Gecode::Space*, Gecode::ModEventDelta)
+make: *** [teste1] Error 1
+
+
+If I comment the following line in post method, it builds ok, but
+obviously it would not work ok:
+
+    //(void) new (home) DisEq<View>(home,x0,x1,x2);
+
+What am I doing wrong?
+
+Thank you.
+Pedro Salgueiro
+
+
+
+On Thu, 2008-11-13 at 12:05 +0100, Mikael Zayenz Lagerkvist wrote:
+> Hi,
+> 
+> There are no examples currently in Gecode that implement custom propagators.
+> 
+> There is an old post in the mailinglist with a custom
+> propagator-example [1]. Note that there is a bug in the logic, the
+> line
+>     GECODE_ME_CHECK(x1.inter_r(home, u12, false));
+> should be
+>     GECODE_ME_CHECK(x0.inter_r(home, u12, false));
+> I missed that on a variable-renaming before posting it.
+> 
+> Hope that helps,
+> Mikael
+> 
+> [1] http://article.gmane.org/gmane.comp.lib.gecode.user/1276/
+> 
+> 
+> On Thu, Nov 13, 2008 at 11:51 AM, Pedro Salgueiro <pds at di.uevora.pt> wrote:
+> > Ok, I think thats what I want to do.
+> >
+> > Is there any examples in Gecode that implement a custom propagator?
+> >
+> > Pedro Salgueiro
+> >
+> > On Thu, 2008-11-13 at 11:10 +0100, Mauricio Toro wrote:
+> >> Hello,
+> >>
+> >>
+> >> I made something similar once.
+> >> My approach was writting a propagator
+> >> that waits until cvars[0] and cvars[1]
+> >> are assigned. Once they are assigned
+> >> it calls run_something.
+> >>
+> >>
+> >> I hope that helps,
+> >>
+> >>
+> >> Mauricio
+> >>
+> >> 2008/11/13 Pedro Salgueiro <pds at di.uevora.pt>
+> >>         Hi!
+> >>
+> >>         I have been experimenting Gecode for a while, and now I want
+> >>         to make
+> >>         something wich I don't know if its possible:
+> >>
+> >>         I want to create a new "custom" constraint that allows to
+> >>         relate/constraint a variable with a function that receives two
+> >>         other
+> >>         gecode variables as parameters. This function will be
+> >>         something
+> >>         completely external to gecode, and evan c++, so, by the the
+> >>         this
+> >>         function is called the gecode variables that are used on it
+> >>         should
+> >>         already have some values assigned to it.
+> >>
+> >>         Here's how it would look:
+> >>
+> >>         post(this, cvars[0] < 5)
+> >>         post(this, cvars[1] < cvars[0] + 2)
+> >>         post(this, new_constraint(cvars[2], run_something(cvars[0],
+> >>         cvars[1])
+> >>
+> >>         In this example, we could just assume that the
+> >>         "new_constraint" is used
+> >>         to make sure that cvars[2] "<"
+> >>         run_something(cvars[0],cvars[1]).
+> >>
+> >>         Is this possible to do? If so, where should I start?
+> >>
+> >>         Thank you all
+> >>         Pedro Salgueiro
+> >>
+> >>
+> >>         _______________________________________________
+> >>         Gecode users mailing list
+> >>         users at gecode.org
+> >>         https://www.gecode.org/mailman/listinfo/gecode-users
+> >>
+> >>
+> >>
+> >> --
+> >> Mauricio Toro Bermudez
+> >> Estudiante de Ingenier?a de Sistemas
+> >> Pontificia Universidad Javeriana, Colombia
+> >>
+> >> Stagiare ? l'Ircam
+> >> 1, place Igor-Stravinsky 75004 Paris,
+> >> France de 2008 ? 2009
+> >>
+> >
+> >
+> > _______________________________________________
+> > Gecode users mailing list
+> > users at gecode.org
+> > https://www.gecode.org/mailman/listinfo/gecode-users
+> >
+> 
+> 
+> 
+
+
+
+
+From benoitlaurent at neuf.fr  Thu Nov 13 14:34:37 2008
+From: benoitlaurent at neuf.fr (benoitlaurent at neuf.fr)
+Date: Thu, 13 Nov 2008 08:34:37 -0500
+Subject: [gecode-users] 2-stage optimisation
+Message-ID: <8CB13ABB2A144A2-11C8-581@frr1-l16.sis.aol.com>
+
+Hello,
+I would like to realize a 2-stage optimisation. More precisely, a first phase using a branch-and-bound algorithm provides me with an upper bound that is used to constrain the second phase. 
+My question is the following: do I have to declare two spaces and two engines to achieve this or is there a better way of doing ?
+Thanks in advance.
+Beno?t Laurent
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081113/cd5654bc/attachment.htm>
+
+From cschulte at kth.se  Thu Nov 13 15:04:15 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 13 Nov 2008 15:04:15 +0100
+Subject: [gecode-users] 2-stage optimisation
+In-Reply-To: <8CB13ABB2A144A2-11C8-581@frr1-l16.sis.aol.com>
+References: <8CB13ABB2A144A2-11C8-581@frr1-l16.sis.aol.com>
+Message-ID: <002e01c94598$b6c61470$24523d50$@se>
+
+Hi,
+
+ 
+
+I would start with the two stage approach, there is nothing wrong with that as far as I can see.
+
+ 
+
+Cheers
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of benoitlaurent at neuf.fr
+Sent: Thursday, November 13, 2008 2:35 PM
+To: users at gecode.org
+Subject: [gecode-users] 2-stage optimisation
+
+ 
+
+Hello,
+I would like to realize a 2-stage optimisation. More precisely, a first phase using a branch-and-bound algorithm provides me with an upper bound that is used to constrain the second phase. 
+My question is the following: do I have to declare two spaces and two engines to achieve this or is there a better way of doing ?
+Thanks in advance.
+Beno?t Laurent
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081113/aa8a7cef/attachment.htm>
+
+From pds at di.uevora.pt  Thu Nov 13 15:52:46 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Thu, 13 Nov 2008 14:52:46 +0000
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <1226579414.5000.273.camel@rebirth>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+	<1226573481.5000.265.camel@rebirth>
+	<63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+	<1226579414.5000.273.camel@rebirth>
+Message-ID: <1226587966.5000.282.camel@rebirth>
+
+Hi!
+        
+With the help that Tias Guns give it builds ok:
+
+> Note that in the example the 'propagate' function misses the ModEventDelta  
+> parameter:
+> line 57 should be:     virtual ExecStatus propagate(Space* home,  
+> ModEventDelta);
+> line 93 should be:   DisEq<View>::propagate(Space* home, ModEventDelta) {
+
+Thank you all so much. Now I will work on it to understand how it works
+and solve my problem.
+
+Pedro Salgueiro
+
+On Thu, 2008-11-13 at 12:30 +0000, Pedro Salgueiro wrote:
+> Hi!
+> 
+> That example seems very help-full and I think now I can do what I want. 
+> 
+> Any way, I am not beeing able to build your example:
+> 
+> teste1.cc: In static member function ?static Gecode::ExecStatus Extra::DisEq<View>::post(Gecode::Space*, View, View, View) [with View = Gecode::Int::IntView]?:
+> teste1.cc:115:   instantiated from here
+> teste1.cc:70: error: cannot allocate an object of abstract type ?Extra::DisEq<Gecode::Int::IntView>?
+> teste1.cc:41: note:   because the following virtual functions are pure within ?Extra::DisEq<Gecode::Int::IntView>?:
+> /usr/local/include/gecode/kernel/core.icc:719: note: 	virtual Gecode::ExecStatus Gecode::Propagator::propagate(Gecode::Space*, Gecode::ModEventDelta)
+> make: *** [teste1] Error 1
+> 
+> 
+> If I comment the following line in post method, it builds ok, but
+> obviously it would not work ok:
+> 
+>     //(void) new (home) DisEq<View>(home,x0,x1,x2);
+> 
+> What am I doing wrong?
+> 
+> Thank you.
+> Pedro Salgueiro
+> 
+> 
+> 
+> On Thu, 2008-11-13 at 12:05 +0100, Mikael Zayenz Lagerkvist wrote:
+> > Hi,
+> > 
+> > There are no examples currently in Gecode that implement custom propagators.
+> > 
+> > There is an old post in the mailinglist with a custom
+> > propagator-example [1]. Note that there is a bug in the logic, the
+> > line
+> >     GECODE_ME_CHECK(x1.inter_r(home, u12, false));
+> > should be
+> >     GECODE_ME_CHECK(x0.inter_r(home, u12, false));
+> > I missed that on a variable-renaming before posting it.
+> > 
+> > Hope that helps,
+> > Mikael
+> > 
+> > [1] http://article.gmane.org/gmane.comp.lib.gecode.user/1276/
+> > 
+> > 
+> > On Thu, Nov 13, 2008 at 11:51 AM, Pedro Salgueiro <pds at di.uevora.pt> wrote:
+> > > Ok, I think thats what I want to do.
+> > >
+> > > Is there any examples in Gecode that implement a custom propagator?
+> > >
+> > > Pedro Salgueiro
+> > >
+> > > On Thu, 2008-11-13 at 11:10 +0100, Mauricio Toro wrote:
+> > >> Hello,
+> > >>
+> > >>
+> > >> I made something similar once.
+> > >> My approach was writting a propagator
+> > >> that waits until cvars[0] and cvars[1]
+> > >> are assigned. Once they are assigned
+> > >> it calls run_something.
+> > >>
+> > >>
+> > >> I hope that helps,
+> > >>
+> > >>
+> > >> Mauricio
+> > >>
+> > >> 2008/11/13 Pedro Salgueiro <pds at di.uevora.pt>
+> > >>         Hi!
+> > >>
+> > >>         I have been experimenting Gecode for a while, and now I want
+> > >>         to make
+> > >>         something wich I don't know if its possible:
+> > >>
+> > >>         I want to create a new "custom" constraint that allows to
+> > >>         relate/constraint a variable with a function that receives two
+> > >>         other
+> > >>         gecode variables as parameters. This function will be
+> > >>         something
+> > >>         completely external to gecode, and evan c++, so, by the the
+> > >>         this
+> > >>         function is called the gecode variables that are used on it
+> > >>         should
+> > >>         already have some values assigned to it.
+> > >>
+> > >>         Here's how it would look:
+> > >>
+> > >>         post(this, cvars[0] < 5)
+> > >>         post(this, cvars[1] < cvars[0] + 2)
+> > >>         post(this, new_constraint(cvars[2], run_something(cvars[0],
+> > >>         cvars[1])
+> > >>
+> > >>         In this example, we could just assume that the
+> > >>         "new_constraint" is used
+> > >>         to make sure that cvars[2] "<"
+> > >>         run_something(cvars[0],cvars[1]).
+> > >>
+> > >>         Is this possible to do? If so, where should I start?
+> > >>
+> > >>         Thank you all
+> > >>         Pedro Salgueiro
+> > >>
+> > >>
+> > >>         _______________________________________________
+> > >>         Gecode users mailing list
+> > >>         users at gecode.org
+> > >>         https://www.gecode.org/mailman/listinfo/gecode-users
+> > >>
+> > >>
+> > >>
+> > >> --
+> > >> Mauricio Toro Bermudez
+> > >> Estudiante de Ingenier?a de Sistemas
+> > >> Pontificia Universidad Javeriana, Colombia
+> > >>
+> > >> Stagiare ? l'Ircam
+> > >> 1, place Igor-Stravinsky 75004 Paris,
+> > >> France de 2008 ? 2009
+> > >>
+> > >
+> > >
+> > > _______________________________________________
+> > > Gecode users mailing list
+> > > users at gecode.org
+> > > https://www.gecode.org/mailman/listinfo/gecode-users
+> > >
+> > 
+> > 
+> > 
+> 
+> 
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From patrik.haslum at anu.edu.au  Thu Nov 13 15:37:12 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Fri, 14 Nov 2008 01:37:12 +1100
+Subject: [gecode-users] member function branching
+In-Reply-To: <63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+References: <491BA797.3020401@anu.edu.au>
+	<63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+Message-ID: <491C3B98.5000507@anu.edu.au>
+
+
+Mikael Zayenz Lagerkvist wrote:
+
+> The MemberFunctionBranch that was posted earlier can not be used in
+> the way that you propose. The problem is in the part:
+>     next_var = <some calculations to figure out next branching variable>;
+> Due to batch recomputation, the MemberFunctionBranch must not depend
+> on the values of the variables, since the space in most cases has not
+> been propagated yet.
+
+If that is the problem, then I can fix it by just setting the c-d 
+parameter to 1, correct?
+
+Alternatively, can I simply call space->status() in the branching 
+(member) function to ensure that propagation is done before looking at 
+current values of variables? (that would let recomputation still be done 
+in batches when there are several variable branch points between two 
+"figure out what to do next" branch points, although that doesn't happen 
+very often).
+
+Thanks,
+	/P at trik
+
+
+
+From zayenz at gmail.com  Fri Nov 14 07:02:56 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 14 Nov 2008 07:02:56 +0100
+Subject: [gecode-users] Custom constraint to external progam
+In-Reply-To: <op.ukj4ruq3qa8xjr@demerzel.cs.kuleuven.be>
+References: <1226569956.5000.262.camel@rebirth>
+	<a6b4b44a0811130210o42f91965h269559144c3b886a@mail.gmail.com>
+	<1226573481.5000.265.camel@rebirth>
+	<63b5c8b00811130305v6e25b041w1b87a93505f0bdb@mail.gmail.com>
+	<op.ukj4ruq3qa8xjr@demerzel.cs.kuleuven.be>
+Message-ID: <63b5c8b00811132202n456d3651w7e82dd37c9dc8e2d@mail.gmail.com>
+
+On Thu, Nov 13, 2008 at 1:24 PM, Tias Guns <tias.guns at cs.kuleuven.be> wrote:
+> Cool, I didn't know adding a custom propagator could be as easy as
+> including the implementation in your model directly !
+
+Adding a new propagator works just like adding a new branching. In
+contrast to branchings though, there are very few standard problems
+where a custom propagator is needed, so we don't have any examples
+with it. Note that the DisEq-propagator can be implemented using
+            IntVarArgs ia(2);
+            ia[0] = y; ia[1] = z;
+            IntVar index(*this, 0, 1);
+            element(*this, ia, index, x, ICL_DOM);
+so there is no immediate need to implement it before it is known to be
+a performance problem.
+
+
+> Note that in the example the 'propagate' function misses the ModEventDelta
+> parameter:
+> line 57 should be:     virtual ExecStatus propagate(Space* home,
+> ModEventDelta);
+> line 93 should be:   DisEq<View>::propagate(Space* home, ModEventDelta) {
+
+Yes, that is quite right, thanks. I haven't compiled this code since
+ModEventDelta's were introduced, so I forgot about them.
+
+
+> Thanks for the tip,
+
+You're welcome.
+
+
+/Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Fri Nov 14 14:22:45 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 14 Nov 2008 14:22:45 +0100
+Subject: [gecode-users] member function branching
+In-Reply-To: <491C3B98.5000507@anu.edu.au>
+References: <491BA797.3020401@anu.edu.au>	<63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+	<491C3B98.5000507@anu.edu.au>
+Message-ID: <009101c9465c$15c04ef0$4140ecd0$@se>
+
+Hi Patrik,
+
+cheating is illegal in Gecode ;-) Recomputation is absolutely essential for
+Gecode to be efficient! So switching off recomputation is not really an
+option. Then, the alternative also disables an important feature of
+recomputation (I also would expect that your idea does not work; in the best
+case it will run into an infinite loop, in the worst case it will just go
+boom): to make recomputation efficient, one keeps recording constraints
+(that is what commit does). Then one only computes a single fixpoint doing
+the actual propagation (that is what status does). Computing several
+fixpoint during recomputation makes things realy sloooooow.
+
+So you will have to bite the bullet and define a proper branching that
+returns a branching description that has recorded all information (in your
+case the values for that variables) your branching is going to need to redo
+a decision during recomputation. This is as Mikael has spelled it out in one
+the previous emails.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Patrik Haslum
+Sent: Thursday, November 13, 2008 3:37 PM
+To: Mikael Zayenz Lagerkvist
+Cc: users at gecode.org
+Subject: Re: [gecode-users] member function branching
+
+
+Mikael Zayenz Lagerkvist wrote:
+
+> The MemberFunctionBranch that was posted earlier can not be used in
+> the way that you propose. The problem is in the part:
+>     next_var = <some calculations to figure out next branching variable>;
+> Due to batch recomputation, the MemberFunctionBranch must not depend
+> on the values of the variables, since the space in most cases has not
+> been propagated yet.
+
+If that is the problem, then I can fix it by just setting the c-d 
+parameter to 1, correct?
+
+Alternatively, can I simply call space->status() in the branching 
+(member) function to ensure that propagation is done before looking at 
+current values of variables? (that would let recomputation still be done 
+in batches when there are several variable branch points between two 
+"figure out what to do next" branch points, although that doesn't happen 
+very often).
+
+Thanks,
+	/P at trik
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From pds at di.uevora.pt  Fri Nov 14 19:48:27 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Fri, 14 Nov 2008 18:48:27 +0000
+Subject: [gecode-users] Parallel search in Gecode
+Message-ID: <1226688507.5000.303.camel@rebirth>
+
+Hi,
+
+I saw in Gecode.org that there are some work going on to parallelize it.
+In what stage of development is that work? Is there already any version
+of Gecode that can make a parallel search?
+
+Pedro Salgueiro
+
+
+
+
+From cschulte at kth.se  Fri Nov 14 20:30:45 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 14 Nov 2008 20:30:45 +0100
+Subject: [gecode-users] Parallel search in Gecode
+In-Reply-To: <1226688507.5000.303.camel@rebirth>
+References: <1226688507.5000.303.camel@rebirth>
+Message-ID: <000901c9468f$80297cc0$807c7640$@se>
+
+Well there is no news since the messages on the mailing list. There is no
+publicly available prototype (still legal issues). Check my webpage ->
+papers about the approach that we are pursuing and that might show up in
+Gecode in one way or the other.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Pedro Salgueiro
+Sent: Friday, November 14, 2008 7:48 PM
+To: users at gecode.org
+Subject: [gecode-users] Parallel search in Gecode
+
+Hi,
+
+I saw in Gecode.org that there are some work going on to parallelize it.
+In what stage of development is that work? Is there already any version
+of Gecode that can make a parallel search?
+
+Pedro Salgueiro
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Wed Nov 19 05:06:27 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Wed, 19 Nov 2008 15:06:27 +1100
+Subject: [gecode-users] Starting with C++
+Message-ID: <400BE4F8-E440-427B-B61E-5464638318A9@cse.unsw.edu.au>
+
+Given that GecodeJ is no longer supported, I'm in the process of  
+migrating my code to C++ (and learning C++ in the process).
+
+It seems from my perusal of the examples that the C++ library works  
+slightly differently. Whereas in java the copy constructors for spaces  
+look like:
+
+   public Queens(Boolean share, Queens queens) {
+     super(share, queens);
+     n = queens.n;
+     q = new VarArray<IntVar>(this, share, queens.q);
+   }
+
+in C++ they look like:
+
+   /// Constructor for cloning \a s
+   Queens(bool share, Queens& s) : Example(share,s) {
+     q.update(this, share, s.q);
+   }
+
+The Java code explicitly contructs a new var array from the old. The C+ 
++ code seems to implicitly construct an empty var array and then call  
+'update' to copy the old into the new. Is that correct? Does every  
+kind of variable have an no-arg constructor? What is the rationale for  
+this choice? It seems that it allows you to construct variables in an  
+incompletely initialised state. Is that deliberate?
+
+Malcolm
+
+
+
+From patrik.haslum at anu.edu.au  Wed Nov 19 05:24:49 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Wed, 19 Nov 2008 15:24:49 +1100
+Subject: [gecode-users] member function branching
+In-Reply-To: <009101c9465c$15c04ef0$4140ecd0$@se>
+References: <491BA797.3020401@anu.edu.au>	<63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+	<491C3B98.5000507@anu.edu.au> <009101c9465c$15c04ef0$4140ecd0$@se>
+Message-ID: <49239511.3030206@anu.edu.au>
+
+
+Hi again,
+
+I've implemented a "proper" custom branching (with branching 
+descriptions etc). I've also run some experiments testing the effect of 
+changing the c-d parameter, and results are not what I expected.
+
+I used two different settings, c-d = 8 and c-d = 1, with both "basic" 
+branching (i.e., only calling the built-in "branch" function, for each 
+of two variable arrays, in the space constructor) and with my custom 
+branching. In *all* cases, using c-d = 8 does more propagation than 
+using c-d = 1! Runtimes do not always correlate with the amount of 
+propagation done, but, for the custom branching strategy at least, using 
+c-d = 1 is faster on all non-trivial problems. (A summary of the 
+experiment results is attached.)
+
+Is there an explanation for this result?
+
+cheers,
+			/P at trik
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: res-bcd-exp.txt
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/625fbcf2/attachment.txt>
+
+From tack at ps.uni-sb.de  Wed Nov 19 08:12:07 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 Nov 2008 08:12:07 +0100
+Subject: [gecode-users] member function branching
+In-Reply-To: <49239511.3030206@anu.edu.au>
+References: <491BA797.3020401@anu.edu.au>	<63b5c8b00811130036w18df2935p6684891a9c423ce8@mail.gmail.com>
+	<491C3B98.5000507@anu.edu.au> <009101c9465c$15c04ef0$4140ecd0$@se>
+	<49239511.3030206@anu.edu.au>
+Message-ID: <C2D95CFA-BCD7-4836-A664-3690D29C9BA1@ps.uni-sb.de>
+
+Patrik Haslum wrote:
+> I've implemented a "proper" custom branching (with branching  
+> descriptions etc). I've also run some experiments testing the effect  
+> of changing the c-d parameter, and results are not what I expected.
+>
+> I used two different settings, c-d = 8 and c-d = 1, with both  
+> "basic" branching (i.e., only calling the built-in "branch"  
+> function, for each of two variable arrays, in the space constructor)  
+> and with my custom branching. In *all* cases, using c-d = 8 does  
+> more propagation than using c-d = 1! Runtimes do not always  
+> correlate with the amount of propagation done, but, for the custom  
+> branching strategy at least, using c-d = 1 is faster on all non- 
+> trivial problems. (A summary of the experiment results is attached.)
+>
+> Is there an explanation for this result?
+
+At least part of it is the expected result.  Recomputation (which you  
+enable using c-d=8) trades memory for run-time: you need less memory,  
+because you store fewer copies, but you need more time, because you  
+have to recompute.  And recomputation of course involves propagation,  
+so the number of propagation steps is bound to increase.
+In practice, however, it turns out that recomputation often saves run- 
+time, first because copying takes time, too, and second because it is  
+optimistic: don't make too many copies, because the solution will be  
+where the heuristic predicts it, so many copies would never be used.   
+Of course, this is problem-specific, so it might just not work in your  
+case.
+All this is discussed in [1] and [2], if you want to read more about it.
+
+Cheers,
+	Guido
+
+[1] C. Schulte. Comparing trailing and copying for constraint  
+programming. In D. D. Schreye, editor,
+Proceedings of the Sixteenth International Conference on Logic  
+Programming, pages 275?289, Las Cruces,
+NM, USA, 1999. The MIT Press.
+
+[2] C. Schulte. Programming Constraint Services, volume 2302 of LNCS  
+(LNAI). Springer, 2002.
+
+
+
+
+From cschulte at kth.se  Wed Nov 19 11:24:08 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Wed, 19 Nov 2008 11:24:08 +0100
+Subject: [gecode-users] Starting with C++
+In-Reply-To: <400BE4F8-E440-427B-B61E-5464638318A9@cse.unsw.edu.au>
+References: <400BE4F8-E440-427B-B61E-5464638318A9@cse.unsw.edu.au>
+Message-ID: <000f01c94a30$f5cf50e0$e16df2a0$@se>
+
+Hi Malcolm,
+
+all your questions have a yes as the answer. Having the possibility to
+construct variables in an uninitialized state is actually quite useful
+(think of just declaring an integer variable without initializing, same
+thing). It might not useful during copying but in other situations (in
+particular think of an array of variables - such as IntVarArgs - you would
+like to pass as an argument, here you definitely do not want to create a
+variable first and then overwrite it).
+
+The reason why copying an array is not controlled by a copy constructor but
+by an update function is for two reasons: one, historical (because in
+earlier versions the constructor would have clashed with other constructors)
+and the other uniformity (for some data structures it is not very easy to
+define a constructor, but it is easy to have a separate update function).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Wednesday, November 19, 2008 5:06 AM
+To: gecode list
+Subject: [gecode-users] Starting with C++
+
+Given that GecodeJ is no longer supported, I'm in the process of  
+migrating my code to C++ (and learning C++ in the process).
+
+It seems from my perusal of the examples that the C++ library works  
+slightly differently. Whereas in java the copy constructors for spaces  
+look like:
+
+   public Queens(Boolean share, Queens queens) {
+     super(share, queens);
+     n = queens.n;
+     q = new VarArray<IntVar>(this, share, queens.q);
+   }
+
+in C++ they look like:
+
+   /// Constructor for cloning \a s
+   Queens(bool share, Queens& s) : Example(share,s) {
+     q.update(this, share, s.q);
+   }
+
+The Java code explicitly contructs a new var array from the old. The C+ 
++ code seems to implicitly construct an empty var array and then call  
+'update' to copy the old into the new. Is that correct? Does every  
+kind of variable have an no-arg constructor? What is the rationale for  
+this choice? It seems that it allows you to construct variables in an  
+incompletely initialised state. Is that deliberate?
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From trosky99 at gmail.com  Wed Nov 19 15:11:56 2008
+From: trosky99 at gmail.com (Alberto Delgado)
+Date: Wed, 19 Nov 2008 15:11:56 +0100
+Subject: [gecode-users] propagator - gist problem
+Message-ID: <e3e0e6e10811190611t63ec70a2r93e88f735e90b700@mail.gmail.com>
+
+Hi all,
+
+I'm  implementing a propagator and it works OK when i search for a solution
+with Search  but when it comes to Gist an exception is thrown:
+Space::clone: Attempt to invoke operation on failed space.
+
+This is what i do to modify the domain of the variable and check whether the
+modification is valid:
+
+  ModEvent me =  x1.gq(home,constantValue);
+  if (me_failed(me)){
+   return ES_FAILED;
+   }
+  return ES_FIX;
+
+I can assure  that the propagator returns ES_FAILED (a std::cout before the
+return ES_FAILED line) when it has to and doing some extra tests i found out
+that if instead of modifying the domain of x1 i just check whether the
+variable's domain is empty  the exception disappears.
+It would be something like:
+
+if(x1.max>constantValue)
+   return ES_FAILED;
+return ES_FIX;
+
+If some extra info about the propagator is needed just let me know, thanks
+in advance for any help.
+
+
+
+Best,
+
+Alberto
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/631f6aab/attachment.htm>
+
+From tack at ps.uni-sb.de  Wed Nov 19 15:41:27 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 Nov 2008 15:41:27 +0100
+Subject: [gecode-users] propagator - gist problem
+In-Reply-To: <e3e0e6e10811190611t63ec70a2r93e88f735e90b700@mail.gmail.com>
+References: <e3e0e6e10811190611t63ec70a2r93e88f735e90b700@mail.gmail.com>
+Message-ID: <3637EF89-3E41-4C4A-B790-B17DF5708512@ps.uni-sb.de>
+
+Alberto Delgado wrote:
+> I'm  implementing a propagator and it works OK when i search for a  
+> solution with Search  but when it comes to Gist an exception is  
+> thrown:
+> Space::clone: Attempt to invoke operation on failed space.
+>
+> This is what i do to modify the domain of the variable and check  
+> whether the modification is valid:
+>
+>   ModEvent me =  x1.gq(home,constantValue);
+>   if (me_failed(me)){
+>    return ES_FAILED;
+>    }
+>   return ES_FIX;
+>
+> I can assure  that the propagator returns ES_FAILED (a std::cout  
+> before the return ES_FAILED line) when it has to and doing some  
+> extra tests i found out that if instead of modifying the domain of  
+> x1 i just check whether the variable's domain is empty  the  
+> exception disappears.
+
+Are you sure that your propagator computes a fixed point?  If not, try  
+returning ES_NOFIX and see if the problem goes away.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/c56f1051/attachment.htm>
+
+From trosky99 at gmail.com  Wed Nov 19 16:36:07 2008
+From: trosky99 at gmail.com (Alberto Delgado)
+Date: Wed, 19 Nov 2008 16:36:07 +0100
+Subject: [gecode-users] propagator - gist problem
+In-Reply-To: <3637EF89-3E41-4C4A-B790-B17DF5708512@ps.uni-sb.de>
+References: <e3e0e6e10811190611t63ec70a2r93e88f735e90b700@mail.gmail.com>
+	<3637EF89-3E41-4C4A-B790-B17DF5708512@ps.uni-sb.de>
+Message-ID: <e3e0e6e10811190736r614f1207w6d0dac5420a994b2@mail.gmail.com>
+
+I tried ES_NOFIXED and it didn't work either but i'd like to be sure that
+what i understand about each ExecStatus of a propagator is correct:
+
+ES_SUBSUMED = The propagator can be entailed from the store so it is not
+necessary any more.
+ES_FAILED = The propagator failed.  A variable has an empty domain or some
+specific condition is fulfilled and according to me it is not possible to
+reach a feasible solution from here and i want the space to fail.
+ES_FIX = The propagator can't prune any more  values from the domains (has
+reached a fix point) but it is not entailed yet.
+ES_NOFIX = The propagator hasn't reached a fix point yet so I want it to be
+enqueued and run again before the space reaches a fix point.
+ES_OK = No clue.
+
+The problem i have with Gist occurs when the propagator fails,  it seems
+like i return fail but the space somehow doesn't fail at all.
+
+Best,
+
+Alberto
+
+
+
+
+
+
+
+On Wed, Nov 19, 2008 at 3:41 PM, Guido Tack <tack at ps.uni-sb.de> wrote:
+
+> Alberto Delgado wrote:
+>
+> I'm  implementing a propagator and it works OK when i search for a solution
+> with Search  but when it comes to Gist an exception is thrown:
+> Space::clone: Attempt to invoke operation on failed space.
+>
+> This is what i do to modify the domain of the variable and check whether
+> the modification is valid:
+>
+>   ModEvent me =  x1.gq(home,constantValue);
+>   if (me_failed(me)){
+>    return ES_FAILED;
+>    }
+>   return ES_FIX;
+>
+> I can assure  that the propagator returns ES_FAILED (a std::cout before the
+> return ES_FAILED line) when it has to and doing some extra tests i found out
+> that if instead of modifying the domain of x1 i just check whether the
+> variable's domain is empty  the exception disappears.
+>
+>
+> Are you sure that your propagator computes a fixed point?  If not, try
+> returning ES_NOFIX and see if the problem goes away.
+> Cheers,
+> Guido
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/24213702/attachment.htm>
+
+From tack at ps.uni-sb.de  Wed Nov 19 17:45:50 2008
+From: tack at ps.uni-sb.de (Guido Tack)
+Date: Wed, 19 Nov 2008 17:45:50 +0100
+Subject: [gecode-users] propagator - gist problem
+In-Reply-To: <e3e0e6e10811190736r614f1207w6d0dac5420a994b2@mail.gmail.com>
+References: <e3e0e6e10811190611t63ec70a2r93e88f735e90b700@mail.gmail.com>
+	<3637EF89-3E41-4C4A-B790-B17DF5708512@ps.uni-sb.de>
+	<e3e0e6e10811190736r614f1207w6d0dac5420a994b2@mail.gmail.com>
+Message-ID: <E34157FB-C86D-4BFD-B58D-D83F5B8BC849@ps.uni-sb.de>
+
+Alberto Delgado wrote:
+
+> I tried ES_NOFIXED and it didn't work either but i'd like to be sure  
+> that what i understand about each ExecStatus of a propagator is  
+> correct:
+>
+> ES_SUBSUMED = The propagator can be entailed from the store so it is  
+> not necessary any more.
+> ES_FAILED = The propagator failed.  A variable has an empty domain  
+> or some specific condition is fulfilled and according to me it is  
+> not possible to reach a feasible solution from here and i want the  
+> space to fail.
+> ES_FIX = The propagator can't prune any more  values from the  
+> domains (has reached a fix point) but it is not entailed yet.
+> ES_NOFIX = The propagator hasn't reached a fix point yet so I want  
+> it to be enqueued and run again before the space reaches a fix point.
+> ES_OK = No clue.
+
+ES_OK is used when we just want to distinguish between FAILED and not  
+FAILED, for example in branchings.  You can ignore it for propagators.
+
+> The problem i have with Gist occurs when the propagator fails,  it  
+> seems like i return fail but the space somehow doesn't fail at all.
+
+I'm not sure that is what happens.  I rather suspect a problem with  
+recomputation: when recomputing a node, Gist expects that node not to  
+be failed, because it wasn't failed when it was visited previously.   
+If you have nonmonotonic propagators, or wrongly report FIX when you  
+are not at a fixed point, this invariant does not hold any longer.
+The non-gui search engines have been adapted to be able to cope with  
+non-monotonic propagators, Gist apparently isn't fully compatible  
+yet.  If your propagator is nonmonotonic, you should think about  
+whether this is by design or by accident - in most cases, nonmonotonic  
+propagation is a bug.
+
+Cheers,
+	Guido
+
+
+
+
+From javimena at gmail.com  Wed Nov 19 22:28:53 2008
+From: javimena at gmail.com (=?ISO-8859-1?Q?Javier_Andr=E9s_Mena_Zapata?=)
+Date: Wed, 19 Nov 2008 16:28:53 -0500
+Subject: [gecode-users] Starting with C++
+In-Reply-To: <000f01c94a30$f5cf50e0$e16df2a0$@se>
+References: <400BE4F8-E440-427B-B61E-5464638318A9@cse.unsw.edu.au>
+	<000f01c94a30$f5cf50e0$e16df2a0$@se>
+Message-ID: <80537a260811191328t11a9809ao966c0471e4b8f8ba@mail.gmail.com>
+
+Hi Christian,
+
+If one of the reasons, is historical, and supossing you must/want to
+reimplement it, then would you implement Gecode using the same design?
+
+If no, then how would you implement it?
+
+Thanks,
+
+On Wed, Nov 19, 2008 at 5:24 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+> Hi Malcolm,
+>
+> all your questions have a yes as the answer. Having the possibility to
+> construct variables in an uninitialized state is actually quite useful
+> (think of just declaring an integer variable without initializing, same
+> thing). It might not useful during copying but in other situations (in
+> particular think of an array of variables - such as IntVarArgs - you would
+> like to pass as an argument, here you definitely do not want to create a
+> variable first and then overwrite it).
+>
+> The reason why copying an array is not controlled by a copy constructor but
+> by an update function is for two reasons: one, historical (because in
+> earlier versions the constructor would have clashed with other
+> constructors)
+> and the other uniformity (for some data structures it is not very easy to
+> define a constructor, but it is easy to have a separate update function).
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/<http://www.ict.kth.se/%7Ecschulte/>
+>
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+> Of Malcolm Ryan
+> Sent: Wednesday, November 19, 2008 5:06 AM
+> To: gecode list
+> Subject: [gecode-users] Starting with C++
+>
+> Given that GecodeJ is no longer supported, I'm in the process of
+> migrating my code to C++ (and learning C++ in the process).
+>
+> It seems from my perusal of the examples that the C++ library works
+> slightly differently. Whereas in java the copy constructors for spaces
+> look like:
+>
+>   public Queens(Boolean share, Queens queens) {
+>     super(share, queens);
+>     n = queens.n;
+>     q = new VarArray<IntVar>(this, share, queens.q);
+>   }
+>
+> in C++ they look like:
+>
+>   /// Constructor for cloning \a s
+>   Queens(bool share, Queens& s) : Example(share,s) {
+>     q.update(this, share, s.q);
+>   }
+>
+> The Java code explicitly contructs a new var array from the old. The C+
+> + code seems to implicitly construct an empty var array and then call
+> 'update' to copy the old into the new. Is that correct? Does every
+> kind of variable have an no-arg constructor? What is the rationale for
+> this choice? It seems that it allows you to construct variables in an
+> incompletely initialised state. Is that deliberate?
+>
+> Malcolm
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+"La buena educaci?n, es lo que nos queda cuando se nos olvida todo lo que
+nos han ense?ado"
+    ??
+
+Javier Andr?s Mena Zapata
+http://StrategicDecision.net/
++57 (2) 318 1000 ext. 2910
+Cali - Colombia
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/e169fa83/attachment.htm>
+
+From jsanchez at edaptive.com  Wed Nov 19 22:52:04 2008
+From: jsanchez at edaptive.com (Jorge Sanchez)
+Date: Wed, 19 Nov 2008 16:52:04 -0500
+Subject: [gecode-users] Issue with memory on Gecode/J
+Message-ID: <49248A84.9010709@edaptive.com>
+
+Hello,
+I am writing because I have been noticing a memory issue on Gecode/J. I 
+wanted to see if anyone has experienced something similar to what I am 
+seeing.
+
+I have an application which generates Gecode/J CLPs, compiles, loads, 
+and runs the solver on them. I am noticing that after I generate several 
+problems, my memory usage (looking at 'top') keeps increasing. I am 
+looking at the garbage collector output, using the -verbose:gc flag when 
+invoking the jvm, and it is reporting much lower memory usage than what 
+I see through top. I've also looked at profiler dumps using hprof, and 
+all the Java objects seem to be getting collected properly. I am assumed 
+this was an issue with the interface from Java to C, so i tried making 
+explicit calls to Space.delete() with no improvement. In an old post 
+(http://www.mozart-oz.org/pipermail/gecode-users/2006-March/001013.html), 
+I read there had been an issue with the Java wrapper, which leads me to 
+think, maybe there is something still amiss(?).
+
+Does anyone have any knowledge of what may be causing this?
+I am using Gecode/J 2.2.0 under Sun JVM 1.6.0_06-b02, in a 2.6.24 Linux 
+kernel.
+I also compiled the Gecode libraries with gcc 4.2.3
+
+-- 
+Jorge Sanchez
+Developer I
+EDAptive Computing, Inc.
+1245-G Lyons Road, Dayton OH 45458
+Phone: (937) 281-0783
+
+CONFIDENTIALITY NOTICE: The information transmitted is intended only for the person or entity to which it is addressed and may contain company proprietary and/or privileged material. Any review, retransmission, dissemination or other use of, or taking of any action in reliance upon, this information by persons or entities other than the intended recipient is prohibited. If you received this in error, please contact the sender and destroy any copies of this document.
+
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Thu Nov 20 00:46:14 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Thu, 20 Nov 2008 10:46:14 +1100
+Subject: [gecode-users] Issue with memory on Gecode/J
+In-Reply-To: <49248A84.9010709@edaptive.com>
+References: <49248A84.9010709@edaptive.com>
+Message-ID: <188DA78C-3E66-4FC4-99CE-C875B834A532@cse.unsw.edu.au>
+
+I've had similar experiences. Gecode/J has memory leaks in the  
+interface code. Since Gecode/J is no longer supported, I think you're  
+probably out of luck. (One of the reasons why I am migrating to C++).
+
+Malcolm
+
+On 20/11/2008, at 8:52 AM, Jorge Sanchez wrote:
+
+> Hello,
+> I am writing because I have been noticing a memory issue on Gecode/ 
+> J. I
+> wanted to see if anyone has experienced something similar to what I am
+> seeing.
+>
+> I have an application which generates Gecode/J CLPs, compiles, loads,
+> and runs the solver on them. I am noticing that after I generate  
+> several
+> problems, my memory usage (looking at 'top') keeps increasing. I am
+> looking at the garbage collector output, using the -verbose:gc flag  
+> when
+> invoking the jvm, and it is reporting much lower memory usage than  
+> what
+> I see through top. I've also looked at profiler dumps using hprof, and
+> all the Java objects seem to be getting collected properly. I am  
+> assumed
+> this was an issue with the interface from Java to C, so i tried making
+> explicit calls to Space.delete() with no improvement. In an old post
+> (http://www.mozart-oz.org/pipermail/gecode-users/2006-March/001013.html 
+> ),
+> I read there had been an issue with the Java wrapper, which leads me  
+> to
+> think, maybe there is something still amiss(?).
+>
+> Does anyone have any knowledge of what may be causing this?
+> I am using Gecode/J 2.2.0 under Sun JVM 1.6.0_06-b02, in a 2.6.24  
+> Linux
+> kernel.
+> I also compiled the Gecode libraries with gcc 4.2.3
+>
+> -- 
+> Jorge Sanchez
+> Developer I
+> EDAptive Computing, Inc.
+> 1245-G Lyons Road, Dayton OH 45458
+> Phone: (937) 281-0783
+>
+> CONFIDENTIALITY NOTICE: The information transmitted is intended only  
+> for the person or entity to which it is addressed and may contain  
+> company proprietary and/or privileged material. Any review,  
+> retransmission, dissemination or other use of, or taking of any  
+> action in reliance upon, this information by persons or entities  
+> other than the intended recipient is prohibited. If you received  
+> this in error, please contact the sender and destroy any copies of  
+> this document.
+>
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Thu Nov 20 07:16:35 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Thu, 20 Nov 2008 17:16:35 +1100
+Subject: [gecode-users] BoolExpr example
+Message-ID: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+
+Can you provide an example for using BoolExprs in C++? Do they  
+correspond to BExprs in Gecode/J? I want to construct long expressions  
+as:
+
+((A0 == B0) & (A1 == B1) & ... & (An == Bn)) --> ((B0 == C0) & (B1 ==  
+C1) & ... & (Bn == Cn))
+
+Malcolm
+
+
+
+From zayenz at gmail.com  Thu Nov 20 07:43:19 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 20 Nov 2008 07:43:19 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+
+Hi,
+
+The symmetry-breaking in examples/black-hole.cc constructs an
+expression of the form
+    ((X1 < X2) & (Y1 < Y2) & (X2 < X3) & (Y2 < Y3)) -> (X2 < Y2)
+which might give you some inspiration.
+
+In general, the BoolExprs in Gecode are designed to be used in
+post-expressions (using operator overloading), while the BExprs in
+Gecode/J were designed to construct the expressions explicitly. It
+should be possible to use the BoolExprs in Gecode to build an
+expression incrementally, but I have never tried it, so I can't help
+with that.
+
+Hope this helps,
+Mikael
+
+On Thu, Nov 20, 2008 at 7:16 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> Can you provide an example for using BoolExprs in C++? Do they
+> correspond to BExprs in Gecode/J? I want to construct long expressions
+> as:
+>
+> ((A0 == B0) & (A1 == B1) & ... & (An == Bn)) --> ((B0 == C0) & (B1 ==
+> C1) & ... & (Bn == Cn))
+>
+> Malcolm
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Thu Nov 20 08:30:03 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 20 Nov 2008 08:30:03 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+
+On Thu, Nov 20, 2008 at 7:52 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> I'm not sure I understand that code. Would you mind explaining in more
+> detail?
+
+First of all, the loops in the code looping through layers can be
+ignored for exposition, since they are there to handle the cases when
+cards are in the bottom, middle, or top of a pile of three cards.
+Assume that we have two piles of card (X1, X2, X3) and (Y1, Y2, Y3)
+where Xv and Xv are integer variables, and where X2 and Y2 have the
+same function for purposes of the game. The values of the cards
+represent when they are played (note that I mistranslated the
+condition in my earlier post, X1 and Y1 should be exchanged, as should
+X3 and Y3). Now the code can be simplified to
+  // cond is the condition for the symmetry
+   BoolVarArgs ba(4);
+   // Both cards played after the ones on top of them
+   ba[0] = post(this, ~(X2 < Y3));
+   ba[1] = post(this, ~(Y2 < X3));
+   // Both cards played before the ones under them
+   ba[2] = post(this, ~(Y1 < X2));
+   ba[3] = post(this, ~(X1 < Y2));
+   // Cond holds when all the above holds
+   BoolVar cond(this, 0, 1);
+   rel(this, BOT_AND, ba, cond);
+
+   // If cond is fulfilled, then we can order the cards
+   // cond -> (X2 < Y2)
+   post(this, tt(!cond || ~(X2 < Y2)));
+
+The ba-array holds a set Boolean variables for reified relations, and
+the rel-function takes the conjunction of these. The final post just
+uses the standard unfolding of an implication since there is no
+implication-operator. You can also use the implication-function
+together with post to get it:
+   post(this, tt(imp(cond, ~(X2 < Y2))));
+
+
+> How do you do reified constraints in Gecode?
+
+By using the reified post-functions, such as
+   rel(this, x, IRT_LE, y, b);
+with x and y integer variables and b a Boolean control variable. In
+MiniModel expressions, you can use the unary tilde-operator to reify
+an expression:
+   BoolVar b = post(this, ~(x < y));
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Thu Nov 20 08:32:32 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2008 08:32:32 +0100
+Subject: [gecode-users] Starting with C++
+In-Reply-To: <80537a260811191328t11a9809ao966c0471e4b8f8ba@mail.gmail.com>
+References: <400BE4F8-E440-427B-B61E-5464638318A9@cse.unsw.edu.au>	<000f01c94a30$f5cf50e0$e16df2a0$@se>
+	<80537a260811191328t11a9809ao966c0471e4b8f8ba@mail.gmail.com>
+Message-ID: <000301c94ae2$27430de0$75c929a0$@se>
+
+I?d keep the design: it makes update explicit and has the advantage that it
+can be done outside the intializer list. Quite often, propagators do some
+cleanup before they call update on their datastructures.
+
+ 
+
+Christian
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Javier Andr?s Mena Zapata
+Sent: Wednesday, November 19, 2008 10:29 PM
+To: gecode list
+Subject: Re: [gecode-users] Starting with C++
+
+ 
+
+Hi Christian,
+
+If one of the reasons, is historical, and supossing you must/want to
+reimplement it, then would you implement Gecode using the same design?
+
+If no, then how would you implement it?
+
+Thanks,
+
+On Wed, Nov 19, 2008 at 5:24 AM, Christian Schulte <cschulte at kth.se> wrote:
+
+Hi Malcolm,
+
+all your questions have a yes as the answer. Having the possibility to
+construct variables in an uninitialized state is actually quite useful
+(think of just declaring an integer variable without initializing, same
+thing). It might not useful during copying but in other situations (in
+particular think of an array of variables - such as IntVarArgs - you would
+like to pass as an argument, here you definitely do not want to create a
+variable first and then overwrite it).
+
+The reason why copying an array is not controlled by a copy constructor but
+by an update function is for two reasons: one, historical (because in
+earlier versions the constructor would have clashed with other constructors)
+and the other uniformity (for some data structures it is not very easy to
+define a constructor, but it is easy to have a separate update function).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+<http://www.ict.kth.se/%7Ecschulte/> 
+
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Malcolm Ryan
+Sent: Wednesday, November 19, 2008 5:06 AM
+To: gecode list
+Subject: [gecode-users] Starting with C++
+
+Given that GecodeJ is no longer supported, I'm in the process of
+migrating my code to C++ (and learning C++ in the process).
+
+It seems from my perusal of the examples that the C++ library works
+slightly differently. Whereas in java the copy constructors for spaces
+look like:
+
+  public Queens(Boolean share, Queens queens) {
+    super(share, queens);
+    n = queens.n;
+    q = new VarArray<IntVar>(this, share, queens.q);
+  }
+
+in C++ they look like:
+
+  /// Constructor for cloning \a s
+  Queens(bool share, Queens& s) : Example(share,s) {
+    q.update(this, share, s.q);
+  }
+
+The Java code explicitly contructs a new var array from the old. The C+
++ code seems to implicitly construct an empty var array and then call
+'update' to copy the old into the new. Is that correct? Does every
+kind of variable have an no-arg constructor? What is the rationale for
+this choice? It seems that it allows you to construct variables in an
+incompletely initialised state. Is that deliberate?
+
+Malcolm
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+-- 
+"La buena educaci?n, es lo que nos queda cuando se nos olvida todo lo que
+nos han ense?ado"
+    ??
+
+Javier Andr?s Mena Zapata
+http://StrategicDecision.net/
++57 (2) 318 1000 ext. 2910
+Cali - Colombia
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081120/d2897134/attachment.htm>
+
+From patrik.haslum at anu.edu.au  Thu Nov 20 09:26:15 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Thu, 20 Nov 2008 19:26:15 +1100
+Subject: [gecode-users] compiler memory problem
+Message-ID: <49251F27.8010802@anu.edu.au>
+
+
+Hi,
+
+I've written a custom propagator. It is based on one of the existing 
+templates, Gecode:BinaryPropagator, with an array of boolean views as 
+the template argument. It works, but the compiler (g++ 4.1.2) is having 
+serious trouble with the code: if I try to use any compiler optimisation 
+(that is, anything other than -O0), the compiler eats up all memory 
+(including swap) and never finishes. I know that using many and/or 
+nested templates tends to increase compiler memory use, but this case is 
+worse than anything I've encountered before. Is this a known problem? 
+(perhaps fixed in some more recent g++ compiler). Is there some way to 
+work around it? (other than disabling compiler optimisation, because 
+that *really* slows down the solver). The only other option I can think 
+of is to write the propagator from scratch, without relying on any base 
+template.
+
+Attached is a simplified version of the code (it doesn't contain any 
+actual functionality, just the minimum that is needed to cause the 
+compiler to behave this way).
+
+Thanks,
+			/P at trik
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: proptest.cc
+Type: text/x-c++src
+Size: 2224 bytes
+Desc: not available
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081120/e141d3e0/attachment.cc>
+
+From cschulte at kth.se  Thu Nov 20 09:45:25 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 20 Nov 2008 09:45:25 +0100
+Subject: [gecode-users] compiler memory problem
+In-Reply-To: <49251F27.8010802@anu.edu.au>
+References: <49251F27.8010802@anu.edu.au>
+Message-ID: <000301c94aec$5670a550$0351eff0$@se>
+
+Hi Patrik,
+
+Going by your example code, this should very definitely not pose any problem, Gecode itself uses way more elaborate constructions with patterns.
+
+One reason for the problem could be the part you do not tell us: if you have code that uses a lot of inlining, then that could be a problem.
+
+
+Otherwise, that particular version of gcc might be at fault. As I do not use gcc that much I don't know whether this version is a bad one.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf Of Patrik Haslum
+Sent: Thursday, November 20, 2008 9:26 AM
+To: users at gecode.org
+Subject: [gecode-users] compiler memory problem
+
+
+Hi,
+
+I've written a custom propagator. It is based on one of the existing templates, Gecode:BinaryPropagator, with an array of boolean views as the template argument. It works, but the compiler (g++ 4.1.2) is having serious trouble with the code: if I try to use any compiler optimisation (that is, anything other than -O0), the compiler eats up all memory (including swap) and never finishes. I know that using many and/or nested templates tends to increase compiler memory use, but this case is worse than anything I've encountered before. Is this a known problem? 
+(perhaps fixed in some more recent g++ compiler). Is there some way to work around it? (other than disabling compiler optimisation, because that *really* slows down the solver). The only other option I can think of is to write the propagator from scratch, without relying on any base template.
+
+Attached is a simplified version of the code (it doesn't contain any actual functionality, just the minimum that is needed to cause the compiler to behave this way).
+
+Thanks,
+			/P at trik
+
+
+
+
+From tias.guns at cs.kuleuven.be  Thu Nov 20 10:31:58 2008
+From: tias.guns at cs.kuleuven.be (Tias Guns)
+Date: Thu, 20 Nov 2008 10:31:58 +0100
+Subject: [gecode-users] compiler memory problem
+In-Reply-To: <000301c94aec$5670a550$0351eff0$@se>
+References: <49251F27.8010802@anu.edu.au> <000301c94aec$5670a550$0351eff0$@se>
+Message-ID: <op.ukwvfk02qa8xjr@demerzel.cs.kuleuven.be>
+
+Hey,
+
+I'm running gcc 4.1.3 and the code provided compiles and runs without  
+problems. Maybe check the compile flags used (like -finline-limit=3000),  
+those are the same flags as used for the examples (at least in version  
+2.0.1).
+
+
+Greetings,
+Tias
+
+[tias at demerzel]test make
+g++ /home/tias/local/src/gecode-2.2.0/examples/support/options.o  
+/home/tias/local/src/gecode-2.2.0/examples/support/example.o -L.  
+-L/home/tias/local/src/gecode-2.2.0 -I.  
+-I/home/tias/local/src/gecode-2.2.0 -DNDEBUG -fvisibility=hidden -fPIC  
+-Wextra -Wall -pipe -ggdb -O3 -fno-strict-aliasing -finline-limit=3000  
+-ffast-math -mtune=i686 -lgecodesearch -lgecodeint -lgecodekernel  
+-lgecodesupport -lgecodegist     test.cc   -o test
+test.cc:51: warning: unused parameter ?home?
+test.cc:51: warning: unused parameter ?med?
+test.cc:87: warning: unused parameter ?argc?
+test.cc:87: warning: unused parameter ?argv?
+[tias at demerzel]test ls
+Makefile  test*  test.cc
+[tias at demerzel]test ./test
+1
+[tias at demerzel]test gcc -v
+Using built-in specs.
+Target: i486-linux-gnu
+Configured with: ../src/configure -v  
+--enable-languages=c,c++,fortran,objc,obj-c++,treelang --prefix=/usr  
+--enable-shared --with-system-zlib --libexecdir=/usr/lib  
+--without-included-gettext --enable-threads=posix --enable-nls  
+--with-gxx-include-dir=/usr/include/c++/4.1.3 --program-suffix=-4.1  
+--enable-__cxa_atexit --enable-clocale=gnu --enable-libstdcxx-debug  
+--enable-mpfr --enable-checking=release i486-linux-gnu
+Thread model: posix
+gcc version 4.1.3 20070929 (prerelease) (Ubuntu 4.1.2-16ubuntu2)
+[tias at demerzel]test
+
+
+On Thu, 20 Nov 2008 09:45:25 +0100, Christian Schulte <cschulte at kth.se>  
+wrote:
+
+> Hi Patrik,
+>
+> Going by your example code, this should very definitely not pose any  
+> problem, Gecode itself uses way more elaborate constructions with  
+> patterns.
+>
+> One reason for the problem could be the part you do not tell us: if you  
+> have code that uses a lot of inlining, then that could be a problem.
+>
+>
+> Otherwise, that particular version of gcc might be at fault. As I do not  
+> use gcc that much I don't know whether this version is a bad one.
+>
+> Cheers
+> Christian
+>
+> --
+> Christian Schulte, www.ict.kth.se/~cschulte/
+>
+> -----Original Message-----
+> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On  
+> Behalf Of Patrik Haslum
+> Sent: Thursday, November 20, 2008 9:26 AM
+> To: users at gecode.org
+> Subject: [gecode-users] compiler memory problem
+>
+>
+> Hi,
+>
+> I've written a custom propagator. It is based on one of the existing  
+> templates, Gecode:BinaryPropagator, with an array of boolean views as  
+> the template argument. It works, but the compiler (g++ 4.1.2) is having  
+> serious trouble with the code: if I try to use any compiler optimisation  
+> (that is, anything other than -O0), the compiler eats up all memory  
+> (including swap) and never finishes. I know that using many and/or  
+> nested templates tends to increase compiler memory use, but this case is  
+> worse than anything I've encountered before. Is this a known problem?
+> (perhaps fixed in some more recent g++ compiler). Is there some way to  
+> work around it? (other than disabling compiler optimisation, because  
+> that *really* slows down the solver). The only other option I can think  
+> of is to write the propagator from scratch, without relying on any base  
+> template.
+>
+> Attached is a simplified version of the code (it doesn't contain any  
+> actual functionality, just the minimum that is needed to cause the  
+> compiler to behave this way).
+>
+> Thanks,
+> 			/P at trik
+>
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+
+From cmears at infotech.monash.edu.au  Fri Nov 21 03:51:07 2008
+From: cmears at infotech.monash.edu.au (Chris Mears)
+Date: Fri, 21 Nov 2008 13:51:07 +1100
+Subject: [gecode-users] Formatting of Int view output
+Message-ID: <87r655dc6c.fsf@loki.cmears.id.au>
+
+Hello,
+
+In Gecode 2.2.0 the formatting of integer variables doesn't quite work
+correctly.  For example, I tried to print a matrix of variables with
+padding, like this:
+
+    for (int i = 0 ; i < 6 ; i++)
+    {
+        for (int j = 0 ; j < 6 ; j++)
+            cout << setw(15) << m(i,j);
+        cout << endl;
+    }
+
+"m" is a Matrix<IntVarArray>.  "setw(15)" is intended to make each
+element of the matrix use 15 characters, right-justified.  The output
+looks like this (fixed-width font required):
+
+              3              {1..2,4..6}              {1..2,4..6}              [4..6]              {2,4..6}              {1..2,5}
+              [1..2]              {1..3,5..6}              [1..3]              {2,5}              {1..3,5..6}              4
+              [4..6]              [2..6]              [1..5]              [4..6]              [2..6]              {1..3,5}
+              [1..2]              [5..6]              [4..5]              3              [4..6]              [1..2]
+              [4..6]              [2..6]              [2..6]              1              [3..6]              {2..3,5}
+              [4..5]              [1..5]              [1..5]              {2,4..5}              [1..5]              6
+
+The problem can be seen in the first item in the second row.  In the
+first row, the "3" is correctly placed, but beneath it the "[1..2]" is
+in the wrong spot -- the "]" should be directly beneath the "3".  The
+reason is that the first thing printed -- the "[" -- is padded, and the
+rest of the range isn't.  That is, because the range is printed
+piece-by-piece, only the first piece is padded.
+
+I do not know the proper C++ solution, but it seems like this would
+work.  The idea is to print the entire range "[1..2]" as one unit.  In
+gecode/int/view/print.cc, I changed the print_view method to build up
+the range in a stringstream and then print that at the end.  This fixes
+the problem I saw.  There are other places (e.g. print_scale, and the
+Bool versions) where this would need to be fixed too.
+
+Is this the right way to do it?
+
+  template <class View>
+  inline static std::ostream&
+  print_view(std::ostream& os, const View& x) {
+    std::stringstream ss;
+    if (x.assigned()) {
+      ss << x.val();
+    } else if (x.range()) {
+      ss << '[' << x.min() << ".." << x.max() << ']';
+    } else {
+      ss << '{';
+      ViewRanges<View> r(x);
+      while (true) {
+        if (r.min() == r.max()) {
+          ss << r.min();
+        } else {
+          ss << r.min() << ".." << r.max();
+        }
+        ++r;
+        if (!r()) break;
+        ss << ',';
+      }
+      ss << '}';
+    }
+    return os << ss.str();
+  }
+
+
+
+From malcolmr at cse.unsw.edu.au  Fri Nov 21 04:13:54 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Fri, 21 Nov 2008 14:13:54 +1100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+Message-ID: <E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+
+So... some clarifying questions:
+
+1) What's the difference between BoolVarArgs and BoolVarArray?
+
+2) Could you explain in more detail what ~ does?
+
+3) Likewise, what does tt() do?
+
+4) Under exactly what conditions does post() create a BoolVar?
+
+5) How's the documentation coming along?
+
+Malcolm
+
+On 20/11/2008, at 6:30 PM, Mikael Zayenz Lagerkvist wrote:
+
+> On Thu, Nov 20, 2008 at 7:52 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> I'm not sure I understand that code. Would you mind explaining in  
+>> more
+>> detail?
+>
+> First of all, the loops in the code looping through layers can be
+> ignored for exposition, since they are there to handle the cases when
+> cards are in the bottom, middle, or top of a pile of three cards.
+> Assume that we have two piles of card (X1, X2, X3) and (Y1, Y2, Y3)
+> where Xv and Xv are integer variables, and where X2 and Y2 have the
+> same function for purposes of the game. The values of the cards
+> represent when they are played (note that I mistranslated the
+> condition in my earlier post, X1 and Y1 should be exchanged, as should
+> X3 and Y3). Now the code can be simplified to
+>  // cond is the condition for the symmetry
+>   BoolVarArgs ba(4);
+>   // Both cards played after the ones on top of them
+>   ba[0] = post(this, ~(X2 < Y3));
+>   ba[1] = post(this, ~(Y2 < X3));
+>   // Both cards played before the ones under them
+>   ba[2] = post(this, ~(Y1 < X2));
+>   ba[3] = post(this, ~(X1 < Y2));
+>   // Cond holds when all the above holds
+>   BoolVar cond(this, 0, 1);
+>   rel(this, BOT_AND, ba, cond);
+>
+>   // If cond is fulfilled, then we can order the cards
+>   // cond -> (X2 < Y2)
+>   post(this, tt(!cond || ~(X2 < Y2)));
+>
+> The ba-array holds a set Boolean variables for reified relations, and
+> the rel-function takes the conjunction of these. The final post just
+> uses the standard unfolding of an implication since there is no
+> implication-operator. You can also use the implication-function
+> together with post to get it:
+>   post(this, tt(imp(cond, ~(X2 < Y2))));
+>
+>
+>> How do you do reified constraints in Gecode?
+>
+> By using the reified post-functions, such as
+>   rel(this, x, IRT_LE, y, b);
+> with x and y integer variables and b a Boolean control variable. In
+> MiniModel expressions, you can use the unary tilde-operator to reify
+> an expression:
+>   BoolVar b = post(this, ~(x < y));
+>
+> Cheers,
+> Mikael
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From patrik.haslum at anu.edu.au  Fri Nov 21 06:21:47 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Fri, 21 Nov 2008 16:21:47 +1100
+Subject: [gecode-users] compiler memory problem
+In-Reply-To: <op.ukwvfk02qa8xjr@demerzel.cs.kuleuven.be>
+References: <49251F27.8010802@anu.edu.au> <000301c94aec$5670a550$0351eff0$@se>
+	<op.ukwvfk02qa8xjr@demerzel.cs.kuleuven.be>
+Message-ID: <4926456B.9060909@anu.edu.au>
+
+
+Hi,
+
+I tried adding various combinations of the additional flags on your 
+commandline, and none made a difference. But after an upgrade to a more 
+recent version of the compiler (g++ 4.3.2) it works fine. So this seems 
+to have been a compiler-specific issue.
+
+Thanks,
+			/P at trik
+
+
+Tias Guns wrote:
+> Hey,
+> 
+> I'm running gcc 4.1.3 and the code provided compiles and runs without 
+> problems. Maybe check the compile flags used (like -finline-limit=3000), 
+> those are the same flags as used for the examples (at least in version 
+> 2.0.1).
+> 
+> 
+> Greetings,
+> Tias
+> 
+> [tias at demerzel]test make
+> g++ /home/tias/local/src/gecode-2.2.0/examples/support/options.o 
+> /home/tias/local/src/gecode-2.2.0/examples/support/example.o -L. 
+> -L/home/tias/local/src/gecode-2.2.0 -I. 
+> -I/home/tias/local/src/gecode-2.2.0 -DNDEBUG -fvisibility=hidden -fPIC 
+> -Wextra -Wall -pipe -ggdb -O3 -fno-strict-aliasing -finline-limit=3000 
+> -ffast-math -mtune=i686 -lgecodesearch -lgecodeint -lgecodekernel 
+> -lgecodesupport -lgecodegist     test.cc   -o test
+> test.cc:51: warning: unused parameter ?home?
+> test.cc:51: warning: unused parameter ?med?
+> test.cc:87: warning: unused parameter ?argc?
+> test.cc:87: warning: unused parameter ?argv?
+> [tias at demerzel]test ls
+> Makefile  test*  test.cc
+> [tias at demerzel]test ./test
+> 1
+> [tias at demerzel]test gcc -v
+> Using built-in specs.
+> Target: i486-linux-gnu
+> Configured with: ../src/configure -v 
+> --enable-languages=c,c++,fortran,objc,obj-c++,treelang --prefix=/usr 
+> --enable-shared --with-system-zlib --libexecdir=/usr/lib 
+> --without-included-gettext --enable-threads=posix --enable-nls 
+> --with-gxx-include-dir=/usr/include/c++/4.1.3 --program-suffix=-4.1 
+> --enable-__cxa_atexit --enable-clocale=gnu --enable-libstdcxx-debug 
+> --enable-mpfr --enable-checking=release i486-linux-gnu
+> Thread model: posix
+> gcc version 4.1.3 20070929 (prerelease) (Ubuntu 4.1.2-16ubuntu2)
+> [tias at demerzel]test
+> 
+> 
+> On Thu, 20 Nov 2008 09:45:25 +0100, Christian Schulte <cschulte at kth.se> 
+> wrote:
+> 
+>> Hi Patrik,
+>>
+>> Going by your example code, this should very definitely not pose any 
+>> problem, Gecode itself uses way more elaborate constructions with 
+>> patterns.
+>>
+>> One reason for the problem could be the part you do not tell us: if 
+>> you have code that uses a lot of inlining, then that could be a problem.
+>>
+>>
+>> Otherwise, that particular version of gcc might be at fault. As I do 
+>> not use gcc that much I don't know whether this version is a bad one.
+>>
+>> Cheers
+>> Christian
+>>
+>> -- 
+>> Christian Schulte, www.ict.kth.se/~cschulte/
+>>
+>> -----Original Message-----
+>> From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On 
+>> Behalf Of Patrik Haslum
+>> Sent: Thursday, November 20, 2008 9:26 AM
+>> To: users at gecode.org
+>> Subject: [gecode-users] compiler memory problem
+>>
+>>
+>> Hi,
+>>
+>> I've written a custom propagator. It is based on one of the existing 
+>> templates, Gecode:BinaryPropagator, with an array of boolean views as 
+>> the template argument. It works, but the compiler (g++ 4.1.2) is 
+>> having serious trouble with the code: if I try to use any compiler 
+>> optimisation (that is, anything other than -O0), the compiler eats up 
+>> all memory (including swap) and never finishes. I know that using many 
+>> and/or nested templates tends to increase compiler memory use, but 
+>> this case is worse than anything I've encountered before. Is this a 
+>> known problem?
+>> (perhaps fixed in some more recent g++ compiler). Is there some way to 
+>> work around it? (other than disabling compiler optimisation, because 
+>> that *really* slows down the solver). The only other option I can 
+>> think of is to write the propagator from scratch, without relying on 
+>> any base template.
+>>
+>> Attached is a simplified version of the code (it doesn't contain any 
+>> actual functionality, just the minimum that is needed to cause the 
+>> compiler to behave this way).
+>>
+>> Thanks,
+>>             /P at trik
+>>
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+> 
+> 
+
+
+
+
+From zayenz at gmail.com  Fri Nov 21 07:57:49 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Fri, 21 Nov 2008 07:57:49 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+
+On Fri, Nov 21, 2008 at 4:13 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> 1) What's the difference between BoolVarArgs and BoolVarArray?
+
+BoolVarArgs is optimized for constructing temporary argument arrays to
+pass to constraints. BoolVarArrays are intended to be used for storing
+BoolVars in a Space.
+
+
+> 2) Could you explain in more detail what ~ does?
+
+The ~-operator takes a linear relation and reifies it (makes it a BoolExpr).
+
+
+> 3) Likewise, what does tt() do?
+
+It enforces that a Boolean expression should be true. There is an
+corresponding function ff for enforcing it to be false.
+
+
+> 4) Under exactly what conditions does post() create a BoolVar?
+
+When the expression posted is a BoolExpr and not a BoolRel.
+
+
+> 5) How's the documentation coming along?
+
+I'll leave this question for Christian.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From cschulte at kth.se  Fri Nov 21 10:28:25 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 21 Nov 2008 10:28:25 +0100
+Subject: [gecode-users] Formatting of Int view output
+In-Reply-To: <87r655dc6c.fsf@loki.cmears.id.au>
+References: <87r655dc6c.fsf@loki.cmears.id.au>
+Message-ID: <006d01c94bbb$8333fe00$899bfa00$@se>
+
+Hi Chris,
+
+thanks for pointing out that bug. The fix is even easier (but your stuff of
+course works as well): the problem is that we do not thread through the
+state of the output stream. Really stupid mistake from us, but well there
+you go...
+
+We'll fix it for 3.0
+
+Thanks
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Chris Mears
+Sent: Friday, November 21, 2008 3:51 AM
+To: Gecode Users mailing list
+Subject: [gecode-users] Formatting of Int view output
+
+Hello,
+
+In Gecode 2.2.0 the formatting of integer variables doesn't quite work
+correctly.  For example, I tried to print a matrix of variables with
+padding, like this:
+
+    for (int i = 0 ; i < 6 ; i++)
+    {
+        for (int j = 0 ; j < 6 ; j++)
+            cout << setw(15) << m(i,j);
+        cout << endl;
+    }
+
+"m" is a Matrix<IntVarArray>.  "setw(15)" is intended to make each
+element of the matrix use 15 characters, right-justified.  The output
+looks like this (fixed-width font required):
+
+              3              {1..2,4..6}              {1..2,4..6}
+[4..6]              {2,4..6}              {1..2,5}
+              [1..2]              {1..3,5..6}              [1..3]
+{2,5}              {1..3,5..6}              4
+              [4..6]              [2..6]              [1..5]
+[4..6]              [2..6]              {1..3,5}
+              [1..2]              [5..6]              [4..5]              3
+[4..6]              [1..2]
+              [4..6]              [2..6]              [2..6]              1
+[3..6]              {2..3,5}
+              [4..5]              [1..5]              [1..5]
+{2,4..5}              [1..5]              6
+
+The problem can be seen in the first item in the second row.  In the
+first row, the "3" is correctly placed, but beneath it the "[1..2]" is
+in the wrong spot -- the "]" should be directly beneath the "3".  The
+reason is that the first thing printed -- the "[" -- is padded, and the
+rest of the range isn't.  That is, because the range is printed
+piece-by-piece, only the first piece is padded.
+
+I do not know the proper C++ solution, but it seems like this would
+work.  The idea is to print the entire range "[1..2]" as one unit.  In
+gecode/int/view/print.cc, I changed the print_view method to build up
+the range in a stringstream and then print that at the end.  This fixes
+the problem I saw.  There are other places (e.g. print_scale, and the
+Bool versions) where this would need to be fixed too.
+
+Is this the right way to do it?
+
+  template <class View>
+  inline static std::ostream&
+  print_view(std::ostream& os, const View& x) {
+    std::stringstream ss;
+    if (x.assigned()) {
+      ss << x.val();
+    } else if (x.range()) {
+      ss << '[' << x.min() << ".." << x.max() << ']';
+    } else {
+      ss << '{';
+      ViewRanges<View> r(x);
+      while (true) {
+        if (r.min() == r.max()) {
+          ss << r.min();
+        } else {
+          ss << r.min() << ".." << r.max();
+        }
+        ++r;
+        if (!r()) break;
+        ss << ',';
+      }
+      ss << '}';
+    }
+    return os << ss.str();
+  }
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From cschulte at kth.se  Fri Nov 21 10:32:07 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 21 Nov 2008 10:32:07 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+Message-ID: <007001c94bbc$06bc2c20$14348460$@se>
+
+Well, that's a hard one. We have made great progress (I think we have some
+40 pages) and we know what to do for the rest. And I think it might even be
+useful ;-)
+
+The real problem we have right now is that the doc is for Gecode 3.0 and we
+are not making as much progress on Gecode 3.0 as we would like to. We might
+have to revise the timeline and also what will be included, we will start
+planning that next week (problem is: Guido hands in his PhD thesis end of
+this month, Mikael defends his first half of his PhD today, and I am landed
+with teaching two courses in parallel right now). So beginning of next year
+looks realistic to me, right now.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Friday, November 21, 2008 7:58 AM
+To: Malcolm Ryan
+Cc: gecode list
+Subject: Re: [gecode-users] BoolExpr example
+
+On Fri, Nov 21, 2008 at 4:13 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au>
+wrote:
+> 1) What's the difference between BoolVarArgs and BoolVarArray?
+
+BoolVarArgs is optimized for constructing temporary argument arrays to
+pass to constraints. BoolVarArrays are intended to be used for storing
+BoolVars in a Space.
+
+
+> 2) Could you explain in more detail what ~ does?
+
+The ~-operator takes a linear relation and reifies it (makes it a BoolExpr).
+
+
+> 3) Likewise, what does tt() do?
+
+It enforces that a Boolean expression should be true. There is an
+corresponding function ff for enforcing it to be false.
+
+
+> 4) Under exactly what conditions does post() create a BoolVar?
+
+When the expression posted is a BoolExpr and not a BoolRel.
+
+
+> 5) How's the documentation coming along?
+
+I'll leave this question for Christian.
+
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From denys.duchier at univ-orleans.fr  Fri Nov 21 16:19:20 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Fri, 21 Nov 2008 16:19:20 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <007001c94bbc$06bc2c20$14348460$@se> (Christian Schulte's message
+	of "Fri, 21 Nov 2008 10:32:07 +0100")
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+	<007001c94bbc$06bc2c20$14348460$@se>
+Message-ID: <87wsexgl8n.fsf@tiny.univ-orleans.fr>
+
+"Christian Schulte" <cschulte at kth.se> writes:
+
+>> 2) Could you explain in more detail what ~ does?
+>
+> The ~-operator takes a linear relation and reifies it (makes it a BoolExpr).
+>
+>> 3) Likewise, what does tt() do?
+>
+> It enforces that a Boolean expression should be true. There is an
+> corresponding function ff for enforcing it to be false.
+>
+>> 4) Under exactly what conditions does post() create a BoolVar?
+>
+> When the expression posted is a BoolExpr and not a BoolRel.
+
+I have the nagging feeling that using "post" both for expressions and
+for relations maybe a source of unnecessary complexity.  Explicit
+reification of a linear relation should typically not be required (it
+can be deduced from the context of use).
+
+Am I wrong in thinking that if we had "post" for relations and "epost"
+for expressions, some of the current complexity could be made to go
+away?
+
+Cheers,
+
+--Denys
+
+
+
+From cschulte at kth.se  Fri Nov 21 17:36:07 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Fri, 21 Nov 2008 17:36:07 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <87wsexgl8n.fsf@tiny.univ-orleans.fr>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>	<007001c94bbc$06bc2c20$14348460$@se>
+	<87wsexgl8n.fsf@tiny.univ-orleans.fr>
+Message-ID: <000301c94bf7$44c4e710$ce4eb530$@se>
+
+Well, Denys, remember this is C++... The reasoning that something should be
+not necessary does not mean that you should do it. Constructing C++ programs
+by reasoning leads to programs that will not compile (if you are lucky that
+is, it might also miscompile).
+
+But in this case this is a real deliberate decision to make reification
+explicit. Without that the composition of reified linear expressions over
+Boolean variables and Boolean expressions becomes slightly non-intuitive.
+Then, the decision was: make reification explicit and overload post. 
+
+I still like it!
+
+Cheers
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Denys Duchier
+Sent: Friday, November 21, 2008 4:19 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] BoolExpr example
+
+"Christian Schulte" <cschulte at kth.se> writes:
+
+>> 2) Could you explain in more detail what ~ does?
+>
+> The ~-operator takes a linear relation and reifies it (makes it a
+BoolExpr).
+>
+>> 3) Likewise, what does tt() do?
+>
+> It enforces that a Boolean expression should be true. There is an
+> corresponding function ff for enforcing it to be false.
+>
+>> 4) Under exactly what conditions does post() create a BoolVar?
+>
+> When the expression posted is a BoolExpr and not a BoolRel.
+
+I have the nagging feeling that using "post" both for expressions and
+for relations maybe a source of unnecessary complexity.  Explicit
+reification of a linear relation should typically not be required (it
+can be deduced from the context of use).
+
+Am I wrong in thinking that if we had "post" for relations and "epost"
+for expressions, some of the current complexity could be made to go
+away?
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From miniskar at imec.be  Sun Nov 23 10:52:52 2008
+From: miniskar at imec.be (Narasinga Rao)
+Date: Sun, 23 Nov 2008 10:52:52 +0100
+Subject: [gecode-users] How to put constratins on sort order variables !
+Message-ID: <b37eaa730811230152t6b0c4m689351ee8d79dc21@mail.gmail.com>
+
+Dear all, I would like to know how to post the constraints on sort order
+variables.
+The basic idea is
+1. First we need to order the tasks based on the start times (basically a
+sorting based on start times)
+2. Post some constraints on the derived ordered start times
+
+Here is the example code...
+
+IntVarArray start;
+IntVarArray end;
+IntVarArray startOrder;
+IntVarArray order;
+
+.....................
+.....................
+.....................
+// start and end constraints are well defined
+.....................
+.....................
+for( int i=0; i<nTasks; i++) {
+      post( this, start, order[i], startOrder );
+      post( this, end, order[i], endTimeStamps );
+      if( i < nTasks-1 )
+           post( this, startOrder[i] < startOrder[i+1] );
+}
+
+// Adding some post constraints on the ordered tasks
+for( int i=0; i<nTasks-1; i++ ) {
+     post( this, endTimeStamps[i] + switchingCost[i+1]  < startOrder[i+1] );
+}
+
+If we add the above constraint, it is not providing any solution. Instead if
+we give the same constraints with predefined input order values like given
+below, it is providing solution.
+
+int order[] = { 0, 1, 2, 3, 4, 5 };
+......................
+for( int i=0; i<nTasks-1; i++ ) {
+     post( this, endTimeStamps[i] + switchingCost[i+1]  < start[order[i+1]]
+);
+}
+
+Can any body help me in providing the solution.
+Thanks in advance...
+
+-- 
+---------------------
+With Regards,
+Narasinga Rao, Miniskar,
+IMEC, Belgium.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081123/a26b7142/attachment.htm>
+
+From malcolmr at cse.unsw.edu.au  Mon Nov 24 02:27:24 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 24 Nov 2008 12:27:24 +1100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+Message-ID: <4FB18544-66EE-4370-A3E0-C56FE215BED3@cse.unsw.edu.au>
+
+I'm sorry. I still don't completely understand how to us post. Say I  
+have a constraint like:
+
+((X1 == Y1) && (X2 == Y2) && ... && (XN == YN)) --> L > 0
+
+for general 'N'.
+
+What I've got is:
+
+	BoolVar allEqual;
+	BoolVarArgs eq = BoolVarArgs(nRobots);
+	for (int r = 0; r < N; r++) {
+	   eq[r] = post(space, ~(X[r] == Y[r]));
+	}
+	rel(space, BOT_AND, noop, allEqual);
+	
+	post(space, !allEqual || (L > 0));
+
+But I'm getting compilation errors on both the 'post' lines. What  
+should they be? Why?
+
+Finding documentation on 'post' is tricky, since there are so many  
+different instances of this function across many files. I'm a bit  
+uncomfortable with the fact that sometimes it adds an actual  
+constraint and sometimes it just creates a reified BoolVar. How do I  
+know which case is which?
+
+Malcolm
+
+On 21/11/2008, at 5:57 PM, Mikael Zayenz Lagerkvist wrote:
+
+> On Fri, Nov 21, 2008 at 4:13 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> 1) What's the difference between BoolVarArgs and BoolVarArray?
+>
+> BoolVarArgs is optimized for constructing temporary argument arrays to
+> pass to constraints. BoolVarArrays are intended to be used for storing
+> BoolVars in a Space.
+>
+>
+>> 2) Could you explain in more detail what ~ does?
+>
+> The ~-operator takes a linear relation and reifies it (makes it a  
+> BoolExpr).
+>
+>
+>> 3) Likewise, what does tt() do?
+>
+> It enforces that a Boolean expression should be true. There is an
+> corresponding function ff for enforcing it to be false.
+>
+>
+>> 4) Under exactly what conditions does post() create a BoolVar?
+>
+> When the expression posted is a BoolExpr and not a BoolRel.
+>
+>
+>> 5) How's the documentation coming along?
+>
+> I'll leave this question for Christian.
+>
+>
+> Cheers,
+> Mikael
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From malcolmr at cse.unsw.edu.au  Mon Nov 24 07:30:19 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 24 Nov 2008 17:30:19 +1100
+Subject: [gecode-users] IntVar copy constructor
+Message-ID: <C0D88302-FCC9-4A3E-9294-3357A8FDED4E@cse.unsw.edu.au>
+
+What do the standard C++ copy constructor and operator=() do on Vars?  
+If I do,
+
+IntVar x(space, 0, 10);
+IntVar y = x;
+IntVar z(x);
+
+are x, y and z dependent on each other? Or independent variables?
+
+Malcolm
+
+
+
+From zayenz at gmail.com  Mon Nov 24 07:58:48 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 24 Nov 2008 07:58:48 +0100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <4FB18544-66EE-4370-A3E0-C56FE215BED3@cse.unsw.edu.au>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+	<4FB18544-66EE-4370-A3E0-C56FE215BED3@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811232258m9555a93gc1abe6c03dc59756@mail.gmail.com>
+
+On Mon, Nov 24, 2008 at 2:27 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> I'm sorry. I still don't completely understand how to us post. Say I
+> have a constraint like:
+>
+> ((X1 == Y1) && (X2 == Y2) && ... && (XN == YN)) --> L > 0
+>
+> for general 'N'.
+>
+> What I've got is:
+>
+>        BoolVar allEqual;
+>        BoolVarArgs eq = BoolVarArgs(nRobots);
+>        for (int r = 0; r < N; r++) {
+>           eq[r] = post(space, ~(X[r] == Y[r]));
+>        }
+>        rel(space, BOT_AND, noop, allEqual);
+>
+>        post(space, !allEqual || (L > 0));
+>
+> But I'm getting compilation errors on both the 'post' lines. What
+> should they be? Why?
+
+Assuming that
+ a) space is a pointer to a Space
+ b) L is an IntVar
+ c) X and Y are IntVarArrays och IntVarArgs of length N
+ d) N is the same as nRobots
+ e) you mean eq instead of noop
+the above code compiles fine in gecode-2.2.0 for. There are two errors
+however. 1) since you didn't put tt(..) around the expression in the
+last post, which means that it just reifies the expression and returns
+the variable. It should be
+        post(space, tt(!allEqual || (L > 0)));
+2) The allEqual-variable will not be initialized. You should write it
+        BoolVar allEqual(space, 0, 1);
+
+As a matter of style, in C++ you should write
+        BoolVarArgs eq(nRobots);
+for automatic variables.
+
+> Finding documentation on 'post' is tricky, since there are so many
+> different instances of this function across many files. I'm a bit
+> uncomfortable with the fact that sometimes it adds an actual
+> constraint and sometimes it just creates a reified BoolVar. How do I
+> know which case is which?
+
+While there are a number of versions of post, they are all quite
+similar. Versions of the form
+    post(Space* home, expression)
+will post propagators for the expression, and return the resulting
+value. Versions of the form
+    post(Space* home, relation)
+will post propagators for the relation, but will not return anything.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From zayenz at gmail.com  Mon Nov 24 08:01:46 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Mon, 24 Nov 2008 08:01:46 +0100
+Subject: [gecode-users] IntVar copy constructor
+In-Reply-To: <C0D88302-FCC9-4A3E-9294-3357A8FDED4E@cse.unsw.edu.au>
+References: <C0D88302-FCC9-4A3E-9294-3357A8FDED4E@cse.unsw.edu.au>
+Message-ID: <63b5c8b00811232301y73194ecatcdcd3826e9590c6b@mail.gmail.com>
+
+On Mon, Nov 24, 2008 at 7:30 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au> wrote:
+> What do the standard C++ copy constructor and operator=() do on Vars?
+> If I do,
+>
+> IntVar x(space, 0, 10);
+> IntVar y = x;
+> IntVar z(x);
+>
+> are x, y and z dependent on each other? Or independent variables?
+
+IntVars x, y, and z will refer to the same variable. An IntVar is
+actually only a simple handle to the real variable, and the copy
+constructor and assignment operator for IntVar will simply copy the
+handle.
+
+Cheers,
+Mikael
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+From malcolmr at cse.unsw.edu.au  Mon Nov 24 08:02:43 2008
+From: malcolmr at cse.unsw.edu.au (Malcolm Ryan)
+Date: Mon, 24 Nov 2008 18:02:43 +1100
+Subject: [gecode-users] BoolExpr example
+In-Reply-To: <63b5c8b00811232258m9555a93gc1abe6c03dc59756@mail.gmail.com>
+References: <AECC8C28-058B-403A-B15A-02ADDBEC7D10@cse.unsw.edu.au>
+	<63b5c8b00811192243k5c76a89ame4801742cdfad3b0@mail.gmail.com>
+	<5ABE4829-152C-4446-BDF1-94C3C6227609@cse.unsw.edu.au>
+	<63b5c8b00811192330y2d481645xad6c1bd9b54d8a3@mail.gmail.com>
+	<E146F59C-EE69-4347-B648-916AB4E06724@cse.unsw.edu.au>
+	<63b5c8b00811202257r362fcc04p9ca35db483685307@mail.gmail.com>
+	<4FB18544-66EE-4370-A3E0-C56FE215BED3@cse.unsw.edu.au>
+	<63b5c8b00811232258m9555a93gc1abe6c03dc59756@mail.gmail.com>
+Message-ID: <88C852DE-5915-46ED-84B0-E6EC249CC87D@cse.unsw.edu.au>
+
+Yep. Thanks. I think I've worked it out. Some of my problems were due  
+to the fact that I didn't have minimodel.hh included.
+
+Malcolm
+
+
+
+On 24/11/2008, at 5:58 PM, Mikael Zayenz Lagerkvist wrote:
+
+> On Mon, Nov 24, 2008 at 2:27 AM, Malcolm Ryan <malcolmr at cse.unsw.edu.au 
+> > wrote:
+>> I'm sorry. I still don't completely understand how to us post. Say I
+>> have a constraint like:
+>>
+>> ((X1 == Y1) && (X2 == Y2) && ... && (XN == YN)) --> L > 0
+>>
+>> for general 'N'.
+>>
+>> What I've got is:
+>>
+>>       BoolVar allEqual;
+>>       BoolVarArgs eq = BoolVarArgs(nRobots);
+>>       for (int r = 0; r < N; r++) {
+>>          eq[r] = post(space, ~(X[r] == Y[r]));
+>>       }
+>>       rel(space, BOT_AND, noop, allEqual);
+>>
+>>       post(space, !allEqual || (L > 0));
+>>
+>> But I'm getting compilation errors on both the 'post' lines. What
+>> should they be? Why?
+>
+> Assuming that
+> a) space is a pointer to a Space
+> b) L is an IntVar
+> c) X and Y are IntVarArrays och IntVarArgs of length N
+> d) N is the same as nRobots
+> e) you mean eq instead of noop
+> the above code compiles fine in gecode-2.2.0 for. There are two errors
+> however. 1) since you didn't put tt(..) around the expression in the
+> last post, which means that it just reifies the expression and returns
+> the variable. It should be
+>        post(space, tt(!allEqual || (L > 0)));
+> 2) The allEqual-variable will not be initialized. You should write it
+>        BoolVar allEqual(space, 0, 1);
+>
+> As a matter of style, in C++ you should write
+>        BoolVarArgs eq(nRobots);
+> for automatic variables.
+>
+>> Finding documentation on 'post' is tricky, since there are so many
+>> different instances of this function across many files. I'm a bit
+>> uncomfortable with the fact that sometimes it adds an actual
+>> constraint and sometimes it just creates a reified BoolVar. How do I
+>> know which case is which?
+>
+> While there are a number of versions of post, they are all quite
+> similar. Versions of the form
+>    post(Space* home, expression)
+> will post propagators for the expression, and return the resulting
+> value. Versions of the form
+>    post(Space* home, relation)
+> will post propagators for the relation, but will not return anything.
+>
+> Cheers,
+> Mikael
+>
+> -- 
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+
+
+
+From filip.konvicka at logis.cz  Mon Nov 24 08:39:42 2008
+From: filip.konvicka at logis.cz (=?UTF-8?B?RmlsaXAgS29udmnEjWth?=)
+Date: Mon, 24 Nov 2008 08:39:42 +0100
+Subject: [gecode-users] IntVar copy constructor
+In-Reply-To: <C0D88302-FCC9-4A3E-9294-3357A8FDED4E@cse.unsw.edu.au>
+References: <C0D88302-FCC9-4A3E-9294-3357A8FDED4E@cse.unsw.edu.au>
+Message-ID: <492A5A3E.7000908@logis.cz>
+
+Hi,
+
+(just a technical note)
+
+> IntVar y = x;
+> IntVar z(x);
+
+These two actually do exactly the same thing in C++ (i.e. call the copy 
+constructor).
+
+IntVar y;
+y=x;
+
+...is different, you construct an "empty" variable object and assign to 
+it later. This is what often happens with var arrays.
+
+Cheers,
+Filip
+
+
+
+
+From cschulte at kth.se  Mon Nov 24 09:49:37 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 24 Nov 2008 09:49:37 +0100
+Subject: [gecode-users] How to put constratins on sort order variables !
+In-Reply-To: <b37eaa730811230152t6b0c4m689351ee8d79dc21@mail.gmail.com>
+References: <b37eaa730811230152t6b0c4m689351ee8d79dc21@mail.gmail.com>
+Message-ID: <00d101c94e11$9657d940$c3078bc0$@se>
+
+I cannot see from your program how startOrder and order are initialized as
+variables. Then, the two first calls to post apparently are calls you
+implemented yourself, so I again cannot see what is happening.
+
+ 
+
+Christian
+
+ 
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+ 
+
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Narasinga Rao
+Sent: Sunday, November 23, 2008 10:53 AM
+To: users at gecode.org
+Subject: [gecode-users] How to put constratins on sort order variables !
+
+ 
+
+Dear all, 
+
+I would like to know how to post the constraints on sort order variables. 
+
+The basic idea is 
+
+1. First we need to order the tasks based on the start times (basically a
+sorting based on start times)
+
+2. Post some constraints on the derived ordered start times
+
+ 
+
+Here is the example code...
+
+IntVarArray start;
+IntVarArray end;
+IntVarArray startOrder;
+IntVarArray order;
+
+.....................
+.....................
+.....................
+// start and end constraints are well defined
+.....................
+.....................
+for( int i=0; i<nTasks; i++) {
+      post( this, start, order[i], startOrder );
+      post( this, end, order[i], endTimeStamps );
+      if( i < nTasks-1 )
+           post( this, startOrder[i] < startOrder[i+1] );
+}
+
+// Adding some post constraints on the ordered tasks
+for( int i=0; i<nTasks-1; i++ ) {
+     post( this, endTimeStamps[i] + switchingCost[i+1]  < startOrder[i+1] );
+}
+
+If we add the above constraint, it is not providing any solution. Instead if
+we give the same constraints with predefined input order values like given
+below, it is providing solution.
+
+int order[] = { 0, 1, 2, 3, 4, 5 };
+......................
+for( int i=0; i<nTasks-1; i++ ) {
+     post( this, endTimeStamps[i] + switchingCost[i+1]  < start[order[i+1]]
+);
+}
+
+Can any body help me in providing the solution. 
+Thanks in advance...
+
+-- 
+---------------------
+With Regards,
+Narasinga Rao, Miniskar,
+IMEC, Belgium.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://www.ps.uni-sb.de/pipermail/users/attachments/20081124/1ee0822d/attachment.htm>
+
+From pds at di.uevora.pt  Mon Nov 24 17:52:56 2008
+From: pds at di.uevora.pt (Pedro Salgueiro)
+Date: Mon, 24 Nov 2008 16:52:56 +0000
+Subject: [gecode-users] How does Gecode works ?
+Message-ID: <1227545577.3845.8.camel@rebirth>
+
+Hi!
+
+I just found this old post: 
+http://www.ps.uni-sb.de/pipermail/gecode-users/2008-April/002142.html
+
+                
+                  Debdeep Banerjee wrote:
+                
+                > Hi,
+                >  I am just wondering how gecode works. What I think is
+                the following
+                >
+                > 1. We create the variables and domains
+                > 2. Then we post constraints
+                > 3. Then we define the branching
+                > 4. We start searching. ( I am here referring to the
+                DFS search)
+                >       1. the search will do the propagation, if any
+                inconsistency  
+                > found
+                > then fail immediately
+                >       2. then branching will produce a variable-value
+                pair through the
+                > description() method
+                >       3. then commit() will produce a binary branching
+                >             a. variable = value , left
+                >             b. variable != value. right
+                >       4. the search will continue picking up the left
+                branch and call
+                > the propagation method, if failed, it will try the
+                right branch.
+                >
+                > Is this correct ?
+                
+                Yes, that's the overall picture.
+                
+Is there any paper/publication that dsecribes more in depth how gecode works?
+
+Kind regards,
+Pedro Salgueiro
+
+
+
+
+From cschulte at kth.se  Mon Nov 24 22:06:39 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Mon, 24 Nov 2008 22:06:39 +0100
+Subject: [gecode-users] How does Gecode works ?
+In-Reply-To: <1227545577.3845.8.camel@rebirth>
+References: <1227545577.3845.8.camel@rebirth>
+Message-ID: <002901c94e78$90a95bb0$b1fc1310$@se>
+
+A little more detail you can find in
+	
+http://web.it.kth.se/~cschulte/paper.html?id=SchulteStuckey:TOPLAS:2009
+
+Apart from that, there is a journal paper in the making that will describe
+many decisions and techniques inside the Gecode kernel. It is not
+unrealistic that the paper will be available early next year as pre-print.
+
+Christian
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Pedro Salgueiro
+Sent: Monday, November 24, 2008 5:53 PM
+To: gecode list
+Subject: Re: [gecode-users] How does Gecode works ?
+
+Hi!
+
+I just found this old post: 
+http://www.ps.uni-sb.de/pipermail/gecode-users/2008-April/002142.html
+
+                
+                  Debdeep Banerjee wrote:
+                
+                > Hi,
+                >  I am just wondering how gecode works. What I think is
+                the following
+                >
+                > 1. We create the variables and domains
+                > 2. Then we post constraints
+                > 3. Then we define the branching
+                > 4. We start searching. ( I am here referring to the
+                DFS search)
+                >       1. the search will do the propagation, if any
+                inconsistency  
+                > found
+                > then fail immediately
+                >       2. then branching will produce a variable-value
+                pair through the
+                > description() method
+                >       3. then commit() will produce a binary branching
+                >             a. variable = value , left
+                >             b. variable != value. right
+                >       4. the search will continue picking up the left
+                branch and call
+                > the propagation method, if failed, it will try the
+                right branch.
+                >
+                > Is this correct ?
+                
+                Yes, that's the overall picture.
+                
+Is there any paper/publication that dsecribes more in depth how gecode
+works?
+
+Kind regards,
+Pedro Salgueiro
+
+
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From michal at tulacek.eu  Thu Nov 27 13:01:52 2008
+From: michal at tulacek.eu (=?ISO-8859-2?Q?Michal_Tul=E1=E8ek?=)
+Date: Thu, 27 Nov 2008 13:01:52 +0100
+Subject: [gecode-users] Exists some other documentation than Doxygen style?
+Message-ID: <3859397f0811270401h1d90103ej98ae875c5eb5355a@mail.gmail.com>
+
+Dears,
+
+  I am writing a bachelor thesis which is focused on comparing of
+several constraint solvers. I compare the objective criterions - the
+spent time and memory on solving of several benchmarks as well as
+subjective criterions - the main focus is on easiness of learning of
+usage.
+
+Now I am in state, that Gecode looks interesting, it seems it offers
+lots of possibilites how to describe a constraint problem but there is
+a bit lack of documentation. I found only a doxygen generated
+documentation but this is by my opinion best for "user who knows what
+and how but doesnt know the exact spelling of function names or their
+parameters" but mostly unuseful for new users who would need some
+introduction. There are also some example problems, but the fact that
+it is implementation of Example<> template, and the actual calls to
+solver (initialization, etc.) is hidden somewhere in the parent
+classes makes it more difficult for a newbie.
+
+So my question is simple: Is there some tutorial to Gecode, even if
+that would be for example only draft or something like that?
+
+Thanks for answer, Michal Tulacek
+
+
+
+From zayenz at gmail.com  Thu Nov 27 13:25:39 2008
+From: zayenz at gmail.com (Mikael Zayenz Lagerkvist)
+Date: Thu, 27 Nov 2008 13:25:39 +0100
+Subject: [gecode-users] Exists some other documentation than Doxygen
+	style?
+In-Reply-To: <3859397f0811270401h1d90103ej98ae875c5eb5355a@mail.gmail.com>
+References: <3859397f0811270401h1d90103ej98ae875c5eb5355a@mail.gmail.com>
+Message-ID: <63b5c8b00811270425m44baeef5x9f054c4e8a0b0ad2@mail.gmail.com>
+
+Hi,
+
+This question has been asked before in the users-list [1].
+
+As for how to call and initialize a search-engine manually, all the
+code the example-classes use is in Example::run [2].
+
+Cheers,
+Mikael
+
+[1] http://article.gmane.org/gmane.comp.lib.gecode.user/1982
+[2] http://www.gecode.org/gecode-doc-latest/example_8icc-source.html#l00188
+
+On Thu, Nov 27, 2008 at 1:01 PM, Michal Tul??ek <michal at tulacek.eu> wrote:
+> Dears,
+>
+>  I am writing a bachelor thesis which is focused on comparing of
+> several constraint solvers. I compare the objective criterions - the
+> spent time and memory on solving of several benchmarks as well as
+> subjective criterions - the main focus is on easiness of learning of
+> usage.
+>
+> Now I am in state, that Gecode looks interesting, it seems it offers
+> lots of possibilites how to describe a constraint problem but there is
+> a bit lack of documentation. I found only a doxygen generated
+> documentation but this is by my opinion best for "user who knows what
+> and how but doesnt know the exact spelling of function names or their
+> parameters" but mostly unuseful for new users who would need some
+> introduction. There are also some example problems, but the fact that
+> it is implementation of Example<> template, and the actual calls to
+> solver (initialization, etc.) is hidden somewhere in the parent
+> classes makes it more difficult for a newbie.
+>
+> So my question is simple: Is there some tutorial to Gecode, even if
+> that would be for example only draft or something like that?
+>
+> Thanks for answer, Michal Tulacek
+>
+> _______________________________________________
+> Gecode users mailing list
+> users at gecode.org
+> https://www.gecode.org/mailman/listinfo/gecode-users
+>
+
+
+
+-- 
+Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+
+From michal at tulacek.eu  Thu Nov 27 13:53:27 2008
+From: michal at tulacek.eu (=?ISO-8859-2?Q?Michal_Tul=E1=E8ek?=)
+Date: Thu, 27 Nov 2008 13:53:27 +0100
+Subject: [gecode-users] Exists some other documentation than Doxygen
+	style?
+In-Reply-To: <63b5c8b00811270425m44baeef5x9f054c4e8a0b0ad2@mail.gmail.com>
+References: <3859397f0811270401h1d90103ej98ae875c5eb5355a@mail.gmail.com>
+	<63b5c8b00811270425m44baeef5x9f054c4e8a0b0ad2@mail.gmail.com>
+Message-ID: <3859397f0811270453p78e4094dy30c122656a5c87c8@mail.gmail.com>
+
+Hi,
+
+  thanks for answer. The correct formulation could be "at the time
+there is no documentation in better format but it is planned for the
+next major release of gecode", am I right?
+
+Thanks.
+
+
+2008/11/27 Mikael Zayenz Lagerkvist <zayenz at gmail.com>:
+> Hi,
+>
+> This question has been asked before in the users-list [1].
+>
+> As for how to call and initialize a search-engine manually, all the
+> code the example-classes use is in Example::run [2].
+>
+> Cheers,
+> Mikael
+>
+> [1] http://article.gmane.org/gmane.comp.lib.gecode.user/1982
+> [2] http://www.gecode.org/gecode-doc-latest/example_8icc-source.html#l00188
+>
+> On Thu, Nov 27, 2008 at 1:01 PM, Michal Tul??ek <michal at tulacek.eu> wrote:
+>> Dears,
+>>
+>>  I am writing a bachelor thesis which is focused on comparing of
+>> several constraint solvers. I compare the objective criterions - the
+>> spent time and memory on solving of several benchmarks as well as
+>> subjective criterions - the main focus is on easiness of learning of
+>> usage.
+>>
+>> Now I am in state, that Gecode looks interesting, it seems it offers
+>> lots of possibilites how to describe a constraint problem but there is
+>> a bit lack of documentation. I found only a doxygen generated
+>> documentation but this is by my opinion best for "user who knows what
+>> and how but doesnt know the exact spelling of function names or their
+>> parameters" but mostly unuseful for new users who would need some
+>> introduction. There are also some example problems, but the fact that
+>> it is implementation of Example<> template, and the actual calls to
+>> solver (initialization, etc.) is hidden somewhere in the parent
+>> classes makes it more difficult for a newbie.
+>>
+>> So my question is simple: Is there some tutorial to Gecode, even if
+>> that would be for example only draft or something like that?
+>>
+>> Thanks for answer, Michal Tulacek
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+
+From cschulte at kth.se  Thu Nov 27 15:21:56 2008
+From: cschulte at kth.se (Christian Schulte)
+Date: Thu, 27 Nov 2008 15:21:56 +0100
+Subject: [gecode-users] Exists some other documentation than
+	Doxygen	style?
+In-Reply-To: <3859397f0811270453p78e4094dy30c122656a5c87c8@mail.gmail.com>
+References: <3859397f0811270401h1d90103ej98ae875c5eb5355a@mail.gmail.com>	<63b5c8b00811270425m44baeef5x9f054c4e8a0b0ad2@mail.gmail.com>
+	<3859397f0811270453p78e4094dy30c122656a5c87c8@mail.gmail.com>
+Message-ID: <00dc01c9509b$817c4dd0$8474e970$@se>
+
+Yes! Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: users-bounces at gecode.org [mailto:users-bounces at gecode.org] On Behalf
+Of Michal Tul?cek
+Sent: Thursday, November 27, 2008 1:53 PM
+To: users at gecode.org
+Subject: Re: [gecode-users] Exists some other documentation than Doxygen
+style?
+
+Hi,
+
+  thanks for answer. The correct formulation could be "at the time
+there is no documentation in better format but it is planned for the
+next major release of gecode", am I right?
+
+Thanks.
+
+
+2008/11/27 Mikael Zayenz Lagerkvist <zayenz at gmail.com>:
+> Hi,
+>
+> This question has been asked before in the users-list [1].
+>
+> As for how to call and initialize a search-engine manually, all the
+> code the example-classes use is in Example::run [2].
+>
+> Cheers,
+> Mikael
+>
+> [1] http://article.gmane.org/gmane.comp.lib.gecode.user/1982
+> [2]
+http://www.gecode.org/gecode-doc-latest/example_8icc-source.html#l00188
+>
+> On Thu, Nov 27, 2008 at 1:01 PM, Michal Tul??ek <michal at tulacek.eu> wrote:
+>> Dears,
+>>
+>>  I am writing a bachelor thesis which is focused on comparing of
+>> several constraint solvers. I compare the objective criterions - the
+>> spent time and memory on solving of several benchmarks as well as
+>> subjective criterions - the main focus is on easiness of learning of
+>> usage.
+>>
+>> Now I am in state, that Gecode looks interesting, it seems it offers
+>> lots of possibilites how to describe a constraint problem but there is
+>> a bit lack of documentation. I found only a doxygen generated
+>> documentation but this is by my opinion best for "user who knows what
+>> and how but doesnt know the exact spelling of function names or their
+>> parameters" but mostly unuseful for new users who would need some
+>> introduction. There are also some example problems, but the fact that
+>> it is implementation of Example<> template, and the actual calls to
+>> solver (initialization, etc.) is hidden somewhere in the parent
+>> classes makes it more difficult for a newbie.
+>>
+>> So my question is simple: Is there some tutorial to Gecode, even if
+>> that would be for example only draft or something like that?
+>>
+>> Thanks for answer, Michal Tulacek
+>>
+>> _______________________________________________
+>> Gecode users mailing list
+>> users at gecode.org
+>> https://www.gecode.org/mailman/listinfo/gecode-users
+>>
+>
+>
+>
+> --
+> Mikael Zayenz Lagerkvist, http://www.ict.kth.se/~zayenz/
+>
+_______________________________________________
+Gecode users mailing list
+users at gecode.org
+https://www.gecode.org/mailman/listinfo/gecode-users
+
+
+
+
+From patrik.haslum at anu.edu.au  Fri Nov 28 04:03:52 2008
+From: patrik.haslum at anu.edu.au (Patrik Haslum)
+Date: Fri, 28 Nov 2008 14:03:52 +1100
+Subject: [gecode-users] modelling question
+Message-ID: <492F5F98.3070700@anu.edu.au>
+
+
+Hi,
+This is not really question specific to gecode, but since there are 
+presumably a lot of constraint-savvy people on this list, I'll ask anyway:
+
+I have a finite set variable X, with domain {0..N-1} (though I could 
+replace it by an array of booleans if that turns out to be more 
+convenient). Every element i in the domain of X has a certain weight, 
+w(i) (which is in the range 0..K; K is typically small). I want to post 
+the constraint
+
+Y = min_{i in X} w(i)  if X is non-empty
+     0                  if X is empty.
+
+Y is used in an expression that is minimised, so upper-bounding it 
+(which would be simple) is not enough. The best I've been able to come 
+up with is to write something like
+
+(i in X) & (forall j s.t. w(j) < w(i) : not(j in X)) -> (Y = w(i)).
+
+Does anyone know of a better way to formulate it?
+
+Thanks,
+			/P at trik
+
+
+
+From denys.duchier at univ-orleans.fr  Fri Nov 28 12:05:55 2008
+From: denys.duchier at univ-orleans.fr (Denys Duchier)
+Date: Fri, 28 Nov 2008 12:05:55 +0100
+Subject: [gecode-users] modelling question
+In-Reply-To: <492F5F98.3070700@anu.edu.au> (Patrik Haslum's message of "Fri,
+	28 Nov 2008 14:03:52 +1100")
+References: <492F5F98.3070700@anu.edu.au>
+Message-ID: <87k5ao1564.fsf@tiny.univ-orleans.fr>
+
+Patrik Haslum <patrik.haslum at anu.edu.au> writes:
+
+> I have a finite set variable X, with domain {0..N-1} (though I could 
+> replace it by an array of booleans if that turns out to be more 
+> convenient). Every element i in the domain of X has a certain weight, 
+> w(i) (which is in the range 0..K; K is typically small). I want to post 
+> the constraint
+>
+> Y = min_{i in X} w(i)  if X is non-empty
+>      0                  if X is empty.
+
+For example, you could do it this way:
+
+X' = X U {N}
+S  = U<{w(0)},{w(1)},...,{w(N-1)},{K+1}>[X']       (elementsUnion)
+Y' = min(S)
+Y  = <0,Y'>[Y'<(K+1)]                              (element)
+
+Cheers,
+
+--Denys
+
+
+

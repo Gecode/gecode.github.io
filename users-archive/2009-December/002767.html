@@ -1,0 +1,196 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [gecode-users] Help: Howto combine sets and value constraints?
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Help%3A%20Howto%20combine%20sets%20and%20value%20constraints%3F&In-Reply-To=%3C8eb8d34d0912141701i5813ae4tefa792f065bb863%40mail.gmail.com%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002770.html">
+   <LINK REL="Next"  HREF="002768.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[gecode-users] Help: Howto combine sets and value constraints?</H1>
+    <B>Holger Winnemoeller</B> 
+    <A HREF="mailto:users%40gecode.org?Subject=Re%3A%20%5Bgecode-users%5D%20Help%3A%20Howto%20combine%20sets%20and%20value%20constraints%3F&In-Reply-To=%3C8eb8d34d0912141701i5813ae4tefa792f065bb863%40mail.gmail.com%3E"
+       TITLE="[gecode-users] Help: Howto combine sets and value constraints?">holger.winnemoeller at gmail.com
+       </A><BR>
+    <I>Tue Dec 15 02:01:19 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002770.html">[gecode-users] Propagation condition and cloning
+</A></li>
+        <LI>Next message: <A HREF="002768.html">[gecode-users] Help: Howto combine sets and value constraints?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2767">[ date ]</a>
+              <a href="thread.html#2767">[ thread ]</a>
+              <a href="subject.html#2767">[ subject ]</a>
+              <a href="author.html#2767">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>I am trying to create a solver that (as a toy explanation) can create sets
+with
+certain properties, such as:
+
+1) The resulting set size is specified
+2) The resulting set contains a certain number of items that belong to a
+  &quot;special&quot; group
+3) The total &quot;weight&quot; of items is below a certain threshold
+
+I can easily enough create constraints for 1) and 2), but I would love to
+get
+some help in how I integrate constraint 3) into the mix. Supposedly I would
+create a set of variables for the weights and specify a constraint on the
+sum of
+these weights. But I have no idea about how to express in Gecode that I want
+to
+sum up the weights of exactly the ids that are in the currently selected
+set.
+
+My approach to doing 1)&amp;2) is attached below. The question is: How do I
+specify
+that the total weight of selected items should be less than, say
+&quot;maxWeight&quot;.
+
+(Note: This is not a homework problem :-) It's an abstraction of a set
+selector
+that I want to include in a user interface for suggesting available sets to
+users)
+
+Thanks for your time,
+Holger.
+========================&lt; main.cpp &gt;===========================
+#include &lt;gecode/set.hh&gt;
+#include &lt;gecode/support.hh&gt;
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/search.hh&gt;
+
+using namespace Gecode;
+
+// Some data to play with
+int numItems = 10;                    // total number of items in inventory
+int numSpecialItems = 4;            // number of items in inventory with
+&quot;special&quot; attribute
+int numRequestedSize = 6;            // requested size of result set
+int numRequestedSpecialSize = 2;    // requested size of &quot;special&quot; items in
+result set
+float maxWeight = 1.8f;                // requested maximum weight of all
+items in result set (NOT IMPLEMENTED!)
+
+int allItems[] = {0,1,2,3,4,5,6,7,8,9}; // 10 items (their id's)
+float itemWeights[] = {0.1f, 0.5f, 0.2f, 0.2f, 0.6f, 0.8f, 1.0f, 0.3f, 0.7f,
+0.6f}; // their associated weights
+int specialItems[] = {2,5,8,9}; // a subset of items having the attribute
+&quot;special&quot;
+
+// Little helper function
+bool isInSet(int id, int set[], int setSize)
+{
+    for(int i=0; i&lt;setSize; ++i)
+        if(id == set[i]) return true;
+    return false;
+}
+
+// A &quot;Minimal&quot; space definition for the problem
+class MiniSpace: public Space
+{
+        SetVarArray mSetStore;
+public:
+    MiniSpace(){
+        // Create a SetVariable array (only need one element really, but
+this allows me to define the domain in one step)
+        mSetStore = SetVarArray(*this, 1, IntSet::empty, 0, numItems);
+        SetVar resultSet = mSetStore[0]; // get the one variable that was
+defined in the above line
+
+        // impose the constraint that we only want &quot;numRequestedSize&quot; items
+in the result set
+        cardinality(*this, resultSet, numRequestedSize, numRequestedSize);
+
+        // now impose the fact that we want exactly
+&quot;numRequestedSpecialSize&quot; items coming from the special set
+        // 1.) Create a new set domain that represents the &quot;special&quot; items
+        IntSet specialSet(specialItems, numSpecialItems);
+        // 2.) Create a set variable that we'll associate with that set
+later on
+        SetVar specialSelected(*this);
+        // 3.) Set &quot;specialSelected&quot; to the intersection of whatever a
+possible solution is, and
+        //     the &quot;specialSet&quot;. This ensures that we can talk about items
+that are included
+        //     in the solution, but also belong to the special set
+        rel(*this, resultSet, SOT_INTER, specialSet, SRT_EQ,
+specialSelected);
+        // 4.) Now ensure that we only have &quot;numRequestedSpecialSize&quot; of
+these overlapping items
+        cardinality(*this, specialSelected, numRequestedSpecialSize,
+numRequestedSpecialSize);
+
+        // Given these constraints, branch
+        branch(*this, mSetStore, SET_VAR_NONE, SET_VAL_MIN_INC);
+    }
+    MiniSpace(bool share, MiniSpace&amp; s) : Space(share, s)
+{mSetStore.update(*this, share, s.mSetStore);}
+    virtual Space* copy(bool share) {return new MiniSpace(share, *this);}
+    void print() const
+    {
+        int countAsSpecial = 0;
+        for(SetVarGlbValues d(mSetStore[0]);d();++d)
+        {
+            int id = d.val();
+            if(isInSet(id, specialItems, numSpecialItems)) countAsSpecial++;
+            std::cout &lt;&lt; id &lt;&lt; &quot; &quot;;
+        } // for
+        std::cout &lt;&lt; &quot;. Nr. of specials: &quot; &lt;&lt; countAsSpecial;
+    }
+};
+
+int main(int argc, char* argv[])
+{
+    // Run the problem
+    MiniSpace problem; // space instance
+    //Search::Options options
+    DFS&lt;MiniSpace&gt; solver (&amp;problem);
+    int count=0;
+    while(true){
+        MiniSpace* solution = solver.next();
+        if(!solution) break;
+        std::cout &lt;&lt; &quot;Solution Nr.&quot; &lt;&lt; count++ &lt;&lt; std::endl;
+        solution-&gt;print();
+        std::cout &lt;&lt; std::endl;
+        delete solution;
+    }
+    std::cout &lt;&lt; &quot;Done...&quot; &lt;&lt; std::endl;
+    return 0;
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20091214/4c6293a9/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20091214/4c6293a9/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002770.html">[gecode-users] Propagation condition and cloning
+</A></li>
+	<LI>Next message: <A HREF="002768.html">[gecode-users] Help: Howto combine sets and value constraints?
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2767">[ date ]</a>
+              <a href="thread.html#2767">[ thread ]</a>
+              <a href="subject.html#2767">[ subject ]</a>
+              <a href="author.html#2767">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://www.gecode.org/cgi-bin/mailman/listinfo/users">More information about the users
+mailing list</a><br>
+</body></html>

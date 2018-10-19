@@ -1,0 +1,46 @@
+
+#include <gecode/int.hh>
+#include <gecode/minimodel.hh>
+#include <gecode/search.hh>
+#include <gecode/gist.hh>
+
+using namespace Gecode;
+
+class Something : public Space {
+protected:
+  IntVar x, y;
+public:
+  Something(void)
+    : x(*this,-1,3), y(*this,-1,6) {
+      IntVarArgs b(2); b[0] = x; b[1] = y;
+      
+      //post(*this, x > y);
+      post(*this, tt(imp(~(x == 1), ~(y != 1))));
+      branch(*this,b, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+  }
+
+  Something(bool share, Something& s) : Space(share,s) {
+    x.update(*this, share, s.x);
+    y.update(*this, share, s.y);
+  }
+
+  virtual Space*
+  copy(bool share) {
+    return new Something(share,*this);
+  }
+
+  virtual void
+  print(std::ostream& os) const {
+    os << "\tX = " << x << std::endl
+      << "\tY = " << y << std::endl;
+  }
+};
+
+int
+main(int argc, char* argv[]) {
+  Something *s = new Something;
+  Gist::dfs(s);
+  //DFS<Something> e(s);
+  delete s;
+  return 0;
+}

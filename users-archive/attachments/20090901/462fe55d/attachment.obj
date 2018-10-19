@@ -1,0 +1,148 @@
+/*
+ *  Main authors:
+ *      Tias Guns <tias.guns@cs.kuleuven.be>
+ *
+ *  Copyright:
+ *      Tias Guns, 2008
+ *
+ *  Revision information:
+ *      $Id$
+ *
+ *  This file is a simple example propagator for Gecode.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining
+ *  a copy of this software and associated documentation files (the
+ *  "Software"), to deal in the Software without restriction, including
+ *  without limitation the rights to use, copy, modify, merge, publish,
+ *  distribute, sublicense, and/or sell copies of the Software, and to
+ *  permit persons to whom the Software is furnished to do so, subject to
+ *  the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ *  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ *  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ *  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#include <gecode/kernel.hh>
+#include <gecode/int.hh>
+
+namespace myprop {
+  using namespace ::Gecode;
+  using namespace ::Gecode::Int;
+
+  /**
+   * \brief Base-class for simple cleaner
+   */
+  template <class V>
+  class CleanerBool : public Propagator {
+  protected:
+    /// Boolean views
+    ViewArray<V> x;
+
+    /// Constructor for creation
+    CleanerBool(Space& home, ViewArray<V>& x);
+    /// Constructor for cloning \a p
+    CleanerBool(Space& home, bool share, CleanerBool& p);
+  public:
+    /// Cost function (defined as low linear)
+    virtual PropCost cost(const Space& home, const ModEventDelta& med) const;
+    /// Delete propagator and return its size
+    virtual size_t dispose(Space& home);
+    /// Create copy during cloning
+    virtual Actor* copy(Space& home, bool share);
+    /// Perform propagation
+    virtual ExecStatus propagate(Space& home, const ModEventDelta& med);
+    /// Post propagator
+    static ExecStatus post(Space& home, ViewArray<V>& x);
+  };
+
+  /*
+   * propagator implementation
+   */
+  template <class V>
+  CleanerBool<V>::CleanerBool(Space& home, ViewArray<V>& x0)
+    :  Propagator(home), x(x0) {
+    x.subscribe(home,*this,PC_INT_VAL);
+  }
+
+  template <class V>
+  forceinline size_t
+  CleanerBool<V>::dispose(Space& home) {
+    assert(!home->failed());
+    x.cancel(home,*this,PC_INT_VAL);
+    (void) Propagator::dispose(home);
+    return sizeof(*this);
+  }
+
+  template <class V>
+  forceinline
+  CleanerBool<V>::CleanerBool(Space& home, bool share, CleanerBool& p)
+    : Propagator(home,share,p) {
+    x.update(home,share,p.x);
+  }
+
+  template <class V>
+  PropCost
+  CleanerBool<V>::cost(const Space&, const ModEventDelta&) const {
+    // make sure this propagator is run as last before the fixpoint
+    return PropCost::crazy(PropCost::HI, 100000);
+    // in a real propagator, this would be something more sensible,
+    // for example: PropCost::linear(PropCost::LO, x.size());
+  }
+
+  template <class V>
+  ExecStatus
+  CleanerBool<V>::post(Space& home, ViewArray<V>& x) {
+    (void) new (home) CleanerBool<V>(home,x);
+    return ES_OK;
+  }
+
+  template <class V>
+  Actor*
+  CleanerBool<V>::copy(Space& home, bool share) {
+    return new (home) CleanerBool<V>(home,share,*this);
+  }
+
+  template <class V>
+  ExecStatus
+  CleanerBool<V>::propagate(Space& home, const ModEventDelta&) {
+    int n = x.size();
+    for (int i = n; i--; ) {
+      if (x[i].zero()) {
+        x[i]=x[--n];
+      } else if (x[i].one()) {
+        x[i]=x[--n];
+      } else {
+        GECODE_ME_CHECK( x[i].one(home) );
+        x[i]=x[--n];
+      } // all cases covered, so every var assigned and removed
+    }
+    x.size(n);
+
+    if (n == 0) {
+      return ES_SUBSUMED(*this,home);
+    }
+    return ES_FIX;
+  }
+
+
+  /** \brief Post propagator for cleanup of unassigned variables
+   * Is run as last propagator (crazy_hi), sets unassigned variables to 1
+   */
+  void cleaner(Space& home, const BoolVarArgs& x) {
+    if (home.failed()) return;
+
+    ViewArray<BoolView> Vx(home, x);
+
+    GECODE_ES_FAIL(home,(CleanerBool<BoolView>::post(home, Vx)));
+  }
+
+}
