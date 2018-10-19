@@ -28,323 +28,323 @@
 system_version(gecode,'Gecode 6.1.0').
 
 ctr_systems('abs_value',[
-  gecode('abs','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntArith.html')
+  gecode('abs','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntArith.html')
 ]).
 
 ctr_systems('all_equal',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('alldifferent',[
-  gecode('distinct','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
+  gecode('distinct','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
 ]).
 
 ctr_systems('alldifferent_cst',[
-  gecode('distinct','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
+  gecode('distinct','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
 ]).
 
 ctr_systems('alldifferent_except_0',[
-  gecode('distinct','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
+  gecode('distinct','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDistinct.html')
 ]).
 
 ctr_systems('among',[
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('among_seq',[
-  gecode('sequence','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntSequence.html')
+  gecode('sequence','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntSequence.html')
 ]).
 
 ctr_systems('among_var',[
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('and',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('arith',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('atleast',[
-  gecode('atleast','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('atleast','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('atmost',[
-  gecode('atmost','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('atmost','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('bin_packing',[
-  gecode('binpacking','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntBinPacking.html')
+  gecode('binpacking','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntBinPacking.html')
 ]).
 
 ctr_systems('bin_packing_capa',[
-  gecode('binpacking','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntBinPacking.html')
+  gecode('binpacking','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntBinPacking.html')
 ]).
 
 ctr_systems('circuit',[
-  gecode('circuit','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntGraph.html')
+  gecode('circuit','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntGraph.html')
 ]).
 
 ctr_systems('clause_and',[
-  gecode('clause','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('clause','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('clause_or',[
-  gecode('clause','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('clause','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('count',[
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('counts',[
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('cumulative',[
-  gecode('cumulative','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
+  gecode('cumulative','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
 ]).
 
 ctr_systems('cumulatives',[
-  gecode('cumulatives','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
+  gecode('cumulatives','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
 ]).
 
 ctr_systems('decreasing',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('diffn',[
-  gecode('nooverlap','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntGeoPacking.html')
+  gecode('nooverlap','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntGeoPacking.html')
 ]).
 
 ctr_systems('disjunctive',[
-  gecode('unary','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
+  gecode('unary','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntScheduling.html')
 ]).
 
 ctr_systems('domain',[
-  gecode('dom','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDomain.html')
+  gecode('dom','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDomain.html')
 ]).
 
 ctr_systems('domain_constraint',[
-  gecode('channel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntChannel.html')
+  gecode('channel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntChannel.html')
 ]).
 
 ctr_systems('elem',[
-  gecode('element','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntElement.html')
+  gecode('element','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntElement.html')
 ]).
 
 ctr_systems('element',[
-  gecode('element','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntElement.html')
+  gecode('element','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntElement.html')
 ]).
 
 ctr_systems('element_matrix',[
-  gecode('element','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModel.html')
+  gecode('element','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModel.html')
 ]).
 
 ctr_systems('eq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('eq_set',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetRel.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetRel.html')
 ]).
 
 ctr_systems('equivalent',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('exactly',[
-  gecode('exactly','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('exactly','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html'),
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('geq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('global_cardinality',[
-  gecode('count','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntCount.html')
+  gecode('count','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntCount.html')
 ]).
 
 ctr_systems('gt',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('imply',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('in',[
-  gecode('dom','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDomain.html'),
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetRel.html')
+  gecode('dom','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDomain.html'),
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetRel.html')
 ]).
 
 ctr_systems('in_interval',[
-  gecode('dom','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDomain.html')
+  gecode('dom','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDomain.html')
 ]).
 
 ctr_systems('in_intervals',[
-  gecode('dom','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDomain.html')
+  gecode('dom','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDomain.html')
 ]).
 
 ctr_systems('in_relation',[
-  gecode('extensional','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntExt.html')
+  gecode('extensional','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntExt.html')
 ]).
 
 ctr_systems('in_set',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetRel.html'),
-  gecode('dom','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntDomain.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetRel.html'),
+  gecode('dom','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntDomain.html')
 ]).
 
 ctr_systems('increasing',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('int_value_precede',[
-  gecode('precede','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntPrecede.html')
+  gecode('precede','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntPrecede.html')
 ]).
 
 ctr_systems('int_value_precede_chain',[
-  gecode('precede','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntPrecede.html')
+  gecode('precede','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntPrecede.html')
 ]).
 
 ctr_systems('inverse',[
-  gecode('channel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntChannel.html')
+  gecode('channel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntChannel.html')
 ]).
 
 ctr_systems('inverse_offset',[
-  gecode('channel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntChannel.html')
+  gecode('channel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntChannel.html')
 ]).
 
 ctr_systems('leq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('lex',[
-  gecode('lex','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html')
+  gecode('lex','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModelIntAlias.html')
 ]).
 
 ctr_systems('lex_greater',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('lex_greatereq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('lex_less',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('lex_lesseq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('link_set_to_booleans',[
-  gecode('channel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetConnect.html')
+  gecode('channel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetConnect.html')
 ]).
 
 ctr_systems('lt',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('max',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/')
 ]).
 
 ctr_systems('max_index',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/')
 ]).
 
 ctr_systems('maximum',[
-  gecode('max','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntArith.html')
+  gecode('max','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntArith.html')
 ]).
 
 ctr_systems('min',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/')
 ]).
 
 ctr_systems('min_index',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/')
 ]).
 
 ctr_systems('minimum',[
-  gecode('min','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntArith.html')
+  gecode('min','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntArith.html')
 ]).
 
 ctr_systems('nand',[
-  gecode('clause','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('clause','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('neq',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('nor',[
-  gecode('clause','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('clause','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('not_all_equal',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('not_in',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetRel.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetRel.html')
 ]).
 
 ctr_systems('nvalue',[
-  gecode('nvalues','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntNValues.html')
+  gecode('nvalues','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntNValues.html')
 ]).
 
 ctr_systems('nvalues',[
-  gecode('nvalues','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntNValues.html')
+  gecode('nvalues','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntNValues.html')
 ]).
 
 ctr_systems('or',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
 ctr_systems('roots',[
-  gecode('roots','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelMiniModelSetAlias.html')
+  gecode('roots','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelMiniModelSetAlias.html')
 ]).
 
 ctr_systems('scalar_product',[
-  gecode('linear','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntLI.html')
+  gecode('linear','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntLI.html')
 ]).
 
 ctr_systems('set_value_precede',[
-  gecode('precede','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetPrecede.html')
+  gecode('precede','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetPrecede.html')
 ]).
 
 ctr_systems('sort',[
-  gecode('sorted','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntSorted.html')
+  gecode('sorted','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntSorted.html')
 ]).
 
 ctr_systems('sort_permutation',[
-  gecode('sorted','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntSorted.html')
+  gecode('sorted','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntSorted.html')
 ]).
 
 ctr_systems('strictly_decreasing',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('strictly_increasing',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelInt.html')
 ]).
 
 ctr_systems('sum_ctr',[
-  gecode('linear','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntLI.html')
+  gecode('linear','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntLI.html')
 ]).
 
 ctr_systems('sum_set',[
-  gecode('weights','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelSetConnect.html')
+  gecode('weights','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelSetConnect.html')
 ]).
 
 ctr_systems('xor',[
-  gecode('rel','http://www.gecode.org/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
+  gecode('rel','https://gecode.github.io/doc/6.1.0/reference/group__TaskModelIntRelBool.html')
 ]).
 
