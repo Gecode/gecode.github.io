@@ -26,23 +26,32 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build Tailwind CSS
-        run: npm run build:css
-
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
           bundler-cache: true
 
-      - name: Build Jekyll site
-        run: bundle exec jekyll build --destination ./_site
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Check executable bits
+        run: npm run check:mode
+
+      - name: Build site
+        run: npm run build
+
+      - name: Verify generated CSS
+        run: npm run check:css
 
       - name: Validate generated HTML
         run: npm run check:html
+
+      - name: Collect active HTML pages
+        id: active_pages
+        run: |
+          pages="$(./scripts/list-active-html.sh _site | tr '\n' ' ')"
+          echo "pages=$pages" >> "$GITHUB_OUTPUT"
 
       - name: Accessibility smoke check (Lighthouse)
         uses: treosh/lighthouse-ci-action@v12
@@ -55,10 +64,7 @@ jobs:
         with:
           args: >-
             --verbose --no-progress --offline --exclude-mail
-            ./_site/index.html ./_site/download.html ./_site/documentation.html
-            ./_site/community.html ./_site/news.html ./_site/publications.html
-            ./_site/interfaces.html ./_site/projects.html ./_site/flatzinc.html
-            ./_site/license.html ./_site/disclaimer.html ./_site/logo.html
+            ${{ steps.active_pages.outputs.pages }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,10 +74,7 @@ jobs:
         with:
           args: >-
             --verbose --no-progress --exclude-mail
-            ./_site/index.html ./_site/download.html ./_site/documentation.html
-            ./_site/community.html ./_site/news.html ./_site/publications.html
-            ./_site/interfaces.html ./_site/projects.html ./_site/flatzinc.html
-            ./_site/license.html ./_site/disclaimer.html ./_site/logo.html
+            ${{ steps.active_pages.outputs.pages }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
