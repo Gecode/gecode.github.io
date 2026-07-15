@@ -28,3 +28,16 @@ if [ "$before_checksum" != "$after_checksum" ]; then
 fi
 
 echo "Generated CSS matches source."
+
+dark_mode_stylesheets=()
+while IFS= read -r stylesheet; do
+  dark_mode_stylesheets+=("$stylesheet")
+done < <(find doc -path '*/reference/doxygen.css' -type f -print)
+
+if [ "${#dark_mode_stylesheets[@]}" -gt 0 ] &&
+   grep -HnE 'prefers-color-scheme:[[:space:]]*dark' "${dark_mode_stylesheets[@]}"; then
+  echo "Published Gecode documentation must use the light color scheme." >&2
+  exit 1
+fi
+
+echo "Published documentation uses the light color scheme."
