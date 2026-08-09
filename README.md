@@ -59,3 +59,8 @@ than 60,000 files and exceed 1 GB before compression.
 - The Jekyll files remain temporarily as source for the compatibility content
   loader. They can be converted to native Astro content collections in a later,
   reviewable migration step.
+
+## Migration Plans
+
+- [Astro migration analysis](docs/astro-migration.md)
+- [Static documentation hosting plan](docs/static-documentation-hosting.md)
