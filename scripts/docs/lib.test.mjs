@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createManifest, sitemapDocuments, validateVersion } from "./lib.mjs";
 import { loadAndVerifyManifest, validateBuildId, validateRemote } from "./remote-lib.mjs";
+import { patchDoxygenHtml } from "./patch-doxygen-html.mjs";
 
 test("creates a sorted, content-addressed version manifest", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "gecode-manifest-"));
@@ -63,4 +64,23 @@ test("validates remote and build identifiers", () => {
   assert.throws(() => validateBuildId("../release"), /Invalid build ID/);
   assert.equal(validateVersion("6.5.0-rc.1"), "6.5.0-rc.1");
   assert.throws(() => validateVersion("../6.5.0"), /Invalid documentation version/);
+});
+
+test("patches modern Doxygen HTML idempotently", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gecode-doxygen-html-"));
+  const htmlPath = path.join(root, "index.html");
+  await writeFile(htmlPath, `<!doctype html><html><head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <link href="stylesheet.css" rel="stylesheet" type="text/css">
+    </head><body>
+    <a href="http://www.gecode.dev/index.html">Gecode home</a>
+    <script>document.addEventListener('DOMContentLoaded', codefold.init);</script>
+    </body></html>`);
+
+  assert.deepEqual(await patchDoxygenHtml(root), { changed: 1, visited: 1 });
+  const patched = await readFile(htmlPath, "utf8");
+  assert.match(patched, /name="viewport"/);
+  assert.match(patched, /src="codefolding\.js"/);
+  assert.match(patched, /href="https:\/\/www\.gecode\.dev\/"/);
+  assert.deepEqual(await patchDoxygenHtml(root), { changed: 0, visited: 1 });
 });

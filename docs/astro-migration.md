@@ -36,8 +36,9 @@ manual. This increases `_site` from about 1.2 GB to 1.6 GB.
 ### Astro, Tailwind, and React
 
 Astro generates the static site. Tailwind 4 runs through its supported Vite
-plugin. The React integration supplies small interactive islands; the mobile
-navigation is the first island and hydrates only below the mobile breakpoint.
+plugin. The React integration remains available for future interactive islands,
+but the current pages ship no client-side application code. Mobile navigation
+uses native `<details>` and `<summary>` elements and works without JavaScript.
 
 Astro uses `build.format: "directory"` with `trailingSlash: "always"`. It emits
 pages such as `download/index.html`, which GitHub Pages serves canonically at
@@ -66,11 +67,12 @@ adapter keeps that later change mechanical and reviewable.
 
 ### Visual direction
 
-The redesign treats the classic site as a technical publication rather than a
-generic product landing page. It keeps the logo, green navigation rail, blue
-links, lowercase Raleway labels, wide page margins, and compact news column.
-It adds a bounded content grid, stronger type scale, clearer section rhythm,
-responsive navigation, keyboard focus states, and a mobile reading layout.
+The migration preserves the classic Gecode presentation: logo, green navigation
+rail, blue links, compact typography, page proportions, and news column. Layout
+changes are limited to accessibility and responsive bug fixes. Mobile pages use
+a compact navigation disclosure and a single reading column, while desktop pages
+retain the established geometry. Broader visual changes belong in later,
+targeted work.
 
 ### Generated documentation
 
@@ -95,16 +97,18 @@ This branch patches `doc/6.4.0/reference/stylesheet.css`:
 
 - desktop pages reserve the right 30% for the fixed logo, navigation, and footer;
 - narrow pages place the logo and navigation in normal flow;
-- narrow pages hide the fixed generated footer;
+- narrow pages keep the generated footer in normal flow;
 - content uses the full available width without horizontal overlap.
 
 The browser check at 1440 × 900 measured the content’s right edge at 1000 px
 and the navigation’s left edge at 1008 px. At 390 × 844, the navigation became
 static and both navigation and content stayed within the viewport.
 
-Apply the same rule in the Gecode source repository’s
-`misc/doxygen/stylesheet.css`. Otherwise, the next documentation build will
-reintroduce the bug.
+The Gecode source repository must own the corresponding header and stylesheet
+rules. Future generated pages also need viewport metadata, the canonical HTTPS
+home link, and the `codefolding.js` script used by their initialization code.
+Without generator-level changes, the next documentation build will reintroduce
+the layout problem.
 
 ## Alternatives considered
 

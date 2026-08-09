@@ -40,12 +40,13 @@ Run publication on the `release.published` event in a protected
 2. Build Doxygen and the HTML modeling manual.
 3. Assemble and validate `release-tree/`.
 4. Check out a pinned revision of this website repository as tooling.
-5. Create the SHA-256 manifest and documentation sitemaps.
-6. Upload to `staging/<run-id>/<version>` in R2.
-7. Re-download the entire staged tree and verify its manifest and MIME types.
-8. Promote it to the immutable `<version>/` prefix.
-9. Re-download and verify the promoted tree.
-10. Persist the reviewed manifest at `_manifests/<version>.json`.
+5. Run the generated-HTML compatibility patch and validate its output.
+6. Create the SHA-256 manifest and documentation sitemaps.
+7. Upload to `staging/<run-id>/<version>` in R2.
+8. Re-download the entire staged tree and verify its manifest and MIME types.
+9. Promote it to the immutable `<version>/` prefix.
+10. Re-download and verify the promoted tree.
+11. Persist the reviewed manifest at `_manifests/<version>.json`.
 
 Steps 5–10 are implemented by `scripts/docs/`. The upload and promotion
 commands require separate confirmation flags, so a malformed build cannot
@@ -75,6 +76,9 @@ bucket. It does not need DNS, Worker, or account-administration permissions.
 The central publication commands are:
 
 ```sh
+node website-tools/scripts/docs/patch-doxygen-html.mjs \
+  release-tree/reference
+
 node website-tools/scripts/docs/create-manifest.mjs \
   --root release-tree --version "$VERSION" --output manifest.json
 
