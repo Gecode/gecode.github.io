@@ -19,7 +19,9 @@ export interface NewsItem {
 
 export interface Publication {
   slug: string;
+  publishedDate: string;
   title: string;
+  description: string;
   authors: Array<{ name: string; url?: string }>;
   howpublished: string;
   shorthowpub: string;
@@ -35,11 +37,11 @@ function stripHtmlExtension(value: string): string {
   return value.replace(/\.html$/, "");
 }
 
-function renderLiquid(source: string): string {
+export function renderLiquid(source: string): string {
   let html = source;
 
-  html = html.replace(/\{%\s*(?:assign|capture)[\s\S]*?%\}/g, "");
-  html = html.replace(/\{%\s*endcapture\s*%\}/g, "");
+  html = html.replace(/\{%\s*capture\b[\s\S]*?\{%\s*endcapture\s*%\}/g, "");
+  html = html.replace(/\{%\s*assign\b[\s\S]*?%\}/g, "");
   html = html.replace(
     /\{%\s*include\s+download-src\.html\s+link=GECODESOURCETGZ\s*%\}/g,
     `<a href="https://github.com/Gecode/gecode/archive/refs/tags/release-${versions.release}.tar.gz"><code>release-${versions.release}.tar.gz</code></a>`,
@@ -66,6 +68,21 @@ function renderLiquid(source: string): string {
   for (const slug of activePageSlugs) html = html.replaceAll(`/${slug}.html`, `/${slug}/`);
 
   return html.trim();
+}
+
+function plainTextExcerpt(html: string): string {
+  const paragraph = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? html;
+  return paragraph
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#(\d+);/g, (_, value: string) => String.fromCodePoint(Number(value)))
+    .replace(/&#x([\da-f]+);/gi, (_, value: string) => String.fromCodePoint(Number.parseInt(value, 16)))
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export async function loadLegacyPage(filename: string): Promise<LegacyPage> {
@@ -102,9 +119,13 @@ export async function getPublications(): Promise<Publication[]> {
   const items = await Promise.all(
     filenames.map(async (filename) => {
       const parsed = matter(await readFile(path.join(directory, filename), "utf8"));
+      const slug = stripHtmlExtension(filename);
+      const body = renderLiquid(parsed.content);
       return {
-        slug: stripHtmlExtension(filename),
+        slug,
+        publishedDate: slug.slice(0, 10),
         title: String(parsed.data.title),
+        description: plainTextExcerpt(body),
         authors: parsed.data.authors ?? [],
         howpublished: String(parsed.data.howpublished ?? ""),
         shorthowpub: String(parsed.data.shorthowpub ?? ""),
@@ -113,7 +134,7 @@ export async function getPublications(): Promise<Publication[]> {
         copyright_text: parsed.data.copyright_text,
         copyright_url: parsed.data.copyright_url,
         copyright_label: parsed.data.copyright_label,
-        body: renderLiquid(parsed.content),
+        body,
       } satisfies Publication;
     }),
   );

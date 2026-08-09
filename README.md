@@ -1,7 +1,8 @@
 # Gecode Website (Astro + GitHub Pages)
 
-This repository hosts the Gecode website and is built with Astro, React islands,
-and Tailwind CSS 4.
+This repository hosts the Gecode website and is built with Astro and Tailwind
+CSS 4. React is available for future interactive islands, but the current site
+does not require client-side JavaScript.
 
 ## Requirements
 
@@ -41,6 +42,8 @@ This command:
 - builds the active Astro site
 - checks executable-bit hygiene
 - validates generated active-site HTML pages
+- checks content transformations, metadata, and canonical URLs
+- validates the documentation and redirect Workers
 
 For a deployment-equivalent build that also copies the frozen documentation
 and mailing-list archives, run:

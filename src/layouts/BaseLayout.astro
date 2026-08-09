@@ -11,6 +11,11 @@ interface Props {
   headline?: string;
   home?: boolean;
   latestNews?: NewsItem[];
+  article?: {
+    authors: string[];
+    publishedTime: string;
+  };
+  errorPage?: boolean;
 }
 
 const {
@@ -19,17 +24,29 @@ const {
   headline,
   home = false,
   latestNews = [],
+  article,
+  errorPage = false,
 } = Astro.props;
 const currentPath = canonicalSitePath(Astro.url.pathname);
 const canonical = new URL(currentPath, site.url);
 const documentTitle = title === site.title ? title : `${title} | ${site.name}`;
-const structuredData = {
-  "@context": "https://schema.org",
-  "@type": home ? "WebSite" : "WebPage",
-  name: title,
-  description,
-  url: canonical.href,
-};
+const structuredData = article
+  ? {
+      "@context": "https://schema.org",
+      "@type": "ScholarlyArticle",
+      headline: title,
+      description,
+      datePublished: article.publishedTime,
+      author: article.authors.map((name) => ({ "@type": "Person", name })),
+      mainEntityOfPage: canonical.href,
+    }
+  : {
+      "@context": "https://schema.org",
+      "@type": home ? "WebSite" : "WebPage",
+      name: title,
+      description,
+      url: canonical.href,
+    };
 ---
 
 <!doctype html>
@@ -40,15 +57,18 @@ const structuredData = {
     <meta name="description" content={description} />
     <meta name="keywords" content="gecode, constraint programming, constraint solver, constraint toolkit" />
     <meta name="generator" content={Astro.generator} />
-    <link rel="canonical" href={canonical} />
+    {errorPage && <meta name="robots" content="noindex" />}
+    {!errorPage && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/images/gecode-logo.ico" sizes="any" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={article ? "article" : "website"} />
     <meta property="og:site_name" content={site.name} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
+    {!errorPage && <meta property="og:url" content={canonical} />}
+    {article && <meta property="article:published_time" content={article.publishedTime} />}
+    {article?.authors.map((author) => <meta property="article:author" content={author} />)}
     <meta name="twitter:card" content="summary" />
-    <script type="application/ld+json" set:html={JSON.stringify(structuredData)}></script>
+    {!errorPage && <script type="application/ld+json" set:html={JSON.stringify(structuredData)}></script>}
     <title>{documentTitle}</title>
   </head>
   <body>
