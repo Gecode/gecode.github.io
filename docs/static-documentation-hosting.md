@@ -84,6 +84,12 @@ version. A request for `/doc/latest/reference/index.html` reads
 promotion a single configuration change. Alias caches converge within five
 minutes; promotion is not instantaneous.
 
+Treat immutable `/doc/<version>/...` URLs as canonical. HTML responses carry an
+HTTP `Link` canonical for their versioned URL, including responses reached
+through either alias. Allow crawlers to index versioned documentation, exclude
+the aliases in `robots.txt`, and publish only versioned URLs in documentation
+sitemaps.
+
 ## Worker behavior
 
 The Worker should implement only the behavior object storage lacks:
@@ -99,6 +105,7 @@ The Worker should implement only the behavior object storage lacks:
 8. Return a small branded 404 page without trying extension fallbacks.
 9. Add `X-Content-Type-Options: nosniff` and a conservative referrer policy.
 10. Emit structured logs for misses, range failures, and unexpected methods.
+11. Add an HTTP canonical link to versioned HTML responses.
 
 Versioned objects can use a one-year shared cache because their keys never
 change. Alias responses should use a five-minute cache and expose the resolved
@@ -168,8 +175,8 @@ manifest, inventory, and sitemap generators in `scripts/docs/`, an immutable
 staged `rclone` publisher with SHA-256 verification, and CI validation.
 Provisioning buckets and credentials, uploading objects, and changing DNS
 remain operator actions because they affect external infrastructure. Sitemap
-generation is implemented, but release-pipeline upload and main-index wiring
-remain part of the cutover work.
+generation and the canonical indexing policy are implemented, but
+release-pipeline upload and root-index wiring remain part of the cutover work.
 
 ### Phase 1: inventory and prototype
 

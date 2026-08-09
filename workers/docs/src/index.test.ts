@@ -36,6 +36,9 @@ describe("documentation worker", () => {
     expect(await page.text()).toBe("0123456789");
     expect(page.headers.get("cache-control")).toContain("immutable");
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(page.headers.get("link")).toBe(
+      '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
+    );
 
     const index = await request("/doc/6.4.0/");
     expect(await index.text()).toBe("release home");
@@ -66,6 +69,9 @@ describe("documentation worker", () => {
       expect(await response.text()).toBe("0123456789");
       expect(response.headers.get("cache-control")).toContain("max-age=300");
       expect(response.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
+      expect(response.headers.get("link")).toBe(
+        '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
+      );
     },
   );
 

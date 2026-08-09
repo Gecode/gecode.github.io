@@ -104,6 +104,10 @@ function applyObjectHeaders(headers: Headers, object: R2Object, resolved: Resolv
       ? "public, max-age=300, s-maxage=300"
       : "public, max-age=3600, s-maxage=31536000, immutable",
   );
+  if (object.httpMetadata?.contentType?.toLowerCase().startsWith("text/html")) {
+    const canonicalPath = resolved.key.split("/").map(encodeURIComponent).join("/");
+    headers.set("Link", `<https://www.gecode.dev/doc/${canonicalPath}>; rel="canonical"`);
+  }
   for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
 }
 

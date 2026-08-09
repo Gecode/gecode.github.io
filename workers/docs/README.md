@@ -14,7 +14,9 @@ The bucket stores releases at its root:
 
 The Worker maps `/doc/<version>/...` directly to those keys. It maps both
 `/doc/latest/...` and `/doc-latest/...` to `LATEST_DOC_VERSION`; aliases are not
-copied into R2.
+copied into R2. HTML responses include an HTTP `Link` canonical that points to
+the immutable versioned URL. Search engines may index versioned documentation;
+`robots.txt` excludes both aliases to avoid duplicate indexing.
 
 ## Local validation
 
@@ -121,4 +123,5 @@ therefore bounded rather than instantaneous. Do not remove an older prefix.
 The sitemap generator is preparatory tooling for documentation producers. Its
 output is not included in the current Pages artifact automatically. Before DNS
 cutover, the release pipeline must upload the generated sitemap files and add
-their index URL to the Astro sitemap index.
+their index URL to the root sitemap index. Versioned URLs belong in that
+sitemap; aliases do not.
