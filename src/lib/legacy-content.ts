@@ -63,7 +63,7 @@ function renderLiquid(source: string): string {
     (_, href: string) => href,
   );
 
-  for (const slug of activePageSlugs) html = html.replaceAll(`/${slug}.html`, `/${slug}`);
+  for (const slug of activePageSlugs) html = html.replaceAll(`/${slug}.html`, `/${slug}/`);
 
   return html.trim();
 }

@@ -17,17 +17,17 @@ export const versions = {
 export const navigation = [
   [
     { label: "home", href: "/" },
-    { label: "download", href: "/download" },
+    { label: "download", href: "/download/" },
   ],
   [
-    { label: "documentation", href: "/documentation" },
-    { label: "community", href: "/community" },
-    { label: "news", href: "/news" },
+    { label: "documentation", href: "/documentation/" },
+    { label: "community", href: "/community/" },
+    { label: "news", href: "/news/" },
   ],
   [
-    { label: "publications", href: "/publications" },
-    { label: "interfaces", href: "/interfaces" },
-    { label: "projects", href: "/projects" },
+    { label: "publications", href: "/publications/" },
+    { label: "interfaces", href: "/interfaces/" },
+    { label: "projects", href: "/projects/" },
   ],
 ] as const;
 
@@ -47,5 +47,6 @@ export const activePageSlugs = [
 
 export function canonicalSitePath(pathname: string): string {
   if (pathname === "/index.html" || pathname === "/index") return "/";
-  return pathname.replace(/\.html$/, "");
+  if (pathname.endsWith(".html")) return `${pathname.slice(0, -".html".length)}/`;
+  return pathname === "/" || pathname.endsWith("/") ? pathname : `${pathname}/`;
 }

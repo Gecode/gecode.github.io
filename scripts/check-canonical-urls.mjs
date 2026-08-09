@@ -9,10 +9,10 @@ const redirectConfig = JSON.parse(await readFile(path.resolve("workers/redirects
 const redirectPatterns = new Set(redirectConfig.env.production.routes.map((route) => route.pattern));
 const routes = [
   { file: "index.html", canonical: "/" },
-  ...activePageSlugs.map((slug) => ({ file: `${slug}.html`, canonical: `/${slug}` })),
+  ...activePageSlugs.map((slug) => ({ file: `${slug}/index.html`, canonical: `/${slug}/` })),
   ...(await getPublications()).map((publication) => ({
-    file: `publications/${publication.slug}.html`,
-    canonical: `/publications/${publication.slug}`,
+    file: `publications/${publication.slug}/index.html`,
+    canonical: `/publications/${publication.slug}/`,
   })),
 ];
 
@@ -33,6 +33,18 @@ for (const route of routes) {
   }
   if (!html.includes(`<meta property="og:url" content="${canonical}"`)) {
     failures.push(`${route.file}: expected Open Graph URL ${canonical}`);
+  }
+}
+
+for (const route of routes.filter((route) => route.file !== "index.html")) {
+  const classicFile = route.file.replace(/\/index\.html$/, ".html");
+  const html = await readFile(path.join(siteRoot, classicFile), "utf8");
+  const destination = `https://www.gecode.dev${route.canonical}`;
+  if (!html.includes(`<link rel="canonical" href="${destination}">`)) {
+    failures.push(`${classicFile}: expected redirect canonical ${destination}`);
+  }
+  if (!html.includes(`http-equiv="refresh" content="0;url=${route.canonical}"`)) {
+    failures.push(`${classicFile}: expected redirect to ${route.canonical}`);
   }
 }
 

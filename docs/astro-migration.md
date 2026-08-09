@@ -2,8 +2,8 @@
 
 This branch replaces Jekyll with Astro 7 while preserving the public site’s
 content and visual identity. Existing `.html` URLs remain compatible redirects,
-while extensionless URLs become canonical. It is an exploratory branch. Do not
-deploy it until the archive plan in this document is resolved.
+while trailing-slash directory URLs become canonical. It is an exploratory
+branch. Do not deploy it until the archive plan in this document is resolved.
 
 ## What exists today
 
@@ -39,19 +39,18 @@ Astro generates the static site. Tailwind 4 runs through its supported Vite
 plugin. The React integration supplies small interactive islands; the mobile
 navigation is the first island and hydrates only below the mobile breakpoint.
 
-Astro uses `build.format: "file"`. It therefore emits `download.html`,
-`news.html`, and publication files. GitHub Pages serves those same files at
-extensionless paths such as `/download` and `/publications/<slug>`, without a
-trailing slash. Navigation, canonical metadata, Open Graph metadata, sitemaps,
-and new content use those clean URLs. The configuration omits `base` because
-this organization Pages site and its custom domain both serve from `/`.
+Astro uses `build.format: "directory"` with `trailingSlash: "always"`. It emits
+pages such as `download/index.html`, which GitHub Pages serves canonically at
+`/download/`. Navigation, canonical metadata, Open Graph metadata, sitemaps,
+and new content all use those directory URLs. The configuration omits `base`
+because this organization Pages site and its custom domain both serve from `/`.
 
-GitHub Pages itself returns `200` for both `/download` and `/download.html`; it
-cannot redirect one form while using the same physical file for the other. A
-small Cloudflare Worker therefore issues permanent `308` redirects from the
-classic active-site `.html` routes to their extensionless equivalents. It does
-not rewrite generated Doxygen or mailing-list URLs. The redirect Worker runs
-only after `www.gecode.dev` is proxied for the documentation-hosting cutover.
+The build also writes small `.html` fallback redirect pages. A Cloudflare
+Worker supplies permanent `308` redirects from classic active-site `.html`
+routes to their trailing-slash equivalents once `www.gecode.dev` is proxied for
+the documentation-hosting cutover. It does not rewrite generated Doxygen or
+mailing-list URLs. `/index.html` is handled only at the edge because it is also
+the physical GitHub Pages entry file.
 
 ### Content compatibility
 
@@ -173,7 +172,7 @@ Astro site remains on GitHub Pages. See
 - Convert legacy content into typed Astro collections.
 - Decide whether to add a real news RSS feed; Jekyll’s current feed is empty.
 - Compare the old and new route manifests. The new `404.html` is intentional,
-  and the active `.html` routes must redirect to extensionless canonical URLs.
+  and the active `.html` routes must redirect to trailing-slash canonical URLs.
 - Run internal and external link checks against a deployment-equivalent build.
 - Run Lighthouse against the home, news, documentation, and publication pages.
 - Test the archive redirects and changelog anchors from the deployed artifact.

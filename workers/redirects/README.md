@@ -1,12 +1,12 @@
 # Classic URL redirects
 
-GitHub Pages serves a physical `community.html` file at both `/community` and
-`/community.html`. That makes clean extensionless links possible, but Pages
-cannot redirect the second URL while continuing to use the same file for the
-first.
+The active Astro site uses directory output, so GitHub Pages serves
+`community/index.html` at the canonical `/community/` URL and redirects
+`/community` to that directory form. A separate `community.html` fallback page
+preserves compatibility before the edge Worker is deployed.
 
 This Worker supplies that missing edge behavior. It returns a permanent `308`
-from each classic active-site `.html` URL to its extensionless canonical URL,
+from each classic active-site `.html` URL to its trailing-slash canonical URL,
 preserving the query string. `/index.html` redirects to `/`. Publication detail
 pages follow the same rule.
 

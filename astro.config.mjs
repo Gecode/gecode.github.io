@@ -8,9 +8,9 @@ export default defineConfig({
   publicDir: ".astro-public",
   output: "static",
   outDir: "./_site",
-  trailingSlash: "never",
+  trailingSlash: "always",
   build: {
-    format: "file",
+    format: "directory",
   },
   integrations: [react(), sitemap()],
   vite: {
