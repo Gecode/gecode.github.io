@@ -51,18 +51,17 @@ Mirror the public URL below the bucket root. Do not encode release state in
 bucket names.
 
 ```text
-doc/
-  1.3.1/
-    reference/...
-    MPG.pdf
-  6.4.0/
-    reference/...
-    MPG.pdf
-  6.5.0/
-    reference/...
-    modeling/...
-    MPG.pdf
-manifests/
+1.3.1/
+  reference/...
+  MPG.pdf
+6.4.0/
+  reference/...
+  MPG.pdf
+6.5.0/
+  reference/...
+  modeling/...
+  MPG.pdf
+_manifests/
   6.4.0.json
   6.5.0.json
 staging/
@@ -81,8 +80,9 @@ prefix, but it must never replace an existing prefix silently.
 Do not store `doc/latest` or `doc-latest` copies. Configure the Worker with a
 single `LATEST_DOC_VERSION` value and resolve both aliases to the selected
 version. A request for `/doc/latest/reference/index.html` reads
-`doc/6.5.0/reference/index.html`. This avoids duplicate storage and makes
-promotion atomic.
+`6.5.0/reference/index.html`. This avoids duplicate storage and makes
+promotion a single configuration change. Alias caches converge within five
+minutes; promotion is not instantaneous.
 
 ## Worker behavior
 
@@ -102,7 +102,8 @@ The Worker should implement only the behavior object storage lacks:
 
 Versioned objects can use a one-year shared cache because their keys never
 change. Alias responses should use a five-minute cache and expose the resolved
-version through a response header. Purge the alias cache after promotion.
+version through a response header. Allow that bounded cache to converge after
+promotion.
 
 Keep the bucket private and disable its `r2.dev` endpoint. Bind the bucket to
 the Worker rather than exposing it directly. Cloudflare recommends a custom
@@ -131,9 +132,23 @@ Each producer should perform these steps:
 7. Compare the remote object count and manifest with the local build.
 8. Smoke-test representative HTML, CSS, JavaScript, image, source, and PDF
    objects through the Worker.
-9. Copy the verified objects to a new immutable `doc/<version>/` prefix.
-10. Update `LATEST_DOC_VERSION`, deploy the Worker, purge alias entries, and
-    rerun the smoke tests.
+9. Copy the verified objects to a new immutable `<version>/` prefix.
+10. Update `LATEST_DOC_VERSION`, deploy the Worker, rerun the alias smoke
+    tests, and allow the bounded five-minute alias cache to converge.
+
+The Gecode source repository should own this release job because it owns the
+Doxygen configuration and the modeling-manual generator. On a GitHub release,
+its protected documentation job should assemble the complete version tree and
+call the tools in this repository. The website repository continues to own the
+Worker code and routes. Give the release job write access only to R2; keep the
+production Worker deployment and `latest` selection in a separately protected
+environment. The concrete job contract and command sequence are in
+[Gecode release documentation pipeline](gecode-release-pipeline.md).
+
+Both the staging and production Workers read the same private bucket. Staged
+objects remain unreachable below `staging/`. After verification and promotion,
+the staging Worker smoke-tests the explicit immutable `/doc/<version>/` path.
+Only then does the production deployment select that version as `latest`.
 
 Use `rclone` for bulk transfer. Cloudflare recommends it for directory uploads,
 whereas Wrangler uploads one object at a time. See
@@ -148,13 +163,21 @@ until several releases have completed successfully.
 
 ## Migration sequence
 
+The local implementation now includes the tested Worker in `workers/docs/`,
+manifest, inventory, and sitemap generators in `scripts/docs/`, an immutable
+staged `rclone` publisher with SHA-256 verification, and CI validation.
+Provisioning buckets and credentials, uploading objects, and changing DNS
+remain operator actions because they affect external infrastructure. Sitemap
+generation is implemented, but release-pipeline upload and main-index wiring
+remain part of the cutover work.
+
 ### Phase 1: inventory and prototype
 
 - Generate a manifest for every tracked object below `doc/`.
 - Record existing symlinks and resolve `doc/latest` and `doc-latest` as aliases.
 - Measure file counts and bytes by version, extension, and documentation product.
-- Create a test bucket and deploy the read-only Worker at
-  `docs-staging.gecode.dev`.
+- Create the private documentation bucket and deploy the read-only staging
+  Worker at `docs-staging.gecode.dev`.
 - Upload Gecode 6.4.0 and test directory indexes, fragments, source pages,
   downloads, ranges, MIME types, caching, and 404s.
 
