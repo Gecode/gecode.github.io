@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
-import { versions } from "../data/site";
+import { activePageSlugs, versions } from "../data/site.ts";
 
 const root = process.cwd();
 
@@ -62,6 +62,8 @@ function renderLiquid(source: string): string {
     /\{\{\s*'([^']+)'\s*\|\s*relative_url\s*\}\}/g,
     (_, href: string) => href,
   );
+
+  for (const slug of activePageSlugs) html = html.replaceAll(`/${slug}.html`, `/${slug}`);
 
   return html.trim();
 }

@@ -17,16 +17,35 @@ export const versions = {
 export const navigation = [
   [
     { label: "home", href: "/" },
-    { label: "download", href: "/download.html" },
+    { label: "download", href: "/download" },
   ],
   [
-    { label: "documentation", href: "/documentation.html" },
-    { label: "community", href: "/community.html" },
-    { label: "news", href: "/news.html" },
+    { label: "documentation", href: "/documentation" },
+    { label: "community", href: "/community" },
+    { label: "news", href: "/news" },
   ],
   [
-    { label: "publications", href: "/publications.html" },
-    { label: "interfaces", href: "/interfaces.html" },
-    { label: "projects", href: "/projects.html" },
+    { label: "publications", href: "/publications" },
+    { label: "interfaces", href: "/interfaces" },
+    { label: "projects", href: "/projects" },
   ],
 ] as const;
+
+export const activePageSlugs = [
+  "community",
+  "disclaimer",
+  "documentation",
+  "download",
+  "flatzinc",
+  "interfaces",
+  "license",
+  "logo",
+  "news",
+  "projects",
+  "publications",
+] as const;
+
+export function canonicalSitePath(pathname: string): string {
+  if (pathname === "/index.html" || pathname === "/index") return "/";
+  return pathname.replace(/\.html$/, "");
+}
