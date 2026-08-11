@@ -45,15 +45,21 @@ This command:
 - checks content transformations, metadata, and canonical URLs
 - validates the documentation and redirect Workers
 
-For a deployment-equivalent build that also copies the frozen documentation
-and mailing-list archives, run:
+For the GitHub Pages artifact, including the mailing-list archive but excluding
+documentation now served from R2, run:
+
+```bash
+npm run build:pages
+```
+
+The legacy rollback/comparison build still copies both frozen archives:
 
 ```bash
 npm run build:deploy
 ```
 
-The ordinary build intentionally omits those archives because they contain more
-than 60,000 files and exceed 1 GB before compression.
+That legacy artifact exceeds GitHub Pages' 1 GB published-site limit and must
+not be used by the production workflow.
 
 ## Notes on Scope
 
@@ -66,4 +72,6 @@ than 60,000 files and exceed 1 GB before compression.
 ## Migration Plans
 
 - [Astro migration analysis](docs/astro-migration.md)
+- [Classical site parity review](docs/classic-parity-review.md)
+- [Deployment runbook](docs/deployment-runbook.md)
 - [Static documentation hosting plan](docs/static-documentation-hosting.md)

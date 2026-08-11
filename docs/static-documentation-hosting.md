@@ -173,10 +173,10 @@ until several releases have completed successfully.
 The local implementation now includes the tested Worker in `workers/docs/`,
 manifest, inventory, and sitemap generators in `scripts/docs/`, an immutable
 staged `rclone` publisher with SHA-256 verification, and CI validation.
-Provisioning buckets and credentials, uploading objects, and changing DNS
-remain operator actions because they affect external infrastructure. Sitemap
-generation and the canonical indexing policy are implemented, but
-release-pipeline upload and root-index wiring remain part of the cutover work.
+Generated sitemap files are part of each immutable release, and the Worker
+serves the selected sitemap at `/doc/sitemap.xml`. Provisioning buckets and
+credentials, uploading objects, and changing DNS remain operator actions
+because they affect external infrastructure.
 
 ### Phase 1: inventory and prototype
 
@@ -195,7 +195,7 @@ against the local archive.
 
 - Upload each versioned directory without the symlink aliases.
 - Verify each remote manifest independently.
-- Generate a combined documentation sitemap index.
+- Verify every version's sitemap index and shards after upload.
 - Run a sample of historical links from website content, repository READMEs,
   release notes, and search results.
 
@@ -217,7 +217,8 @@ while ordinary website URLs still come from GitHub Pages.
 
 ### Phase 4: shrink the Pages deployment
 
-- Remove `doc/` and `doc-latest` from the Pages artifact assembly.
+- Publish with `npm run build:pages`; this excludes `doc/` and `doc-latest`
+  while preserving the mailing-list archive.
 - Remove `scripts/copy-archives.mjs` after deciding whether the mailing-list
   archive will also move to R2.
 - Delete generated documentation from the website repository in a normal

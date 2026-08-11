@@ -1,0 +1,74 @@
+name: Deploy edge workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Cloudflare environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      worker:
+        description: Worker to deploy
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - documentation
+          - redirects
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-workers-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.worker }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: cloudflare-${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate documentation Worker
+        if: inputs.worker == 'both' || inputs.worker == 'documentation'
+        run: npm run test:docs-worker && npm run check:docs-worker
+
+      - name: Validate redirect Worker
+        if: inputs.worker == 'both' || inputs.worker == 'redirects'
+        run: npm run test:redirect-worker && npm run check:redirect-worker
+
+      - name: Deploy documentation Worker to staging
+        if: inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        run: npx wrangler deploy --env="" --config workers/docs/wrangler.jsonc
+
+      - name: Deploy documentation Worker to production
+        if: inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        run: npx wrangler deploy --env production --config workers/docs/wrangler.jsonc
+
+      - name: Deploy redirect Worker to staging
+        if: inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        run: npx wrangler deploy --env="" --config workers/redirects/wrangler.jsonc
+
+      - name: Deploy redirect Worker to production
+        if: inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        run: npx wrangler deploy --env production --config workers/redirects/wrangler.jsonc
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

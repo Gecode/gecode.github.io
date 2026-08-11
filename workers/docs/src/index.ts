@@ -51,7 +51,11 @@ function resolvePath(pathname: string, latestVersion: string): ResolvedPath | nu
   let version: string;
   let isAlias = false;
 
-  if (decoded === "/doc-latest" || decoded.startsWith("/doc-latest/")) {
+  if (decoded === "/doc/sitemap.xml") {
+    relative = "sitemap.xml";
+    version = latestVersion;
+    isAlias = true;
+  } else if (decoded === "/doc-latest" || decoded.startsWith("/doc-latest/")) {
     relative = decoded.slice("/doc-latest".length).replace(/^\//, "");
     version = latestVersion;
     isAlias = true;

@@ -22,11 +22,12 @@ await mkdir(outputDirectory, { recursive: true });
 
 const names = [];
 for (const [index, document] of documents.entries()) {
-  const name = `sitemap-doc-${manifest.documentationVersion}-${index + 1}.xml`;
+  const name = `sitemap-${index + 1}.xml`;
   await writeFile(path.join(outputDirectory, name), document);
   names.push(name);
 }
 
-const indexXml = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${names.map((name) => `  <sitemap><loc>${origin}/${name}</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`;
-await writeFile(path.join(outputDirectory, `sitemap-doc-${manifest.documentationVersion}.xml`), indexXml);
+const versionedBase = `${origin}/doc/${manifest.documentationVersion}`;
+const indexXml = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${names.map((name) => `  <sitemap><loc>${versionedBase}/${name}</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`;
+await writeFile(path.join(outputDirectory, "sitemap.xml"), indexXml);
 console.log(`Wrote ${documents.length} documentation sitemap(s) to ${outputDirectory}`);

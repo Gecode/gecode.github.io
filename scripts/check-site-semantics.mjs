@@ -10,6 +10,9 @@ const readOutput = (file) => readFile(path.join(siteRoot, file), "utf8");
 const robots = await readOutput("robots.txt");
 for (const match of robots.matchAll(/^Sitemap:\s+(\S+)$/gm)) {
   const sitemapPath = new URL(match[1]).pathname.replace(/^\//, "");
+  // Documentation is served by the Cloudflare Worker, not the Pages artifact.
+  // Its stable sitemap route is covered by the Worker integration tests.
+  if (sitemapPath.startsWith("doc/")) continue;
   try {
     await readOutput(sitemapPath);
   } catch {

@@ -27,6 +27,9 @@ beforeEach(async () => {
   await env.DOCS.put("6.4.0/reference/PageChange.html", "0123456789", {
     httpMetadata: { contentType: "text/html; charset=utf-8" },
   });
+  await env.DOCS.put("6.4.0/sitemap.xml", "<sitemapindex/>", {
+    httpMetadata: { contentType: "application/xml; charset=utf-8" },
+  });
 });
 
 describe("documentation worker", () => {
@@ -74,6 +77,15 @@ describe("documentation worker", () => {
       );
     },
   );
+
+  it("serves the latest version's sitemap at a stable crawlable URL", async () => {
+    const response = await request("/doc/sitemap.xml");
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("<sitemapindex/>");
+    expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
+    expect(response.headers.get("cache-control")).toContain("max-age=300");
+    expect(response.headers.get("link")).toBeNull();
+  });
 
   it("supports HEAD and conditional requests", async () => {
     const head = await request("/doc/6.4.0/reference/PageChange.html", { method: "HEAD" });

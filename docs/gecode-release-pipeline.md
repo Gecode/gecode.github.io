@@ -41,7 +41,8 @@ Run publication on the `release.published` event in a protected
 3. Assemble and validate `release-tree/`.
 4. Check out a pinned revision of this website repository as tooling.
 5. Run the generated-HTML compatibility patch and validate its output.
-6. Create the SHA-256 manifest and documentation sitemaps.
+6. Create a page manifest, write the documentation sitemap into the release
+   tree, and create the final SHA-256 manifest.
 7. Upload to `staging/<run-id>/<version>` in R2.
 8. Re-download the entire staged tree and verify its manifest and MIME types.
 9. Promote it to the immutable `<version>/` prefix.
@@ -68,6 +69,7 @@ env:
   RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
   RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
 ```
 
 The R2 token should have object read/write access only to the documentation
@@ -78,6 +80,12 @@ The central publication commands are:
 ```sh
 node website-tools/scripts/docs/patch-doxygen-html.mjs \
   release-tree/reference
+
+node website-tools/scripts/docs/create-manifest.mjs \
+  --root release-tree --version "$VERSION" --output pages-manifest.json
+
+node website-tools/scripts/docs/create-sitemaps.mjs \
+  --manifest pages-manifest.json --output release-tree
 
 node website-tools/scripts/docs/create-manifest.mjs \
   --root release-tree --version "$VERSION" --output manifest.json

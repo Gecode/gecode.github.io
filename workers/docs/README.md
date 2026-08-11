@@ -32,22 +32,31 @@ credentials and do not make network requests.
 
 ## Prepare a release
 
-Create and inspect a deterministic manifest before uploading:
+Assemble a clean release tree, create its page inventory, write the sitemap
+index and shards into that tree, and then create the immutable publication
+manifest:
 
 ```sh
 mkdir -p .documentation-manifests
 node scripts/docs/create-manifest.mjs \
-  --root doc/6.4.0 \
+  --root release-tree \
   --version 6.4.0 \
-  --output .documentation-manifests/6.4.0.json
+  --output .documentation-manifests/6.4.0-pages.json
 
 node scripts/docs/create-sitemaps.mjs \
-  --manifest .documentation-manifests/6.4.0.json \
-  --output .documentation-manifests/sitemaps
+  --manifest .documentation-manifests/6.4.0-pages.json \
+  --output release-tree
+
+node scripts/docs/create-manifest.mjs \
+  --root release-tree \
+  --version 6.4.0 \
+  --output .documentation-manifests/6.4.0.json
 ```
 
 The manifest command refuses symbolic links. This is why it must receive a
-version directory, never `doc/latest` or `doc-latest`.
+clean release directory, never `doc/latest` or `doc-latest`. The second
+manifest includes `sitemap.xml` and its shards, so publication and later
+verification cannot omit them.
 
 Bulk uploads use `rclone`, which is better suited to tens of thousands of
 objects than one-object-at-a-time Wrangler uploads. The publishing command is
@@ -55,7 +64,7 @@ a dry run unless `--confirm-upload` is present:
 
 ```sh
 node scripts/docs/publish-version.mjs \
-  --root doc/6.4.0 \
+  --root release-tree \
   --version 6.4.0 \
   --manifest .documentation-manifests/6.4.0.json \
   --build-id local-6.4.0 \
@@ -100,10 +109,11 @@ verification command.
 The bucket, DNS proxy, secrets, and billing alerts are intentionally not
 created by this repository. Both Workers read the same private production
 bucket; only their routes and selected `latest` versions differ. After an
-operator creates the bucket named in `wrangler.jsonc`:
+operator creates the bucket named in `wrangler.jsonc` and the
+`docs-staging.gecode.dev` Worker custom domain:
 
 ```sh
-npx wrangler deploy --config workers/docs/wrangler.jsonc
+npx wrangler deploy --env="" --config workers/docs/wrangler.jsonc
 npx wrangler deploy --env production --config workers/docs/wrangler.jsonc
 ```
 
@@ -120,8 +130,7 @@ environments, deploy staging, run smoke tests, and deploy production. Existing
 alias responses can remain cached for at most five minutes; the promotion is
 therefore bounded rather than instantaneous. Do not remove an older prefix.
 
-The sitemap generator is preparatory tooling for documentation producers. Its
-output is not included in the current Pages artifact automatically. Before DNS
-cutover, the release pipeline must upload the generated sitemap files and add
-their index URL to the root sitemap index. Versioned URLs belong in that
-sitemap; aliases do not.
+The Worker exposes the selected release's `sitemap.xml` at the stable
+`/doc/sitemap.xml` URL advertised by `robots.txt`. Sitemap shards and all page
+URLs remain immutable, versioned `/doc/<version>/...` URLs; aliases are not
+listed.
