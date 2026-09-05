@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Views and serialization — 15 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Views and serialization | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>15 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2007–December 2007</p><h1 data-pagefind-meta="title">Views and serialization</h1></header>
+      <p class="archive-thread-summary">15 messages · November 2007–December 2007</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001189">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Fri Nov 23 22:18:38 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all,
+
+I am working on merging a space SC in a S. For this to work i need to
+create all actors available in SC into S. This is fine as the Space
+class has method to return an iterator on space actors. I think the
+following code will do the job (SC is the source and S is the target):
+
+---- inside the queens class
+
+ VarMap * exportVars(void) {
+    VarMap *vmp = new VarMap();
+    Support::Symbol symb(&quot;root&quot;,true);
+    //vmp-&gt;registerArray(this,q,symb);
+    vmp-&gt;putArray(this,q,symb);
+    return vmp;
+  }
+----
+
+--- outside the class
+void merge(Queens *target, Queens *source) {
+  // Print some useful information
+  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+target-&gt;propagators() &lt;&lt; std::endl;
+  std::cout &lt;&lt; &quot;Number of propagators in source &quot; &lt;&lt;
+source-&gt;propagators() &lt;&lt; std::endl;
+
+  // Ask source to build a Map of its variables
+  VarMap *vmp = target-&gt;exportVars();
+
+  // Create an iterator over home's actors
+  Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+
+  Gecode::Serialization::Deserializer *ds = new Deserializer(target, *vmp);
+
+  while (si()) {
+    ds-&gt;post(si.actor());
+    ++si;
+  }
+
+  // Test the number of actors in target
+  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+target-&gt;propagators() &lt;&lt; std::endl;
+}
+----
+
+Is it right or did i miss something?
+
+
+The other step is to create all variables in SC in S. For this part i
+have reading the documenttion and found that IntView and SetView
+classes have a method called spec that returns an specification of a
+variable. For the Queens problem this would be fine as all variables
+are IntVars so creating IntView is easy. The problem raises when i
+have a collection of variables of different types (an array of
+VarBase*) and need to get the specification for each one. Is there any
+way to do this?. Note that i don't know each variable's type so
+creating the corresponding view is not possible.
+
+I prefer to ask this before doing some changes to my design, so sorry
+if my question sounds a little lazy.By the way, is there some example
+that use space serialization or reflection mechanisms?
+
+Thanks in advance,
+
+--
+Gustavo Gutierrez
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001190">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Nov 23 23:04:56 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Gustavo,
+
+Gustavo Gutierrez wrote:
+
+&gt;<i> I am working on merging a space SC in a S. For this to work i need to
+</I>&gt;<i> create all actors available in SC into S. This is fine as the Space
+</I>&gt;<i> class has method to return an iterator on space actors.
+</I>
+Now that's an application of reflection that I hadn't thought of yet.
+Nice.
+
+&gt;<i> I think the
+</I>&gt;<i> following code will do the job (SC is the source and S is the target):
+</I>&gt;<i>
+</I>&gt;<i> ---- inside the queens class
+</I>&gt;<i>
+</I>&gt;<i> VarMap * exportVars(void) {
+</I>&gt;<i>    VarMap *vmp = new VarMap();
+</I>&gt;<i>    Support::Symbol symb(&quot;root&quot;,true);
+</I>&gt;<i>    //vmp-&gt;registerArray(this,q,symb);
+</I>&gt;<i>    vmp-&gt;putArray(this,q,symb);
+</I>&gt;<i>    return vmp;
+</I>&gt;<i>  }
+</I>&gt;<i> ----
+</I>&gt;<i>
+</I>&gt;<i> --- outside the class
+</I>&gt;<i> void merge(Queens *target, Queens *source) {
+</I>&gt;<i>  // Print some useful information
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+</I>&gt;<i> target-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in source &quot; &lt;&lt;
+</I>&gt;<i> source-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>  // Ask source to build a Map of its variables
+</I>&gt;<i>  VarMap *vmp = target-&gt;exportVars();
+</I>&gt;<i>
+</I>&gt;<i>  // Create an iterator over home's actors
+</I>&gt;<i>  Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Serialization::Deserializer *ds = new Deserializer(target,
+</I>&gt;<i> *vmp);
+</I>&gt;<i>
+</I>&gt;<i>  while (si()) {
+</I>&gt;<i>    ds-&gt;post(si.actor());
+</I>&gt;<i>    ++si;
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i>  // Test the number of actors in target
+</I>&gt;<i>  std::cout &lt;&lt; &quot;Number of propagators in trget &quot; &lt;&lt;
+</I>&gt;<i> target-&gt;propagators() &lt;&lt; std::endl;
+</I>&gt;<i> }
+</I>&gt;<i> ----
+</I>&gt;<i>
+</I>&gt;<i> Is it right or did i miss something?
+</I>
+It's nearly right.  You need a fresh VarMap for the Deserializer.  The
+idea is that the correspondence between variables in source and target
+is purely by name.  So the code could look like this:
+
+void merge(Queens *target, Queens *source) {
+   VarMap *vmp = target-&gt;exportVars();
+   Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+
+   VarMap vm_target;
+   Gecode::Serialization::Deserializer ds(target, vm_target);
+
+   while (si()) {
+     ds.post(si.actor());
+     ++si;
+   }
+}
+
+&gt;<i> The other step is to create all variables in SC in S. For this part i
+</I>&gt;<i> have reading the documenttion and found that IntView and SetView
+</I>&gt;<i> classes have a method called spec that returns an specification of a
+</I>&gt;<i> variable. For the Queens problem this would be fine as all variables
+</I>&gt;<i> are IntVars so creating IntView is easy. The problem raises when i
+</I>&gt;<i> have a collection of variables of different types (an array of
+</I>&gt;<i> VarBase*) and need to get the specification for each one. Is there any
+</I>&gt;<i> way to do this?. Note that i don't know each variable's type so
+</I>&gt;<i> creating the corresponding view is not possible.
+</I>
+After iterating all the actors, vmp will contain all variables in
+source, and you can iterate them using a VarMapIter.  For each
+variable, you get a VarSpec that tells you what type the variable
+has.  Furthermore, you can use the spec you get to recreate the
+variable in target:
+
+for (VarMapIter vmi(*vmp); vmi(); ++vmi) {
+   ds.var(vmi.var());
+}
+
+If you want to link the variables you create to existing variables in
+target, you just have to put the variables from target into vm_target
+before iterating vmp.  Remember, variables are only identified by the
+name you give them.
+
+&gt;<i> I prefer to ask this before doing some changes to my design, so sorry
+</I>&gt;<i> if my question sounds a little lazy.By the way, is there some example
+</I>&gt;<i> that use space serialization or reflection mechanisms?
+</I>
+You can have a look at the file test/int.cc, the cloneWithReflection
+function might help you.  Please keep in mind that the reflection API
+is still experimental, the interface might change.  In fact, if you
+find things that don't work as you expect, or would like to have
+additional functionality, please let us know!
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071123/2ff47e9c/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20071123/2ff47e9c/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001192">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Sat Nov 24 06:40:09 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Nov 23, 2007 5:04 PM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> It's nearly right.  You need a fresh VarMap for the Deserializer.  The
+</I>&gt;<i> idea is that the correspondence between variables in source and target
+</I>&gt;<i> is purely by name.  So the code could look like this:
+</I>&gt;<i>
+</I>&gt;<i> void merge(Queens *target, Queens *source) {
+</I>&gt;<i>    VarMap *vmp = target-&gt;exportVars();
+</I>&gt;<i>    Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+</I>&gt;<i>
+</I>&gt;<i>    VarMap vm_target;
+</I>&gt;<i>    Gecode::Serialization::Deserializer ds(target, vm_target);
+</I>&gt;<i>
+</I>&gt;<i>    while (si()) {
+</I>&gt;<i>      ds.post(si.actor());
+</I>&gt;<i>      ++si;
+</I>&gt;<i>    }
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>
+I am getting some memory errors after the suggested modification. I
+get a &quot;bus error&quot; which is, IMO, the equivalent to segmentation fault
+in linux. It seems that the fresh VarMap, vm_target, is causing the
+problem. After looking at test/int.cc i see that before using the
+fresh VarMap the array of variables is registered. Then i have the
+following question: What is registerArray intended for?, and what is
+the difference with putArray?. I try to call this method before actor
+iteration but the error is still there.
+
+Cheers,
+--
+Gustavo Gutierrez
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001193">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Sat Nov 24 08:35:53 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+
+&gt;<i> I am getting some memory errors after the suggested modification. I
+</I>&gt;<i> get a &quot;bus error&quot; which is, IMO, the equivalent to segmentation fault
+</I>&gt;<i> in linux. It seems that the fresh VarMap, vm_target, is causing the
+</I>&gt;<i> problem. After looking at test/int.cc i see that before using the
+</I>&gt;<i> fresh VarMap the array of variables is registered. Then i have the
+</I>&gt;<i> following question: What is registerArray intended for?, and what is
+</I>&gt;<i> the difference with putArray?. I try to call this method before actor
+</I>&gt;<i> iteration but the error is still there.
+</I>
+The difference between putArray and registerArray is that
+registerArray just introduces the name-&gt;VarBase* mapping into the
+VarMap, whereas putArray also assigns an integer index to the
+variable.  All references to variables (e.g. in the ActorSpecs) are by
+index only.  If you used putArray in vm_target, all the variables
+would already get assigned these indexes, but their indexes would not
+necessarily be the same as in vmp.
+
+Another thing I just noticed now is that vmp should come from the
+source, not the target:
+
+void merge(Queens *target, Queens *source) {
+   VarMap *vmp = source-&gt;exportVars();
+   Reflection::SpecIter si = source-&gt;actorSpecs(*vmp);
+
+   VarMap vm_target;
+   Gecode::Serialization::Deserializer ds(target, vm_target);
+
+   while (si()) {
+     ds.post(si.actor());
+     ++si;
+   }
+}
+
+I'm not sure that explains the crash.  One thing that might explain it
+is a bug that I found this week, which may make VarMaps crash under
+certain conditions.  It's fixed in the Gecode trunk, but didn't make
+it into 2.0.0.
+If you can't get it to work, please send me the complete source code
+that crashes (by private email), I'll have a look.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001194">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Pengyu Zhao</h2></div>
+          <p><time>Mon Nov 26 01:07:23 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>hi,
+
+I have a question about &quot;advisor&quot;.
+
+I am writing an advisor for n-ary linear equation.
+
+In n-ary Eq(trunk/gecode/int/linear.hh), the template class definition
+is:
+	template&lt;class Val, class P, class N&gt;
+	class Eq : public Lin&lt;Val,P,N,PC_INT_BND&gt; {......}
+&quot;P&quot; represented for position view array.
+&quot;N&quot; represented for negative view array or NoView.
+Then, I added a council to this propagator, like,
+	Council&lt;LinearAdvisor&lt;V&gt;&gt; council;
+I added a &quot;LinearAdvisor&quot; class which derived from &quot;ViewAdvisor&lt;V&gt;&quot;,like
+	template&lt;class V&gt;
+	class LinearAdvisor : public ViewAdvisor&lt;V&gt; {......}
+when constructing, the council and Advisors of variables only accept ONE
+template parameter like P or N. But, the type of views in a propagator
+may different, is there another way to set an advisor to a view
+dynamically? How can I make a council accept different kinds of
+advisors?
+I have tried to set V to DoubleView, it's ok but coefficient can only
+accept 1 or -1.
+Also, the propagator only accept one Council.
+
+Thank you very much.
+
+
+--
+Best Regards,
+Pengyu ZHAO
+
+pengyu(a)kth.se
++46(0)762 319 744
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001196">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Malcolm Ryan</h2></div>
+          <p><time>Mon Nov 26 06:58:59 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I'm looking for a reified version of Gecode.distinct() but there
+doesn't appear to be one. Can anyone suggest a reasonable alternative?
+
+Malcolm
+
+--
+&quot;The modern man in revolt has become
+           practically useless for all purposes of revolt.
+By rebelling against everything
+           he has lost his right to rebel against anything.&quot;
+                                                    - G.K.Chesterton,
+Orthodoxy
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001197">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Mon Nov 26 09:14:15 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Nov 26, 2007 6:58 AM, Malcolm Ryan &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">malcolmr at cse.unsw.edu.au</A>&gt; wrote:
+&gt;<i> I'm looking for a reified version of Gecode.distinct() but there
+</I>&gt;<i> doesn't appear to be one. Can anyone suggest a reasonable alternative?
+</I>
+As you already found out, there is no reified version of distinct in
+Gecode. What kind of application did you have in mind for it?
+
+The most direct model would probably be a reified decomposition into
+not-equals constraints. However, this will only give the same pruning
+when distinctness should hold as using ICL_VAL.
+
+Another possibility would be to write a simple propagator that checks
+whether the constraint should hold. If so, it can re-write itself into
+a distinct-propagator. However, there is no way to re-write
+propagators directly in Java, you'd have to post a propagator using
+the modelling-interface instead.
+
+As a side-note, there are other global constraints, not currently in
+Gecode, which might be interesting to know about. Nvalue constrains a
+sequence to take a specific number of values. It is easy to model a
+reified distinct using nvalue by reifing whether the number of values
+are equal to the number of variables, or less.
+
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001199">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Mon Nov 26 09:31:37 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Nov 26, 2007 1:07 AM, Pengyu Zhao &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zpengyu at gmail.com</A>&gt; wrote:
+&gt;<i> I have a question about &quot;advisor&quot;.
+</I>&gt;<i>
+</I>&gt;<i> I am writing an advisor for n-ary linear equation.
+</I>&gt;<i>
+</I>&gt;<i> In n-ary Eq(trunk/gecode/int/linear.hh), the template class definition
+</I>&gt;<i> is:
+</I>&gt;<i>        template&lt;class Val, class P, class N&gt;
+</I>&gt;<i>        class Eq : public Lin&lt;Val,P,N,PC_INT_BND&gt; {......}
+</I>&gt;<i> &quot;P&quot; represented for position view array.
+</I>&gt;<i> &quot;N&quot; represented for negative view array or NoView.
+</I>&gt;<i> Then, I added a council to this propagator, like,
+</I>&gt;<i>        Council&lt;LinearAdvisor&lt;V&gt;&gt; council;
+</I>&gt;<i> I added a &quot;LinearAdvisor&quot; class which derived from &quot;ViewAdvisor&lt;V&gt;&quot;,like
+</I>&gt;<i>        template&lt;class V&gt;
+</I>&gt;<i>        class LinearAdvisor : public ViewAdvisor&lt;V&gt; {......}
+</I>&gt;<i> when constructing, the council and Advisors of variables only accept ONE
+</I>&gt;<i> template parameter like P or N. But, the type of views in a propagator
+</I>&gt;<i> may different, is there another way to set an advisor to a view
+</I>&gt;<i> dynamically? How can I make a council accept different kinds of
+</I>&gt;<i> advisors?
+</I>&gt;<i> I have tried to set V to DoubleView, it's ok but coefficient can only
+</I>&gt;<i> accept 1 or -1.
+</I>&gt;<i> Also, the propagator only accept one Council.
+</I>
+Since most propagators only need one type of advisor, we simplified
+the system by only allowing a single type of advisor for a propagator.
+When more than one type is needed, one has to program this explicitly.
+Essentially, you need to distinguish the type of the advisor in the
+advise-function. This can be done with either sub-types or tagging.
+
+For sub-typing, you would have a class hierarchy something like:
+    class PorNAdvisor : public Advisor { ... }
+    class PAdvisor : public PorNAdvisor { ... }
+    class NAdvisor : public PorNAdvisor { ... }
+In the advise-function you could then use RTTI or polymorphism to find
+the right function.
+
+For tagging, you can just add a field in your advisor as follows
+    class PorNAdvisor : public Advisor {
+        ...
+        bool isP; ///&lt; Advisor for positive views
+        ....
+    }
+In the advise-function you can then check this field to determine what
+needs to be done.
+
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001200">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Mon Nov 26 05:34:05 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Nov 23, 2007 5:04 PM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+&gt;<i> After iterating all the actors, vmp will contain all variables in
+</I>&gt;<i> source, and you can iterate them using a VarMapIter.  For each
+</I>&gt;<i> variable, you get a VarSpec that tells you what type the variable
+</I>&gt;<i> has.  Furthermore, you can use the spec you get to recreate the
+</I>&gt;<i> variable in target:
+</I>
+Does this mean that creating a VarMap is not only achieved by putting
+the VarArray but also by iterating all the actors?.
+I mean, for the queens problem for instance, the following two codes
+do the same in which respects to filling a VarMap?
+
+code 1:
+
+  VarMap * exportVars(void) {
+    VarMap *vmp = new VarMap();
+    Support::Symbol symb(&quot;root&quot;,true);
+    vmp-&gt;putArray(this,q,symb);
+    return vmp;
+  }
+
+
+code 2:
+
+VarMap * exportVars2(void) {
+    VarMap *vmp = new VarMap();
+    SpecIter si = actorSpecs(*vmp);
+   while (si())
+    ++si;
+   return vmp;
+  }
+
+If that is true i find the second a more general approach, since it
+automatically collects only variables related to constraints.
+
+Cheers,
+--
+Gustavo Gutierrez
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001201">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Nov 26 10:02:05 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+
+&gt;<i> On Nov 23, 2007 5:04 PM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+</I>&gt;&gt;<i> After iterating all the actors, vmp will contain all variables in
+</I>&gt;&gt;<i> source, and you can iterate them using a VarMapIter.  For each
+</I>&gt;&gt;<i> variable, you get a VarSpec that tells you what type the variable
+</I>&gt;&gt;<i> has.  Furthermore, you can use the spec you get to recreate the
+</I>&gt;&gt;<i> variable in target:
+</I>&gt;<i>
+</I>&gt;<i> Does this mean that creating a VarMap is not only achieved by putting
+</I>&gt;<i> the VarArray but also by iterating all the actors?.
+</I>
+Yes, with the difference that you don't know the identity of variables
+that were put in by iterating the actors.
+
+&gt;<i> I mean, for the queens problem for instance, the following two codes
+</I>&gt;<i> do the same in which respects to filling a VarMap?
+</I>&gt;<i>
+</I>&gt;<i> code 1:
+</I>&gt;<i>
+</I>&gt;<i>  VarMap * exportVars(void) {
+</I>&gt;<i>    VarMap *vmp = new VarMap();
+</I>&gt;<i>    Support::Symbol symb(&quot;root&quot;,true);
+</I>&gt;<i>    vmp-&gt;putArray(this,q,symb);
+</I>&gt;<i>    return vmp;
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> code 2:
+</I>&gt;<i>
+</I>&gt;<i> VarMap * exportVars2(void) {
+</I>&gt;<i>    VarMap *vmp = new VarMap();
+</I>&gt;<i>    SpecIter si = actorSpecs(*vmp);
+</I>&gt;<i>   while (si())
+</I>&gt;<i>    ++si;
+</I>&gt;<i>   return vmp;
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i> If that is true i find the second a more general approach, since it
+</I>&gt;<i> automatically collects only variables related to constraints.
+</I>
+In realistic examples, you probably need both.  The logic is exactly
+the same as for copying:  You copy the variables that make up your
+solution explicitly, so that they are available in the copy.  All
+other variables are copied if needed (i.e., referenced by propagators
+or branchings) and discarded otherwise.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071126/8c0daffb/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20071126/8c0daffb/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001206">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Tue Nov 27 01:17:22 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido,
+
+On Nov 23, 2007 5:04 PM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> You can have a look at the file test/int.cc, the cloneWithReflection
+</I>&gt;<i> function might help you.  Please keep in mind that the reflection API
+</I>&gt;<i> is still experimental, the interface might change.  In fact, if you
+</I>&gt;<i> find things that don't work as you expect, or would like to have
+</I>&gt;<i> additional functionality, please let us know!
+</I>&gt;<i>
+</I>
+What i need now is to put some references to the newly added variables
+in a &quot;root&quot; array. For instance, after merging the money problem space
+into a queens of size 5 problem space i expect to have 8 more
+variables. Also i need to have references to that variables from the q
+IntVarArray (for instance, to post new constraints).
+
+I have a question about the VarMap or VarMapIter. Is it possible to
+know how many variables a VarMap stores, or to access VarBase objects
+through VarMapIter?.  My idea is to iterate on the VarMap and to add
+the VarBase corresponding objects to the q array. The problem is that
+i don't find a method to get the size of the map to use it in a for
+loop. The VarMapIter only provides access to variable specifications
+but not to VarBase objects.
+
+
+Cheers,
+--
+Gustavo Gutierrez
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001209">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Nov 27 10:24:24 CET 2007</time><small>November 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+
+&gt;<i> I have a question about the VarMap or VarMapIter. Is it possible to
+</I>&gt;<i> know how many variables a VarMap stores, or to access VarBase objects
+</I>&gt;<i> through VarMapIter?
+</I>
+No, that functionality was missing.  It's now available in the Gecode
+trunk.
+
+&gt;<i> .  My idea is to iterate on the VarMap and to add
+</I>&gt;<i> the VarBase corresponding objects to the q array. The problem is that
+</I>&gt;<i> i don't find a method to get the size of the map to use it in a for
+</I>&gt;<i> loop. The VarMapIter only provides access to variable specifications
+</I>&gt;<i> but not to VarBase objects.
+</I>
+With the added size method, you can implement the iteration yourself
+(using the VarBase* var(int i) const; method).  If you not only want
+to fill an array of VarBase*, but an array of IntVars, BoolVars, or
+SetVars, you'll have to cast the VarBase* to the corresponding
+variable type.  You can do that through the views:
+
+IntVar iv(Int::IntView(static_cast&lt;Int::IntVarImp*&gt;(vm.var(0))))
+would create an IntVar from entry 0 of the VarMap vm.  You can use the
+VarSpec to query the variable type.  Currently, vm.spec(0).vti() may
+return &quot;VTI_INT&quot;, &quot;VTI_BOOL&quot;, or &quot;VTI_SET&quot;.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071127/687b3722/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20071127/687b3722/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001240">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Fri Dec 21 05:40:13 CET 2007</time><small>December 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+On Nov 26, 2007, at 4:02 AM, Guido Tack wrote:
+
+&gt;<i> Gustavo Gutierrez wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> On Nov 23, 2007 5:04 PM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+</I>&gt;&gt;&gt;<i> After iterating all the actors, vmp will contain all variables in
+</I>&gt;&gt;&gt;<i> source, and you can iterate them using a VarMapIter.  For each
+</I>&gt;&gt;&gt;<i> variable, you get a VarSpec that tells you what type the variable
+</I>&gt;&gt;&gt;<i> has.  Furthermore, you can use the spec you get to recreate the
+</I>&gt;&gt;&gt;<i> variable in target:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Does this mean that creating a VarMap is not only achieved by putting
+</I>&gt;&gt;<i> the VarArray but also by iterating all the actors?.
+</I>&gt;<i>
+</I>&gt;<i> Yes, with the difference that you don't know the identity of
+</I>&gt;<i> variables that were put in by iterating the actors.
+</I>
+I am having some problems with VarMaps. As you said there are two ways
+to fill a VarMap: by using put and putArray methods and by iterating
+on actor specifications. I tried the second but because of a design
+decision in the past we cannot use it.  In our design we have a class
+GenericSpace which inherits from Gecode::Space. This class has an
+attribute that contains a DynamicArray with all variables declared in
+a computation space. This array contains VarBase pointers (VarImpBase
+in the trunk version). To fill the VarMap i am using the following code:
+
+void GenericSpace::merge(GenericSpace *src) {
+   Reflection::VarMap vm;
+   for (int i = 0; i &lt; src-&gt;vars.getSize(); i++) {
+	std::stringstream s;
+	s &lt;&lt; &quot;src-&quot; &lt;&lt; i;
+	vm.put(src,src-&gt;vars.getVar(i),s.str().c_str());
+   }
+   printf(&quot;End merge operation\n&quot;);fflush(stdout);
+}
+
+getVar(i) returns a reference to the VarImpBase stored at position i
+in the array.  When building the following error appears:
+
+/Users/ggutierrez/Work/gec/include/gecode/kernel/var-map.icc: In
+member function &#8216;void Gecode::Reflection::VarMap::put(Gecode::Space*,
+const Var&amp;, const Gecode::Support::Symbol&amp;) [with Var =
+Gecode::VarImpBase]&#8217;:
+/Users/ggutierrez/Work/mozart-gecode/mozart/platform/emulator/
+GeSpace.cc:180:   instantiated from here
+/Users/ggutierrez/Work/gec/include/gecode/kernel/var-map.icc:177:
+error: no type named &#8216;View&#8217; in &#8216;class
+Gecode::VarViewTraits&lt;Gecode::VarImpBase&gt;&#8217;
+
+Note that vars does not contain integer constraint variables only it
+also contains set vars, bool vars, etc. This is why we chose to use an
+array of VarImpBase.
+
+Any help on this is very welcome, thanks in advance.
+
+Cheers,
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071220/98218587/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20071220/98218587/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001241">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Dec 21 11:23:26 CET 2007</time><small>December 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+&gt;<i> lems with VarMaps. As you said there are two ways to fill a VarMap:
+</I>&gt;<i> by using put and putArray methods and by iterating on actor
+</I>&gt;<i> specifications. I tried the second but because of a design decision
+</I>&gt;<i> in the past we cannot use it.  In our design we have a class
+</I>&gt;<i> GenericSpace which inherits from Gecode::Space. This class has an
+</I>&gt;<i> attribute that contains a DynamicArray with all variables declared
+</I>&gt;<i> in a computation space. This array contains VarBase pointers
+</I>&gt;<i> (VarImpBase in the trunk version). To fill the VarMap i am using the
+</I>&gt;<i> following code:
+</I>&gt;<i>
+</I>&gt;<i> void GenericSpace::merge(GenericSpace *src) {
+</I>&gt;<i>   Reflection::VarMap vm;
+</I>&gt;<i>   for (int i = 0; i &lt; src-&gt;vars.getSize(); i++) {
+</I>&gt;<i> 	std::stringstream s;
+</I>&gt;<i>  	s &lt;&lt; &quot;src-&quot; &lt;&lt; i;
+</I>&gt;<i> 	vm.put(src,src-&gt;vars.getVar(i),s.str().c_str());
+</I>&gt;<i>   }
+</I>&gt;<i>   printf(&quot;End merge operation\n&quot;);fflush(stdout);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> getVar(i) returns a reference to the VarImpBase stored at position i
+</I>&gt;<i> in the array.  When building the following error appears:
+</I>
+You cannot use put with a VarImBase*, you always have to go through
+the actual variable.  This is like update: You cannot call update on a
+VarImpBase*, only on a Var (or View).  The reason is that we do not
+want variables to have any virtual functions.  I guess you have some
+flag indicating which VarImpBase* has which actual variable type, so
+that you can copy (update) variables.  You should use the same
+information for merge.  Cast the VarImpBase* to the corresponding
+IntVarImp* (or SetVarImp* or whatever you have), then use that to get
+an IntVar (or SetVar...), and then call vm.put with that variable.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071221/edc6e3f1/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20071221/edc6e3f1/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001243">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Ms Anne Bates</h2></div>
+          <p><time>Thu Dec 20 19:35:16 CET 2007</time><small>December 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20071220/c926734b/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20071220/c926734b/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

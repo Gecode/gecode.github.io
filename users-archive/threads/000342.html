@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ViewArray &lt;-&gt; VarArgArray — 11 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>ViewArray &lt;-&gt; VarArgArray | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>11 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2006</p><h1 data-pagefind-meta="title">ViewArray &lt;-&gt; VarArgArray</h1></header>
+      <p class="archive-thread-summary">11 messages · January 2006</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000342">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 16 00:22:47 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello everyone,
+
+I am currently trying to extend Gecode with some custom propagators as
+preparation for my thesis project, and although it's not always been easy
+I've managed to implement a few things already.
+
+Currently I'm working on a propagator for a constraint that relates three
+arrays of variables. Among other things, at some point during propagation, I
+need to post some other constraints, like Gecode::eq(Space*, IntVar, IntVar).
+
+The propagator class has three fields of type ViewArray&lt;IntView&gt;, say x0,
+x1, and x2. Now, when posting the additional equality constraints mentioned
+above I've just called e.g.
+	Gecode::eq(this,x0[i],x1[j]);
+and things went smoothly, although, technically, x0[i] is of type IntView
+and not IntVar -- but this fit my understanding of IntView as some sort of
+wrapper for an IntVar.
+
+Now I also need to post a propagator Gecode::element(Space*, IntVarArgs&amp;,
+IntVar, IntVar). Intuitively I tried calling
+	Gecode::element(this, x0, x1[i], x2[j]);
+In this case, however, using the array of views as second argument won't
+work as the compiler doesn't find a matching function, apparently IntVarArgs
+and ViewArray&lt;IntView&gt; are not 'compatible' in this respect.
+
+I've already searched the reference documentation for quite a while, but
+haven't found anything that helped me here. My assumption is that I need to
+'convert' the ViewArray&lt;IntView&gt; into something of type IntVarArgs (i.e.
+VarArgArray&lt;IntVar&gt;), but maybe I'm wrong...? Is there any straightforward
+way to do this that I've been missing so far?
+
+Thanks in advance,
+/Lars
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000343">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jan 16 09:47:00 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+Lars Otten wrote:
+&gt;<i> Hello everyone,
+</I>&gt;<i>
+</I>&gt;<i> I am currently trying to extend Gecode with some custom propagators as
+</I>&gt;<i> preparation for my thesis project, and although it's not always been easy
+</I>&gt;<i> I've managed to implement a few things already.
+</I>
+Great. Please keep us informed of your progress!
+
+&gt;<i> Currently I'm working on a propagator for a constraint that relates three
+</I>&gt;<i> arrays of variables. Among other things, at some point during propagation,
+</I>&gt;<i> I need to post some other constraints, like Gecode::eq(Space*, IntVar,
+</I>&gt;<i> IntVar).
+</I>&gt;<i>
+</I>&gt;<i> The propagator class has three fields of type ViewArray&lt;IntView&gt;, say x0,
+</I>&gt;<i> x1, and x2. Now, when posting the additional equality constraints mentioned
+</I>&gt;<i> above I've just called e.g.
+</I>&gt;<i> 	Gecode::eq(this,x0[i],x1[j]);
+</I>
+To create a new propagator during propagation, you need to call the
+propagator's post method instead of posting it through the modelling
+interface as you do now.
+
+You find an example for posting new propagators e.g. in the file
+int/distinct/dom.icc, where an Nq propagator is created. The propagator post
+methods take Views and ViewArrays as arguments, so this will solve your
+problem. The only thing you need to take care of is the return value of the
+post method: you must check whether it returned failure with the
+GECODE_ES_CHECK macro.
+
+&gt;<i> and things went smoothly, although, technically, x0[i] is of type IntView
+</I>&gt;<i> and not IntVar -- but this fit my understanding of IntView as some sort of
+</I>&gt;<i> wrapper for an IntVar.
+</I>
+Actually, it is not a wrapper for an IntVar, but both are wrappers for an
+IntVarImp. The vars provide the &quot;read-only&quot; interface you need for modelling,
+and the views export an interface that includes the tell operations for the
+propagators.
+
+&gt;<i> [...]
+</I>&gt;<i> I've already searched the reference documentation for quite a while, but
+</I>&gt;<i> haven't found anything that helped me here. My assumption is that I need to
+</I>&gt;<i> 'convert' the ViewArray&lt;IntView&gt; into something of type IntVarArgs (i.e.
+</I>&gt;<i> VarArgArray&lt;IntVar&gt;), but maybe I'm wrong...? Is there any straightforward
+</I>&gt;<i> way to do this that I've been missing so far?
+</I>
+This is not mentioned anywhere in the reference documentation, so you couldn't
+find it. It will be part of the Gecode tutorial that we are writing.
+
+&gt;<i> Thanks in advance,
+</I>
+You're welcome!
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr&#252;cken
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000344">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 16 17:30:10 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+first of all thank you very much for the quick reply.
+
+On 01/16/06 08:47, Guido Tack wrote:
+&gt;<i> Great. Please keep us informed of your progress!
+</I>
+I guess it's only a matter of time until I'll have some more issues /
+questions to post here, so by that you'll be kept up to date. ;)
+
+&gt;<i> To create a new propagator during propagation, you need to call the
+</I>&gt;<i> propagator's post method instead of posting it through the modelling
+</I>&gt;<i> interface as you do now.
+</I>
+OK, for the equality propagator that was an easy change.
+
+For the element propagator, however, it is not that simple. While my class
+currently has fields of type ViewArray&lt;IntView&gt;, something of type
+IdxView&lt;IntView&gt;* is required for the array argument of
+Element::ViewDom&lt;IntView,IntView&gt;::post(...).
+
+My first idea was to introduce a new field in my propagator of just that
+type -- but then I'd have two views for the same variable array, which seems
+somehow redundant to me. So I decided to replace the respective field of
+type ViewArray&lt;IntView&gt; with the IdxView&lt;IntView&gt;* thing, which entailed
+several other changes.
+
+Doing this I ran into several problems, both at compile time and
+subsequently at runtime. I will continue to look into this, though...
+
+Again, thank you very much so far.
+
+/Lars
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000345">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jan 16 16:53:23 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&gt;<i> For the element propagator, however, it is not that simple. While my class
+</I>&gt;<i> currently has fields of type ViewArray&lt;IntView&gt;, something of type
+</I>&gt;<i> IdxView&lt;IntView&gt;* is required for the array argument of
+</I>&gt;<i> Element::ViewDom&lt;IntView,IntView&gt;::post(...).
+</I>&gt;<i>
+</I>&gt;<i> My first idea was to introduce a new field in my propagator of just that
+</I>&gt;<i> type -- but then I'd have two views for the same variable array, which
+</I>&gt;<i> seems somehow redundant to me. So I decided to replace the respective field
+</I>&gt;<i> of type ViewArray&lt;IntView&gt; with the IdxView&lt;IntView&gt;* thing, which entailed
+</I>&gt;<i> several other changes.
+</I>
+Ok, I see. There indeed seems to be an inconsistency in the library. Normally,
+you should simply create a new IdxView&lt;IntView&gt;* thing, just like in
+element.cc. You don't have to use that as your own view array, just create it
+when you want to post the element propagator. Now creating an
+IdxView&lt;IntView&gt;* currently is only possible using IntVarArgs (that's the
+small inconsistency). However, you can easily create your own IntVarArgs.
+Suppose x is an IntView array:
+
+IntVarArgs xa(size);
+for (int i=size; i--; ) {
+   IntVar v(x[i]);
+   xa[i] = v;
+}
+
+Hope this helps,
+
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr&#252;cken
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000346">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Lars Otten</h2></div>
+          <p><time>Wed Jan 18 02:41:24 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 01/16/06 15:53, Guido Tack wrote:
+&gt;<i> However, you can easily create your own IntVarArgs.
+</I>&gt;<i> Suppose x is an IntView array:
+</I>&gt;<i>
+</I>&gt;<i> IntVarArgs xa(size);
+</I>&gt;<i> for (int i=size; i--; ) {
+</I>&gt;<i>    IntVar v(x[i]);
+</I>&gt;<i>    xa[i] = v;
+</I>&gt;<i> }
+</I>
+Just a minor point: Is there any reason why you did not just write
+  xa[i] = x[i];
+as the body of the for loop, but instead took the 'detour' via the explicit
+IntVar?
+
+Am I right in assuming that for every element propagator instance I want to
+post I have to create a distinct IdxView&lt;View,View&gt;* instance? I tried using
+the same instance for two propagator instances but then it segfaulted on me...
+
+Also, is there a theoretical bound on the number of propagators one can post
+/ that can be present in a computation space at any given time (not
+considering the limitedness of the computer's memory)? If yes, can one
+predict what happens if this bound is exceeded?
+
+Enough for today, it's really time to go to bed I guess... ;)
+
+Cheers,
+/Lars
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000347">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Jan 18 10:39:06 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>The detour is due to coercion: there might not be an automatic coercion but
+only a copy constructor declared &quot;explicit&quot;.
+
+Yes, always take fresh instances: this is also done when a propagator using
+a view array is posted as a new copy of the array is created. The reason is
+that the propagators actually change their data structures while
+propagating.
+
+No bounds, just limited by memory. This is tru for everything. The only
+limit is min/max of variable domains.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Lars Otten
+Sent: Wednesday, January 18, 2006 2:41 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] ViewArray &lt;-&gt; VarArgArray
+
+
+On 01/16/06 15:53, Guido Tack wrote:
+&gt;<i> However, you can easily create your own IntVarArgs.
+</I>&gt;<i> Suppose x is an IntView array:
+</I>&gt;<i>
+</I>&gt;<i> IntVarArgs xa(size);
+</I>&gt;<i> for (int i=size; i--; ) {
+</I>&gt;<i>    IntVar v(x[i]);
+</I>&gt;<i>    xa[i] = v;
+</I>&gt;<i> }
+</I>
+Just a minor point: Is there any reason why you did not just write
+  xa[i] = x[i];
+as the body of the for loop, but instead took the 'detour' via the explicit
+IntVar?
+
+Am I right in assuming that for every element propagator instance I want to
+post I have to create a distinct IdxView&lt;View,View&gt;* instance? I tried using
+the same instance for two propagator instances but then it segfaulted on
+me...
+
+Also, is there a theoretical bound on the number of propagators one can post
+/ that can be present in a computation space at any given time (not
+considering the limitedness of the computer's memory)? If yes, can one
+predict what happens if this bound is exceeded?
+
+Enough for today, it's really time to go to bed I guess... ;)
+
+Cheers,
+/Lars
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000348">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Jan 18 15:36:29 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>[Sorry for multiple copies.]
+
+We would like to announce the release of
+
+		Gecode 1.0.0
+	   <A HREF="http://www.gecode.org/">http://www.gecode.org/</A>
+
+Gecode is an open, free, portable, accessible, and efficient
+environment for developing constraint-based systems and
+applications:
+
+open
+   Gecode is radically open for programming: it can be easily
+   interfaced to other systems. It supports the programming of
+   new propagators (as implementations of constraints), branching
+   strategies, and search engines. New variable domains can be
+   programmed with the same efficiency as the finite domain and
+   integer set variables that come predefined with Gecode.
+
+free
+   Gecode is distributed under a BSD-style license. All of its
+   parts including documentation, implementations of global
+   constraints, and examples are available as source code.
+
+portable
+   Gecode is implemented in C++ that carefully follows the C++
+   standard. It can be compiled with modern C++ compilers and
+   runs on a wide range of machines (including 64bit machines).
+
+accessible
+   Gecode comes with extensive reference documentation that allows
+   to focus on different programming tasks like modelling,
+   implementing propagators, and implementing variable domains.
+
+efficient
+   Gecode offers competitive performance with respect to both
+   runtime and memory usage.
+
+allows contributions
+   Gecode is designed to facilitate contributions on top of
+   it. CP(Graph) and CP(Map) providing graph and map variables for
+   constraint programming is available as a first contribution
+   built on top of Gecode.
+
+
+Gecode and contributions built on top of it are available from
+	<A HREF="http://www.gecode.org/">http://www.gecode.org/</A>
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr&#252;cken
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000349">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Jan 19 10:44:31 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+We just noticed that Gecode has already appeared in Debian testing. That's
+great! Thanks so much for putting the packages together and uploading them to
+Debian!
+
+One thing that I would be extremely interested in is whether the test suite
+actually passes on the more exotic platforms, like alpha, arm, ia64, sparc,
+etc. It would be really cool if you could add a make test and executing
+test/test to the build process. This will slow down the build a lot, but I
+think it might be a good idea anyway.
+
+I'll put a note on our download pages that Debian packages are available.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr&#252;cken
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000350">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Thu Jan 19 12:08:36 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+&gt;<i> One thing that I would be extremely interested in is whether the test suite
+</I>&gt;<i> actually passes on the more exotic platforms, like alpha, arm, ia64, sparc,
+</I>&gt;<i> etc. It would be really cool if you could add a make test and executing
+</I>&gt;<i> test/test to the build process. This will slow down the build a lot, but I
+</I>&gt;<i> think it might be a good idea anyway.
+</I>&gt;<i>
+</I>Have you tried compiling/running gecode on Windows under MSVC? I did not
+notice any MSVC project files or makefiles when I looked on the sources,
+although there seem to be some _MSC_VER macros used...
+
+Thanks,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000351">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jan 19 13:06:52 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Please read the docs about how to build Gecode.
+
+We currently don't have MSVC project files (we would like to generate
+some... we intend to have them at some point in tim) but you can build with
+MSVC when you also have Cygwin installed (actually, I use MSVC for
+development myself). As said, check the docs.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Thursday, January 19, 2006 12:09 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] MSVC project files? [WAS: Debian packages for
+Gecode]
+
+
+
+&gt;<i> One thing that I would be extremely interested in is whether the test
+</I>&gt;<i> suite
+</I>&gt;<i> actually passes on the more exotic platforms, like alpha, arm, ia64,
+</I>sparc,
+&gt;<i> etc. It would be really cool if you could add a make test and executing
+</I>&gt;<i> test/test to the build process. This will slow down the build a lot, but I
+</I>
+&gt;<i> think it might be a good idea anyway.
+</I>&gt;<i>
+</I>Have you tried compiling/running gecode on Windows under MSVC? I did not
+notice any MSVC project files or makefiles when I looked on the sources,
+although there seem to be some _MSC_VER macros used...
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000352">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Jan 19 13:08:19 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Filip Konvi&#269;ka wrote:
+&gt;<i> Have you tried compiling/running gecode on Windows under MSVC? I did not
+</I>&gt;<i> notice any MSVC project files or makefiles when I looked on the sources,
+</I>&gt;<i> although there seem to be some _MSC_VER macros used...
+</I>
+Gecode can be compiled using MSVC, but currently only using GNU make from the
+command line. For more information, please see
+<A HREF="http://www.gecode.org/gecode-doc-latest/PageComp.html">http://www.gecode.org/gecode-doc-latest/PageComp.html</A>
+
+We may try to add Visual Studio project files later. If anyone has
+successfully built Gecode using Visual Studio, please let us know. We will be
+happy to include the project files in our distribution.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Saarbr&#252;cken
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="kernel issues — 3 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>kernel issues | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>3 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2008</p><h1 data-pagefind-meta="title">kernel issues</h1></header>
+      <p class="archive-thread-summary">3 messages · April 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001564">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Mon Apr 14 14:28:03 CEST 2008</time><small>April 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+so Lubos started working on the FloatVar implementation and he's
+discovered something that looks like a bug in Gecode. Initially, we just
+copied &quot;integer.vis&quot; to &quot;float.vis&quot; and renamed the identifiers so we
+got &quot;_FLOAT_&quot; instead of &quot;_INT_&quot; everywhere. (Later on, we'll probably
+at least remove the &quot;DOM&quot; modification event and propagation condition.)
+
+So in short:
+
+[General]
+Name:		Float
+Ifdef:		GECODE_HAS_FLOAT_VARS
+Namespace:	Gecode::Float
+
+and the rest goes exactly the same as with IntVar.
+
+Then we tried posting a propagator on a FloatVar, but unexpectedly
+nothing happened. Lubos tracked this down to the following code fragment
+  in kernel/var-type.icc:
+
+case ME_FLOAT_BND:
+      {
+        static const Gecode::ModEvent me_c = (
+          ((ME_FLOAT_NONE ^ ME_FLOAT_BND ) &lt;&lt;  0) |
+          ((ME_FLOAT_VAL  ^ ME_FLOAT_VAL ) &lt;&lt;  4) |
+          ((ME_FLOAT_BND  ^ ME_FLOAT_BND ) &lt;&lt;  8) |
+          ((ME_FLOAT_DOM  ^ ME_FLOAT_BND ) &lt;&lt; 12)
+        );
+        Gecode::ModEvent me_o = (med &amp; med_mask) &gt;&gt; med_fst;
+        Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; med_mask;
+        if (me_n == 0)
+          return false;
+        med ^= me_n &lt;&lt; med_fst;
+        break;
+      }
+
+This is similar to what is generated for IntVars (ME_INT_BND), but it
+seems that the condition (me_n == 0) always evaluates to true for
+FloatVars, and so nothing ever happens.
+
+Lubos fixed this by changing the appropriate line to
+
+  Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; (med_mask &gt;&gt; med_fst);
+
+This seems logical to me. Do you know what script to fix in order to get
+it generated this way?
+
+Thanks,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001600">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Apr 21 11:50:33 CEST 2008</time><small>April 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+sorry for the long delay, but I was away from my keyboard. Yes, you are
+right! I just added your fix to the trunk. For the integer variables it did
+not show, as med_fst == 0 for them.
+
+The script that generates the variable stubs is misc/genvariables.perl (line
+608).
+
+Thanks for the fix!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Monday, April 14, 2008 2:28 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">lmoric at logis.cz</A>
+Subject: [gecode-users] kernel issues
+
+Hi,
+
+so Lubos started working on the FloatVar implementation and he's
+discovered something that looks like a bug in Gecode. Initially, we just
+copied &quot;integer.vis&quot; to &quot;float.vis&quot; and renamed the identifiers so we
+got &quot;_FLOAT_&quot; instead of &quot;_INT_&quot; everywhere. (Later on, we'll probably
+at least remove the &quot;DOM&quot; modification event and propagation condition.)
+
+So in short:
+
+[General]
+Name:		Float
+Ifdef:		GECODE_HAS_FLOAT_VARS
+Namespace:	Gecode::Float
+
+and the rest goes exactly the same as with IntVar.
+
+Then we tried posting a propagator on a FloatVar, but unexpectedly
+nothing happened. Lubos tracked this down to the following code fragment
+  in kernel/var-type.icc:
+
+case ME_FLOAT_BND:
+      {
+        static const Gecode::ModEvent me_c = (
+          ((ME_FLOAT_NONE ^ ME_FLOAT_BND ) &lt;&lt;  0) |
+          ((ME_FLOAT_VAL  ^ ME_FLOAT_VAL ) &lt;&lt;  4) |
+          ((ME_FLOAT_BND  ^ ME_FLOAT_BND ) &lt;&lt;  8) |
+          ((ME_FLOAT_DOM  ^ ME_FLOAT_BND ) &lt;&lt; 12)
+        );
+        Gecode::ModEvent me_o = (med &amp; med_mask) &gt;&gt; med_fst;
+        Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; med_mask;
+        if (me_n == 0)
+          return false;
+        med ^= me_n &lt;&lt; med_fst;
+        break;
+      }
+
+This is similar to what is generated for IntVars (ME_INT_BND), but it
+seems that the condition (me_n == 0) always evaluates to true for
+FloatVars, and so nothing ever happens.
+
+Lubos fixed this by changing the appropriate line to
+
+  Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; (med_mask &gt;&gt; med_fst);
+
+This seems logical to me. Do you know what script to fix in order to get
+it generated this way?
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001601">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Mon Apr 21 12:11:03 CEST 2008</time><small>April 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+&gt;<i> sorry for the long delay, but I was away from my keyboard. Yes, you are
+</I>&gt;<i> right! I just added your fix to the trunk. For the integer variables it did
+</I>&gt;<i> not show, as med_fst == 0 for them.
+</I>&gt;<i>
+</I>&gt;<i> The script that generates the variable stubs is misc/genvariables.perl (line
+</I>&gt;<i> 608).
+</I>&gt;<i>
+</I>&gt;<i> Thanks for the fix!
+</I>
+You're welcome. By the way, after we removed the &quot;DOM&quot; modification
+event and propagation condition the generated code is OK even without
+the fix, but this is just because the resulting code is simpler.
+
+FloatVar seems to work for us, we'll now spend some time polishing the
+source code and testing before we publish it.
+
+Cheers,
+Filip
+
+&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Filip Konvicka
+</I>&gt;<i> Sent: Monday, April 14, 2008 2:28 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">lmoric at logis.cz</A>
+</I>&gt;<i> Subject: [gecode-users] kernel issues
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> so Lubos started working on the FloatVar implementation and he's
+</I>&gt;<i> discovered something that looks like a bug in Gecode. Initially, we just
+</I>&gt;<i> copied &quot;integer.vis&quot; to &quot;float.vis&quot; and renamed the identifiers so we
+</I>&gt;<i> got &quot;_FLOAT_&quot; instead of &quot;_INT_&quot; everywhere. (Later on, we'll probably
+</I>&gt;<i> at least remove the &quot;DOM&quot; modification event and propagation condition.)
+</I>&gt;<i>
+</I>&gt;<i> So in short:
+</I>&gt;<i>
+</I>&gt;<i> [General]
+</I>&gt;<i> Name:		Float
+</I>&gt;<i> Ifdef:		GECODE_HAS_FLOAT_VARS
+</I>&gt;<i> Namespace:	Gecode::Float
+</I>&gt;<i>
+</I>&gt;<i> and the rest goes exactly the same as with IntVar.
+</I>&gt;<i>
+</I>&gt;<i> Then we tried posting a propagator on a FloatVar, but unexpectedly
+</I>&gt;<i> nothing happened. Lubos tracked this down to the following code fragment
+</I>&gt;<i>   in kernel/var-type.icc:
+</I>&gt;<i>
+</I>&gt;<i> case ME_FLOAT_BND:
+</I>&gt;<i>       {
+</I>&gt;<i>         static const Gecode::ModEvent me_c = (
+</I>&gt;<i>           ((ME_FLOAT_NONE ^ ME_FLOAT_BND ) &lt;&lt;  0) |
+</I>&gt;<i>           ((ME_FLOAT_VAL  ^ ME_FLOAT_VAL ) &lt;&lt;  4) |
+</I>&gt;<i>           ((ME_FLOAT_BND  ^ ME_FLOAT_BND ) &lt;&lt;  8) |
+</I>&gt;<i>           ((ME_FLOAT_DOM  ^ ME_FLOAT_BND ) &lt;&lt; 12)
+</I>&gt;<i>         );
+</I>&gt;<i>         Gecode::ModEvent me_o = (med &amp; med_mask) &gt;&gt; med_fst;
+</I>&gt;<i>         Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; med_mask;
+</I>&gt;<i>         if (me_n == 0)
+</I>&gt;<i>           return false;
+</I>&gt;<i>         med ^= me_n &lt;&lt; med_fst;
+</I>&gt;<i>         break;
+</I>&gt;<i>       }
+</I>&gt;<i>
+</I>&gt;<i> This is similar to what is generated for IntVars (ME_INT_BND), but it
+</I>&gt;<i> seems that the condition (me_n == 0) always evaluates to true for
+</I>&gt;<i> FloatVars, and so nothing ever happens.
+</I>&gt;<i>
+</I>&gt;<i> Lubos fixed this by changing the appropriate line to
+</I>&gt;<i>
+</I>&gt;<i>   Gecode::ModEvent me_n = (me_c &gt;&gt; (me_o &lt;&lt; 2)) &amp; (med_mask &gt;&gt; med_fst);
+</I>&gt;<i>
+</I>&gt;<i> This seems logical to me. Do you know what script to fix in order to get
+</I>&gt;<i> it generated this way?
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i> Filip
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

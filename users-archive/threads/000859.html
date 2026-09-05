@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Correct ExecStatus to return from propagate? — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Correct ExecStatus to return from propagate? | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2007</p><h1 data-pagefind-meta="title">Correct ExecStatus to return from propagate?</h1></header>
+      <p class="archive-thread-summary">2 messages · April 2007</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000859">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Peter Tiedemann</h2></div>
+          <p><time>Sat Apr 7 16:13:46 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Im a bit confused as to when exactly i should return the various
+ExecStatus from my (n-ary) propagator.
+
+I understand that ES_FAILED means that the propagation failed, ie it
+signals a dead-end, so i return that whenever i completely empty a
+domain.
+
+I also understand ES_SUBSUMED which i return when my constraint is
+entailed by the domains.
+
+However, ES_OK, ES_FIX and ES_NOFIX im not sure if i understand
+correctly. If i have pruned all i can unless another propagator
+removes more values (without reducing all domains to size 1 or
+failing), what should i return? Also, should i return something
+specific if i didnt prune any values?
+
+Finally if all domains are reduced to size 1, should i return
+ES_SUBSUMED, or something else?
+
+On a related note, does a variable automatically switch to being
+assigned when its domain is reduced to a single value?
+
+Thanks,
+Peter Tiedemann
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000860">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Sat Apr 7 17:26:47 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+&gt;<i> Im a bit confused as to when exactly i should return the various
+</I>&gt;<i> ExecStatus from my (n-ary) propagator.
+</I>&gt;<i>
+</I>&gt;<i> I understand that ES_FAILED means that the propagation failed, ie it
+</I>&gt;<i> signals a dead-end, so i return that whenever i completely empty a
+</I>&gt;<i> domain.
+</I>
+Exactly.
+
+&gt;<i> I also understand ES_SUBSUMED which i return when my constraint is
+</I>&gt;<i> entailed by the domains.
+</I>
+Yes.
+
+&gt;<i> However, ES_OK, ES_FIX and ES_NOFIX im not sure if i understand
+</I>&gt;<i> correctly. If i have pruned all i can unless another propagator
+</I>&gt;<i> removes more values (without reducing all domains to size 1 or
+</I>&gt;<i> failing), what should i return? Also, should i return something
+</I>&gt;<i> specific if i didnt prune any values?
+</I>
+You never return ES_OK, it is only used for the propagator post
+functions, not for the propagate function itself. Your intuition
+about FIX and NOFIX is basically correct: If you can guarantee that
+after propagation, your propagator is at a fixpoint, i.e. running it
+immediately again will not result in any pruning, you may return
+ES_FIX. In all other cases, return ES_NOFIX. So it is always safe to
+return NOFIX, but potentially less efficient than possible.
+
+Not pruning anything is not a special case: if you know the
+propagator is at a fixpoint, return ES_FIX, otherwise ES_NOFIX.
+
+Christian has some slides dealing with fixpoints of propagators
+(slide 40):
+<A HREF="http://www.ict.kth.se/courses/2G1515/notes/2G1515-L05-1.pdf">http://www.ict.kth.se/courses/2G1515/notes/2G1515-L05-1.pdf</A>
+
+&gt;<i> Finally if all domains are reduced to size 1, should i return
+</I>&gt;<i> ES_SUBSUMED, or something else?
+</I>
+You should return ES_SUBSUMED. This will guarantee that the
+propagator is removed and its memory reclaimed. Our test suite, e.g.,
+checks for all propagators that they are subsumed when all variables
+are assigned.
+
+&gt;<i> On a related note, does a variable automatically switch to being
+</I>&gt;<i> assigned when its domain is reduced to a single value?
+</I>
+Yes, you don't have to do anything about that. Actually, a variable
+doesn't have a flag or anything that says that its assigned - it just
+checks (in the case of integer variables) whether min=max.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20070407/8acd85c5/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20070407/8acd85c5/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

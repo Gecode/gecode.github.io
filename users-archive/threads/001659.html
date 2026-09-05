@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Clockwise constraint — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Clockwise constraint | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · June 2008</p><h1 data-pagefind-meta="title">Clockwise constraint</h1></header>
+      <p class="archive-thread-summary">6 messages · June 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001659">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Malcolm Ryan</h2></div>
+          <p><time>Mon Jun 2 08:10:10 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I want to make a constraint which represents the order of three values
+around a ring.
+
+Eg: if we have a,b,c \in {1,2,3,4} then I want to represent the
+constraint:
+
+clockwise(a,b,c) == (a &lt; b &lt; c) or (b &lt; c &lt; a) or (c &lt; a &lt; b)
+
+I can construct this directly using BExprs, but the use of 'or' means
+that it doesn't propagate very well. Eg:
+
+         BExpr beLessAB = new BExpr(a, IntRelType.IRT_LE, b);
+         BExpr beLessBC = new BExpr(b, IntRelType.IRT_LE, c);
+         BExpr beLessCA = new BExpr(c, IntRelType.IRT_LE, a);
+
+         BExpr beABC = new BExpr(beLessAB).and(beLessBC);
+         BExpr beBCA = new BExpr(beLessBC).and(beLessCA);
+         BExpr beCAB = new BExpr(beLessCA).and(beLessAB);
+
+         BExpr clockwise = beABC.or(beBCA).or(beCAB);
+
+         Gecode.post(test, clockwise);
+         Gecode.rel(test, test.a, IntRelType.IRT_NE, 2);
+         Gecode.rel(test, test.a, IntRelType.IRT_NE, 3);
+         Gecode.rel(test, test.b, IntRelType.IRT_NE, 1);
+         Gecode.rel(test, test.b, IntRelType.IRT_NE, 4);
+         Gecode.rel(test, test.c, IntRelType.IRT_NE, 1);
+         Gecode.rel(test, test.c, IntRelType.IRT_NE, 4);
+
+Will give a = {1,4}, b = [2..3], c = [2..3] when it should be able to
+deduce that b = 2, c = 3. Is there any other way to represent this so
+that the propagation works better?
+
+Malcolm
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001660">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Malcolm Ryan</h2></div>
+          <p><time>Mon Jun 2 09:12:18 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>What I need is a reified version of the pairwise rel(). Then I could
+say:
+
+a &lt; c --&gt; a &lt; b &lt; c
+b &lt; a --&gt; b &lt; c &lt; a
+c &lt; b --&gt; c &lt; a &lt; b
+
+Since there is no value of 'a' that satisfies c &lt; a &lt; b, it would have
+to deduce that b &lt; c.
+
+Representing this as (c &lt; a) and (a &lt; b) is not good enough, as there
+are possible values of 'a' to satisfy each of the inequalities
+individually, just not both together.
+
+On 02/06/2008, at 4:10 PM, Malcolm Ryan wrote:
+
+&gt;<i> I want to make a constraint which represents the order of three values
+</I>&gt;<i> around a ring.
+</I>&gt;<i>
+</I>&gt;<i> Eg: if we have a,b,c \in {1,2,3,4} then I want to represent the
+</I>&gt;<i> constraint:
+</I>&gt;<i>
+</I>&gt;<i> clockwise(a,b,c) == (a &lt; b &lt; c) or (b &lt; c &lt; a) or (c &lt; a &lt; b)
+</I>&gt;<i>
+</I>&gt;<i> I can construct this directly using BExprs, but the use of 'or' means
+</I>&gt;<i> that it doesn't propagate very well. Eg:
+</I>&gt;<i>
+</I>&gt;<i>         BExpr beLessAB = new BExpr(a, IntRelType.IRT_LE, b);
+</I>&gt;<i>         BExpr beLessBC = new BExpr(b, IntRelType.IRT_LE, c);
+</I>&gt;<i>         BExpr beLessCA = new BExpr(c, IntRelType.IRT_LE, a);
+</I>&gt;<i>
+</I>&gt;<i>         BExpr beABC = new BExpr(beLessAB).and(beLessBC);
+</I>&gt;<i>         BExpr beBCA = new BExpr(beLessBC).and(beLessCA);
+</I>&gt;<i>         BExpr beCAB = new BExpr(beLessCA).and(beLessAB);
+</I>&gt;<i>
+</I>&gt;<i>         BExpr clockwise = beABC.or(beBCA).or(beCAB);
+</I>&gt;<i>
+</I>&gt;<i>         Gecode.post(test, clockwise);
+</I>&gt;<i>         Gecode.rel(test, test.a, IntRelType.IRT_NE, 2);
+</I>&gt;<i>         Gecode.rel(test, test.a, IntRelType.IRT_NE, 3);
+</I>&gt;<i>         Gecode.rel(test, test.b, IntRelType.IRT_NE, 1);
+</I>&gt;<i>         Gecode.rel(test, test.b, IntRelType.IRT_NE, 4);
+</I>&gt;<i>         Gecode.rel(test, test.c, IntRelType.IRT_NE, 1);
+</I>&gt;<i>         Gecode.rel(test, test.c, IntRelType.IRT_NE, 4);
+</I>&gt;<i>
+</I>&gt;<i> Will give a = {1,4}, b = [2..3], c = [2..3] when it should be able to
+</I>&gt;<i> deduce that b = 2, c = 3. Is there any other way to represent this so
+</I>&gt;<i> that the propagation works better?
+</I>&gt;<i>
+</I>&gt;<i> Malcolm
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001661">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jun 2 09:15:02 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Malcolm Ryan wrote:
+
+&gt;<i> I want to make a constraint which represents the order of three values
+</I>&gt;<i> around a ring.
+</I>&gt;<i>
+</I>&gt;<i> Eg: if we have a,b,c \in {1,2,3,4} then I want to represent the
+</I>&gt;<i> constraint:
+</I>&gt;<i>
+</I>&gt;<i> clockwise(a,b,c) == (a &lt; b &lt; c) or (b &lt; c &lt; a) or (c &lt; a &lt; b)
+</I>&gt;<i>
+</I>&gt;<i> I can construct this directly using BExprs, but the use of 'or' means
+</I>&gt;<i> that it doesn't propagate very well. Eg:
+</I>&gt;<i> [...]
+</I>&gt;<i> Will give a = {1,4}, b = [2..3], c = [2..3] when it should be able to
+</I>&gt;<i> deduce that b = 2, c = 3. Is there any other way to represent this so
+</I>&gt;<i> that the propagation works better?
+</I>
+You can't get the full pruning directly (you'd need something like
+constructive disjunction for that).  Something you might want to add
+is a distinct constraint over all variables (although it wouldn't do
+the pruning in your example, it would add some pruning in other
+cases).  Or, if the domains are always dense (at most one value more
+than variables, that is), you could use a+1=b instead of a&lt;b.  You
+could also encode the constraint into a TupleSet and use extensional,
+which would probably result in a really big table but give you domain
+consistency.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080602/183d9bb3/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080602/183d9bb3/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001662">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jun 2 09:18:42 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Malcolm Ryan wrote:
+
+&gt;<i> What I need is a reified version of the pairwise rel(). Then I could
+</I>&gt;<i> say:
+</I>&gt;<i>
+</I>&gt;<i> a &lt; c --&gt; a &lt; b &lt; c
+</I>&gt;<i> b &lt; a --&gt; b &lt; c &lt; a
+</I>&gt;<i> c &lt; b --&gt; c &lt; a &lt; b
+</I>&gt;<i>
+</I>&gt;<i> Since there is no value of 'a' that satisfies c &lt; a &lt; b, it would have
+</I>&gt;<i> to deduce that b &lt; c.
+</I>&gt;<i>
+</I>&gt;<i> Representing this as (c &lt; a) and (a &lt; b) is not good enough, as there
+</I>&gt;<i> are possible values of 'a' to satisfy each of the inequalities
+</I>&gt;<i> individually, just not both together.
+</I>
+Oh, I somehow didn't see that it's always ternary!  In that case you
+might really want to try the extensional constraint.  Just implement a
+generator that lists all allowed tuples.
+
+Cheers,
+	Guido
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001663">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Malcolm Ryan</h2></div>
+          <p><time>Mon Jun 2 09:28:38 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 02/06/2008, at 5:18 PM, Guido Tack wrote:
+&gt;<i>
+</I>&gt;<i> Oh, I somehow didn't see that it's always ternary!  In that case you
+</I>&gt;<i> might really want to try the extensional constraint.  Just implement
+</I>&gt;<i> a generator that lists all allowed tuples.
+</I>
+Nice idea, but really not viable. In practice the domains are much
+larger than 4 (more like 100), and the table size would be O(n^3).
+
+Malcolm
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001664">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jun 2 11:03:40 CEST 2008</time><small>June 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Malcolm Ryan wrote:
+
+&gt;<i> On 02/06/2008, at 5:18 PM, Guido Tack wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Oh, I somehow didn't see that it's always ternary!  In that case you
+</I>&gt;&gt;<i> might really want to try the extensional constraint.  Just implement
+</I>&gt;&gt;<i> a generator that lists all allowed tuples.
+</I>&gt;<i>
+</I>&gt;<i> Nice idea, but really not viable. In practice the domains are much
+</I>&gt;<i> larger than 4 (more like 100), and the table size would be O(n^3).
+</I>
+We just tried it (just for fun ;-), and for domain size 100 it's just
+under 500 000 tuples (which takes about 10M of memory).  For domain
+size 200 it's around 4 000 000 tuples, which is still manageable with
+under 100M of memory.  Generation takes less than a second.
+
+Even if you use more than one of these propagators, you can reuse the
+same table for each one.  So, you might actually want to try this, it
+may work!
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,1492 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Understanding cumulatives constraint — 22 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Understanding cumulatives constraint | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>22 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · July 2006</p><h1 data-pagefind-meta="title">Understanding cumulatives constraint</h1></header>
+      <p class="archive-thread-summary">22 messages · July 2006</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000608">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Roberto Pinto</h2></div>
+          <p><time>Mon Jul 3 19:17:57 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear all,
+
+I'm trying to compile a really basic example using the cumulatives
+constraint, but I'm finding some problems that I hope you could help
+me to solve.
+My code is obtained starting from queens.cc, from which I inherited
+the main structure changing the constraints.
+I want to schedule 4 independent tasks on a single machine, which can
+work one task at a time.
+
+Hereby the complete and commented code:
+
+/// START CODE---------------------------------------------------------------------
+// Very basic scheduling problem.
+#include &quot;examples/support.hh&quot;
+#include &quot;gecode/minimodel.hh&quot;
+
+class BasicScheduling : public Example {
+protected:
+  IntVarArray q; //starting date
+  IntVarArray e; //ending date
+
+public:
+  /// The actual problem
+  BasicScheduling(const Options&amp; opt)
+    : q(this,4,0,20), e(this,4,0,20) ///for this example, I assumed only 4 tasks
+      {
+
+      IntArgs height(4);
+      IntArgs duration(4);
+      IntArgs limit(1);
+      IntArgs machine(4); ///let me understand: in this array, each
+element represents the
+///the machine assigned to a job, right?
+
+      for (int i = 0; i &lt; 4; i++)
+            {
+            height[i] = 1;    ///each task requires 1 unit of resource
+per period
+            duration[i] = 4;  /// each task lasts 4 periods
+                                   ///that is, each task requires 4
+resource units over 4 periods
+            machine[i] = 1;  ///all tasks are worked on machine 1
+            }
+
+            limit = 1;            ///the machine has only one resource
+unit per period
+
+      for(int i = 0; i&lt;4; i++)
+            post(this, e[i] - duration[i] = q[i] );
+///the ending date depends on the starting date and the duration
+
+/// that's all?
+            cumulatives(this, machine, q, duration, e, height,  limit, true);
+
+///Ok, in this case I could use cumulative constraint for a single
+machine, but I want to ///extend the problem to more than 1 machines
+
+    branch(this, q, BVAR_SIZE_MIN, BVAL_MIN);
+ }
+
+  /// Constructor for cloning
+///Indeed, I did not understand its purpose
+  BasicScheduling(bool share, BasicScheduling&amp; s) : Example(share,s) {
+    q.update(this, share, s.q);
+    e.update(this, share, s.e);
+  }
+
+  /// Perform copying during cloning
+/// same comment as above, I just cut&amp;paste from queens.cc
+  virtual Space*
+  copy(bool share) {
+    return new BasicScheduling(share,*this);
+  }
+
+  /// Print solution
+///doh, that's clear!!!
+  virtual void
+  print(void) {
+    std::cout &lt;&lt; &quot;\t&quot;;
+    for (int i = 0; i &lt; q.size(); i++) {
+      std::cout &lt;&lt; q[i] &lt;&lt; &quot;:&quot;&lt;&lt;e[i]&lt;&lt;&quot;, &quot;;
+      if ((i+1) % 10 == 0)
+	std::cout &lt;&lt; std::endl &lt;&lt; &quot;\t&quot;;
+    }
+    std::cout &lt;&lt; std::endl;
+    }
+};
+
+int
+main(int argc, char** argv) {
+  Options opt(&quot;BasicScheduling&quot;);
+  opt.iterations = 2000;
+  opt.size       = 4;
+  opt.c_d        = 5;
+  opt.parse(argc,argv);
+  Example::run&lt;BasicScheduling,DFS&gt;(opt);
+  return 0;
+}
+
+///END CODE--------------------------------------------------------
+
+I was expecting a solution like:
+0:4, 5:9, 10:14, 15:19
+
+instead I obtained:
+0:4, 0:4, 0:4, 0:4
+
+that is, it seems that all jobs are worked in parallel, while my
+intention was to work them serially. I concluded I misinterpreted the
+cumulatives constraint.
+Can you help me using this constraint? maybe, can you provide me with
+a working example (amending my code, for example :-) )
+
+Thank you for you help.
+
+Best wishes
+Libra
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000609">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Tue Jul 4 08:22:53 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 7/3/06, Roberto Pinto &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">librarama at gmail.com</A>&gt; wrote:
+&gt;<i> I'm trying to compile a really basic example using the cumulatives
+</I>&gt;<i> constraint, but I'm finding some problems that I hope you could help
+</I>&gt;<i> me to solve.
+</I>
+The problem with your example is very simple to solve, machines are
+indexed starting from 0 and not from 1. I've added some comments on
+some parts of your code below.
+
+
+&gt;<i> /// START CODE---------------------------------------------------------------------
+</I>&gt;<i>       for (int i = 0; i &lt; 4; i++)
+</I>&gt;<i>             {
+</I>&gt;<i>             height[i] = 1;    ///each task requires 1 unit of resource
+</I>&gt;<i> per period
+</I>&gt;<i>             duration[i] = 4;  /// each task lasts 4 periods
+</I>&gt;<i>                                    ///that is, each task requires 4
+</I>&gt;<i> resource units over 4 periods
+</I>&gt;<i>             machine[i] = 1;  ///all tasks are worked on machine 1
+</I>
+should be: machine[i] = 0;
+
+
+&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             limit = 1;            ///the machine has only one resource
+</I>&gt;<i> unit per period
+</I>
+should be: limit[0] = 1;
+
+
+&gt;<i>       for(int i = 0; i&lt;4; i++)
+</I>&gt;<i>             post(this, e[i] - duration[i] = q[i] );
+</I>&gt;<i> ///the ending date depends on the starting date and the duration
+</I>
+The above loop is not needed - making sure that start+duration=end is
+handled by the cumulatives interface.
+
+
+&gt;<i> ///Indeed, I did not understand its purpose
+</I>&gt;<i>   BasicScheduling(bool share, BasicScheduling&amp; s) : Example(share,s) {
+</I>&gt;<i>     q.update(this, share, s.q);
+</I>&gt;<i>     e.update(this, share, s.e);
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i>   /// Perform copying during cloning
+</I>&gt;<i> /// same comment as above, I just cut&amp;paste from queens.cc
+</I>&gt;<i>   virtual Space*
+</I>&gt;<i>   copy(bool share) {
+</I>&gt;<i>     return new BasicScheduling(share,*this);
+</I>&gt;<i>   }
+</I>
+These two functions are needed for keeping the q and e arrays
+consistent in all new copies of the Space and for enabling copying of
+the Space.
+
+
+&gt;<i> ///END CODE--------------------------------------------------------
+</I>&gt;<i>
+</I>&gt;<i> I was expecting a solution like:
+</I>&gt;<i> 0:4, 5:9, 10:14, 15:19
+</I>&gt;<i>
+</I>&gt;<i> instead I obtained:
+</I>&gt;<i> 0:4, 0:4, 0:4, 0:4
+</I>
+Well, the actual solution one gets is
+    0:4, 4:8, 8:12, 12:16,
+This shows that a task may start and another task may begin at the same time.
+
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000610">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Roberto Pinto</h2></div>
+          <p><time>Tue Jul 4 10:57:17 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 7/4/06, Mikael Zayenz Lagerkvist &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zayenz at gmail.com</A>&gt; wrote:
+&gt;<i> On 7/3/06, Roberto Pinto &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">librarama at gmail.com</A>&gt; wrote:
+</I>&gt;<i> &gt; I'm trying to compile a really basic example using the cumulatives
+</I>&gt;<i> &gt; constraint, but I'm finding some problems that I hope you could help
+</I>&gt;<i> &gt; me to solve.
+</I>&gt;<i>
+</I>&gt;<i> The problem with your example is very simple to solve, machines are
+</I>&gt;<i> indexed starting from 0 and not from 1. I've added some comments on
+</I>&gt;<i> some parts of your code below.
+</I>&gt;<i> &gt;             machine[i] = 1;  ///all tasks are worked on machine 1
+</I>&gt;<i> should be: machine[i] = 0;
+</I>
+Ok, now it's clear. I didn't get that the indexes of the machines must
+be sequential starting from 0. I thought that any kind of univoque id
+fits the needs.
+
+&gt;<i> Well, the actual solution one gets is
+</I>&gt;<i>     0:4, 4:8, 8:12, 12:16,
+</I>&gt;<i> This shows that a task may start and another task may begin at the same time.
+</I>
+We could also interpret this solution as &quot;the first task is finished
+at the beginning of the fourth day and the following task should start
+immediatly after&quot;
+
+Thank you very much
+Libra (Roberto)
+
+&gt;<i> Cheers,
+</I>&gt;<i> Mikael
+</I>&gt;<i> --
+</I>&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000611">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Martin Mann</h2></div>
+          <p><time>Fri Jul 7 16:24:33 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi again,
+
+I ve got a question about Branching..
+
+I implemented my own Branching inclusive a branching descriptor that
+supports more than 2 alternatives.
+
+During my branching sometimes I would like to skip the remaining
+alternatives.
+So my question:
+
+1) is it ok just to return ES_FAIL from MyBranching::commit(..) to skip
+the corresponding branch? or will it lead to some strange behavior?
+
+2) is there a possibility for directly skipping the remaining
+alternatives without implementing the whole search engine? I would like
+to use DFS as it is.. ;)
+
+thanks lot and have a nice weekend
+
+Martin
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000612">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Luis Quesada</h2></div>
+          <p><time>Sat Jul 8 11:18:06 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I don't understand why you need to do this... To me, eliminating
+branching alternatives is the very purpose of propagators. Why don't you
+implement a propagator that removes the alternatives you want to skip?
+As you build the branches at each branching step based on the current
+domains of the variables, you wont try the alternatives that you want to
+skip.
+
+Luis
+
+Martin Mann wrote:
+
+&gt;<i> Hi again,
+</I>&gt;<i>
+</I>&gt;<i> I ve got a question about Branching..
+</I>&gt;<i>
+</I>&gt;<i> I implemented my own Branching inclusive a branching descriptor that
+</I>&gt;<i> supports more than 2 alternatives.
+</I>&gt;<i>
+</I>&gt;<i> During my branching sometimes I would like to skip the remaining
+</I>&gt;<i> alternatives.
+</I>&gt;<i> So my question:
+</I>&gt;<i>
+</I>&gt;<i> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to
+</I>&gt;<i> skip the corresponding branch? or will it lead to some strange behavior?
+</I>&gt;<i>
+</I>&gt;<i> 2) is there a possibility for directly skipping the remaining
+</I>&gt;<i> alternatives without implementing the whole search engine? I would
+</I>&gt;<i> like to use DFS as it is.. ;)
+</I>&gt;<i>
+</I>&gt;<i> thanks lot and have a nice weekend
+</I>&gt;<i>
+</I>&gt;<i> Martin
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+--
+Luis QUESADA
+Catholic University of Louvain
+Department of Computing Science and Engineering
+Place Sainte Barbe, 2
+B-1348 Louvain-la-Neuve, Belgium
+Phone:	(++32) (10) 47 90 13
+Fax: 	(++32) (10) 45 03 45
+Web: 	<A HREF="http://www.info.ucl.ac.be/~luque">http://www.info.ucl.ac.be/~luque</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000613">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Martin Mann</h2></div>
+          <p><time>Mon Jul 10 14:27:00 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi Luis,
+
+the idea with the propagator is nice, but not possible in my situation i
+think. i dont want a &quot;static&quot; alternative-skipping.. that's easy to do
+with propagators, you are right. but i want to do a &quot;dynamic&quot; one. i am
+not interested in all solutions of the search tree and i dont have a
+real deterministic branch and bound strategy at hand. that's why i want
+to do a dynamic skipping of branches during the search.
+
+e.g. the situation is like that: i find a special &quot;interesting&quot; solution
+in this branch and and i dont want to have a look in the remaining
+branches that belong to my specialised branching description (i mix them
+with normal ViewValBranchingDescr during the branching). so i would like
+to cut some subtrees of the the search tree that belong to my branching
+descriptor.
+
+i tried the first idea i mentioned (just return ES_FAILED from the
+commit(..) function) to skip the alternatives, but this results in
+abnormal behavior. dont know why at the moment and didnt had a closer
+look until now.
+
+so my question again, is there another possibility? or do i ve got to do
+  it bruteforce via clearing one domain to let the propagators do the
+work for me?
+anyway i m still interested in skipping the remaing more directly but
+without reimplementing DFS myself.. ;)
+
+thanks a lot, i hope i made it a bit clearer
+
+martin
+
+
+Luis Quesada wrote:
+&gt;<i> I don't understand why you need to do this... To me, eliminating
+</I>&gt;<i> branching alternatives is the very purpose of propagators. Why don't you
+</I>&gt;<i> implement a propagator that removes the alternatives you want to skip?
+</I>&gt;<i> As you build the branches at each branching step based on the current
+</I>&gt;<i> domains of the variables, you wont try the alternatives that you want to
+</I>&gt;<i> skip.
+</I>&gt;<i>
+</I>&gt;<i> Luis
+</I>&gt;<i>
+</I>&gt;<i> Martin Mann wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi again,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I ve got a question about Branching..
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I implemented my own Branching inclusive a branching descriptor that
+</I>&gt;&gt;<i> supports more than 2 alternatives.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> During my branching sometimes I would like to skip the remaining
+</I>&gt;&gt;<i> alternatives.
+</I>&gt;&gt;<i> So my question:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to
+</I>&gt;&gt;<i> skip the corresponding branch? or will it lead to some strange behavior?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 2) is there a possibility for directly skipping the remaining
+</I>&gt;&gt;<i> alternatives without implementing the whole search engine? I would
+</I>&gt;&gt;<i> like to use DFS as it is.. ;)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thanks lot and have a nice weekend
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Martin
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000614">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jul 10 15:02:06 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&gt;<i> i tried the first idea i mentioned (just return ES_FAILED from the
+</I>&gt;<i> commit(..) function) to skip the alternatives, but this results in
+</I>&gt;<i> abnormal behavior. dont know why at the moment and didnt had a closer
+</I>&gt;<i> look until now.
+</I>
+Branchings may return ES_FAILED, this should very simply fail the space. How
+exactly did you detect you have to fail the space? Did you try using the
+BranchingDesc as internal state, somehow setting a flag in there that says
+that next time you branch with this description, you have to fail?
+
+&gt;<i> so my question again, is there another possibility? or do i ve got to do
+</I>&gt;<i>   it bruteforce via clearing one domain to let the propagators do the
+</I>&gt;<i> work for me?
+</I>
+This won't change anything, as clearing a variable's domain always has to be
+reported by returning ES_FAILED. Same problem as above.
+
+&gt;<i> anyway i m still interested in skipping the remaing more directly but
+</I>&gt;<i> without reimplementing DFS myself.. ;)
+</I>
+This is slightly against the general architecture of Gecode. One of the main
+achievements in CP research was the clear separation of concerns between
+propagation, branching, and search. Propagation does the inferences within
+one space, branching determines the shape of the search tree, and search
+explores the tree.
+Cutting off branches is normally considered part of exploration. The clean
+solution would be to implement something like Branch&amp;Bound or SBDS, which are
+search strategies that take the already explored part of the tree into
+account. In fact, what you describe sounds pretty similar to SBDS - the other
+branches you don't want to explore are in a sense symmetric to the solution
+you just found.
+
+I wouldn't be too scared about writing your own search engine. It's very well
+understood, and you'll get great support from search experts here on the
+list ;-)
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000615">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Luis Quesada</h2></div>
+          <p><time>Mon Jul 10 15:37:59 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+
+&gt;<i> [...]
+</I>&gt;<i>
+</I>&gt;<i>This is slightly against the general architecture of Gecode. One of the main
+</I>&gt;<i>achievements in CP research was the clear separation of concerns between
+</I>&gt;<i>propagation, branching, and search. Propagation does the inferences within
+</I>&gt;<i>one space, branching determines the shape of the search tree, and search
+</I>&gt;<i>explores the tree.
+</I>&gt;<i>Cutting off branches is normally considered part of exploration. [...]
+</I>&gt;<i>
+</I>I don't agree with this bit Guido. Cutting off branching (i.e. pruning)
+is the very purpose of propagation. When you remove 5 from X's domain
+you are cutting off the branch associated with X=5.
+
+Luis
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000616">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jul 10 16:08:15 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Am Montag, 10. Juli 2006 15:37 schrieb Luis Quesada:
+&gt;<i> &gt;Cutting off branches is normally considered part of exploration. [...]
+</I>&gt;<i>
+</I>&gt;<i> I don't agree with this bit Guido. Cutting off branching (i.e. pruning)
+</I>&gt;<i> is the very purpose of propagation. When you remove 5 from X's domain
+</I>&gt;<i> you are cutting off the branch associated with X=5.
+</I>
+Ok, maybe I wasn't clear enough. Typically, you specify your constraint
+problem using propagators and branchings, and this totally determines the
+shape of your search tree. Now, some sophisticated search engines prune the
+tree during search, e.g. B&amp;B and SBDS. Of course, these engines post new
+constraints to do the actual pruning, which can be implemented as propagators
+or may just be basic tells.
+
+Encoding a pruning of the tree into the initial model seems a bit weird - the
+model doesn't define a unique search tree any more.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000617">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Mon Jul 10 16:07:28 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 7/10/06, Luis Quesada &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">luque at info.ucl.ac.be</A>&gt; wrote:
+&gt;<i> Guido Tack wrote:
+</I>&gt;<i>
+</I>&gt;<i> &gt; [...]
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;This is slightly against the general architecture of Gecode. One of the main
+</I>&gt;<i> &gt;achievements in CP research was the clear separation of concerns between
+</I>&gt;<i> &gt;propagation, branching, and search. Propagation does the inferences within
+</I>&gt;<i> &gt;one space, branching determines the shape of the search tree, and search
+</I>&gt;<i> &gt;explores the tree.
+</I>&gt;<i> &gt;Cutting off branches is normally considered part of exploration. [...]
+</I>&gt;<i> &gt;
+</I>&gt;<i> I don't agree with this bit Guido. Cutting off branching (i.e. pruning)
+</I>&gt;<i> is the very purpose of propagation. When you remove 5 from X's domain
+</I>&gt;<i> you are cutting off the branch associated with X=5.
+</I>
+While propagators do cut of branches through propagation, this is
+based on local information in the current Space only. The difference
+here is when we want to cut of branches based on some global property,
+like symmetries in the search-tree. These properties are probably best
+addressed by the exploration, since the exploration part is the only
+part that has a global view.
+
+Some of the common schemes for exploiting global properties do use
+propagators in their implementation (for example, Branch-and-bound and
+SBDS), since the global information can be localized. Posting these
+propagators is controlled by the exploration. Others, like SBDD for
+example, cuts off parts of the search tree without posting
+propagators.
+
+Cheers,
+Mikael Zayenz Lagerkvist
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000618">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Luis Quesada</h2></div>
+          <p><time>Mon Jul 10 16:33:41 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+
+&gt;<i>Am Montag, 10. Juli 2006 15:37 schrieb Luis Quesada:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;&gt;<i>Cutting off branches is normally considered part of exploration. [...]
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>I don't agree with this bit Guido. Cutting off branches (i.e. pruning)
+</I>&gt;&gt;<i>is the very purpose of propagation. When you remove 5 from X's domain
+</I>&gt;&gt;<i>you are cutting off the branch associated with X=5.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>Ok, maybe I wasn't clear enough. Typically, you specify your constraint
+</I>&gt;<i>problem using propagators and branchings, and this totally determines the
+</I>&gt;<i>shape of your search tree. Now, some sophisticated search engines prune the
+</I>&gt;<i>tree during search, e.g. B&amp;B and SBDS. Of course, these engines post new
+</I>&gt;<i>constraints to do the actual pruning, which can be implemented as propagators
+</I>&gt;<i>or may just be basic tells.
+</I>&gt;<i>
+</I>&gt;<i>Encoding a pruning of the tree into the initial model seems a bit weird - the
+</I>&gt;<i>model doesn't define a unique search tree any more.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>OK. I see the point that you, Mikael and Martin are making.
+
+Actually, what I had in mind is a  kind of adaptative branch and bound
+where you update the order constraint on the fly based on the solution
+you have just found (which  actually follows the same idea of SBDS).
+
+Cheers,
+
+Luis
+
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000619">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 11 09:23:19 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I just reply to this email, even though I have read the discussion. I very
+much second Guido and Mikael and I have another bit to add as to why your
+idea of tinkering with branchings does not work.
+
+The entire setup of search in Gecode relies on recomputation: here, a commit
+operation using a branching description _must_ always tell the very same
+constraint when invoked with the same parameters. So by definition, it is
+not allowed to use state in the way you state it.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Martin Mann
+Sent: Monday, July 10, 2006 2:27 PM
+Cc: gecode user list
+Subject: Re: Re: [gecode-users] Skipping branching alternatives?
+
+
+
+Hi Luis,
+
+the idea with the propagator is nice, but not possible in my situation i
+think. i dont want a &quot;static&quot; alternative-skipping.. that's easy to do
+with propagators, you are right. but i want to do a &quot;dynamic&quot; one. i am
+not interested in all solutions of the search tree and i dont have a
+real deterministic branch and bound strategy at hand. that's why i want
+to do a dynamic skipping of branches during the search.
+
+e.g. the situation is like that: i find a special &quot;interesting&quot; solution
+in this branch and and i dont want to have a look in the remaining
+branches that belong to my specialised branching description (i mix them
+with normal ViewValBranchingDescr during the branching). so i would like
+to cut some subtrees of the the search tree that belong to my branching
+descriptor.
+
+i tried the first idea i mentioned (just return ES_FAILED from the
+commit(..) function) to skip the alternatives, but this results in
+abnormal behavior. dont know why at the moment and didnt had a closer
+look until now.
+
+so my question again, is there another possibility? or do i ve got to do
+  it bruteforce via clearing one domain to let the propagators do the
+work for me?
+anyway i m still interested in skipping the remaing more directly but
+without reimplementing DFS myself.. ;)
+
+thanks a lot, i hope i made it a bit clearer
+
+martin
+
+
+Luis Quesada wrote:
+&gt;<i> I don't understand why you need to do this... To me, eliminating
+</I>&gt;<i> branching alternatives is the very purpose of propagators. Why don't you
+</I>&gt;<i> implement a propagator that removes the alternatives you want to skip?
+</I>&gt;<i> As you build the branches at each branching step based on the current
+</I>&gt;<i> domains of the variables, you wont try the alternatives that you want to
+</I>&gt;<i> skip.
+</I>&gt;<i>
+</I>&gt;<i> Luis
+</I>&gt;<i>
+</I>&gt;<i> Martin Mann wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi again,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I ve got a question about Branching..
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I implemented my own Branching inclusive a branching descriptor that
+</I>&gt;&gt;<i> supports more than 2 alternatives.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> During my branching sometimes I would like to skip the remaining
+</I>&gt;&gt;<i> alternatives.
+</I>&gt;&gt;<i> So my question:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 1) is it ok just to return ES_FAIL from MyBranching::commit(..) to
+</I>&gt;&gt;<i> skip the corresponding branch? or will it lead to some strange behavior?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 2) is there a possibility for directly skipping the remaining
+</I>&gt;&gt;<i> alternatives without implementing the whole search engine? I would
+</I>&gt;&gt;<i> like to use DFS as it is.. ;)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thanks lot and have a nice weekend
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Martin
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000620">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>Luis Quesada</h2></div>
+          <p><time>Tue Jul 11 10:04:17 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian Schulte wrote:
+
+&gt;<i>I just reply to this email, even though I have read the discussion. I very
+</I>&gt;<i>much second Guido and Mikael and I have another bit to add as to why your
+</I>&gt;<i>idea of tinkering with branchings does not work.
+</I>&gt;<i>
+</I>&gt;<i>The entire setup of search in Gecode relies on recomputation: here, a commit
+</I>&gt;<i>operation using a branching description _must_ always tell the very same
+</I>&gt;<i>constraint when invoked with the same parameters. So by definition, it is
+</I>&gt;<i>not allowed to use state in the way you state it.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>I confess that I still don't see why you need to implement another
+search engine for dealing with Martin's problem. It seems to me that BAB
+would do the job....Cannot Martin do what he wants to do by using the
+constrain method? To me, that's the best place to address his global
+property.
+
+Luis
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000621">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 11 10:11:03 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I do not know whether BAB will be good enough as I do not know what Martin
+exactly needs. However I would also supsect that it will be BAB + X, where X
+might be to get more information from search so far.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Luis Quesada [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">luque at info.ucl.ac.be</A>]
+Sent: Tuesday, July 11, 2006 10:04 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>
+Cc: 'Martin Mann'; 'gecode user list'
+Subject: Re: [gecode-users] Skipping branching alternatives?
+
+
+Christian Schulte wrote:
+
+&gt;<i>I just reply to this email, even though I have read the discussion. I
+</I>&gt;<i>very much second Guido and Mikael and I have another bit to add as to
+</I>&gt;<i>why your idea of tinkering with branchings does not work.
+</I>&gt;<i>
+</I>&gt;<i>The entire setup of search in Gecode relies on recomputation: here, a
+</I>&gt;<i>commit operation using a branching description _must_ always tell the
+</I>&gt;<i>very same constraint when invoked with the same parameters. So by
+</I>&gt;<i>definition, it is not allowed to use state in the way you state it.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>I confess that I still don't see why you need to implement another
+search engine for dealing with Martin's problem. It seems to me that BAB
+would do the job....Cannot Martin do what he wants to do by using the
+constrain method? To me, that's the best place to address his global
+property.
+
+Luis
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000622">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Jul 11 10:25:53 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&gt;<i> I do not know whether BAB will be good enough as I do not know what Martin
+</I>&gt;<i> exactly needs. However I would also supsect that it will be BAB + X, where
+</I>&gt;<i> X might be to get more information from search so far.
+</I>
+I thought about that a bit yesterday, and BAB seems to be not enough. The
+problem is that you cannot express the pruning as a single constraint. E.g.,
+if you find some solution with x=4 and want to prune all branches one level
+above that solution that have x!=4. Then you cannot simply say that x!=4 for
+all nodes explored later.
+From what I understood, you need to limit the pruning to one particular choice
+point, and I cannot see how to achieve that using BAB. Or, in Luis' terms,
+the property Martin wants to express seems to be not global enough for BAB,
+but not local enough to be addressed by branchings and/or propagators alone.
+That's why you need a new search engine.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000623">
+        <header class="archive-thread-message-heading">
+          <div><span>16</span><h2>Martin Mann</h2></div>
+          <p><time>Tue Jul 11 11:12:07 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Uff... what a discussion!
+
+thanks a lot! to give you a deeper look about my setting and what i want
+here a short description:
+
+i ve got a Branching &quot;MartinsBranching&quot; == MB.
+this produces 2 types of branching descriptions: the standard PosValDesc
+== PVD and my own with multiple alternatives == MBD
+
+during the branching i decide on some special properties of the
+subproblem if i will branch into 2 (via PVD) or more subtrees (MBD). the
+corresponding branching description is returned.
+
+i ve got a global structure (accessible directly via my subclass of
+Space i am using in my problem) that handles the solution recognition.
+
+my MBD is able to detect if it is asked to commit a new branching
+alternative or is just doing recomputation. if asked for a new branch it
+checks if in the last branch a special solution was found. if thats the
+case it should skip this and the following alternatives of this MBD.
+
+you see i can detect very clear the choice point where i want to skip
+the remaining. as discussed here, it is not possible to prune the
+alternatives via propagation because during bracktracking and new
+branching this values might be needed.
+also i dont think it is neccessary to rewrite the search engine, because
+the branching can do. the problem that appear is the cloning of some
+unneccessary Spaces in the search function that calls the
+branching::commit(..).
+
+so i agree with guido: it is not global enough for a BAB and not local
+enough for a propagator.
+but a new search engine? ;) i am not frightened about (i ve done it in
+the beginning..) but hope i dont need it.. i want to keep the gecode
+changes as small as possible!
+
+hope this makes it clear
+
+my current way:
+- currently my MB::commit(..) returns ES_FAILED, if it detects the
+question for a new branching alternative and the last branchings have
+leaded to a special solution.
+(i wrote it doesnt function but actually right now i found the bug in my
+code.. ;) now it works fine)
+
+so the last open question is: any alternatives for skipping?
+
+the only one i see:
+a) writing a new search engine that tests for skipping itself and
+removes the branching description directly
+
+anything else?
+
+so thanks for your patience and support, and that you ve read until here!
+
+martin
+
+
+
+Guido Tack schrieb:
+&gt;&gt;<i> I do not know whether BAB will be good enough as I do not know what Martin
+</I>&gt;&gt;<i> exactly needs. However I would also supsect that it will be BAB + X, where
+</I>&gt;&gt;<i> X might be to get more information from search so far.
+</I>&gt;<i>
+</I>&gt;<i> I thought about that a bit yesterday, and BAB seems to be not enough. The
+</I>&gt;<i> problem is that you cannot express the pruning as a single constraint. E.g.,
+</I>&gt;<i> if you find some solution with x=4 and want to prune all branches one level
+</I>&gt;<i> above that solution that have x!=4. Then you cannot simply say that x!=4 for
+</I>&gt;<i> all nodes explored later.
+</I>&gt;<i> From what I understood, you need to limit the pruning to one particular choice
+</I>&gt;<i> point, and I cannot see how to achieve that using BAB. Or, in Luis' terms,
+</I>&gt;<i> the property Martin wants to express seems to be not global enough for BAB,
+</I>&gt;<i> but not local enough to be addressed by branchings and/or propagators alone.
+</I>&gt;<i> That's why you need a new search engine.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000624">
+        <header class="archive-thread-message-heading">
+          <div><span>17</span><h2>Luis Quesada</h2></div>
+          <p><time>Tue Jul 11 12:10:59 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Martin Mann wrote:
+
+&gt;<i> Uff... what a discussion!
+</I>&gt;<i>
+</I>&gt;<i> thanks a lot! to give you a deeper look about my setting and what i
+</I>&gt;<i> want here a short description:
+</I>&gt;<i>
+</I>&gt;<i> i ve got a Branching &quot;MartinsBranching&quot; == MB.
+</I>&gt;<i> this produces 2 types of branching descriptions: the standard
+</I>&gt;<i> PosValDesc == PVD and my own with multiple alternatives == MBD
+</I>&gt;<i>
+</I>&gt;<i> during the branching i decide on some special properties of the
+</I>&gt;<i> subproblem if i will branch into 2 (via PVD) or more subtrees (MBD).
+</I>&gt;<i> the corresponding branching description is returned.
+</I>&gt;<i>
+</I>&gt;<i> i ve got a global structure (accessible directly via my subclass of
+</I>&gt;<i> Space i am using in my problem) that handles the solution recognition.
+</I>&gt;<i>
+</I>&gt;<i> my MBD is able to detect if it is asked to commit a new branching
+</I>&gt;<i> alternative or is just doing recomputation. if asked for a new branch
+</I>&gt;<i> it checks if in the last branch a special solution was found. if thats
+</I>&gt;<i> the case it should skip this and the following alternatives of this MBD.
+</I>&gt;<i>
+</I>&gt;<i> you see i can detect very clear the choice point where i want to skip
+</I>&gt;<i> the remaining. as discussed here, it is not possible to prune the
+</I>&gt;<i> alternatives via propagation because during bracktracking and new
+</I>&gt;<i> branching this values might be needed.
+</I>&gt;<i> also i dont think it is neccessary to rewrite the search engine,
+</I>&gt;<i> because the branching can do. the problem that appear is the cloning
+</I>&gt;<i> of some unneccessary Spaces in the search function that calls the
+</I>&gt;<i> branching::commit(..).
+</I>&gt;<i>
+</I>&gt;<i> so i agree with guido: it is not global enough for a BAB and not local
+</I>&gt;<i> enough for a propagator.
+</I>&gt;<i> but a new search engine? ;) i am not frightened about (i ve done it in
+</I>&gt;<i> the beginning..) but hope i dont need it.. i want to keep the gecode
+</I>&gt;<i> changes as small as possible!
+</I>&gt;<i>
+</I>&gt;<i> hope this makes it clear
+</I>&gt;<i>
+</I>&gt;<i> my current way:
+</I>&gt;<i> - currently my MB::commit(..) returns ES_FAILED, if it detects the
+</I>&gt;<i> question for a new branching alternative and the last branchings have
+</I>&gt;<i> leaded to a special solution.
+</I>&gt;<i> (i wrote it doesnt function but actually right now i found the bug in
+</I>&gt;<i> my code.. ;) now it works fine)
+</I>&gt;<i>
+</I>&gt;<i> so the last open question is: any alternatives for skipping?
+</I>&gt;<i>
+</I>&gt;<i> the only one i see:
+</I>&gt;<i> a) writing a new search engine that tests for skipping itself and
+</I>&gt;<i> removes the branching description directly
+</I>&gt;<i>
+</I>&gt;<i> anything else?
+</I>&gt;<i>
+</I>&gt;<i> so thanks for your patience and support, and that you ve read until here!
+</I>&gt;<i>
+</I>&gt;<i> martin
+</I>&gt;<i>
+</I>Dear Martin,
+
+The basic problem I have with the description of your problem is that it
+is too attached to the implementation....If you describe your *problem*
+without referring to your implementation, that would certainly help me.
+I thought that you simply wanted to impose conditional constraints
+(e.g., W&gt;2&amp;Y&gt;3 =&gt; X\=4 (because the solution you have involving X=4
+under  W&gt;2&amp;Y&gt;3 is already good enough)) each time you find a solution in
+order to discard branches that (from your expert point of view) may not
+lead to better solutions.
+But I now I realize that I have completely missed the point...
+Anyway, I have also enjoyed the discussion (and learned from it)!
+Cheers,
+Luis
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000625">
+        <header class="archive-thread-message-heading">
+          <div><span>18</span><h2>Martin Mann</h2></div>
+          <p><time>Tue Jul 11 15:39:34 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In
+a function &quot;int val(IntView &amp;x)&quot; the value to split on of the domain x
+is determined.
+
+I would like to have access to the &quot;father&quot; Space of x...
+
+The reason is the usage of some further informations out of Space, to
+select the value.
+Am I the only one who is interested in doing such things or may it be
+interesting for others too? If that's the case may it be possible to add
+the calling Space to the parameter list of &quot;val(..)&quot; in general? (I know
+this would lead to some changes in the code.. and to incompatibilities
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000626">
+        <header class="archive-thread-message-heading">
+          <div><span>19</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 11 15:50:41 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>That's okay. We will do that anytime soon.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 3:40 PM
+To: gecode user list
+Subject: [gecode-users] Space access during ViewSelection?
+
+
+;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In
+a function &quot;int val(IntView &amp;x)&quot; the value to split on of the domain x
+is determined.
+
+I would like to have access to the &quot;father&quot; Space of x...
+
+The reason is the usage of some further informations out of Space, to
+select the value.
+Am I the only one who is interested in doing such things or may it be
+interesting for others too? If that's the case may it be possible to add
+the calling Space to the parameter list of &quot;val(..)&quot; in general? (I know
+this would lead to some changes in the code.. and to incompatibilities
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000627">
+        <header class="archive-thread-message-heading">
+          <div><span>20</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 11 16:00:43 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hmmm, I just had a look and it is not so obvious: would it be okay if the
+space would be passed as const? What does make more sense in this situation
+(I think const: because one should be able to ask the same space multiply
+for a description and always get the same description).
+
+Anyway, we are going to change the interface of branchings and branchin
+descriptions anyway: we decided to make branching descriptions mandatory
+given the huge importance they carry for efficient recomputation. This
+allows us to make the interfaces considerably simpler.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Christian Schulte
+Sent: Tuesday, July 11, 2006 3:51 PM
+To: 'Martin Mann'; 'gecode user list'
+Subject: RE: [gecode-users] Space access during ViewSelection?
+
+
+That's okay. We will do that anytime soon.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 3:40 PM
+To: gecode user list
+Subject: [gecode-users] Space access during ViewSelection?
+
+
+;)
+
+the next ugly question is waiting:
+
+This time I m fighting with value selection classes for my branching. In
+a function &quot;int val(IntView &amp;x)&quot; the value to split on of the domain x
+is determined.
+
+I would like to have access to the &quot;father&quot; Space of x...
+
+The reason is the usage of some further informations out of Space, to
+select the value.
+Am I the only one who is interested in doing such things or may it be
+interesting for others too? If that's the case may it be possible to add
+the calling Space to the parameter list of &quot;val(..)&quot; in general? (I know
+this would lead to some changes in the code.. and to incompatibilities
+with user defined value selections for older versions of gecode..)
+
+Otherwise i ve got to do some static stuff I dont like, but that will do
+it for the moment.
+
+Thanks for thinking about
+
+Martin
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000628">
+        <header class="archive-thread-message-heading">
+          <div><span>21</span><h2>Martin Mann</h2></div>
+          <p><time>Tue Jul 11 18:07:12 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+for me a const access is enough! (anyway better than static variables)
+
+also const makes sense for me, because it should be possible to get
+further informations but not to change the space..
+
+is there any schedule for publication the changed interface?
+
+and maybe the same (space access) would be nice for view-selection too!?
+
+thanks
+
+Martin
+
+
+
+Christian Schulte schrieb:
+&gt;<i> Hmmm, I just had a look and it is not so obvious: would it be okay if the
+</I>&gt;<i> space would be passed as const? What does make more sense in this situation
+</I>&gt;<i> (I think const: because one should be able to ask the same space multiply
+</I>&gt;<i> for a description and always get the same description).
+</I>&gt;<i>
+</I>&gt;<i> Anyway, we are going to change the interface of branchings and branchin
+</I>&gt;<i> descriptions anyway: we decided to make branching descriptions mandatory
+</I>&gt;<i> given the huge importance they carry for efficient recomputation. This
+</I>&gt;<i> allows us to make the interfaces considerably simpler.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Christian Schulte
+</I>&gt;<i> Sent: Tuesday, July 11, 2006 3:51 PM
+</I>&gt;<i> To: 'Martin Mann'; 'gecode user list'
+</I>&gt;<i> Subject: RE: [gecode-users] Space access during ViewSelection?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> That's okay. We will do that anytime soon.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Martin Mann
+</I>&gt;<i> Sent: Tuesday, July 11, 2006 3:40 PM
+</I>&gt;<i> To: gecode user list
+</I>&gt;<i> Subject: [gecode-users] Space access during ViewSelection?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> ;)
+</I>&gt;<i>
+</I>&gt;<i> the next ugly question is waiting:
+</I>&gt;<i>
+</I>&gt;<i> This time I m fighting with value selection classes for my branching. In
+</I>&gt;<i> a function &quot;int val(IntView &amp;x)&quot; the value to split on of the domain x
+</I>&gt;<i> is determined.
+</I>&gt;<i>
+</I>&gt;<i> I would like to have access to the &quot;father&quot; Space of x...
+</I>&gt;<i>
+</I>&gt;<i> The reason is the usage of some further informations out of Space, to
+</I>&gt;<i> select the value.
+</I>&gt;<i> Am I the only one who is interested in doing such things or may it be
+</I>&gt;<i> interesting for others too? If that's the case may it be possible to add
+</I>&gt;<i> the calling Space to the parameter list of &quot;val(..)&quot; in general? (I know
+</I>&gt;<i> this would lead to some changes in the code.. and to incompatibilities
+</I>&gt;<i> with user defined value selections for older versions of gecode..)
+</I>&gt;<i>
+</I>&gt;<i> Otherwise i ve got to do some static stuff I dont like, but that will do
+</I>&gt;<i> it for the moment.
+</I>&gt;<i>
+</I>&gt;<i> Thanks for thinking about
+</I>&gt;<i>
+</I>&gt;<i> Martin
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000629">
+        <header class="archive-thread-message-heading">
+          <div><span>22</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 11 19:55:07 CEST 2006</time><small>July 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Yes it will be also for views. The changes should appear in the svn trunk
+tomorrow.
+
+Christian
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Martin Mann
+Sent: Tuesday, July 11, 2006 6:07 PM
+To: 'gecode user list'
+Subject: Re: [gecode-users] Space access during ViewSelection?
+
+
+
+for me a const access is enough! (anyway better than static variables)
+
+also const makes sense for me, because it should be possible to get
+further informations but not to change the space..
+
+is there any schedule for publication the changed interface?
+
+and maybe the same (space access) would be nice for view-selection too!?
+
+thanks
+
+Martin
+
+
+
+Christian Schulte schrieb:
+&gt;<i> Hmmm, I just had a look and it is not so obvious: would it be okay if
+</I>&gt;<i> the space would be passed as const? What does make more sense in this
+</I>&gt;<i> situation (I think const: because one should be able to ask the same
+</I>&gt;<i> space multiply for a description and always get the same description).
+</I>&gt;<i>
+</I>&gt;<i> Anyway, we are going to change the interface of branchings and
+</I>&gt;<i> branchin descriptions anyway: we decided to make branching
+</I>&gt;<i> descriptions mandatory given the huge importance they carry for
+</I>&gt;<i> efficient recomputation. This allows us to make the interfaces
+</I>&gt;<i> considerably simpler.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Christian Schulte
+</I>&gt;<i> Sent: Tuesday, July 11, 2006 3:51 PM
+</I>&gt;<i> To: 'Martin Mann'; 'gecode user list'
+</I>&gt;<i> Subject: RE: [gecode-users] Space access during ViewSelection?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> That's okay. We will do that anytime soon.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Martin Mann
+</I>&gt;<i> Sent: Tuesday, July 11, 2006 3:40 PM
+</I>&gt;<i> To: gecode user list
+</I>&gt;<i> Subject: [gecode-users] Space access during ViewSelection?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> ;)
+</I>&gt;<i>
+</I>&gt;<i> the next ugly question is waiting:
+</I>&gt;<i>
+</I>&gt;<i> This time I m fighting with value selection classes for my branching.
+</I>&gt;<i> In
+</I>&gt;<i> a function &quot;int val(IntView &amp;x)&quot; the value to split on of the domain x
+</I>&gt;<i> is determined.
+</I>&gt;<i>
+</I>&gt;<i> I would like to have access to the &quot;father&quot; Space of x...
+</I>&gt;<i>
+</I>&gt;<i> The reason is the usage of some further informations out of Space, to
+</I>&gt;<i> select the value.
+</I>&gt;<i> Am I the only one who is interested in doing such things or may it be
+</I>&gt;<i> interesting for others too? If that's the case may it be possible to add
+</I>&gt;<i> the calling Space to the parameter list of &quot;val(..)&quot; in general? (I know
+</I>&gt;<i> this would lead to some changes in the code.. and to incompatibilities
+</I>&gt;<i> with user defined value selections for older versions of gecode..)
+</I>&gt;<i>
+</I>&gt;<i> Otherwise i ve got to do some static stuff I dont like, but that will
+</I>&gt;<i> do
+</I>&gt;<i> it for the moment.
+</I>&gt;<i>
+</I>&gt;<i> Thanks for thinking about
+</I>&gt;<i>
+</I>&gt;<i> Martin
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

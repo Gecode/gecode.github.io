@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Porting attributed variables — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Porting attributed variables | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · December 2008</p><h1 data-pagefind-meta="title">Porting attributed variables</h1></header>
+      <p class="archive-thread-summary">6 messages · December 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002111">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Maria Garcia de la Banda</h2></div>
+          <p><time>Wed Dec 17 11:24:51 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi,
+
+Total newbie question (from an LPer): assume that, during search, I want
+to add some extra prunnings for all search variables that have a
+particular attribute (e.g., they apper in a given constraint, or they
+appear in some data structure I am maintaining, or whatever). In some LP
+languages this could easily be done by using &quot;attributed variables&quot;, i.e.,
+variables to which extra information can be attached and consulted/
+modified during execution.
+
+The question is: how could I do (easily) this in gecode? Using the
+reflection API?
+
+Thanks in advance,
+
+Maria
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002112">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Dec 17 13:49:32 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Maria Garcia de la Banda wrote:
+&gt;<i> Total newbie question (from an LPer): assume that, during search, I
+</I>&gt;<i> want
+</I>&gt;<i> to add some extra prunnings for all search variables that have a
+</I>&gt;<i> particular attribute (e.g., they apper in a given constraint, or they
+</I>&gt;<i> appear in some data structure I am maintaining, or whatever). In
+</I>&gt;<i> some LP
+</I>&gt;<i> languages this could easily be done by using &quot;attributed variables&quot;,
+</I>&gt;<i> i.e.,
+</I>&gt;<i> variables to which extra information can be attached and consulted/
+</I>&gt;<i> modified during execution.
+</I>
+Do you want to do the extra pruning in the branching?  E.g., collect
+some attributes for particular variables, and then perform the
+branching based on these attributes?  This reminds me of branchings
+for scheduling, where propagators determine precedences between
+activities, and the branching uses this precedence information to
+order activities.  Is that a similar scenario?
+
+&gt;<i> The question is: how could I do (easily) this in gecode? Using the
+</I>&gt;<i> reflection API?
+</I>
+With reflection you can only get information about the variable
+domain, but you can't add extra information.  But you can simply
+introduce an additional data structure that collects the attributes,
+and that is shared between the branching and whoever is responsible
+for maintaining the attributes (e.g. some propagators).
+You'd only have to make sure that a) the data structure is copied
+properly, and b) that the branching is still compatible with
+recomputation.  For a), you could abuse a SharedArray and always set
+the bool share flag to false during update.  For b), you have to
+record at each branching step which prunings your branching does, and
+encode them in the BranchingDesc, so that later recomputation steps
+can perform the exact same prunings again.
+
+That's just the overall idea, if you need more concrete hints how to
+implement this, just ask.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002114">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Maria Garcia de la Banda</h2></div>
+          <p><time>Wed Dec 17 14:25:36 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+
+&gt;<i> Do you want to do the extra pruning in the branching?  E.g., collect
+</I>&gt;<i> some attributes for particular variables, and then perform the
+</I>&gt;<i> branching based on these attributes?  This reminds me of branchings
+</I>&gt;<i> for scheduling, where propagators determine precedences between
+</I>&gt;<i> activities, and the branching uses this precedence information to
+</I>&gt;<i> order activities.  Is that a similar scenario?
+</I>
+What we are considering is a restricted kind of symmetry breaking during
+search (i.e., at each search node after a failed assignment we try to
+prune extra values based on the known symmetries). While some symetries
+are easy to break efficiently, others require (for efficiency) direct
+access from the variable to a data structure that indicates in which
+variables symmetries it appears (kind of reverse indexing). We could
+always lookup every element of the data structure to find where the
+variable appears, but that is too slow.
+
+&gt;<i> With reflection you can only get information about the variable
+</I>&gt;<i> domain, but you can't add extra information.
+</I>
+Aha. So that is off.
+
+&gt;<i> But you can simply
+</I>&gt;<i> introduce an additional data structure that collects the attributes,
+</I>&gt;<i> and that is shared between the branching and whoever is responsible
+</I>&gt;<i> for maintaining the attributes (e.g. some propagators).
+</I>
+The datastructure must be maintained through the entire search, mmmh,
+actually, this is not true, it only needs to be maintained down in the
+search tree , all other branches are kind of independent of siblings.
+
+&gt;<i> You'd only have to make sure that a) the data structure is copied
+</I>&gt;<i> properly, and b) that the branching is still compatible with
+</I>&gt;<i> recomputation.  For a), you could abuse a SharedArray and always set
+</I>&gt;<i> the bool share flag to false during update.  For b), you have to
+</I>&gt;<i> record at each branching step which prunings your branching does, and
+</I>&gt;<i> encode them in the BranchingDesc, so that later recomputation steps
+</I>&gt;<i> can perform the exact same prunings again.
+</I>&gt;<i>
+</I>&gt;<i> That's just the overall idea, if you need more concrete hints how to
+</I>&gt;<i> implement this, just ask.
+</I>
+So, I could use a Shared structure (like the array) to keep track of the
+info of all variables not yet labeled. Could I somehow maintain pointers
+to where exactly each variable appears in the structure? (mmh, I think I
+am mixing paradigms).
+
+Cheers, Maria
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002115">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Dec 18 11:08:13 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Maria Garcia de la Banda wrote:
+
+&gt;<i> Guido Tack wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Do you want to do the extra pruning in the branching?  E.g., collect
+</I>&gt;&gt;<i> some attributes for particular variables, and then perform the
+</I>&gt;&gt;<i> branching based on these attributes?  This reminds me of branchings
+</I>&gt;&gt;<i> for scheduling, where propagators determine precedences between
+</I>&gt;&gt;<i> activities, and the branching uses this precedence information to
+</I>&gt;&gt;<i> order activities.  Is that a similar scenario?
+</I>&gt;<i>
+</I>&gt;<i> What we are considering is a restricted kind of symmetry breaking
+</I>&gt;<i> during
+</I>&gt;<i> search (i.e., at each search node after a failed assignment we try to
+</I>&gt;<i> prune extra values based on the known symmetries). While some
+</I>&gt;<i> symetries
+</I>&gt;<i> are easy to break efficiently, others require (for efficiency) direct
+</I>&gt;<i> access from the variable to a data structure that indicates in which
+</I>&gt;<i> variables symmetries it appears (kind of reverse indexing). We could
+</I>&gt;<i> always lookup every element of the data structure to find where the
+</I>&gt;<i> variable appears, but that is too slow.
+</I>
+I see.  So you will need a special search engine anyway, and the
+search has to have access to the variables.  I think the key to the
+implementation will be to identify variables with their indexes in an
+array, so that you can just use additional arrays for storing the
+attributes.  If the attributes are just needed down one branch, a
+global array will do.  If not, the array must be inside the space and
+copied.
+
+&gt;<i> So, I could use a Shared structure (like the array) to keep track of
+</I>&gt;<i> the
+</I>&gt;<i> info of all variables not yet labeled.
+</I>
+Yes. I'd just use an array of info data structures, and it only
+contains actual data at the indexes of the unassigned variables.
+
+&gt;<i> Could I somehow maintain pointers
+</I>&gt;<i> to where exactly each variable appears in the structure? (mmh, I
+</I>&gt;<i> think I
+</I>&gt;<i> am mixing paradigms).
+</I>
+Is it an info field per variable, and the info should again contain
+pointers to other variables?  I think identifying variables with their
+array indexes should make all of this simple.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002116">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Maria Garcia de la Banda</h2></div>
+          <p><time>Thu Dec 18 11:24:22 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Thanks Guido,
+
+That gives me good idea of how to start. I will talk to you about the
+details when you land in Melbourne.
+
+Cheers, Maria
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002117">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Denys Duchier</h2></div>
+          <p><time>Thu Dec 18 21:23:17 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Just in case somebody encounters the issue:
+
+Doxygen 1.5.7.1 introduced an erroneous change in the semantics of
+&quot;substitute&quot; thats result in $relpath$ remaining in the doc produced
+instead of being substituted by the empty string.  As a consequence, the
+browser cannot find the stylesheet.
+
+The following patch to doxygen fixes the problem:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: doxygen-1.5.7.1-substitute.patch
+Type: text/x-patch
+Size: 656 bytes
+Desc: fix it
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081218/098d1e8e/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20081218/098d1e8e/attachment.bin</A>&gt;
+-------------- next part --------------
+
+Cheers,
+
+--Denys
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

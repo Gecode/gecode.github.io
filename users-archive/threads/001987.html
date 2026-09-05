@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="member function branching — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>member function branching | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2008</p><h1 data-pagefind-meta="title">member function branching</h1></header>
+      <p class="archive-thread-summary">6 messages · November 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001987">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Patrik Haslum</h2></div>
+          <p><time>Thu Nov 13 05:05:43 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi,
+
+Looking for hints for an easy way to customise the branching strategy in
+a solver implemented using Gecode, I searched through the archive of
+this list and found the MemberFunctionBranch code (thread &quot;staged
+search&quot;, from early october this year).
+
+I found this piece of code very helpful in implementing my branching
+strategy. (So many thanks to both the one who asked the original
+question and the one who provided the answer!) Abstracted a bit, what
+I've done is:
+
+In &quot;my space&quot; constructor:
+
+  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+
+in my_branching_function:
+
+  next_var = &lt;some calculations to figure out next branching variable&gt;;
+  IntVarArgs va(1);
+  va[0] = my_var_array[next_var];
+  branch(this, va, ..., ...);
+  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+  return ES_OK;
+
+That is, the branching function re-installs itself as the next branch
+point after each &quot;real&quot; branching point (on a variable).
+
+However, when used with branch-and-bound search, this gives me incorrect
+results: On one example problem, I get a sequence of solutions with
+decreasing cost, 486, 344, 324, 304, after which it reports that there
+are no more solutions. But if I start the same branch-and-bound search
+with an initial upper bound of, say, 300, it finds a solution with cost
+284 (which is what I think is optimal).
+
+Does anyone know why this happens?
+
+As an additional comment, something I would appreciate in future
+versions of Gecode is some more &quot;helpers&quot; for custom branching, like the
+MemberFunctionBranch. It may be possible to implement any branching
+strategy with the current interface, but it's not exactly easy. Why not
+a branch function/object that takes as argument a vector of constraint
+expressions (the kind that you post by &quot;post(tt(...))&quot;, don't remember
+what the type is called) and branches by posting one of them? That would
+make it easy to use a branching such as for example, &quot;x &lt; y&quot; or &quot;y &gt; x&quot;,
+which I don't know how to do (simply!) with the current interface.
+
+Regards,
+
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A> Haslum
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001988">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Thu Nov 13 09:36:10 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+The MemberFunctionBranch that was posted earlier can not be used in
+the way that you propose. The problem is in the part:
+    next_var = &lt;some calculations to figure out next branching variable&gt;;
+Due to batch recomputation, the MemberFunctionBranch must not depend
+on the values of the variables, since the space in most cases has not
+been propagated yet. For example, changing the c-d-parameter should
+give you different results.
+
+While we are aware that some helpers for creating branchings would be
+good, we don't know how to implement a good and simple system yet. On
+the bright side, while a full custom branching (as in queen-armies.cc
+and black-hole.cc) might not be very pretty, they are fairly easy to
+write. The main parts are status, description, and commit. The parts
+are described below
+ - status
+    Checks whether there is anything left to do for this branching.
+Typically looks for an unassigned variable.
+ - description
+    Computes the actual branching to be done. How to do the branching
+is encoded in a BranchingDesc, and is returned. This description is
+often used in another Space than the Space it was constructed in, so
+the description can not contain a variable for example, only
+unchanging data such as variable-array indices.
+ - commit
+    Performs alternative number a of a BranchingDesc d. Note that
+commit cannot rely on anything about the variables - they may have
+fewer values, more values, or even an incomparable set of values to
+the values of the variables when the description was computed. This is
+due to batch recomputation and/or optimization.
+
+
+Hope this helps,
+Mikael
+
+On Thu, Nov 13, 2008 at 5:05 AM, Patrik Haslum &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">patrik.haslum at anu.edu.au</A>&gt; wrote:
+&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Looking for hints for an easy way to customise the branching strategy in
+</I>&gt;<i> a solver implemented using Gecode, I searched through the archive of
+</I>&gt;<i> this list and found the MemberFunctionBranch code (thread &quot;staged
+</I>&gt;<i> search&quot;, from early october this year).
+</I>&gt;<i>
+</I>&gt;<i> I found this piece of code very helpful in implementing my branching
+</I>&gt;<i> strategy. (So many thanks to both the one who asked the original
+</I>&gt;<i> question and the one who provided the answer!) Abstracted a bit, what
+</I>&gt;<i> I've done is:
+</I>&gt;<i>
+</I>&gt;<i> In &quot;my space&quot; constructor:
+</I>&gt;<i>
+</I>&gt;<i>  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+</I>&gt;<i>
+</I>&gt;<i> in my_branching_function:
+</I>&gt;<i>
+</I>&gt;<i>  next_var = &lt;some calculations to figure out next branching variable&gt;;
+</I>&gt;<i>  IntVarArgs va(1);
+</I>&gt;<i>  va[0] = my_var_array[next_var];
+</I>&gt;<i>  branch(this, va, ..., ...);
+</I>&gt;<i>  MemberFunctionBranch&lt;my space&gt;::post(my_branching_function);
+</I>&gt;<i>  return ES_OK;
+</I>&gt;<i>
+</I>&gt;<i> That is, the branching function re-installs itself as the next branch
+</I>&gt;<i> point after each &quot;real&quot; branching point (on a variable).
+</I>&gt;<i>
+</I>&gt;<i> However, when used with branch-and-bound search, this gives me incorrect
+</I>&gt;<i> results: On one example problem, I get a sequence of solutions with
+</I>&gt;<i> decreasing cost, 486, 344, 324, 304, after which it reports that there
+</I>&gt;<i> are no more solutions. But if I start the same branch-and-bound search
+</I>&gt;<i> with an initial upper bound of, say, 300, it finds a solution with cost
+</I>&gt;<i> 284 (which is what I think is optimal).
+</I>&gt;<i>
+</I>&gt;<i> Does anyone know why this happens?
+</I>&gt;<i>
+</I>&gt;<i> As an additional comment, something I would appreciate in future
+</I>&gt;<i> versions of Gecode is some more &quot;helpers&quot; for custom branching, like the
+</I>&gt;<i> MemberFunctionBranch. It may be possible to implement any branching
+</I>&gt;<i> strategy with the current interface, but it's not exactly easy. Why not
+</I>&gt;<i> a branch function/object that takes as argument a vector of constraint
+</I>&gt;<i> expressions (the kind that you post by &quot;post(tt(...))&quot;, don't remember
+</I>&gt;<i> what the type is called) and branches by posting one of them? That would
+</I>&gt;<i> make it easy to use a branching such as for example, &quot;x &lt; y&quot; or &quot;y &gt; x&quot;,
+</I>&gt;<i> which I don't know how to do (simply!) with the current interface.
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A> Haslum
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001997">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Patrik Haslum</h2></div>
+          <p><time>Thu Nov 13 15:37:12 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Mikael Zayenz Lagerkvist wrote:
+
+&gt;<i> The MemberFunctionBranch that was posted earlier can not be used in
+</I>&gt;<i> the way that you propose. The problem is in the part:
+</I>&gt;<i>     next_var = &lt;some calculations to figure out next branching variable&gt;;
+</I>&gt;<i> Due to batch recomputation, the MemberFunctionBranch must not depend
+</I>&gt;<i> on the values of the variables, since the space in most cases has not
+</I>&gt;<i> been propagated yet.
+</I>
+If that is the problem, then I can fix it by just setting the c-d
+parameter to 1, correct?
+
+Alternatively, can I simply call space-&gt;status() in the branching
+(member) function to ensure that propagation is done before looking at
+current values of variables? (that would let recomputation still be done
+in batches when there are several variable branch points between two
+&quot;figure out what to do next&quot; branch points, although that doesn't happen
+very often).
+
+Thanks,
+	/<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001999">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Nov 14 14:22:45 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Patrik,
+
+cheating is illegal in Gecode ;-) Recomputation is absolutely essential for
+Gecode to be efficient! So switching off recomputation is not really an
+option. Then, the alternative also disables an important feature of
+recomputation (I also would expect that your idea does not work; in the best
+case it will run into an infinite loop, in the worst case it will just go
+boom): to make recomputation efficient, one keeps recording constraints
+(that is what commit does). Then one only computes a single fixpoint doing
+the actual propagation (that is what status does). Computing several
+fixpoint during recomputation makes things realy sloooooow.
+
+So you will have to bite the bullet and define a proper branching that
+returns a branching description that has recorded all information (in your
+case the values for that variables) your branching is going to need to redo
+a decision during recomputation. This is as Mikael has spelled it out in one
+the previous emails.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Patrik Haslum
+Sent: Thursday, November 13, 2008 3:37 PM
+To: Mikael Zayenz Lagerkvist
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] member function branching
+
+
+Mikael Zayenz Lagerkvist wrote:
+
+&gt;<i> The MemberFunctionBranch that was posted earlier can not be used in
+</I>&gt;<i> the way that you propose. The problem is in the part:
+</I>&gt;<i>     next_var = &lt;some calculations to figure out next branching variable&gt;;
+</I>&gt;<i> Due to batch recomputation, the MemberFunctionBranch must not depend
+</I>&gt;<i> on the values of the variables, since the space in most cases has not
+</I>&gt;<i> been propagated yet.
+</I>
+If that is the problem, then I can fix it by just setting the c-d
+parameter to 1, correct?
+
+Alternatively, can I simply call space-&gt;status() in the branching
+(member) function to ensure that propagation is done before looking at
+current values of variables? (that would let recomputation still be done
+in batches when there are several variable branch points between two
+&quot;figure out what to do next&quot; branch points, although that doesn't happen
+very often).
+
+Thanks,
+	/<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002003">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Patrik Haslum</h2></div>
+          <p><time>Wed Nov 19 05:24:49 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi again,
+
+I've implemented a &quot;proper&quot; custom branching (with branching
+descriptions etc). I've also run some experiments testing the effect of
+changing the c-d parameter, and results are not what I expected.
+
+I used two different settings, c-d = 8 and c-d = 1, with both &quot;basic&quot;
+branching (i.e., only calling the built-in &quot;branch&quot; function, for each
+of two variable arrays, in the space constructor) and with my custom
+branching. In *all* cases, using c-d = 8 does more propagation than
+using c-d = 1! Runtimes do not always correlate with the amount of
+propagation done, but, for the custom branching strategy at least, using
+c-d = 1 is faster on all non-trivial problems. (A summary of the
+experiment results is attached.)
+
+Is there an explanation for this result?
+
+cheers,
+			/<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">P at trik</A>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: res-bcd-exp.txt
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/625fbcf2/attachment.txt">http://www.ps.uni-sb.de/pipermail/users/attachments/20081119/625fbcf2/attachment.txt</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002004">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Nov 19 08:12:07 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Patrik Haslum wrote:
+&gt;<i> I've implemented a &quot;proper&quot; custom branching (with branching
+</I>&gt;<i> descriptions etc). I've also run some experiments testing the effect
+</I>&gt;<i> of changing the c-d parameter, and results are not what I expected.
+</I>&gt;<i>
+</I>&gt;<i> I used two different settings, c-d = 8 and c-d = 1, with both
+</I>&gt;<i> &quot;basic&quot; branching (i.e., only calling the built-in &quot;branch&quot;
+</I>&gt;<i> function, for each of two variable arrays, in the space constructor)
+</I>&gt;<i> and with my custom branching. In *all* cases, using c-d = 8 does
+</I>&gt;<i> more propagation than using c-d = 1! Runtimes do not always
+</I>&gt;<i> correlate with the amount of propagation done, but, for the custom
+</I>&gt;<i> branching strategy at least, using c-d = 1 is faster on all non-
+</I>&gt;<i> trivial problems. (A summary of the experiment results is attached.)
+</I>&gt;<i>
+</I>&gt;<i> Is there an explanation for this result?
+</I>
+At least part of it is the expected result.  Recomputation (which you
+enable using c-d=8) trades memory for run-time: you need less memory,
+because you store fewer copies, but you need more time, because you
+have to recompute.  And recomputation of course involves propagation,
+so the number of propagation steps is bound to increase.
+In practice, however, it turns out that recomputation often saves run-
+time, first because copying takes time, too, and second because it is
+optimistic: don't make too many copies, because the solution will be
+where the heuristic predicts it, so many copies would never be used.
+Of course, this is problem-specific, so it might just not work in your
+case.
+All this is discussed in [1] and [2], if you want to read more about it.
+
+Cheers,
+	Guido
+
+[1] C. Schulte. Comparing trailing and copying for constraint
+programming. In D. D. Schreye, editor,
+Proceedings of the Sixteenth International Conference on Logic
+Programming, pages 275&#8211;289, Las Cruces,
+NM, USA, 1999. The MIT Press.
+
+[2] C. Schulte. Programming Constraint Services, volume 2302 of LNCS
+(LNAI). Springer, 2002.
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

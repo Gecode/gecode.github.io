@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="bin packing variant — 3 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>bin packing variant | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>3 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · June 2017</p><h1 data-pagefind-meta="title">bin packing variant</h1></header>
+      <p class="archive-thread-summary">3 messages · June 2017</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004979">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Yilmaz Arslanoglu</h2></div>
+          <p><time>Thu Jun 1 10:19:01 CEST 2017</time><small>June 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi;
+
+I was trying to write a model for a bin packing variant.
+(You can find the problem description at the bottom of this mail)
+
+I'm quite new to Gecode so I couldn't get the whole logic behind it,
+but below is my model which I based on the given directions in Gecode
+documentation:
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/set.hh&gt;
+
+namespace {
+
+    using namespace Gecode;
+
+    const int rod_length[] = { 3, 2, 4, 5, 3 };
+    const int bin_weight_limit[] = { 30 };
+    const int bin_start[] = {0, 15};
+
+    inline int num_rods() {
+        return static_cast&lt;int&gt;(
+                   sizeof(rod_length) / sizeof(int)
+               );
+    }
+
+    inline int num_bins() {
+        return static_cast&lt;int&gt;(
+                   (sizeof(bin_weight_limit) / sizeof(int))
+               );
+    }
+
+    inline int box_start() {
+        return bin_start[0];
+    }
+
+    inline int box_end() {
+        return bin_start[num_bins()];
+    }
+
+    class Test : public Script {
+      public:
+
+        SetVarArray rod_position;
+        IntVarArray accum;
+
+        Test(const Options&amp; opt)
+            : Script(opt)
+            , rod_position(*this,
+                           num_rods(),
+                           IntSet::empty,
+                           IntSet(box_start(),
+                                  box_end()))
+            , accum(*this,
+                    num_bins() * num_rods()) {
+
+            for (int i = 0; i &lt; num_rods(); ++i) {
+                //
+                convex(*this, rod_position[i]);
+                //
+                cardinality(*this,
+                            rod_position[i],
+                            rod_length[i],
+                            rod_length[i]);
+            }
+
+            Matrix&lt;IntVarArray&gt; accum_matrix(accum,
+                                             num_bins(),
+                                             num_rods());
+
+            for (int i = 0; i &lt; num_bins(); ++i) {
+                //
+                auto bin_interval = IntSet(bin_start[i] + 1,
+                                           bin_start[i + 1]);
+
+                //
+                for (int j = 0; j &lt; num_rods(); ++j) {
+                    rel(*this,
+                        accum_matrix(i, j) ==
+                        cardinality(rod_position[j] &amp; bin_interval));
+                }
+
+                //
+                rel(*this,
+                    sum(accum_matrix.col(i)) &lt;= bin_weight_limit[i]);
+            }
+        }
+
+        Test(bool share, Test&amp; s)
+            : Script(share, s) {
+            rod_position.update(*this, share, s.rod_position);
+            accum.update(*this, share, s.accum);
+        }
+
+        virtual
+        Space* copy(bool share) {
+            return new Test(share, *this);
+        }
+    };
+}
+
+I get an exception in &lt;gecode&gt;/int.hpp at this location:
+
+forceinline int
+  IntVarImp::RangeList::min(void) const {
+    return _min;
+  }
+
+And here is my bin packing problem description (please check the image
+attached):
+
+I would like to place *N* rods (the red ones) into a rectangle which is
+divided into *M* contiguous bins with different sizes. The rods can move
+through bins. That is, they don't need to be completely covered by a single
+bin, but can be hold by more than one bin.
+
+My constraint is: for each bin, there is a specific weight capacity *W* and
+total  weight of rod pieces falling into that bin cannot exceed *W*.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.html</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: packing_rods.png
+Type: image/png
+Size: 18132 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.png">http://www.gecode.org/pipermail/users/attachments/20170601/6b876e35/attachment-0001.png</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004980">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jun 1 11:02:00 CEST 2017</time><small>June 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Look, we can&#8217;t debug your programs.
+
+
+
+However, the mistake is so basic that I saw it in one second: you do not initialize accum properly as you do not give bounds for the variables. Please read MPG carefully.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Yilmaz Arslanoglu
+Sent: Thursday, June 1, 2017 10:19
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] bin packing variant
+
+
+
+Hi;
+
+I was trying to write a model for a bin packing variant.
+
+(You can find the problem description at the bottom of this mail)
+
+I'm quite new to Gecode so I couldn't get the whole logic behind it,
+but below is my model which I based on the given directions in Gecode documentation:
+
+
+
+#include &lt;gecode/driver.hh&gt;
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/set.hh&gt;
+
+namespace {
+
+    using namespace Gecode;
+
+    const int rod_length[] = { 3, 2, 4, 5, 3 };
+    const int bin_weight_limit[] = { 30 };
+    const int bin_start[] = {0, 15};
+
+    inline int num_rods() {
+        return static_cast&lt;int&gt;(
+                   sizeof(rod_length) / sizeof(int)
+               );
+    }
+
+    inline int num_bins() {
+        return static_cast&lt;int&gt;(
+                   (sizeof(bin_weight_limit) / sizeof(int))
+               );
+    }
+
+    inline int box_start() {
+        return bin_start[0];
+    }
+
+    inline int box_end() {
+        return bin_start[num_bins()];
+    }
+
+    class Test : public Script {
+      public:
+
+        SetVarArray rod_position;
+        IntVarArray accum;
+
+        Test(const Options&amp; opt)
+            : Script(opt)
+            , rod_position(*this,
+                           num_rods(),
+                           IntSet::empty,
+                           IntSet(box_start(),
+                                  box_end()))
+            , accum(*this,
+                    num_bins() * num_rods()) {
+
+            for (int i = 0; i &lt; num_rods(); ++i) {
+                //
+                convex(*this, rod_position[i]);
+                //
+                cardinality(*this,
+                            rod_position[i],
+                            rod_length[i],
+                            rod_length[i]);
+            }
+
+            Matrix&lt;IntVarArray&gt; accum_matrix(accum,
+                                             num_bins(),
+                                             num_rods());
+
+            for (int i = 0; i &lt; num_bins(); ++i) {
+                //
+                auto bin_interval = IntSet(bin_start[i] + 1,
+                                           bin_start[i + 1]);
+
+                //
+                for (int j = 0; j &lt; num_rods(); ++j) {
+                    rel(*this,
+                        accum_matrix(i, j) ==
+                        cardinality(rod_position[j] &amp; bin_interval));
+                }
+
+                //
+                rel(*this,
+                    sum(accum_matrix.col(i)) &lt;= bin_weight_limit[i]);
+            }
+        }
+
+        Test(bool share, Test&amp; s)
+            : Script(share, s) {
+            rod_position.update(*this, share, s.rod_position);
+            accum.update(*this, share, s.accum);
+        }
+
+        virtual
+        Space* copy(bool share) {
+            return new Test(share, *this);
+        }
+    };
+}
+
+I get an exception in &lt;gecode&gt;/int.hpp at this location:
+
+forceinline int
+  IntVarImp::RangeList::min(void) const {
+    return _min;
+  }
+
+And here is my bin packing problem description (please check the image attached):
+
+I would like to place N rods (the red ones) into a rectangle which is divided into M contiguous bins with different sizes. The rods can move through bins. That is, they don't need to be completely covered by a single bin, but can be hold by more than one bin.
+
+My constraint is: for each bin, there is a specific weight capacity W and total  weight of rod pieces falling into that bin cannot exceed W.
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170601/498ccdf6/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170601/498ccdf6/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004981">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Yilmaz Arslanoglu</h2></div>
+          <p><time>Thu Jun 1 11:21:57 CEST 2017</time><small>June 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian;
+
+Thanks for the quick response!
+
+Sorry, my intention was not to ask for code debugging.
+I intentionally left the bounds empty with an
+intuitive expectation that they will be filled with default min/max.
+
+Thanks again!
+
+Y&#305;lmaz
+
+On Thu, Jun 1, 2017 at 12:02 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i> Look, we can&#8217;t debug your programs.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> However, the mistake is so basic that I saw it in one second: you do not
+</I>&gt;<i> initialize accum properly as you do not give bounds for the variables.
+</I>&gt;<i> Please read MPG carefully.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.gecode.org/~schulte
+</I>&gt;<i>
+</I>&gt;<i> Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i>
+</I>&gt;<i> Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Yilmaz Arslanoglu
+</I>&gt;<i> *Sent:* Thursday, June 1, 2017 10:19
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] bin packing variant
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi;
+</I>&gt;<i>
+</I>&gt;<i> I was trying to write a model for a bin packing variant.
+</I>&gt;<i>
+</I>&gt;<i> (You can find the problem description at the bottom of this mail)
+</I>&gt;<i>
+</I>&gt;<i> I'm quite new to Gecode so I couldn't get the whole logic behind it,
+</I>&gt;<i> but below is my model which I based on the given directions in Gecode
+</I>&gt;<i> documentation:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> #include &lt;gecode/driver.hh&gt;
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i> #include &lt;gecode/set.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i> namespace {
+</I>&gt;<i>
+</I>&gt;<i>     using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i>     const int rod_length[] = { 3, 2, 4, 5, 3 };
+</I>&gt;<i>     const int bin_weight_limit[] = { 30 };
+</I>&gt;<i>     const int bin_start[] = {0, 15};
+</I>&gt;<i>
+</I>&gt;<i>     inline int num_rods() {
+</I>&gt;<i>         return static_cast&lt;int&gt;(
+</I>&gt;<i>                    sizeof(rod_length) / sizeof(int)
+</I>&gt;<i>                );
+</I>&gt;<i>     }
+</I>&gt;<i>
+</I>&gt;<i>     inline int num_bins() {
+</I>&gt;<i>         return static_cast&lt;int&gt;(
+</I>&gt;<i>                    (sizeof(bin_weight_limit) / sizeof(int))
+</I>&gt;<i>                );
+</I>&gt;<i>     }
+</I>&gt;<i>
+</I>&gt;<i>     inline int box_start() {
+</I>&gt;<i>         return bin_start[0];
+</I>&gt;<i>     }
+</I>&gt;<i>
+</I>&gt;<i>     inline int box_end() {
+</I>&gt;<i>         return bin_start[num_bins()];
+</I>&gt;<i>     }
+</I>&gt;<i>
+</I>&gt;<i>     class Test : public Script {
+</I>&gt;<i>       public:
+</I>&gt;<i>
+</I>&gt;<i>         SetVarArray rod_position;
+</I>&gt;<i>         IntVarArray accum;
+</I>&gt;<i>
+</I>&gt;<i>         Test(const Options&amp; opt)
+</I>&gt;<i>             : Script(opt)
+</I>&gt;<i>             , rod_position(*this,
+</I>&gt;<i>                            num_rods(),
+</I>&gt;<i>                            IntSet::empty,
+</I>&gt;<i>                            IntSet(box_start(),
+</I>&gt;<i>                                   box_end()))
+</I>&gt;<i>             , accum(*this,
+</I>&gt;<i>                     num_bins() * num_rods()) {
+</I>&gt;<i>
+</I>&gt;<i>             for (int i = 0; i &lt; num_rods(); ++i) {
+</I>&gt;<i>                 //
+</I>&gt;<i>                 convex(*this, rod_position[i]);
+</I>&gt;<i>                 //
+</I>&gt;<i>                 cardinality(*this,
+</I>&gt;<i>                             rod_position[i],
+</I>&gt;<i>                             rod_length[i],
+</I>&gt;<i>                             rod_length[i]);
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             Matrix&lt;IntVarArray&gt; accum_matrix(accum,
+</I>&gt;<i>                                              num_bins(),
+</I>&gt;<i>                                              num_rods());
+</I>&gt;<i>
+</I>&gt;<i>             for (int i = 0; i &lt; num_bins(); ++i) {
+</I>&gt;<i>                 //
+</I>&gt;<i>                 auto bin_interval = IntSet(bin_start[i] + 1,
+</I>&gt;<i>                                            bin_start[i + 1]);
+</I>&gt;<i>
+</I>&gt;<i>                 //
+</I>&gt;<i>                 for (int j = 0; j &lt; num_rods(); ++j) {
+</I>&gt;<i>                     rel(*this,
+</I>&gt;<i>                         accum_matrix(i, j) ==
+</I>&gt;<i>                         cardinality(rod_position[j] &amp; bin_interval));
+</I>&gt;<i>                 }
+</I>&gt;<i>
+</I>&gt;<i>                 //
+</I>&gt;<i>                 rel(*this,
+</I>&gt;<i>                     sum(accum_matrix.col(i)) &lt;= bin_weight_limit[i]);
+</I>&gt;<i>             }
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         Test(bool share, Test&amp; s)
+</I>&gt;<i>             : Script(share, s) {
+</I>&gt;<i>             rod_position.update(*this, share, s.rod_position);
+</I>&gt;<i>             accum.update(*this, share, s.accum);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         virtual
+</I>&gt;<i>         Space* copy(bool share) {
+</I>&gt;<i>             return new Test(share, *this);
+</I>&gt;<i>         }
+</I>&gt;<i>     };
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> I get an exception in &lt;gecode&gt;/int.hpp at this location:
+</I>&gt;<i>
+</I>&gt;<i> forceinline int
+</I>&gt;<i>   IntVarImp::RangeList::min(void) const {
+</I>&gt;<i>     return _min;
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i> And here is my bin packing problem description (please check the image
+</I>&gt;<i> attached):
+</I>&gt;<i>
+</I>&gt;<i> I would like to place *N* rods (the red ones) into a rectangle which is
+</I>&gt;<i> divided into *M* contiguous bins with different sizes. The rods can move
+</I>&gt;<i> through bins. That is, they don't need to be completely covered by a single
+</I>&gt;<i> bin, but can be hold by more than one bin.
+</I>&gt;<i>
+</I>&gt;<i> My constraint is: for each bin, there is a specific weight capacity *W*
+</I>&gt;<i> and total  weight of rod pieces falling into that bin cannot exceed *W*.
+</I>&gt;<i>
+</I>-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170601/3003b6fd/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20170601/3003b6fd/attachment-0001.html</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

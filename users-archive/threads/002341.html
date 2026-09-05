@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Memory management bug in 2.2.0? — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Memory management bug in 2.2.0? | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · March 2009</p><h1 data-pagefind-meta="title">Memory management bug in 2.2.0?</h1></header>
+      <p class="archive-thread-summary">5 messages · March 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002341">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Wed Mar 25 14:18:03 CET 2009</time><small>March 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I know I'm probably late with this... I am hunting a memory leak in a
+program that uses Gecode 2.2.0. The script (space) constructor
+incrementally adds variables to a var-array (one by one). IMHO,
+VarArray::resize acts strangely:
+
+   VarArray&lt;Var&gt;::resize(Space* home, int m) {
+...
+     x = static_cast&lt;Var*&gt;(Memory::malloc(sizeof(Var)*newsize));
+...
+     if (used != n)
+       Memory::free(oldx);
+     else
+       home-&gt;reuse(oldx, n);
+     n = newsize; used = m;
+   }
+
+In my case, &quot;used==n&quot; always holds, so the allocated blocks are
+&quot;deallocated&quot; using Space::reuse(), not Memory::free().
+
+Originally, I was using the default constructor for the array. After I
+saw this I tried to initialize it with (this, 0) in the constructor
+initializer list, but this does not change anything.
+
+It seems to me that VarArray::add and VarArray::resize could never
+actually work... the only way the var-array allocates memory from space
+is in the constructor and update(). Or did I miss something in the docs?
+Is it forbidden to call add and resize?
+
+Thanks,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002342">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Mar 25 14:59:27 CET 2009</time><small>March 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+yes that was strange stuff and we fixed for 3.0.0... Guido knows more about
+it.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Filip Konvicka
+Sent: Wednesday, March 25, 2009 2:18 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Memory management bug in 2.2.0?
+
+Hi,
+
+I know I'm probably late with this... I am hunting a memory leak in a
+program that uses Gecode 2.2.0. The script (space) constructor
+incrementally adds variables to a var-array (one by one). IMHO,
+VarArray::resize acts strangely:
+
+   VarArray&lt;Var&gt;::resize(Space* home, int m) {
+...
+     x = static_cast&lt;Var*&gt;(Memory::malloc(sizeof(Var)*newsize));
+...
+     if (used != n)
+       Memory::free(oldx);
+     else
+       home-&gt;reuse(oldx, n);
+     n = newsize; used = m;
+   }
+
+In my case, &quot;used==n&quot; always holds, so the allocated blocks are
+&quot;deallocated&quot; using Space::reuse(), not Memory::free().
+
+Originally, I was using the default constructor for the array. After I
+saw this I tried to initialize it with (this, 0) in the constructor
+initializer list, but this does not change anything.
+
+It seems to me that VarArray::add and VarArray::resize could never
+actually work... the only way the var-array allocates memory from space
+is in the constructor and update(). Or did I miss something in the docs?
+Is it forbidden to call add and resize?
+
+Thanks,
+Filip
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002347">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Mar 26 22:50:17 CET 2009</time><small>March 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+the idea was (and still is) to initially allocate all VarArrays from
+the space, and only when they are resized (by using add), the array is
+copied to the heap.  That way, most arrays are still efficiently
+allocated in the space (e.g. copying an array always allocates it in
+the space again).
+
+The invariant I had in mind (and which now actually works only since
+3.0.0) is the following: the array has been allocated from the space
+iff used==n (and we renamed used to n and n to capacity...).
+If you're interested in the correct invariants (or back-porting stuff
+to 2.2.0), they are documented in gecode/kernel/array.hpp in the
+current version.
+
+Cheers,
+	Guido
+
+Christian Schulte wrote:
+
+&gt;<i> Hi Filip,
+</I>&gt;<i>
+</I>&gt;<i> yes that was strange stuff and we fixed for 3.0.0... Guido knows
+</I>&gt;<i> more about
+</I>&gt;<i> it.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf
+</I>&gt;<i> Of Filip Konvicka
+</I>&gt;<i> Sent: Wednesday, March 25, 2009 2:18 PM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Memory management bug in 2.2.0?
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I know I'm probably late with this... I am hunting a memory leak in a
+</I>&gt;<i> program that uses Gecode 2.2.0. The script (space) constructor
+</I>&gt;<i> incrementally adds variables to a var-array (one by one). IMHO,
+</I>&gt;<i> VarArray::resize acts strangely:
+</I>&gt;<i>
+</I>&gt;<i>   VarArray&lt;Var&gt;::resize(Space* home, int m) {
+</I>&gt;<i> ...
+</I>&gt;<i>     x = static_cast&lt;Var*&gt;(Memory::malloc(sizeof(Var)*newsize));
+</I>&gt;<i> ...
+</I>&gt;<i>     if (used != n)
+</I>&gt;<i>       Memory::free(oldx);
+</I>&gt;<i>     else
+</I>&gt;<i>       home-&gt;reuse(oldx, n);
+</I>&gt;<i>     n = newsize; used = m;
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i> In my case, &quot;used==n&quot; always holds, so the allocated blocks are
+</I>&gt;<i> &quot;deallocated&quot; using Space::reuse(), not Memory::free().
+</I>&gt;<i>
+</I>&gt;<i> Originally, I was using the default constructor for the array. After I
+</I>&gt;<i> saw this I tried to initialize it with (this, 0) in the constructor
+</I>&gt;<i> initializer list, but this does not change anything.
+</I>&gt;<i>
+</I>&gt;<i> It seems to me that VarArray::add and VarArray::resize could never
+</I>&gt;<i> actually work... the only way the var-array allocates memory from
+</I>&gt;<i> space
+</I>&gt;<i> is in the constructor and update(). Or did I miss something in the
+</I>&gt;<i> docs?
+</I>&gt;<i> Is it forbidden to call add and resize?
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i> Filip
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002348">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Fri Mar 27 08:46:32 CET 2009</time><small>March 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido,
+
+&gt;<i> the idea was (and still is) to initially allocate all VarArrays from
+</I>&gt;<i> the space, and only when they are resized (by using add), the array is
+</I>&gt;<i> copied to the heap.  That way, most arrays are still efficiently
+</I>&gt;<i> allocated in the space (e.g. copying an array always allocates it in
+</I>&gt;<i> the space again).
+</I>&gt;<i>
+</I>&gt;<i> The invariant I had in mind (and which now actually works only since
+</I>&gt;<i> 3.0.0) is the following: the array has been allocated from the space
+</I>&gt;<i> iff used==n (and we renamed used to n and n to capacity...).
+</I>&gt;<i> If you're interested in the correct invariants (or back-porting stuff
+</I>&gt;<i> to 2.2.0), they are documented in gecode/kernel/array.hpp in the
+</I>&gt;<i> current version.
+</I>
+thanks for the explanation. The workaround for 2.2.0 is simple:
+
+struct MySpace : Space {
+   BoolVarArray bva;
+   MySpace(...) {
+     std::vector&lt;BoolVar&gt; bva_;
+     ...
+     bva_.push_back(v);
+     ...
+     BoolVarArray tmp(this, bva_.size());
+     for(int i=bva_.size()-1; i&gt;=0; --i)
+       tmp[i]=bva_[i];
+     bva=tmp;
+     ...
+   }
+   ...
+};
+
+Cheers,
+Filip
+
+
+
+</PRE>
+</article>
+      </section><section class="archive-thread-message" id="message-002349">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Fri Mar 27 08:46:32 CET 2009</time><small>March 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+
+Hi Guido,
+
+&gt;<i> the idea was (and still is) to initially allocate all VarArrays from
+</I>&gt;<i> the space, and only when they are resized (by using add), the array is
+</I>&gt;<i> copied to the heap.  That way, most arrays are still efficiently
+</I>&gt;<i> allocated in the space (e.g. copying an array always allocates it in
+</I>&gt;<i> the space again).
+</I>&gt;<i>
+</I>&gt;<i> The invariant I had in mind (and which now actually works only since
+</I>&gt;<i> 3.0.0) is the following: the array has been allocated from the space
+</I>&gt;<i> iff used==n (and we renamed used to n and n to capacity...).
+</I>&gt;<i> If you're interested in the correct invariants (or back-porting stuff
+</I>&gt;<i> to 2.2.0), they are documented in gecode/kernel/array.hpp in the
+</I>&gt;<i> current version.
+</I>
+thanks for the explanation. The workaround for 2.2.0 is simple:
+
+struct MySpace : Space {
+   BoolVarArray bva;
+   MySpace(...) {
+     std::vector&lt;BoolVar&gt; bva_;
+     ...
+     bva_.push_back(v);
+     ...
+     BoolVarArray tmp(this, bva_.size());
+     for(int i=bva_.size()-1; i&gt;=0; --i)
+       tmp[i]=bva_[i];
+     bva=tmp;
+     ...
+   }
+   ...
+};
+
+Cheers,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

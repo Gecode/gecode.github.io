@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Parameter/Options passing to engines through script — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Parameter/Options passing to engines through script | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · July 2013</p><h1 data-pagefind-meta="title">Parameter/Options passing to engines through script</h1></header>
+      <p class="archive-thread-summary">2 messages · July 2013</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004010">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Luca Di Gaspero</h2></div>
+          <p><time>Sat Jul 6 09:32:31 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all,
+
+I am trying to re-engineer some piece of code we wrote for enabling Large Neighborhood Search within Gecode and I am facing the problem (which has also some general sense) of passing specific parameters (or options objects) to an engine that has to be managed through the Script&lt;Space&gt;::run&lt;&#8230;&gt;() execution method.
+
+Since I would like to contribute the LNS code to the Gecode community, before undertaking modifications in my Gecode working copy I would like to agree it with Gecode maintainers since it will have a (I would say minor) impact on the framework.
+
+Other solutions to the problem from more &quot;knowledgeable users&quot; are, of course, welcome. :-)
+
+Coming to the problem, in detail, the specific option object that is passed to the run method is dispatched in the Script::run function and a brand new Search::Option object is sent to the actual engine. Unfortunately this means that the specific engine could not have access to its specific options and I found it a general limitation.
+Of course it is possible to overcome this limits with workarounds, but they will somehow break the general framework philosophy.
+
+To be generic enough, my proposal is to add a &quot;Gecode::Options* parameters&quot; attribute to the Search::Options class in order to allow sending this specific information to the engine. This variable should be set in the Script::run(Options, Script) dispatching, e.g., by invoking some &quot;parameters()&quot; function on the &quot;Gecode::Options&amp; option&quot; object passed to run.
+
+Just sketching the &quot;pseudo diff&quot; of the tentative modification it will be something like this:
+
+At search.hh around line 210 add the line
+Gecode::Options* parameters;
+
+At script.hpp around line 300 add the line
+so.parameters = o.parameters();
+
+And, at options.hpp around line 148 add the lines
+
+inline
+Options* parameters() {
+  return NULL; // for default no specific option is passed to the engine
+}
+
+This way, the engine has access to parameters and it can cast it to the opportune parameter class.
+
+Thanks in advance for comments and/or suggestions.
+
+All the best,
+
+Luca
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004011">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Jul 8 10:30:09 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Luca,
+
+I think this is not a good idea: this would make the use of LNS depend on
+the fact that one uses a Script-derived class.
+
+But this is not general enough, as Script is just a convenience class for
+the commandline driver. In order to be fully general it also should work for
+any subclass of Space.
+
+Did you think about extending the Search::Options class with what you need
+and then add the appropriate commandline options to control the parameters
+in the search options? Maybe you just tell us what options you need?
+
+Anyway, looking forward to getting a LNS contribution for Gecode!
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Luca Di Gaspero
+Sent: Saturday, July 06, 2013 9:33 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Parameter/Options passing to engines through script
+
+Hi all,
+
+I am trying to re-engineer some piece of code we wrote for enabling Large
+Neighborhood Search within Gecode and I am facing the problem (which has
+also some general sense) of passing specific parameters (or options objects)
+to an engine that has to be managed through the Script&lt;Space&gt;::run&lt;.&gt;()
+execution method.
+
+Since I would like to contribute the LNS code to the Gecode community,
+before undertaking modifications in my Gecode working copy I would like to
+agree it with Gecode maintainers since it will have a (I would say minor)
+impact on the framework.
+
+Other solutions to the problem from more &quot;knowledgeable users&quot; are, of
+course, welcome. :-)
+
+Coming to the problem, in detail, the specific option object that is passed
+to the run method is dispatched in the Script::run function and a brand new
+Search::Option object is sent to the actual engine. Unfortunately this means
+that the specific engine could not have access to its specific options and I
+found it a general limitation.
+Of course it is possible to overcome this limits with workarounds, but they
+will somehow break the general framework philosophy.
+
+To be generic enough, my proposal is to add a &quot;Gecode::Options* parameters&quot;
+attribute to the Search::Options class in order to allow sending this
+specific information to the engine. This variable should be set in the
+Script::run(Options, Script) dispatching, e.g., by invoking some
+&quot;parameters()&quot; function on the &quot;Gecode::Options&amp; option&quot; object passed to
+run.
+
+Just sketching the &quot;pseudo diff&quot; of the tentative modification it will be
+something like this:
+
+At search.hh around line 210 add the line
+Gecode::Options* parameters;
+
+At script.hpp around line 300 add the line so.parameters = o.parameters();
+
+And, at options.hpp around line 148 add the lines
+
+inline
+Options* parameters() {
+  return NULL; // for default no specific option is passed to the engine }
+
+This way, the engine has access to parameters and it can cast it to the
+opportune parameter class.
+
+Thanks in advance for comments and/or suggestions.
+
+All the best,
+
+Luca
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

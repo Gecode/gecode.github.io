@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Problem with FlatzincSpace deep copy — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Problem with FlatzincSpace deep copy | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · February 2013</p><h1 data-pagefind-meta="title">Problem with FlatzincSpace deep copy</h1></header>
+      <p class="archive-thread-summary">6 messages · February 2013</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003794">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Mohamed Rezgui</h2></div>
+          <p><time>Fri Feb 22 10:04:27 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi everybody,
+
+I have a bug to copy (deep copy) a FlatzincSpace without branhing (no
+Branchers)
+when I would like to start a branch and bound in only two decision
+variables.
+
+&lt;code&gt;
+Printer p;
+FlatZincSpace* fs = FlatZincSpace::parse(......);
+
+FlatZincSpace* s_copy = fs-&gt;copy(false);
+s_copy-&gt;shrinkArrays(p);
+
+
+SearchOptions opt = o;
+opt.threads = 1.0; //MonoThread
+opt.expand();
+
+Gecode::IntVarArgs vars(2);
+vars[0] = s_copy-&gt;iv[0];
+vars[1] = s_copy-&gt;iv[1];
+
+
+Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+ Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+
+FlatZincSpace* solution = NULL;
+solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next())
+;//&lt;----------------------- Bug here
+&lt;/code&gt;
+
+the bug is declared in this instruction line 85
+file search/sequential/bab.hh
+&lt;code&gt;
+forceinline
+  BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+    : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+    current(s); //&lt;----------------------- Bug here
+&lt;/code&gt;
+
+Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+file search/worker.hh  line 162
+&lt;code&gt;
+forceinline void
+  Worker::current(const Space* s) {
+    if (s == NULL) {
+      mem_total -= mem_cur;
+      mem_cur = 0;
+    } else {
+      mem_cur = mem_space + s-&gt;allocated(); //&lt;----------------------- Bug
+here
+      mem_total += mem_cur;
+      if (mem_total &gt; memory)
+        memory = mem_total;
+    }
+  }
+
+With Gecode rev13367
+
+Can you help me please ?
+
+Best Regards,
+Mohammed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/e88f85c0/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130222/e88f85c0/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003795">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Feb 22 10:11:11 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+you're using several classes not in the way they were designed.
+
+First of all, you have to call clone on fs instead of copy.
+
+Secondly, you're not supposed to create the Engine* like that.  Try the following code:
+
+BAB&lt;FlatZincSpace&gt; bab(s_copy, opt);
+FlatZincSpace* solution = bab.next();
+
+Please have a look at the tutorial documentation, these things are explained there.
+
+Cheers,
+Guido
+
+On 22/02/2013, at 20:04 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+
+&gt;<i> Hi everybody,
+</I>&gt;<i>
+</I>&gt;<i> I have a bug to copy (deep copy) a FlatzincSpace without branhing (no Branchers)
+</I>&gt;<i> when I would like to start a branch and bound in only two decision variables.
+</I>&gt;<i>
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> Printer p;
+</I>&gt;<i> FlatZincSpace* fs = FlatZincSpace::parse(......);
+</I>&gt;<i>
+</I>&gt;<i> FlatZincSpace* s_copy = fs-&gt;copy(false);
+</I>&gt;<i> s_copy-&gt;shrinkArrays(p);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> SearchOptions opt = o;
+</I>&gt;<i> opt.threads = 1.0; //MonoThread
+</I>&gt;<i> opt.expand();
+</I>&gt;<i>
+</I>&gt;<i> Gecode::IntVarArgs vars(2);
+</I>&gt;<i> vars[0] = s_copy-&gt;iv[0];
+</I>&gt;<i> vars[1] = s_copy-&gt;iv[1];
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN());
+</I>&gt;<i>
+</I>&gt;<i> Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+</I>&gt;<i>
+</I>&gt;<i> FlatZincSpace* solution = NULL;
+</I>&gt;<i> solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next()) ;//&lt;----------------------- Bug here
+</I>&gt;<i> &lt;/code&gt;
+</I>&gt;<i>
+</I>&gt;<i> the bug is declared in this instruction line 85
+</I>&gt;<i> file search/sequential/bab.hh
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> forceinline
+</I>&gt;<i>   BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+</I>&gt;<i>     : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+</I>&gt;<i>     current(s); //&lt;----------------------- Bug here
+</I>&gt;<i> &lt;/code&gt;
+</I>&gt;<i>
+</I>&gt;<i> Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+</I>&gt;<i> file search/worker.hh  line 162
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> forceinline void
+</I>&gt;<i>   Worker::current(const Space* s) {
+</I>&gt;<i>     if (s == NULL) {
+</I>&gt;<i>       mem_total -= mem_cur;
+</I>&gt;<i>       mem_cur = 0;
+</I>&gt;<i>     } else {
+</I>&gt;<i>       mem_cur = mem_space + s-&gt;allocated(); //&lt;----------------------- Bug here
+</I>&gt;<i>       mem_total += mem_cur;
+</I>&gt;<i>       if (mem_total &gt; memory)
+</I>&gt;<i>         memory = mem_total;
+</I>&gt;<i>     }
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i> With Gecode rev13367
+</I>&gt;<i>
+</I>&gt;<i> Can you help me please ?
+</I>&gt;<i>
+</I>&gt;<i> Best Regards,
+</I>&gt;<i> Mohammed REZGUI
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/8b7e3f64/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130222/8b7e3f64/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003796">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Mohamed Rezgui</h2></div>
+          <p><time>Fri Feb 22 10:20:57 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>OK thank you I change it but the bug is still here :S
+
+Best Regards
+Moahmed REZGUI
+
+2013/2/22 Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> you're using several classes not in the way they were designed.
+</I>&gt;<i>
+</I>&gt;<i> First of all, you have to call clone on fs instead of copy.
+</I>&gt;<i>
+</I>&gt;<i> Secondly, you're not supposed to create the Engine* like that.  Try the
+</I>&gt;<i> following code:
+</I>&gt;<i>
+</I>&gt;<i> BAB&lt;FlatZincSpace&gt; bab(s_copy, opt);
+</I>&gt;<i> FlatZincSpace* solution = bab.next();
+</I>&gt;<i>
+</I>&gt;<i> Please have a look at the tutorial documentation, these things are
+</I>&gt;<i> explained there.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> On 22/02/2013, at 20:04 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+</I>&gt;<i>
+</I>&gt;<i> Hi everybody,
+</I>&gt;<i>
+</I>&gt;<i> I have a bug to copy (deep copy) a FlatzincSpace without branhing (no
+</I>&gt;<i> Branchers)
+</I>&gt;<i> when I would like to start a branch and bound in only two decision
+</I>&gt;<i> variables.
+</I>&gt;<i>
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> Printer p;
+</I>&gt;<i> FlatZincSpace* fs = FlatZincSpace::parse(......);
+</I>&gt;<i>
+</I>&gt;<i> FlatZincSpace* s_copy = fs-&gt;copy(false);
+</I>&gt;<i> s_copy-&gt;shrinkArrays(p);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> SearchOptions opt = o;
+</I>&gt;<i> opt.threads = 1.0; //MonoThread
+</I>&gt;<i> opt.expand();
+</I>&gt;<i>
+</I>&gt;<i> Gecode::IntVarArgs vars(2);
+</I>&gt;<i> vars[0] = s_copy-&gt;iv[0];
+</I>&gt;<i> vars[1] = s_copy-&gt;iv[1];
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(),
+</I>&gt;<i> Gecode::INT_VAL_MIN());
+</I>&gt;<i>  Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+</I>&gt;<i>
+</I>&gt;<i> FlatZincSpace* solution = NULL;
+</I>&gt;<i> solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next())
+</I>&gt;<i> ;//&lt;----------------------- Bug here
+</I>&gt;<i> &lt;/code&gt;
+</I>&gt;<i>
+</I>&gt;<i> the bug is declared in this instruction line 85
+</I>&gt;<i> file search/sequential/bab.hh
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> forceinline
+</I>&gt;<i>   BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+</I>&gt;<i>     : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+</I>&gt;<i>     current(s); //&lt;----------------------- Bug here
+</I>&gt;<i> &lt;/code&gt;
+</I>&gt;<i>
+</I>&gt;<i> Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+</I>&gt;<i> file search/worker.hh  line 162
+</I>&gt;<i> &lt;code&gt;
+</I>&gt;<i> forceinline void
+</I>&gt;<i>   Worker::current(const Space* s) {
+</I>&gt;<i>     if (s == NULL) {
+</I>&gt;<i>       mem_total -= mem_cur;
+</I>&gt;<i>       mem_cur = 0;
+</I>&gt;<i>     } else {
+</I>&gt;<i>       mem_cur = mem_space + s-&gt;allocated(); //&lt;----------------------- Bug
+</I>&gt;<i> here
+</I>&gt;<i>       mem_total += mem_cur;
+</I>&gt;<i>       if (mem_total &gt; memory)
+</I>&gt;<i>         memory = mem_total;
+</I>&gt;<i>     }
+</I>&gt;<i>   }
+</I>&gt;<i>
+</I>&gt;<i> With Gecode rev13367
+</I>&gt;<i>
+</I>&gt;<i> Can you help me please ?
+</I>&gt;<i>
+</I>&gt;<i> Best Regards,
+</I>&gt;<i> Mohammed REZGUI
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guido Tack,
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+--
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/e0826b93/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20130222/e0826b93/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003797">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Mohamed Rezgui</h2></div>
+          <p><time>Fri Feb 22 10:26:17 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>and the clone() method throw en exeption Gecode::SpaceNotStable because
+there are no branchers
+and this is why I used copy()
+
+Best regards,
+Mohamed REZGUI
+
+2013/2/22 Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt;
+
+&gt;<i> OK thank you I change it but the bug is still here :S
+</I>&gt;<i>
+</I>&gt;<i> Best Regards
+</I>&gt;<i> Moahmed REZGUI
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> 2013/2/22 Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> you're using several classes not in the way they were designed.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> First of all, you have to call clone on fs instead of copy.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Secondly, you're not supposed to create the Engine* like that.  Try the
+</I>&gt;&gt;<i> following code:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> BAB&lt;FlatZincSpace&gt; bab(s_copy, opt);
+</I>&gt;&gt;<i> FlatZincSpace* solution = bab.next();
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Please have a look at the tutorial documentation, these things are
+</I>&gt;&gt;<i> explained there.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 22/02/2013, at 20:04 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi everybody,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have a bug to copy (deep copy) a FlatzincSpace without branhing (no
+</I>&gt;&gt;<i> Branchers)
+</I>&gt;&gt;<i> when I would like to start a branch and bound in only two decision
+</I>&gt;&gt;<i> variables.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> Printer p;
+</I>&gt;&gt;<i> FlatZincSpace* fs = FlatZincSpace::parse(......);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> FlatZincSpace* s_copy = fs-&gt;copy(false);
+</I>&gt;&gt;<i> s_copy-&gt;shrinkArrays(p);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> SearchOptions opt = o;
+</I>&gt;&gt;<i> opt.threads = 1.0; //MonoThread
+</I>&gt;&gt;<i> opt.expand();
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::IntVarArgs vars(2);
+</I>&gt;&gt;<i> vars[0] = s_copy-&gt;iv[0];
+</I>&gt;&gt;<i> vars[1] = s_copy-&gt;iv[1];
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(),
+</I>&gt;&gt;<i> Gecode::INT_VAL_MIN());
+</I>&gt;&gt;<i>  Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> FlatZincSpace* solution = NULL;
+</I>&gt;&gt;<i> solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next())
+</I>&gt;&gt;<i> ;//&lt;----------------------- Bug here
+</I>&gt;&gt;<i> &lt;/code&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> the bug is declared in this instruction line 85
+</I>&gt;&gt;<i> file search/sequential/bab.hh
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> forceinline
+</I>&gt;&gt;<i>   BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+</I>&gt;&gt;<i>     : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+</I>&gt;&gt;<i>     current(s); //&lt;----------------------- Bug here
+</I>&gt;&gt;<i> &lt;/code&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+</I>&gt;&gt;<i> file search/worker.hh  line 162
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> forceinline void
+</I>&gt;&gt;<i>   Worker::current(const Space* s) {
+</I>&gt;&gt;<i>     if (s == NULL) {
+</I>&gt;&gt;<i>       mem_total -= mem_cur;
+</I>&gt;&gt;<i>       mem_cur = 0;
+</I>&gt;&gt;<i>     } else {
+</I>&gt;&gt;<i>       mem_cur = mem_space + s-&gt;allocated(); //&lt;-----------------------
+</I>&gt;&gt;<i> Bug here
+</I>&gt;&gt;<i>       mem_total += mem_cur;
+</I>&gt;&gt;<i>       if (mem_total &gt; memory)
+</I>&gt;&gt;<i>         memory = mem_total;
+</I>&gt;&gt;<i>     }
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> With Gecode rev13367
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Can you help me please ?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best Regards,
+</I>&gt;&gt;<i> Mohammed REZGUI
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     --
+</I>&gt;&gt;<i> Guido Tack,
+</I>&gt;&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Cordialement,
+</I>&gt;<i> Mohamed REZGUI
+</I>&gt;<i>
+</I>
+
+
+--
+Cordialement,
+Mohamed REZGUI
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/5ee2a7de/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130222/5ee2a7de/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003798">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Feb 22 10:29:09 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>As I said, using copy won't work, in fact it's likely that this causes the problem.  Simply call status() on the space before calling clone(), that will get rid of the exception (SpaceNotStable has nothing to do with whether there are any branchers).
+
+Cheers,
+Guido
+
+On 22/02/2013, at 20:26 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+
+&gt;<i> and the clone() method throw en exeption Gecode::SpaceNotStable because there are no branchers
+</I>&gt;<i> and this is why I used copy()
+</I>&gt;<i>
+</I>&gt;<i> Best regards,
+</I>&gt;<i> Mohamed REZGUI
+</I>&gt;<i>
+</I>&gt;<i> 2013/2/22 Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt;
+</I>&gt;<i> OK thank you I change it but the bug is still here :S
+</I>&gt;<i>
+</I>&gt;<i> Best Regards
+</I>&gt;<i> Moahmed REZGUI
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> 2013/2/22 Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> you're using several classes not in the way they were designed.
+</I>&gt;<i>
+</I>&gt;<i> First of all, you have to call clone on fs instead of copy.
+</I>&gt;<i>
+</I>&gt;<i> Secondly, you're not supposed to create the Engine* like that.  Try the following code:
+</I>&gt;<i>
+</I>&gt;<i> BAB&lt;FlatZincSpace&gt; bab(s_copy, opt);
+</I>&gt;<i> FlatZincSpace* solution = bab.next();
+</I>&gt;<i>
+</I>&gt;<i> Please have a look at the tutorial documentation, these things are explained there.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> On 22/02/2013, at 20:04 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi everybody,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have a bug to copy (deep copy) a FlatzincSpace without branhing (no Branchers)
+</I>&gt;&gt;<i> when I would like to start a branch and bound in only two decision variables.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> Printer p;
+</I>&gt;&gt;<i> FlatZincSpace* fs = FlatZincSpace::parse(......);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> FlatZincSpace* s_copy = fs-&gt;copy(false);
+</I>&gt;&gt;<i> s_copy-&gt;shrinkArrays(p);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> SearchOptions opt = o;
+</I>&gt;&gt;<i> opt.threads = 1.0; //MonoThread
+</I>&gt;&gt;<i> opt.expand();
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::IntVarArgs vars(2);
+</I>&gt;&gt;<i> vars[0] = s_copy-&gt;iv[0];
+</I>&gt;&gt;<i> vars[1] = s_copy-&gt;iv[1];
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(), Gecode::INT_VAL_MIN());
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> FlatZincSpace* solution = NULL;
+</I>&gt;&gt;<i> solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next()) ;//&lt;----------------------- Bug here
+</I>&gt;&gt;<i> &lt;/code&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> the bug is declared in this instruction line 85
+</I>&gt;&gt;<i> file search/sequential/bab.hh
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> forceinline
+</I>&gt;&gt;<i>   BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+</I>&gt;&gt;<i>     : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+</I>&gt;&gt;<i>     current(s); //&lt;----------------------- Bug here
+</I>&gt;&gt;<i> &lt;/code&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+</I>&gt;&gt;<i> file search/worker.hh  line 162
+</I>&gt;&gt;<i> &lt;code&gt;
+</I>&gt;&gt;<i> forceinline void
+</I>&gt;&gt;<i>   Worker::current(const Space* s) {
+</I>&gt;&gt;<i>     if (s == NULL) {
+</I>&gt;&gt;<i>       mem_total -= mem_cur;
+</I>&gt;&gt;<i>       mem_cur = 0;
+</I>&gt;&gt;<i>     } else {
+</I>&gt;&gt;<i>       mem_cur = mem_space + s-&gt;allocated(); //&lt;----------------------- Bug here
+</I>&gt;&gt;<i>       mem_total += mem_cur;
+</I>&gt;&gt;<i>       if (mem_total &gt; memory)
+</I>&gt;&gt;<i>         memory = mem_total;
+</I>&gt;&gt;<i>     }
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> With Gecode rev13367
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Can you help me please ?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best Regards,
+</I>&gt;&gt;<i> Mohammed REZGUI
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guido Tack,
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Cordialement,
+</I>&gt;<i> Mohamed REZGUI
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Cordialement,
+</I>&gt;<i> Mohamed REZGUI
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/c8872d20/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20130222/c8872d20/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003799">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Feb 22 10:52:16 CET 2013</time><small>February 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>But, first and foremost, read the documentation!
+
+
+
+Then you would have known many things in advance: that you should not
+contact me but the users list, that it is clone not copy, that status
+matters.
+
+
+
+Honestly, why do you think there is some 450 pages plus docs if it does not
+serve any purpose?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Friday, February 22, 2013 10:29 AM
+To: Mohamed Rezgui
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Problem with FlatzincSpace deep copy
+
+
+
+As I said, using copy won't work, in fact it's likely that this causes the
+problem.  Simply call status() on the space before calling clone(), that
+will get rid of the exception (SpaceNotStable has nothing to do with whether
+there are any branchers).
+
+
+
+Cheers,
+
+Guido
+
+
+
+On 22/02/2013, at 20:26 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+
+
+
+
+
+and the clone() method throw en exeption Gecode::SpaceNotStable because
+there are no branchers
+
+and this is why I used copy()
+
+
+
+Best regards,
+
+Mohamed REZGUI
+
+2013/2/22 Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt;
+
+OK thank you I change it but the bug is still here :S
+
+
+
+Best Regards
+
+Moahmed REZGUI
+
+
+
+2013/2/22 Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt;
+
+Hi,
+
+
+
+you're using several classes not in the way they were designed.
+
+
+
+First of all, you have to call clone on fs instead of copy.
+
+
+
+Secondly, you're not supposed to create the Engine* like that.  Try the
+following code:
+
+
+
+BAB&lt;FlatZincSpace&gt; bab(s_copy, opt);
+
+FlatZincSpace* solution = bab.next();
+
+
+
+Please have a look at the tutorial documentation, these things are explained
+there.
+
+
+
+Cheers,
+
+Guido
+
+
+
+On 22/02/2013, at 20:04 , Mohamed Rezgui &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kyo.alone at gmail.com</A>&gt; wrote:
+
+
+
+Hi everybody,
+
+
+
+I have a bug to copy (deep copy) a FlatzincSpace without branhing (no
+Branchers)
+
+when I would like to start a branch and bound in only two decision
+variables.
+
+
+
+&lt;code&gt;
+
+Printer p;
+
+FlatZincSpace* fs = FlatZincSpace::parse(......);
+
+
+
+FlatZincSpace* s_copy = fs-&gt;copy(false);
+
+s_copy-&gt;shrinkArrays(p);
+
+
+
+
+
+SearchOptions opt = o;
+
+opt.threads = 1.0; //MonoThread
+
+opt.expand();
+
+
+
+Gecode::IntVarArgs vars(2);
+
+vars[0] = s_copy-&gt;iv[0];
+
+vars[1] = s_copy-&gt;iv[1];
+
+
+
+
+
+Gecode::branch(*s_copy, vars, Gecode::INT_VAR_NONE(),
+Gecode::INT_VAL_MIN());
+
+Gecode::Search::Engine* bab = Gecode::Search::bab(s_copy, 1.0, opt);
+
+
+
+FlatZincSpace* solution = NULL;
+
+solution = static_cast&lt;FlatZincSpace*&gt;(bab-&gt;next())
+;//&lt;----------------------- Bug here
+
+&lt;/code&gt;
+
+
+
+the bug is declared in this instruction line 85
+
+file search/sequential/bab.hh
+
+&lt;code&gt;
+
+forceinline
+
+  BAB::BAB(Space* s, size_t sz, const Options&amp; o)
+
+    : Worker(sz), opt(o), d(0), mark(0), best(NULL) {
+
+    current(s); //&lt;----------------------- Bug here
+
+&lt;/code&gt;
+
+
+
+Precisely when there is an allocation of an actorlink in s-&gt;allocated()
+
+file search/worker.hh  line 162
+
+&lt;code&gt;
+
+forceinline void
+
+  Worker::current(const Space* s) {
+
+    if (s == NULL) {
+
+      mem_total -= mem_cur;
+
+      mem_cur = 0;
+
+    } else {
+
+      mem_cur = mem_space + s-&gt;allocated(); //&lt;----------------------- Bug
+here
+
+      mem_total += mem_cur;
+
+      if (mem_total &gt; memory)
+
+        memory = mem_total;
+
+    }
+
+  }
+
+
+
+With Gecode rev13367
+
+
+
+Can you help me please ?
+
+
+
+Best Regards,
+
+Mohammed REZGUI
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+
+Guido Tack,
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+
+
+
+
+
+
+
+
+
+
+--
+Cordialement,
+
+Mohamed REZGUI
+
+
+
+
+
+
+
+--
+Cordialement,
+
+Mohamed REZGUI
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+
+Guido Tack,
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130222/3d4ae4bb/attachment.html">http://www.gecode.org/pipermail/users/attachments/20130222/3d4ae4bb/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

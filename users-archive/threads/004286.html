@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reachability in a graph structure. — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Reachability in a graph structure. | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2014</p><h1 data-pagefind-meta="title">Reachability in a graph structure.</h1></header>
+      <p class="archive-thread-summary">4 messages · January 2014</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004286">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Tobias Pankrath</h2></div>
+          <p><time>Fri Jan 10 10:35:41 CET 2014</time><small>January 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I'm quite new to constraint programming and gecode in particular and ran
+into some issue
+
+I have to directed graphs G1=(V1,V1&#215;V1), G2=(V2, V2&#215;V2) and I am
+searching for a mapping h: V1 &#8594; V2, that mantains reachability. I.e. if
+there is a path v1 -*&gt; v2 (v1,v2 &#8712; V1) than there must also be a path
+h(v1) -*&gt; h(v2).
+
+To model this using gecode, I am using 4 SetVarArrays:
+
+SetVarArray g1_edges; // y &#8712; g1_edges[x]: there is an edge from v_x to
+v_y in G1
+SetVarArray g2_edges; // like above for G2
+
+SetVarArray g1_reach; // y &#8712; g1_reach[x]: there is a path from v_x to
+v_y in G1
+SetVarArray g2_reach; // like above for G2.
+
+Now I want gecode to calculate the reachability of those graphs. Thus I
+tried to fix the graph by the following domain constraints. A picture of
+the desired graph is attached to this mail.
+
+  // define edges between nodes
+  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+  dom(*this, g1_edges[3],  SRT_EQ, 5);
+  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+
+Then I want to encode the following relations:
+	* y &#8712; g1_reach[x], if y &#8712; g1_edges[x] (direct neighbours)
+	* if y &#8712; g1_reach[x] and z &#8712; g1_reach[y] then z &#8712; g1_reach[x]
+(transitivity)
+
+Thus I do:
+for(int x = 0; x &lt; 6; ++x)
+{
+	rel(*this, g1_reach[x] &gt;= g1_edges[x]); // superset
+	element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+	// call to element taken from the manual, section 5.2.4
+	// is it correct?
+}
+
+Then I'll branch on g1_reach, like this:
+branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+
+However this gives me a &gt;1000 solutions and all look like
+g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+g1_reach {}
+
+What is the correct way to model this?
+
+With my best regards,
+Tobias
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: main.cpp
+Type: text/x-c++src
+Size: 2278 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.cpp">http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.cpp</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: t.dot.pdf
+Type: application/pdf
+Size: 11061 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.pdf">http://www.gecode.org/pipermail/users/attachments/20140110/a0ab20aa/attachment-0001.pdf</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004287">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Jean-No&amp;#235;l Monette</h2></div>
+          <p><time>Fri Jan 10 13:47:07 CET 2014</time><small>January 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I think that the element constraint does not exactly encode your
+purpose. You write:
+
+y ? g1_reach[x] and z ? g1_reach[y] ==&gt;  z ? g1_reach[x]
+
+while your element constraint represents something like (if I am correct)
+
+y ? g1_reach[x] and z ? g1_reach[y] &lt;=&gt; z ? g1_reach[x]
+
+i.e., this is an equivalence.
+
+I do not know why you would have thousands of solution, though. Neither
+why they do not respect the &quot;superset&quot; constraint.
+
+Hope it helps anyway,
+
+JN Monette
+
+
+On 01/10/2014 10:35 AM, Tobias Pankrath wrote:
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I'm quite new to constraint programming and gecode in particular and
+</I>&gt;<i> ran into some issue
+</I>&gt;<i>
+</I>&gt;<i> I have to directed graphs G1=(V1,V1&#215;V1), G2=(V2, V2&#215;V2) and I am
+</I>&gt;<i> searching for a mapping h: V1 ? V2, that mantains reachability. I.e.
+</I>&gt;<i> if there is a path v1 -*&gt; v2 (v1,v2 ? V1) than there must also be a
+</I>&gt;<i> path h(v1) -*&gt; h(v2).
+</I>&gt;<i>
+</I>&gt;<i> To model this using gecode, I am using 4 SetVarArrays:
+</I>&gt;<i>
+</I>&gt;<i> SetVarArray g1_edges; // y ? g1_edges[x]: there is an edge from v_x to
+</I>&gt;<i> v_y in G1
+</I>&gt;<i> SetVarArray g2_edges; // like above for G2
+</I>&gt;<i>
+</I>&gt;<i> SetVarArray g1_reach; // y ? g1_reach[x]: there is a path from v_x to
+</I>&gt;<i> v_y in G1
+</I>&gt;<i> SetVarArray g2_reach; // like above for G2.
+</I>&gt;<i>
+</I>&gt;<i> Now I want gecode to calculate the reachability of those graphs. Thus
+</I>&gt;<i> I tried to fix the graph by the following domain constraints. A
+</I>&gt;<i> picture of the desired graph is attached to this mail.
+</I>&gt;<i>
+</I>&gt;<i>  // define edges between nodes
+</I>&gt;<i>  dom(*this, g1_edges[0], SRT_EQ, IntSet(1, 2));
+</I>&gt;<i>  dom(*this, g1_edges[1],  SRT_EQ, 5 );
+</I>&gt;<i>  dom(*this, g1_edges[2], SRT_EQ,  IntSet(3,4));
+</I>&gt;<i>  dom(*this, g1_edges[3],  SRT_EQ, 5);
+</I>&gt;<i>  dom(*this, g1_edges[4],  SRT_EQ, 5 );
+</I>&gt;<i>  dom(*this, g1_edges[5],  SRT_EQ, IntSet::empty);
+</I>&gt;<i>
+</I>&gt;<i> Then I want to encode the following relations:
+</I>&gt;<i>     * y ? g1_reach[x], if y ? g1_edges[x] (direct neighbours)
+</I>&gt;<i>     * if y ? g1_reach[x] and z ? g1_reach[y] then z ? g1_reach[x]
+</I>&gt;<i> (transitivity)
+</I>&gt;<i>
+</I>&gt;<i> Thus I do:
+</I>&gt;<i> for(int x = 0; x &lt; 6; ++x)
+</I>&gt;<i> {
+</I>&gt;<i>     rel(*this, g1_reach[x] &gt;= g1_edges[x]); // superset
+</I>&gt;<i>     element(*this, g1_reach, SOT_UNION, g1_reach[x], g1_reach[x]);
+</I>&gt;<i>     // call to element taken from the manual, section 5.2.4
+</I>&gt;<i>     // is it correct?
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Then I'll branch on g1_reach, like this:
+</I>&gt;<i> branch(*this, g1_reach, SET_VAR_NONE(), SET_VAL_MIN_INC());
+</I>&gt;<i>
+</I>&gt;<i> However this gives me a &gt;1000 solutions and all look like
+</I>&gt;<i> g1_edges {{1,2}, {5}, {3,4}, {5}, {5}, {}}
+</I>&gt;<i> g1_reach {}
+</I>&gt;<i>
+</I>&gt;<i> What is the correct way to model this?
+</I>&gt;<i>
+</I>&gt;<i> With my best regards,
+</I>&gt;<i> Tobias
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20140110/3256210c/attachment.html">http://www.gecode.org/pipermail/users/attachments/20140110/3256210c/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004288">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Tobias Pankrath</h2></div>
+          <p><time>Fri Jan 10 14:39:36 CET 2014</time><small>January 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>One of my errors was that I forgot g1_reach in the copy constructor,
+thus g1_reach showed up as the empty set in the output.
+
+Didn't get it to work, yet. The contstraints are not specific enough, so
+I get reachable vertices that are not grounded in actual edges. Seems to
+be this issue
+
+&gt;<i> I think that the element constraint does not exactly encode your purpose. You write:
+</I>&gt;<i>
+</I>&gt;<i> y ? g1_reach[x] and z ? g1_reach[y] ==&gt;  z ? g1_reach[x]
+</I>&gt;<i>
+</I>&gt;<i> while your element constraint represents something like (if I am correct)
+</I>&gt;<i>
+</I>&gt;<i> y ? g1_reach[x] and z ? g1_reach[y] &lt;=&gt; z ? g1_reach[x]
+</I>
+Is <A HREF="http://cpgraph.info.ucl.ac.be/">http://cpgraph.info.ucl.ac.be/</A> an option? Is is not contained in the
+Contrib directory anymore.
+
+Tobias
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004289">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Jan 10 14:57:50 CET 2014</time><small>January 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&gt;<i> Is <A HREF="http://cpgraph.info.ucl.ac.be/">http://cpgraph.info.ucl.ac.be/</A> an option? Is is not contained in the
+</I>Contrib directory anymore.
+
+No, unfortunately not, it is long dead...
+
+Christian
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

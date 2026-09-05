@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="doing multiple minimising searches with the same	space — 8 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>doing multiple minimising searches with the same	space | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>8 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · July 2009</p><h1 data-pagefind-meta="title">doing multiple minimising searches with the same	space</h1></header>
+      <p class="archive-thread-summary">8 messages · July 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002529">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 21 02:10:40 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I am now trying to add support for the minimising search engines (BAB,
+Restart) to the ECLiPSe-Gecode interface I am developing.
+
+I think I can see how to implement the cost function, which is only
+given at run-time (with the limitation that the cost is a finite domain
+variable, which has must have a vlaue assigned at the end of labelling
+all the variables specified in the search), *if* the search is done only
+once:
+
+In the Space class I use, I have a IntVarArray (called vInt),
+representing the problem variables. To implement the cost variable, I
+add a Cost IntVar to the space, and when the search routine is called, I
+post an additional constraint
+
+Cost = vInt[i]
+
+where vInt[i] is the problem variable that is defined to be the cost
+variable.
+
+The constrain/cost member function required can then perform the right
+action using the Cost variable.
+
+However, at the ECLiPSe level, I can perform more than one minimising
+search while solving a problem, with different cost variables (and
+persumably with a different set of problem variables). I am not sure how
+I can do this with what I know of Gecode's search engine interface, as I
+have already posted a constraint linking Cost to the vInt[i], cost
+vafriable for the previous search.
+
+Thanks in advance for any help/suggestion for how I can program this!
+
+Cheers,
+
+Kish
+
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002530">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Jul 21 08:27:28 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+do I understand you correctly, you want to first minimize one cost
+variable, and then (independently) minimize another?  I.e., when the
+first one is minimized, there's potentially still variables left that
+are not assigned, and then you branch over them, minimizing the
+other?  Or is the actual cost a function of more than one variable
+(say, a weighted sum or something like that)?
+If it is the latter, you can (of course) just use a single cost
+variable and post constraints that implement the cost function.
+But I assume it is more like the former.  In this case, I'm not sure
+it can be done with the current Gecode search engines.  You'd probably
+have to split the search, first minimizing the first cost, then
+setting up a new problem and minimizing the second variable.
+Actually, the new problem might even use the same space (the one
+returned as the optimal solution), as long as you install a new
+branching for the remaining variables and tell the cost method to
+return the new cost variable.
+
+Cheers,
+	Guido
+
+Kish Shen wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I am now trying to add support for the minimising search engines (BAB,
+</I>&gt;<i> Restart) to the ECLiPSe-Gecode interface I am developing.
+</I>&gt;<i>
+</I>&gt;<i> I think I can see how to implement the cost function, which is only
+</I>&gt;<i> given at run-time (with the limitation that the cost is a finite
+</I>&gt;<i> domain
+</I>&gt;<i> variable, which has must have a vlaue assigned at the end of labelling
+</I>&gt;<i> all the variables specified in the search), *if* the search is done
+</I>&gt;<i> only
+</I>&gt;<i> once:
+</I>&gt;<i>
+</I>&gt;<i> In the Space class I use, I have a IntVarArray (called vInt),
+</I>&gt;<i> representing the problem variables. To implement the cost variable, I
+</I>&gt;<i> add a Cost IntVar to the space, and when the search routine is
+</I>&gt;<i> called, I
+</I>&gt;<i> post an additional constraint
+</I>&gt;<i>
+</I>&gt;<i> Cost = vInt[i]
+</I>&gt;<i>
+</I>&gt;<i> where vInt[i] is the problem variable that is defined to be the cost
+</I>&gt;<i> variable.
+</I>&gt;<i>
+</I>&gt;<i> The constrain/cost member function required can then perform the right
+</I>&gt;<i> action using the Cost variable.
+</I>&gt;<i>
+</I>&gt;<i> However, at the ECLiPSe level, I can perform more than one minimising
+</I>&gt;<i> search while solving a problem, with different cost variables (and
+</I>&gt;<i> persumably with a different set of problem variables). I am not sure
+</I>&gt;<i> how
+</I>&gt;<i> I can do this with what I know of Gecode's search engine interface,
+</I>&gt;<i> as I
+</I>&gt;<i> have already posted a constraint linking Cost to the vInt[i], cost
+</I>&gt;<i> vafriable for the previous search.
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance for any help/suggestion for how I can program this!
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> This e-mail may contain confidential and privileged material for the
+</I>&gt;<i> sole use of the intended recipient. Any review, use, distribution or
+</I>&gt;<i> disclosure by others is strictly prohibited. If you are not the
+</I>&gt;<i> intended
+</I>&gt;<i> recipient (or authorized to receive for the recipient), please contact
+</I>&gt;<i> the sender by reply e-mail and delete all copies of this message.
+</I>&gt;<i> Cisco Systems Limited (Company Number: 02558939), is registered in
+</I>&gt;<i> England and Wales with its registered office at 1 Callaghan Square,
+</I>&gt;<i> Cardiff, South Glamorgan CF10 5BT.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002531">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 21 12:53:56 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> do I understand you correctly, you want to first minimize one cost
+</I>&gt;<i> variable, and then (independently) minimize another?  I.e., when the
+</I>&gt;<i> first one is minimized, there's potentially still variables left that
+</I>&gt;<i> are not assigned, and then you branch over them, minimizing the other?
+</I>&gt;<i> Or is the actual cost a function of more than one variable (say, a
+</I>&gt;<i> weighted sum or something like that)?
+</I>&gt;<i> If it is the latter, you can (of course) just use a single cost variable
+</I>&gt;<i> and post constraints that implement the cost function.
+</I>&gt;<i> But I assume it is more like the former.  In this case, I'm not sure it
+</I>&gt;<i> can be done with the current Gecode search engines.  You'd probably have
+</I>&gt;<i> to split the search, first minimizing the first cost, then setting up a
+</I>&gt;<i> new problem and minimizing the second variable.
+</I>&gt;<i> Actually, the new problem might even use the same space (the one
+</I>&gt;<i> returned as the optimal solution), as long as you install a new
+</I>&gt;<i> branching for the remaining variables and tell the cost method to return
+</I>&gt;<i> the new cost variable.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i>
+</I>Hi Guido,
+
+Thanks for your reply!
+
+I am thinking of the first case. The idea is that you may want to
+subdivide the problem into different set of variables, and perform an
+optimising search on them separately.
+
+If I understood the documentation correctly, the cost/constrain member
+function is part of the space, rather than part of the search (or
+branching), and that I need to define this member function in my code.
+This is why I was thinking of defining a Cost variable as part of the
+space, and at runtime linking this to a specific problem variable --
+this is to allow me to specify the actual cost function at run-time. I
+expect that the programmer will define the cost function as a constraint
+using the problem variable, say
+
+vInt[i] = vInt[j] + vInt[k]
+
+where i is the problem variable I am using as the cost variable. In the
+above case, the search will probably not branch on i, but will branch on
+j and k (and possibly other variables, of course).
+
+I do expect that the new search will use a new branching, and I expect
+it to use a different cost variable (and cost function). I am not sure I
+see how I could use the same space, since I would have already linked
+the space's cost variable to my previous problem variable, i.e. I would
+have posted a constraint like
+
+Cost = vInt[i]
+
+for the previous search. This constraint is no longer valid for the new
+search.
+
+To do the equivalent in the existing ECLiPSe branch-and-bound library
+code, I will call branch-and-bound with a new cost variable, but as the
+cost variable is part of the space, I am not sure how I can do this with
+Gecode. I can of course restrict the problem to have one optimising
+search (during forward execution) only, and most problem will probably
+need more, but it is difficult to explain this restriction.
+
+Cheers,
+
+Kish
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002532">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 21 13:01:00 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+There is special support for specialized &quot;constrain&quot; functions which just
+return a cost variable, you might want to check that in &quot;Modeling with
+Gecode&quot;. Rather than fixing a particular cost variable you can use a cost
+function that then decides which variable to return depending on which cost
+variable you want use now. Remember: any problem can be solved with one
+additional level of indirection ;-)
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Tuesday, July 21, 2009 12:54 PM
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] doing multiple minimising searches with the same
+space
+
+Guido Tack wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> do I understand you correctly, you want to first minimize one cost
+</I>&gt;<i> variable, and then (independently) minimize another?  I.e., when the
+</I>&gt;<i> first one is minimized, there's potentially still variables left that
+</I>&gt;<i> are not assigned, and then you branch over them, minimizing the other?
+</I>&gt;<i> Or is the actual cost a function of more than one variable (say, a
+</I>&gt;<i> weighted sum or something like that)?
+</I>&gt;<i> If it is the latter, you can (of course) just use a single cost variable
+</I>&gt;<i> and post constraints that implement the cost function.
+</I>&gt;<i> But I assume it is more like the former.  In this case, I'm not sure it
+</I>&gt;<i> can be done with the current Gecode search engines.  You'd probably have
+</I>&gt;<i> to split the search, first minimizing the first cost, then setting up a
+</I>&gt;<i> new problem and minimizing the second variable.
+</I>&gt;<i> Actually, the new problem might even use the same space (the one
+</I>&gt;<i> returned as the optimal solution), as long as you install a new
+</I>&gt;<i> branching for the remaining variables and tell the cost method to return
+</I>&gt;<i> the new cost variable.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i>
+</I>Hi Guido,
+
+Thanks for your reply!
+
+I am thinking of the first case. The idea is that you may want to
+subdivide the problem into different set of variables, and perform an
+optimising search on them separately.
+
+If I understood the documentation correctly, the cost/constrain member
+function is part of the space, rather than part of the search (or
+branching), and that I need to define this member function in my code.
+This is why I was thinking of defining a Cost variable as part of the
+space, and at runtime linking this to a specific problem variable --
+this is to allow me to specify the actual cost function at run-time. I
+expect that the programmer will define the cost function as a constraint
+using the problem variable, say
+
+vInt[i] = vInt[j] + vInt[k]
+
+where i is the problem variable I am using as the cost variable. In the
+above case, the search will probably not branch on i, but will branch on
+j and k (and possibly other variables, of course).
+
+I do expect that the new search will use a new branching, and I expect
+it to use a different cost variable (and cost function). I am not sure I
+see how I could use the same space, since I would have already linked
+the space's cost variable to my previous problem variable, i.e. I would
+have posted a constraint like
+
+Cost = vInt[i]
+
+for the previous search. This constraint is no longer valid for the new
+search.
+
+To do the equivalent in the existing ECLiPSe branch-and-bound library
+code, I will call branch-and-bound with a new cost variable, but as the
+cost variable is part of the space, I am not sure how I can do this with
+Gecode. I can of course restrict the problem to have one optimising
+search (during forward execution) only, and most problem will probably
+need more, but it is difficult to explain this restriction.
+
+Cheers,
+
+Kish
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002533">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Jul 21 13:19:01 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian Schulte wrote:
+&gt;<i> There is special support for specialized &quot;constrain&quot; functions which
+</I>&gt;<i> just
+</I>&gt;<i> return a cost variable, you might want to check that in &quot;Modeling with
+</I>&gt;<i> Gecode&quot;. Rather than fixing a particular cost variable you can use a
+</I>&gt;<i> cost
+</I>&gt;<i> function that then decides which variable to return depending on
+</I>&gt;<i> which cost
+</I>&gt;<i> variable you want use now. Remember: any problem can be solved with
+</I>&gt;<i> one
+</I>&gt;<i> additional level of indirection ;-)
+</I>
+Exactly!  You can even use actual assignment instead of an equality
+constraint.  I.e., your space has a member &quot;IntVar cost&quot; that the cost
+function returns.  When you initialize optimization for variable x,
+you execute &quot;space.cost = x&quot; instead of posting the constraint
+&quot;rel(space, cost, IRT_EQ, x)&quot;.  That way, you can change that
+assignment later when you start the next search!  You just have to
+make sure that you actually do make such an assignment before you
+start search, and that you update cost (as usual) in the copy
+constructor.
+
+Cheers,
+	Guido
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf
+</I>&gt;<i> Of Kish Shen
+</I>&gt;<i> Sent: Tuesday, July 21, 2009 12:54 PM
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] doing multiple minimising searches with
+</I>&gt;<i> the same
+</I>&gt;<i> space
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack wrote:
+</I>&gt;&gt;<i> Hi Kish,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> do I understand you correctly, you want to first minimize one cost
+</I>&gt;&gt;<i> variable, and then (independently) minimize another?  I.e., when the
+</I>&gt;&gt;<i> first one is minimized, there's potentially still variables left that
+</I>&gt;&gt;<i> are not assigned, and then you branch over them, minimizing the
+</I>&gt;&gt;<i> other?
+</I>&gt;&gt;<i> Or is the actual cost a function of more than one variable (say, a
+</I>&gt;&gt;<i> weighted sum or something like that)?
+</I>&gt;&gt;<i> If it is the latter, you can (of course) just use a single cost
+</I>&gt;&gt;<i> variable
+</I>&gt;&gt;<i> and post constraints that implement the cost function.
+</I>&gt;&gt;<i> But I assume it is more like the former.  In this case, I'm not
+</I>&gt;&gt;<i> sure it
+</I>&gt;&gt;<i> can be done with the current Gecode search engines.  You'd probably
+</I>&gt;&gt;<i> have
+</I>&gt;&gt;<i> to split the search, first minimizing the first cost, then setting
+</I>&gt;&gt;<i> up a
+</I>&gt;&gt;<i> new problem and minimizing the second variable.
+</I>&gt;&gt;<i> Actually, the new problem might even use the same space (the one
+</I>&gt;&gt;<i> returned as the optimal solution), as long as you install a new
+</I>&gt;&gt;<i> branching for the remaining variables and tell the cost method to
+</I>&gt;&gt;<i> return
+</I>&gt;&gt;<i> the new cost variable.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>    Guido
+</I>&gt;&gt;<i>
+</I>&gt;<i> Hi Guido,
+</I>&gt;<i>
+</I>&gt;<i> Thanks for your reply!
+</I>&gt;<i>
+</I>&gt;<i> I am thinking of the first case. The idea is that you may want to
+</I>&gt;<i> subdivide the problem into different set of variables, and perform an
+</I>&gt;<i> optimising search on them separately.
+</I>&gt;<i>
+</I>&gt;<i> If I understood the documentation correctly, the cost/constrain member
+</I>&gt;<i> function is part of the space, rather than part of the search (or
+</I>&gt;<i> branching), and that I need to define this member function in my code.
+</I>&gt;<i> This is why I was thinking of defining a Cost variable as part of the
+</I>&gt;<i> space, and at runtime linking this to a specific problem variable --
+</I>&gt;<i> this is to allow me to specify the actual cost function at run-time. I
+</I>&gt;<i> expect that the programmer will define the cost function as a
+</I>&gt;<i> constraint
+</I>&gt;<i> using the problem variable, say
+</I>&gt;<i>
+</I>&gt;<i> vInt[i] = vInt[j] + vInt[k]
+</I>&gt;<i>
+</I>&gt;<i> where i is the problem variable I am using as the cost variable. In
+</I>&gt;<i> the
+</I>&gt;<i> above case, the search will probably not branch on i, but will
+</I>&gt;<i> branch on
+</I>&gt;<i> j and k (and possibly other variables, of course).
+</I>&gt;<i>
+</I>&gt;<i> I do expect that the new search will use a new branching, and I expect
+</I>&gt;<i> it to use a different cost variable (and cost function). I am not
+</I>&gt;<i> sure I
+</I>&gt;<i> see how I could use the same space, since I would have already linked
+</I>&gt;<i> the space's cost variable to my previous problem variable, i.e. I
+</I>&gt;<i> would
+</I>&gt;<i> have posted a constraint like
+</I>&gt;<i>
+</I>&gt;<i> Cost = vInt[i]
+</I>&gt;<i>
+</I>&gt;<i> for the previous search. This constraint is no longer valid for the
+</I>&gt;<i> new
+</I>&gt;<i> search.
+</I>&gt;<i>
+</I>&gt;<i> To do the equivalent in the existing ECLiPSe branch-and-bound library
+</I>&gt;<i> code, I will call branch-and-bound with a new cost variable, but as
+</I>&gt;<i> the
+</I>&gt;<i> cost variable is part of the space, I am not sure how I can do this
+</I>&gt;<i> with
+</I>&gt;<i> Gecode. I can of course restrict the problem to have one optimising
+</I>&gt;<i> search (during forward execution) only, and most problem will probably
+</I>&gt;<i> need more, but it is difficult to explain this restriction.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i> --
+</I>&gt;<i> This e-mail may contain confidential and privileged material for the
+</I>&gt;<i> sole use of the intended recipient. Any review, use, distribution or
+</I>&gt;<i> disclosure by others is strictly prohibited. If you are not the
+</I>&gt;<i> intended
+</I>&gt;<i> recipient (or authorized to receive for the recipient), please contact
+</I>&gt;<i> the sender by reply e-mail and delete all copies of this message.
+</I>&gt;<i> Cisco Systems Limited (Company Number: 02558939), is registered in
+</I>&gt;<i> England and Wales with its registered office at 1 Callaghan Square,
+</I>&gt;<i> Cardiff, South Glamorgan CF10 5BT.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002534">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 21 19:07:36 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+&gt;<i> Christian Schulte wrote:
+</I>&gt;&gt;<i> There is special support for specialized &quot;constrain&quot; functions which just
+</I>&gt;&gt;<i> return a cost variable, you might want to check that in &quot;Modeling with
+</I>&gt;&gt;<i> Gecode&quot;. Rather than fixing a particular cost variable you can use a cost
+</I>&gt;&gt;<i> function that then decides which variable to return depending on which
+</I>&gt;&gt;<i> cost
+</I>&gt;&gt;<i> variable you want use now. Remember: any problem can be solved with one
+</I>&gt;&gt;<i> additional level of indirection ;-)
+</I>&gt;<i>
+</I>&gt;<i> Exactly!  You can even use actual assignment instead of an equality
+</I>&gt;<i> constraint.  I.e., your space has a member &quot;IntVar cost&quot; that the cost
+</I>&gt;<i> function returns.  When you initialize optimization for variable x, you
+</I>&gt;<i> execute &quot;space.cost = x&quot; instead of posting the constraint &quot;rel(space,
+</I>&gt;<i> cost, IRT_EQ, x)&quot;.  That way, you can change that assignment later when
+</I>&gt;<i> you start the next search!  You just have to make sure that you actually
+</I>&gt;<i> do make such an assignment before you start search, and that you update
+</I>&gt;<i> cost (as usual) in the copy constructor.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i>
+</I>Hi Christian and Guido,
+
+Thanks for your replies!
+
+I was looking at the &quot;Modelling with Gecode&quot;, or at least an early
+version that Guido sent me. What I wasn't aware of was that you can do a
+simple assignment between two IntVars, as in &quot;space.cost = x&quot;. This
+probably reflect my lack of knowledge in C++, but what exactly does such
+an assignment mean?
+
+Thanks and cheers,
+
+Kish
+
+
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002535">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 21 19:15:35 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+That's indeed C++-ish: the meaning of the assignment is defined by the
+assignment operator of the left hand side... For an IntView it's quite
+simple: it just redirects the left hand side IntView to point to the
+variable implementation of the right hand side. Whatever was on the left
+hand side will be gone. Almost like in Eclipse provided the left hand side
+was a yet unbound and unconstrained var. You might want to check Section 4.1
+in MwG.
+
+Is that an answer to your question?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Tuesday, July 21, 2009 7:08 PM
+To: Guido Tack
+Cc: Christian Schulte; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] doing multiple minimising searches with the same
+space
+
+Guido Tack wrote:
+&gt;<i> Christian Schulte wrote:
+</I>&gt;&gt;<i> There is special support for specialized &quot;constrain&quot; functions which just
+</I>&gt;&gt;<i> return a cost variable, you might want to check that in &quot;Modeling with
+</I>&gt;&gt;<i> Gecode&quot;. Rather than fixing a particular cost variable you can use a cost
+</I>&gt;&gt;<i> function that then decides which variable to return depending on which
+</I>&gt;&gt;<i> cost
+</I>&gt;&gt;<i> variable you want use now. Remember: any problem can be solved with one
+</I>&gt;&gt;<i> additional level of indirection ;-)
+</I>&gt;<i>
+</I>&gt;<i> Exactly!  You can even use actual assignment instead of an equality
+</I>&gt;<i> constraint.  I.e., your space has a member &quot;IntVar cost&quot; that the cost
+</I>&gt;<i> function returns.  When you initialize optimization for variable x, you
+</I>&gt;<i> execute &quot;space.cost = x&quot; instead of posting the constraint &quot;rel(space,
+</I>&gt;<i> cost, IRT_EQ, x)&quot;.  That way, you can change that assignment later when
+</I>&gt;<i> you start the next search!  You just have to make sure that you actually
+</I>&gt;<i> do make such an assignment before you start search, and that you update
+</I>&gt;<i> cost (as usual) in the copy constructor.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i>
+</I>Hi Christian and Guido,
+
+Thanks for your replies!
+
+I was looking at the &quot;Modelling with Gecode&quot;, or at least an early
+version that Guido sent me. What I wasn't aware of was that you can do a
+simple assignment between two IntVars, as in &quot;space.cost = x&quot;. This
+probably reflect my lack of knowledge in C++, but what exactly does such
+an assignment mean?
+
+Thanks and cheers,
+
+Kish
+
+
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002536">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 21 19:28:21 CEST 2009</time><small>July 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> That's indeed C++-ish: the meaning of the assignment is defined by the
+</I>&gt;<i> assignment operator of the left hand side... For an IntView it's quite
+</I>&gt;<i> simple: it just redirects the left hand side IntView to point to the
+</I>&gt;<i> variable implementation of the right hand side. Whatever was on the left
+</I>&gt;<i> hand side will be gone. Almost like in Eclipse provided the left hand side
+</I>&gt;<i> was a yet unbound and unconstrained var. You might want to check Section 4.1
+</I>&gt;<i> in MwG.
+</I>&gt;<i>
+</I>&gt;<i> Is that an answer to your question?
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Kish Shen
+</I>&gt;<i> Sent: Tuesday, July 21, 2009 7:08 PM
+</I>&gt;<i> To: Guido Tack
+</I>&gt;<i> Cc: Christian Schulte; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] doing multiple minimising searches with the same
+</I>&gt;<i> space
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack wrote:
+</I>&gt;&gt;<i> Christian Schulte wrote:
+</I>&gt;&gt;&gt;<i> There is special support for specialized &quot;constrain&quot; functions which just
+</I>&gt;&gt;&gt;<i> return a cost variable, you might want to check that in &quot;Modeling with
+</I>&gt;&gt;&gt;<i> Gecode&quot;. Rather than fixing a particular cost variable you can use a cost
+</I>&gt;&gt;&gt;<i> function that then decides which variable to return depending on which
+</I>&gt;&gt;&gt;<i> cost
+</I>&gt;&gt;&gt;<i> variable you want use now. Remember: any problem can be solved with one
+</I>&gt;&gt;&gt;<i> additional level of indirection ;-)
+</I>&gt;&gt;<i> Exactly!  You can even use actual assignment instead of an equality
+</I>&gt;&gt;<i> constraint.  I.e., your space has a member &quot;IntVar cost&quot; that the cost
+</I>&gt;&gt;<i> function returns.  When you initialize optimization for variable x, you
+</I>&gt;&gt;<i> execute &quot;space.cost = x&quot; instead of posting the constraint &quot;rel(space,
+</I>&gt;&gt;<i> cost, IRT_EQ, x)&quot;.  That way, you can change that assignment later when
+</I>&gt;&gt;<i> you start the next search!  You just have to make sure that you actually
+</I>&gt;&gt;<i> do make such an assignment before you start search, and that you update
+</I>&gt;&gt;<i> cost (as usual) in the copy constructor.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>     Guido
+</I>&gt;&gt;<i>
+</I>&gt;<i> Hi Christian and Guido,
+</I>&gt;<i>
+</I>&gt;<i> Thanks for your replies!
+</I>&gt;<i>
+</I>&gt;<i> I was looking at the &quot;Modelling with Gecode&quot;, or at least an early
+</I>&gt;<i> version that Guido sent me. What I wasn't aware of was that you can do a
+</I>&gt;<i> simple assignment between two IntVars, as in &quot;space.cost = x&quot;. This
+</I>&gt;<i> probably reflect my lack of knowledge in C++, but what exactly does such
+</I>&gt;<i> an assignment mean?
+</I>&gt;<i>
+</I>&gt;<i> Thanks and cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>
+Hi Christian,
+
+Thanks for the quick reply. I think that does answer my question. It is
+like the assignment of a pointer in C.
+
+Cheers,
+
+Kish
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

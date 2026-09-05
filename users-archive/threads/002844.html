@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Recovering gracefully from a failed solution — 3 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Recovering gracefully from a failed solution | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>3 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · February 2010</p><h1 data-pagefind-meta="title">Recovering gracefully from a failed solution</h1></header>
+      <p class="archive-thread-summary">3 messages · February 2010</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002844">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Adrian Secord</h2></div>
+          <p><time>Wed Feb 24 20:51:01 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi, all:
+
+My colleagues and I are working on a user interface research project that uses Gecode internally to solve integer set problems.  Our experiences with Gecode have been excellent; we are limited mostly by our lack of knowledge in the field of constraint programming.
+
+In our application, the constraints in our problems come from the user via a domain-appropriate user interface and we translate them into Gecode equivalents.  The difficulty is that the user might specify constraints that lead to no solutions being found at all.  Our users are not experts.
+
+What we'd like to do is give the user feedback about what they can do to best fix the situation, or possibly fix the situation for them.  In particular, the constraints that come from the user are not necessarily set in stone -- they are vague and messy, a problem with humans. ;)  For our application, it is far better to ignore a constraint and come up with some solution than to not return a solution at all.  The user can then adjust and iterate to get to a final solution.
+
+Is there some way to determine what was the &quot;worst&quot; or &quot;tightest&quot; constraint after a solution search failed?  I'm looking for some indicator that constraint A was easy to satisfy while constraint B was difficult to satisfy.  If we had that then we could suggest that the user drop B, or drop it automatically.
+
+I could probably do this crudely by iteratively dropping each constraint in turn and counting the number of solutions obtained, but this seems unsatisfying in many respects.
+
+Is something like this possible in Gecode?  It's similar in some sense to the problem of soft constraints, but we don't need a full general solution.
+
+Any pointers or advice would be appreciated.
+
+Thanks!
+
+Adrian.
+
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002845">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Feb 26 09:42:44 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Debugging failures in constraint programs is unfortunately a very hard
+problem. A main problem is that the reasons behind a failure to find
+solutions might be very global in nature. As a very simple example, think of
+a ring of less-than constraints (x1 &lt; x2 &lt; ... &lt; xn &lt; x1). There is
+obviously no solution, but the failure depends on all the constraints.
+Removing any one of the constraints gives a solution (given that the initial
+domains admit a solution that is).
+
+One possibility would be for you to implement something like QuickXplain
+[1], which was developed for use in an interactive configuration system. The
+main idea is to find a minimal set of constraints that gives no solutions by
+repeatedly finding constraints that when added lead to failure. If your
+problems are not too hard, then this is probably a good idea and reasonably
+e to implement.
+
+Another possibility, that is more akin to what you are asking, would be to
+use the afc. Afc stands for accumulated failure count, and is used for
+branching heuristics. It simply records the number of times each propagator
+has reported a failure. Note that the afc is a heuristic measure, in that
+there might be many propagators that would have reported failure, but only
+one does so. Unfortunately, while you can access all the propagators and get
+their afc (using the Propagators class), there is no way native to Gecode to
+connect the propagator instances with your model level constraints. That
+means that you would have to modify Gecode itself to use the afc.
+
+Cheers,
+Mikael
+
+[1] <A HREF="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472">http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472</A>
+
+
+On Wed, Feb 24, 2010 at 8:51 PM, Adrian Secord &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ajsecord at cs.nyu.edu</A>&gt; wrote:
+
+&gt;<i> Hi, all:
+</I>&gt;<i>
+</I>&gt;<i> My colleagues and I are working on a user interface research project that
+</I>&gt;<i> uses Gecode internally to solve integer set problems.  Our experiences with
+</I>&gt;<i> Gecode have been excellent; we are limited mostly by our lack of knowledge
+</I>&gt;<i> in the field of constraint programming.
+</I>&gt;<i>
+</I>&gt;<i> In our application, the constraints in our problems come from the user via
+</I>&gt;<i> a domain-appropriate user interface and we translate them into Gecode
+</I>&gt;<i> equivalents.  The difficulty is that the user might specify constraints that
+</I>&gt;<i> lead to no solutions being found at all.  Our users are not experts.
+</I>&gt;<i>
+</I>&gt;<i> What we'd like to do is give the user feedback about what they can do to
+</I>&gt;<i> best fix the situation, or possibly fix the situation for them.  In
+</I>&gt;<i> particular, the constraints that come from the user are not necessarily set
+</I>&gt;<i> in stone -- they are vague and messy, a problem with humans. ;)  For our
+</I>&gt;<i> application, it is far better to ignore a constraint and come up with some
+</I>&gt;<i> solution than to not return a solution at all.  The user can then adjust and
+</I>&gt;<i> iterate to get to a final solution.
+</I>&gt;<i>
+</I>&gt;<i> Is there some way to determine what was the &quot;worst&quot; or &quot;tightest&quot;
+</I>&gt;<i> constraint after a solution search failed?  I'm looking for some indicator
+</I>&gt;<i> that constraint A was easy to satisfy while constraint B was difficult to
+</I>&gt;<i> satisfy.  If we had that then we could suggest that the user drop B, or drop
+</I>&gt;<i> it automatically.
+</I>&gt;<i>
+</I>&gt;<i> I could probably do this crudely by iteratively dropping each constraint in
+</I>&gt;<i> turn and counting the number of solutions obtained, but this seems
+</I>&gt;<i> unsatisfying in many respects.
+</I>&gt;<i>
+</I>&gt;<i> Is something like this possible in Gecode?  It's similar in some sense to
+</I>&gt;<i> the problem of soft constraints, but we don't need a full general solution.
+</I>&gt;<i>
+</I>&gt;<i> Any pointers or advice would be appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Thanks!
+</I>&gt;<i>
+</I>&gt;<i> Adrian.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist,
+<A HREF="http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/">http://www.ict.kth.se/~zayenz/&lt;http://www.ict.kth.se/%7Ezayenz/</A>&gt;
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100226/4cc46677/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100226/4cc46677/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002846">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Feb 26 11:17:06 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+I just had the idea that maybe QuickXplain could take advantage of the afc values, even if you don't have the link between propagators and high-level constraints.  Simply take the afc of the variables, and first try the constraints that are linked to the variables with high afc.
+
+Cheers,
+	Guido
+
+Mikael Zayenz Lagerkvist wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Debugging failures in constraint programs is unfortunately a very hard problem. A main problem is that the reasons behind a failure to find solutions might be very global in nature. As a very simple example, think of a ring of less-than constraints (x1 &lt; x2 &lt; ... &lt; xn &lt; x1). There is obviously no solution, but the failure depends on all the constraints. Removing any one of the constraints gives a solution (given that the initial domains admit a solution that is).
+</I>&gt;<i>
+</I>&gt;<i> One possibility would be for you to implement something like QuickXplain [1], which was developed for use in an interactive configuration system. The main idea is to find a minimal set of constraints that gives no solutions by repeatedly finding constraints that when added lead to failure. If your problems are not too hard, then this is probably a good idea and reasonably e to implement.
+</I>&gt;<i>
+</I>&gt;<i> Another possibility, that is more akin to what you are asking, would be to use the afc. Afc stands for accumulated failure count, and is used for branching heuristics. It simply records the number of times each propagator has reported a failure. Note that the afc is a heuristic measure, in that there might be many propagators that would have reported failure, but only one does so. Unfortunately, while you can access all the propagators and get their afc (using the Propagators class), there is no way native to Gecode to connect the propagator instances with your model level constraints. That means that you would have to modify Gecode itself to use the afc.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Mikael
+</I>&gt;<i>
+</I>&gt;<i> [1] <A HREF="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472">http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.23.3472</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On Wed, Feb 24, 2010 at 8:51 PM, Adrian Secord &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ajsecord at cs.nyu.edu</A>&gt; wrote:
+</I>&gt;<i> Hi, all:
+</I>&gt;<i>
+</I>&gt;<i> My colleagues and I are working on a user interface research project that uses Gecode internally to solve integer set problems.  Our experiences with Gecode have been excellent; we are limited mostly by our lack of knowledge in the field of constraint programming.
+</I>&gt;<i>
+</I>&gt;<i> In our application, the constraints in our problems come from the user via a domain-appropriate user interface and we translate them into Gecode equivalents.  The difficulty is that the user might specify constraints that lead to no solutions being found at all.  Our users are not experts.
+</I>&gt;<i>
+</I>&gt;<i> What we'd like to do is give the user feedback about what they can do to best fix the situation, or possibly fix the situation for them.  In particular, the constraints that come from the user are not necessarily set in stone -- they are vague and messy, a problem with humans. ;)  For our application, it is far better to ignore a constraint and come up with some solution than to not return a solution at all.  The user can then adjust and iterate to get to a final solution.
+</I>&gt;<i>
+</I>&gt;<i> Is there some way to determine what was the &quot;worst&quot; or &quot;tightest&quot; constraint after a solution search failed?  I'm looking for some indicator that constraint A was easy to satisfy while constraint B was difficult to satisfy.  If we had that then we could suggest that the user drop B, or drop it automatically.
+</I>&gt;<i>
+</I>&gt;<i> I could probably do this crudely by iteratively dropping each constraint in turn and counting the number of solutions obtained, but this seems unsatisfying in many respects.
+</I>&gt;<i>
+</I>&gt;<i> Is something like this possible in Gecode?  It's similar in some sense to the problem of soft constraints, but we don't need a full general solution.
+</I>&gt;<i>
+</I>&gt;<i> Any pointers or advice would be appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Thanks!
+</I>&gt;<i>
+</I>&gt;<i> Adrian.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100226/eb0855b6/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100226/eb0855b6/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

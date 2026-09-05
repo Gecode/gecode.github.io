@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Using AFC in Gecode 4 — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Using AFC in Gecode 4 | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · July 2013</p><h1 data-pagefind-meta="title">Using AFC in Gecode 4</h1></header>
+      <p class="archive-thread-summary">5 messages · July 2013</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004013">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 9 03:59:11 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I have just started looking at upgrading the ECLiPSe Gecode interface to
+Gecode 4 (it currently supports Gecode 3.7), and I have run into a
+problem with AFC, which I am not sure how to deal with, so I would be
+very grateful if someone can give me some suggestion on how to deal with
+this.
+
+Some background: our Gecode interface code uses a space where the
+IntVars are stored in a IntVarArgs, and actual problem variables are
+added dynamically during execution.
+
+The search can be performed in Gecode using a search engine, or in
+ECLiPSe. The user can also obtain various properties of the IntVar
+variables, including the AFC for that variable. For the AFC, this was
+obtained using the afc() method of IntVar. This method is no longer in
+Gecode 4.
+
+Looking at the MPG, you now need to initialise an integer variable array
+(xs) for AFC information:
+
+IntAFC afc(home, xs);
+
+and to change the decay later,
+
+afc.decay(0.95)
+
+-- I assume this applies to the xs array.
+
+and branching:
+
+branch(home, xs, INT_VAR_AFC_MAX(), INT_VAL_MIN())
+
+where xs must be the same as before.
+
+I am not sure how to use this in my interface, both for doing search in
+ECLiPSe, or using a search engine.
+
+The reason are that my variables are added dynamically, and at any time,
+including after propagation (and some search) have been performed on
+existing variables, so there isn't a time-point when I create the IntAFC
+object with all the variables. In the case of using a search engine, the
+search may be only part of the full search, i.e. so I cannot assume I
+only want AFC for the variables in the branch() call above (i.e. xs).
+
+Ideally, with 4.0, I would like to be able to change the decay factor as
+well, at least for all variables (this would mean the decay value would
+apply to any variables created (logically) after setting the decay
+factor. Perhaps it would also be useful to change the decay factor for a
+subset of variables, but I am not sure if that can be done -- because
+the search can then involve variables with different decay factor.
+
+In the case of doing search in ECLiPSe, I need to obtain the AFC for a
+variable -- how do I do this now?
+
+Thanks in advance for any information and help!
+
+--Kish
+
+</PRE>
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004015">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jul 9 15:59:11 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+The afc() member function now requires a space argument, see:
+
+<A HREF="http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-members.htm">http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-members.htm</A>
+l
+
+Before using afc, you have to call
+	space.afc_decay(d)
+for some decay value to enable support for afc (if not doing that, things
+will go kaboom). This method also changes the afc-decay for all variables.
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Tuesday, July 09, 2013 3:59 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Using AFC in Gecode 4
+
+Hi,
+
+I have just started looking at upgrading the ECLiPSe Gecode interface to
+Gecode 4 (it currently supports Gecode 3.7), and I have run into a
+problem with AFC, which I am not sure how to deal with, so I would be
+very grateful if someone can give me some suggestion on how to deal with
+this.
+
+Some background: our Gecode interface code uses a space where the
+IntVars are stored in a IntVarArgs, and actual problem variables are
+added dynamically during execution.
+
+The search can be performed in Gecode using a search engine, or in
+ECLiPSe. The user can also obtain various properties of the IntVar
+variables, including the AFC for that variable. For the AFC, this was
+obtained using the afc() method of IntVar. This method is no longer in
+Gecode 4.
+
+Looking at the MPG, you now need to initialise an integer variable array
+(xs) for AFC information:
+
+IntAFC afc(home, xs);
+
+and to change the decay later,
+
+afc.decay(0.95)
+
+-- I assume this applies to the xs array.
+
+and branching:
+
+branch(home, xs, INT_VAR_AFC_MAX(), INT_VAL_MIN())
+
+where xs must be the same as before.
+
+I am not sure how to use this in my interface, both for doing search in
+ECLiPSe, or using a search engine.
+
+The reason are that my variables are added dynamically, and at any time,
+including after propagation (and some search) have been performed on
+existing variables, so there isn't a time-point when I create the IntAFC
+object with all the variables. In the case of using a search engine, the
+search may be only part of the full search, i.e. so I cannot assume I
+only want AFC for the variables in the branch() call above (i.e. xs).
+
+Ideally, with 4.0, I would like to be able to change the decay factor as
+well, at least for all variables (this would mean the decay value would
+apply to any variables created (logically) after setting the decay
+factor. Perhaps it would also be useful to change the decay factor for a
+subset of variables, but I am not sure if that can be done -- because
+the search can then involve variables with different decay factor.
+
+In the case of doing search in ECLiPSe, I need to obtain the AFC for a
+variable -- how do I do this now?
+
+Thanks in advance for any information and help!
+
+--Kish
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004016">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 9 19:08:57 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks for your help!
+
+On 09/07/2013 14:59, Christian Schulte wrote:
+
+&gt;<i> The afc() member function now requires a space argument, see:
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-members.htm">http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-members.htm</A>
+</I>&gt;<i> l
+</I>
+Thanks. I have added this, and it now compiles.
+
+This probably reflects my unfamiliarity with C++, but I did look at the
+reference documentation for IntVar, and found that afc() was not there,
+as it is in VarImpVar&lt;int:IntVarImp&gt;, and I didn't know I should look
+somewhere other than the IntVar section.
+
+&gt;<i> Before using afc, you have to call
+</I>&gt;<i> 	space.afc_decay(d)
+</I>&gt;<i> for some decay value to enable support for afc (if not doing that, things
+</I>&gt;<i> will go kaboom). This method also changes the afc-decay for all variables.
+</I>&gt;<i>
+</I>
+I assume this only has to be done with the first space I create, and not
+any subsequent clones of the space?
+
+I tried adding the afc_decay(1U) call just after the first time a space
+is created. The space I use is of class GecodeSpace, and I get an error
+
+void Gecode::Space::afc_decay(double) is private within this context
+
+the code I have is essentially:
+
+GecodeSpace* solver;
+solver = new GecodeSpace();
+solver-&gt;afc_decay(1U);
+
+Do I need to do something in the definition of GecodeSpace to make
+afc_decay() public? (I guess this is again my unfamiliarity with C++)
+
+
+Finally, as I mentioned in my previous message, I got the impression
+from reading the MPG (section 8.5.2, Selection using accumulated failure
+count), that you need to create a IntAFC object on an integer variable
+array in order to use AFC. Did I miss something in this section, or
+should the above usage of AFC be mentioned in the section?
+
+Thanks and cheers,
+
+Kish
+
+
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004017">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Jul 9 20:29:52 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Some clarification/correction to my last post:
+
+On 09/07/2013 18:08, Kish Shen wrote:
+
+&gt;<i> This probably reflects my unfamiliarity with C++, but I did look at the
+</I>&gt;<i> reference documentation for IntVar, and found that afc() was not there,
+</I>
+I looked in Gecode::IntVar Class Reference
+
+
+&gt;<i> GecodeSpace* solver;
+</I>&gt;<i> solver = new GecodeSpace();
+</I>&gt;<i> solver-&gt;afc_decay(1U);
+</I>
+The 1U is of course wrong. I confused it with the documentation I read
+for the Rnd() function for the random selection. When I changed that to
+1.0, I still get the same error (i.e. afc_decay(double) is private
+within this context).
+
+Cheers,
+
+Kish
+
+
+
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004020">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Jul 10 10:43:47 CEST 2013</time><small>July 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Please find attached a patch that makes afc_decay() and friends public (I
+also did in the trunk and the next release is not that far away).
+
+The reason why the reference docs are so useful is that they always list all
+member functions including those which got inherited. So when I have to know
+I'll also look at the docs and not at the code...
+
+Yes, you have to call afc_decay only on the root space once.
+
+IntAFC is a fake ( ;-) =, afc works even without it. IntAFC is there such
+that it looks exactly like Activity.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Tuesday, July 09, 2013 7:09 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Using AFC in Gecode 4
+
+Hi Christian,
+
+Thanks for your help!
+
+On 09/07/2013 14:59, Christian Schulte wrote:
+
+&gt;<i> The afc() member function now requires a space argument, see:
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-membe">http://www.gecode.org/doc-latest/reference/classGecode_1_1IntVar-membe</A>
+</I>&gt;<i> rs.htm
+</I>&gt;<i> l
+</I>
+Thanks. I have added this, and it now compiles.
+
+This probably reflects my unfamiliarity with C++, but I did look at the
+reference documentation for IntVar, and found that afc() was not there, as
+it is in VarImpVar&lt;int:IntVarImp&gt;, and I didn't know I should look somewhere
+other than the IntVar section.
+
+&gt;<i> Before using afc, you have to call
+</I>&gt;<i> 	space.afc_decay(d)
+</I>&gt;<i> for some decay value to enable support for afc (if not doing that,
+</I>&gt;<i> things will go kaboom). This method also changes the afc-decay for all
+</I>variables.
+&gt;<i>
+</I>
+I assume this only has to be done with the first space I create, and not any
+subsequent clones of the space?
+
+I tried adding the afc_decay(1U) call just after the first time a space is
+created. The space I use is of class GecodeSpace, and I get an error
+
+void Gecode::Space::afc_decay(double) is private within this context
+
+the code I have is essentially:
+
+GecodeSpace* solver;
+solver = new GecodeSpace();
+solver-&gt;afc_decay(1U);
+
+Do I need to do something in the definition of GecodeSpace to make
+afc_decay() public? (I guess this is again my unfamiliarity with C++)
+
+
+Finally, as I mentioned in my previous message, I got the impression
+from reading the MPG (section 8.5.2, Selection using accumulated failure
+count), that you need to create a IntAFC object on an integer variable
+array in order to use AFC. Did I miss something in this section, or
+should the above usage of AFC be mentioned in the section?
+
+Thanks and cheers,
+
+Kish
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: patch.txt
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20130710/0e533173/attachment.txt">http://www.gecode.org/pipermail/users/attachments/20130710/0e533173/attachment.txt</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

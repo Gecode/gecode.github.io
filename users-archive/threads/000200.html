@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] New constraint: regular for describing value patterns — 1 message in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] New constraint: regular for describing value patterns | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>1 message</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2004</p><h1 data-pagefind-meta="title">[Gecode] New constraint: regular for describing value patterns</h1></header>
+      <p class="archive-thread-summary">1 message · November 2004</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000200">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Nov 9 10:02:35 CET 2004</time><small>November 2004</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear all,
+
+I added regular as another new global constraint which constrains
+the sequence of values of a variable array to be a member of some
+regular language.
+
+The constraint is posted by
+
+	regular(home, x, dfa)
+
+where home is the home-space, x is an array of integer variables,
+and dfa is a deterministic finite automaton describing the
+regular language of interest (see below).
+
+The propagator is domain-consistent, takes per invocation O(nt)
+time in the worst-case, where n is the number of variables and t
+is the number of transitions of the underlying DFA. The algorithm
+is incremental with respect to the changed variables (only the
+minimal number of variables is considered per invocation). So in
+average, it should be more like O(t) (and also typically only a
+fraction of the transitions is considered).
+
+The algorithm is based on the very interesting paper:
+ *   Gilles Pesant, A Regular Language Membership Constraint
+ *   for Finite Sequences of Variables, CP 2004.
+ *   Pages 482-495, LNCS 3258, Springer-Verlag, 2004.
+
+However, the algorithm I implemented is much simpler but less
+incremental (due to how variables are implemented, one would only
+gain from Pesant's version only if value removal were constant
+time!).
+
+DFA by transitions
+------------------
+
+A dfa can be specified by creating an instance of DFA, as an
+example consider a dfa which allows alternating sequences of 0
+and 1 with equal number of 0s and 1s:
+
+Transitions are specified by giving triples (of type
+DFA::Transition) of i_state (states are non-negative integers),
+symbol (normal integers describing values), and o_state:
+
+	i_state	| symbol | o_state
+	--------------------------
+	  0	|  0     |  1
+	  0   |  1     |  2
+        1   |  1     |  0
+        2   |  0     |  0
+
+(basically, the (partial) transition function d is defined by
+	d(i_state,symbol) = o_state
+)
+
+In C++:
+
+DFA::Transition t[] = {
+  {0,0,1}, {0,1,2}, {1,1,0}, {2,0,0}, {-1,0,0}
+};
+
+The {-1,0,0} terminates the transition specification.
+
+The single final state is 0, which can be described by
+
+int f[] = {0,-1};
+
+Again, -1 is used as endmarker.
+
+Then the dfa can be created as
+
+DFA a(0,t,f); // 0 is start state
+
+By default, the dfa is minimized and unreachable states are
+eliminated (minimization can be supressed by giving false as
+additional argument).
+
+DFA by regular expressions
+--------------------------
+
+A dfa can also be described by a regular expression where the
+symbols are values and the operators are | for choice, + for
+concatenation and prefix * for Kleene-star. Additionally, support
+for repitition is provided (see below).
+
+A regexp r for the empty string is created by
+	REG r;
+
+A regexp r for the integer i is created by
+	REG r(i);
+
+If r1 and r2 are REGs, then also (with normal C++ precedence)
+	r1+r2, r1|r2, *r1
+and
+	r1(n,m)
+		(repeat r1 at least n- and at most m-times)
+and
+	r1(n)
+		(repeat r1 at least n-times)
+
+By DFA a(r) a dfa a is created for the REG r.
+
+Both dfa creation and conversion from a regexp to a dfa is not
+hyper-efficient but also not completely dumb. Regexp to dfa is of
+course exponential in the number of symbols in the worst case (subset
+construction) and
+minimization is cubic in the number of states (that is far from
+being optimal...). Typically, even in nasty cases they work fast even on
+automata
+up to thousands of states. But that doesn't really matter as DFA
+construction is only done once and dfa's can be reused for many
+propagators.
+
+Have fun!
+Christian
+
+PS: The constraint is useful for rostering problems, where
+typically a specialized version called stretch is used. I still
+fiddle with this one...
+
+PPS: Sometimes memory management for DFA segfaults under Windows,
+even though everything works fine on Linux (even valgrind likes
+it). Have to look.
+
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

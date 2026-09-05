@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Path constraint — 1 message in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Path constraint | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>1 message</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2015</p><h1 data-pagefind-meta="title">Path constraint</h1></header>
+      <p class="archive-thread-summary">1 message · November 2015</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004804">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Philippe</h2></div>
+          <p><time>Wed Nov 25 21:53:45 CET 2015</time><small>November 2015</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+
+This mail refers to the previous post :
+(<A HREF="http://permalink.gmane.org/gmane.comp.lib.gecode.user/4754">http://permalink.gmane.org/gmane.comp.lib.gecode.user/4754</A>)
+Unfortunately, I can't reply to it (when i click on &quot;reply&quot;
+I get a html page with the text &quot;No such file&quot; in it).
+
+Here is the problem : I have a adjacency matrix in which there are cycles.
+These cycles prevent the existence of a path between a start node and end
+node. (This happens for instance with the code below.) Is there a way to
+solve this problem without the existence of the subpath constraint (since
+not all nodes has to be visited) ?
+
+I know the paper &quot;Explaining circuit propagation&quot; but I have neither the
+time nor (probably) the level to code the &quot;subpath&quot; myself.
+The problem I am facing is severe since a lot of work has already be
+done and a milestones is now rapidly coming.
+
+
+Any help will be greatly appreciated,
+Thanks
+Philippe
+
+
+class TestPath : public Gecode::Space {
+
+public:
+
+      TestPath():
+        _nb_nodes(4),
+        _end(_nb_nodes),                          // end mark
+      _Flow(*this, _nb_nodes * _nb_nodes, 0, 1),  // Square matrix
+      _s(*this, 0, _nb_nodes),                    // Domain = [0, nb_nodes]
+      _e(*this, 0, _nb_nodes)                     //
+   {
+        int index_end   = (_nb_nodes - 2);
+        int index_start = (_nb_nodes - 1);
+        Matrix&lt;IntVarArray&gt; flow(_Flow, _nb_nodes, _nb_nodes);
+
+        // Start has necessary a successor
+       rel(*this, sum(flow.col(index_start)) == 1);
+
+        // Start has no predecessor
+       rel(*this, sum(flow.row(index_start)) == 0);
+
+        // End has no successor
+       rel(*this, sum(flow.col(index_end)) == 0);
+
+        for (int i = 0 ; i &lt; _nb_nodes ; ++i)
+        {
+            IntVar in = expr(*this, sum(flow.row(i)));
+            IntVar out = expr(*this, sum(flow.col(i)));
+
+            rel(*this, in &lt;= 1);
+            rel(*this, out &lt;= 1);
+
+              // No trivial cycle
+              rel(*this, flow(i, i) == 0);
+
+              if (i != index_end &amp;&amp; i != index_start)
+              {
+                  // Flow conservation
+                  IntVar in = expr(*this, sum(flow.row(i)));
+                  IntVar out = expr(*this, sum(flow.col(i)));
+                  rel(*this, in == out);
+              }
+        }
+        // ------------------------------------------------------------
+        // Then, some other constraints
+        // will set the flow(i,j) to 0
+        // ------------------------------------------------------------
+
+        // ------------------------------------------------------------
+        // Anyway, that is not sufficent since we have cycle (or invalid
+        // path),
+        // for instance
+        // Start-&gt;End  Node1&lt;-&gt;Node2
+        // -------------------------------------------------------------
+        // what we want is a path that goes from Start to End but not
+        // necessary passing through all nodes. Is a flow sufficent ?
+        // ------------------------------------------------------------
+      branch(*this, _Flow, INT_VAR_SIZE_MIN(), INT_VAL_MAX());
+   }
+
+};
+
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

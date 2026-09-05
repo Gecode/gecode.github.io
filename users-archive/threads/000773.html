@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Newbie: Cost function with squared variables	propagation trouble — 7 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Newbie: Cost function with squared variables	propagation trouble | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>7 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2007</p><h1 data-pagefind-meta="title">Newbie: Cost function with squared variables	propagation trouble</h1></header>
+      <p class="archive-thread-summary">7 messages · January 2007</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000773">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Pieter Thysebaert</h2></div>
+          <p><time>Fri Jan 5 14:55:08 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I'm using Gecode 1.2.2 on Debian sarge.
+
+While modelling a scheduling problem I have stumbled across the following:
+
+Let's say the decision variables of my problem are X_ijk, binary.
+Let integer variables Y_i &gt;= 0 be related to the X_ij by  Y_i = k &lt;=&gt;
+X_ijk = 1 for some range of j, expressed by using constraints like
+eq(this, Y_i, k, X_ijk); for that range of j
+
+The cost function I want to minimize is
+sum_over_i  (Y_i - Constant_i)^2
+
+Clearly, if for some i, Constant_i &lt; 0 the cost is at least (Y_i -
+Constant_i)^2.
+
+However, for all but the most trivial instances of my problem, the
+minimal cost after initial propagation is smaller than this &quot;intuitive&quot;
+lower bound.
+I believe (but I can be wrong) that this is partly due to my feable
+modelling skills: in order to implement the cost function above, I have
+
+1. expanded each square term into a polynomial
+2. introduced auxiliary variables Z_i = sqr(Y_i)
+3. written the cost as a sum of Z_i and Y_i terms
+
+Is there a more concise way to express the cost function above without
+introducing explicit extra constraints stating the obvious (i.e. cost &gt;=
+intuitive lower bound for Constant_i &lt; 0) that will nevertheless
+propagate and find these &quot;intuitive&quot; cost bounds?
+If not, can someone point me to an exmaple which would show me how to
+implement my own propagator for such a cost function?
+
+As a side note, I have also been caught by the following oddity (well
+that's how it seemed to me at first).
+If I want to build a MiniModel::LinExpr using the following code
+
+LinExpr myExpr;
+
+for (int i = 0; i &lt; ...; i++) {
+    myExpr = myExpr + some_term(i);
+}
+
+On my machine, this code fails upon the first assignment to the empty
+LinExpr, and only works when explicitly initializing myExpr with the
+first term and then adding the others.
+Is this standard behavior?
+
+Thx,
+Pieter
+
+
+
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000774">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>penche21 penche21</h2></div>
+          <p><time>Fri Jan 5 22:46:25 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I am having a problem with referring to a VarArray when the index is not
+integers but Var.
+I have VarArrays A,B,C and I need the constraint A[i] = B[c[i-1]]
+
+I tried;
+
+1) rel(this, A.get(i), IRT_EQ, B.get( (C.get(i-1) ) )
+
+C.get(i-1) works fine as i is an integer. but B.get( (C.get(i-1) ) stucks as
+(C.get(i-1) returns a Var.
+
+2) I also tried 'element' to express this constraint
+
+Int Var x;
+element(this, B, C.get(i - 1), x);
+rel(this,A.get(i),IRT_EQ,x);
+
+This does not work either.
+Because, I think, element makes B[c[i-1] to get the value of x. but i need
+the reverse.
+
+In short, I need to express A[i] = B[c[i-1]] where all A,B,C are VarArrays
+and could not succeed.
+
+Thanks in advance!
+
+_________________________________________________________________
+Her y&#246;n&#252;yle sohbetin tadi ancak Messenger ile &#231;ikar!
+<A HREF="http://messenger.msn.com/?mkt=tr&amp;DI=3490&amp;XAPID=2584">http://messenger.msn.com/?mkt=tr&amp;DI=3490&amp;XAPID=2584</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000775">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>pekczynski at ps.uni-sb.de</h2></div>
+          <p><time>Sat Jan 6 13:57:41 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi there,
+I think using the element constraint is the correct choice.
+Maybe the little example I attached will help you out.
+At least you can use the element constraint to model
+
+B[C[i-1]]=A[i]
+
+and indeed the alg also does
+
+A[i]=B[C[i-1]]
+
+see <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html</A>
+
+&gt;<i> 2) I also tried 'element' to express this constraint
+</I>&gt;<i>
+</I>&gt;<i> Int Var x;
+</I>&gt;<i> element(this, B, C.get(i - 1), x);
+</I>&gt;<i> rel(this,A.get(i),IRT_EQ,x);
+</I>
+So this was quite right, but you can directly use
+
+ element(this, B, C[i - 1], A[i]);
+
+so you don't need the rel constraint.
+
+If there are any further questions, let us know.
+:<i>-D
+</I>Cheers
+Patrick
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: arrayex.cc
+Type: application/octet-stream
+Size: 1931 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20070106/3d14ea20/attachment.obj">http://www.ps.uni-sb.de/pipermail/users/attachments/20070106/3d14ea20/attachment.obj</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000776">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>penche</h2></div>
+          <p><time>Mon Jan 8 21:43:02 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">pekczynski at ...</A>&gt; writes:
+
+&gt;<i>
+</I>&gt;<i> Hi there,
+</I>&gt;<i> I think using the element constraint is the correct choice.
+</I>&gt;<i> Maybe the little example I attached will help you out.
+</I>&gt;<i> At least you can use the element constraint to model
+</I>&gt;<i>
+</I>&gt;<i> B[C[i-1]]=A[i]
+</I>&gt;<i>
+</I>&gt;<i> and indeed the alg also does
+</I>&gt;<i>
+</I>&gt;<i> A[i]=B[C[i-1]]
+</I>&gt;<i>
+</I>&gt;<i> see <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html</A>
+</I>&gt;<i>
+</I>&gt;<i> &gt; 2) I also tried 'element' to express this constraint
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Int Var x;
+</I>&gt;<i> &gt; element(this, B, C.get(i - 1), x);
+</I>&gt;<i> &gt; rel(this,A.get(i),IRT_EQ,x);
+</I>&gt;<i>
+</I>&gt;<i> So this was quite right, but you can directly use
+</I>&gt;<i>
+</I>&gt;<i>  element(this, B, C[i - 1], A[i]);
+</I>&gt;<i>
+</I>&gt;<i> so you don't need the rel constraint.
+</I>&gt;<i>
+</I>&gt;<i> If there are any further questions, let us know.
+</I>&gt;<i> :-D
+</I>&gt;<i> Cheers
+</I>&gt;<i> Patrick
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at ...</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+Thank you, I now see rel is useless and element is just enough.
+But one point is; we will need Var indexes inevitable when the relations
+get nested.
+
+For example; A[i] = B [ C [A[j]] ]
+
+1) obviously rel does not work.
+rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+
+2) I tried to introduce new Vars, but below did not work also.
+
+IntVar intermediate1= new IntVar(this,min,max);
+IntVar intermediate2= new IntVar(this,min, max);
+
+element(this, C, A.get(j), intermediate1);
+element(this, B, intermediate1, intermediate2);
+
+rel(this, A.get(i), IRT_EQ, intermediate2);
+
+3) Any way to write this constraint?
+
+Thanks!
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000777">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Tue Jan 9 08:10:37 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 1/8/07, penche &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">penche21 at hotmail.com</A>&gt; wrote:
+&gt;<i> &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">pekczynski at ...</A>&gt; writes:
+</I>&gt;<i>
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Hi there,
+</I>&gt;<i> &gt; I think using the element constraint is the correct choice.
+</I>&gt;<i> &gt; Maybe the little example I attached will help you out.
+</I>&gt;<i> &gt; At least you can use the element constraint to model
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; B[C[i-1]]=A[i]
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; and indeed the alg also does
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; A[i]=B[C[i-1]]
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; see <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html</A>
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; &gt; 2) I also tried 'element' to express this constraint
+</I>&gt;<i> &gt; &gt;
+</I>&gt;<i> &gt; &gt; Int Var x;
+</I>&gt;<i> &gt; &gt; element(this, B, C.get(i - 1), x);
+</I>&gt;<i> &gt; &gt; rel(this,A.get(i),IRT_EQ,x);
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; So this was quite right, but you can directly use
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;  element(this, B, C[i - 1], A[i]);
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; so you don't need the rel constraint.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; If there are any further questions, let us know.
+</I>&gt;<i> &gt; :-D
+</I>&gt;<i> &gt; Cheers
+</I>&gt;<i> &gt; Patrick
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; _______________________________________________
+</I>&gt;<i> &gt; Gecode users mailing list
+</I>&gt;<i> &gt; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at ...</A>
+</I>&gt;<i> &gt; <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> &gt;
+</I>&gt;<i>
+</I>&gt;<i> Thank you, I now see rel is useless and element is just enough.
+</I>&gt;<i> But one point is; we will need Var indexes inevitable when the relations
+</I>&gt;<i> get nested.
+</I>&gt;<i>
+</I>&gt;<i> For example; A[i] = B [ C [A[j]] ]
+</I>&gt;<i>
+</I>&gt;<i> 1) obviously rel does not work.
+</I>&gt;<i> rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+</I>&gt;<i>
+</I>&gt;<i> 2) I tried to introduce new Vars, but below did not work also.
+</I>&gt;<i>
+</I>&gt;<i> IntVar intermediate1= new IntVar(this,min,max);
+</I>&gt;<i> IntVar intermediate2= new IntVar(this,min, max);
+</I>&gt;<i>
+</I>&gt;<i> element(this, C, A.get(j), intermediate1);
+</I>&gt;<i> element(this, B, intermediate1, intermediate2);
+</I>&gt;<i>
+</I>&gt;<i> rel(this, A.get(i), IRT_EQ, intermediate2);
+</I>&gt;<i>
+</I>&gt;<i> 3) Any way to write this constraint?
+</I>
+The element constraint implements A[I]=V where A is a VarArray of
+integer variables and I and V are integer variables. If you want your
+index variable to be looked up in another variable array, then this is
+another element constraint. Thus something like 2 is the correct way
+to model your desired constraints.
+
+One thing to note is that you can skip intermediate2, and directly
+replace it with A.get(i). This gives the following code:
+
+  IntVar intermediate1= new IntVar(this,min,max);
+  element(this, C, A.get(j), intermediate1);
+  element(this, B, intermediate1, A.get(j));
+
+this implements B[C[A[i]]] = A[j]. The only direct reason I see that
+this would not work is if min and max are wrong. Safe, unconstraining
+bounds are min=0 and max=B.size().
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000778">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Tue Jan 9 12:13:42 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 1/5/07, Pieter Thysebaert &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">pieter.thysebaert at intec.ugent.be</A>&gt; wrote:
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I'm using Gecode 1.2.2 on Debian sarge.
+</I>&gt;<i>
+</I>&gt;<i> While modelling a scheduling problem I have stumbled across the following:
+</I>&gt;<i>
+</I>&gt;<i> Let's say the decision variables of my problem are X_ijk, binary.
+</I>&gt;<i> Let integer variables Y_i &gt;= 0 be related to the X_ij by  Y_i = k &lt;=&gt;
+</I>&gt;<i> X_ijk = 1 for some range of j, expressed by using constraints like
+</I>&gt;<i> eq(this, Y_i, k, X_ijk); for that range of j
+</I>&gt;<i>
+</I>&gt;<i> The cost function I want to minimize is
+</I>&gt;<i> sum_over_i  (Y_i - Constant_i)^2
+</I>&gt;<i>
+</I>&gt;<i> Clearly, if for some i, Constant_i &lt; 0 the cost is at least (Y_i -
+</I>&gt;<i> Constant_i)^2.
+</I>&gt;<i>
+</I>&gt;<i> However, for all but the most trivial instances of my problem, the
+</I>&gt;<i> minimal cost after initial propagation is smaller than this &quot;intuitive&quot;
+</I>&gt;<i> lower bound.
+</I>&gt;<i> I believe (but I can be wrong) that this is partly due to my feable
+</I>&gt;<i> modelling skills: in order to implement the cost function above, I have
+</I>&gt;<i>
+</I>&gt;<i> 1. expanded each square term into a polynomial
+</I>&gt;<i> 2. introduced auxiliary variables Z_i = sqr(Y_i)
+</I>&gt;<i> 3. written the cost as a sum of Z_i and Y_i terms
+</I>&gt;<i>
+</I>&gt;<i> Is there a more concise way to express the cost function above without
+</I>&gt;<i> introducing explicit extra constraints stating the obvious (i.e. cost &gt;=
+</I>&gt;<i> intuitive lower bound for Constant_i &lt; 0) that will nevertheless
+</I>&gt;<i> propagate and find these &quot;intuitive&quot; cost bounds?
+</I>&gt;<i> If not, can someone point me to an exmaple which would show me how to
+</I>&gt;<i> implement my own propagator for such a cost function?
+</I>
+In general the arithmetic constraints reason on the bounds of the
+variables. For some constraints there is also stronger propagation
+available (using ICL_DOM) although this is usually very costly. For
+the multiplication propagator, though, bounds propagation is the only
+propagation available in Gecode.
+
+I'm not sure what the obvious lower bound is in your example, and
+where it is missing. Could you perhaps give a small example that
+demonstrates the problem?
+
+
+&gt;<i> As a side note, I have also been caught by the following oddity (well
+</I>&gt;<i> that's how it seemed to me at first).
+</I>&gt;<i> If I want to build a MiniModel::LinExpr using the following code
+</I>&gt;<i>
+</I>&gt;<i> LinExpr myExpr;
+</I>&gt;<i>
+</I>&gt;<i> for (int i = 0; i &lt; ...; i++) {
+</I>&gt;<i>     myExpr = myExpr + some_term(i);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> On my machine, this code fails upon the first assignment to the empty
+</I>&gt;<i> LinExpr, and only works when explicitly initializing myExpr with the
+</I>&gt;<i> first term and then adding the others.
+</I>&gt;<i> Is this standard behavior?
+</I>
+Yes, this is standard behaviour currently. The LinExpr are originally
+designed for construction from expressions by overloaded operators, in
+which case there is always a first term to start from.
+
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000786">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>penche21 penche21</h2></div>
+          <p><time>Fri Jan 26 12:09:19 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi again,
+
+Thanks for the advice, it works smooth now.
+But one last question about the Var equalities.
+
+suppose Var A, B and an integer array I
+Let A to be the one possible values of index i where  B=I[i]
+
+sth like;
+for all indexes i
+if &quot; A equals I[i]&quot; then &quot;B can be assigned to i&quot;
+
+but I couldnot find a way to imply the equality of VAR&amp;Intger on another
+VAR's possible values.
+
+I kept some BoolVars for assignability but ...
+I will really appreciate if you can pop up a constraint for that.
+
+Cheers,
+Penche
+
+&gt;<i>From: &quot;Mikael Zayenz Lagerkvist&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zayenz at gmail.com</A>&gt;
+</I>&gt;<i>To: penche &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">penche21 at hotmail.com</A>&gt;
+</I>&gt;<i>CC: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>
+&gt;<i>Subject: Re: [gecode-users] Re: Var indexes-help
+</I>&gt;<i>Date: Tue, 9 Jan 2007 08:10:37 +0100
+</I>&gt;<i>
+</I>&gt;<i>On 1/8/07, penche &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">penche21 at hotmail.com</A>&gt; wrote:
+</I>&gt;&gt;<i>&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">pekczynski at ...</A>&gt; writes:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; Hi there,
+</I>&gt;&gt;<i> &gt; I think using the element constraint is the correct choice.
+</I>&gt;&gt;<i> &gt; Maybe the little example I attached will help you out.
+</I>&gt;&gt;<i> &gt; At least you can use the element constraint to model
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; B[C[i-1]]=A[i]
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; and indeed the alg also does
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; A[i]=B[C[i-1]]
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; see
+</I>&gt;&gt;<i><A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntIntElement.html</A>
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; &gt; 2) I also tried 'element' to express this constraint
+</I>&gt;&gt;<i> &gt; &gt;
+</I>&gt;&gt;<i> &gt; &gt; Int Var x;
+</I>&gt;&gt;<i> &gt; &gt; element(this, B, C.get(i - 1), x);
+</I>&gt;&gt;<i> &gt; &gt; rel(this,A.get(i),IRT_EQ,x);
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; So this was quite right, but you can directly use
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt;  element(this, B, C[i - 1], A[i]);
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; so you don't need the rel constraint.
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; If there are any further questions, let us know.
+</I>&gt;&gt;<i> &gt; :-D
+</I>&gt;&gt;<i> &gt; Cheers
+</I>&gt;&gt;<i> &gt; Patrick
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; Attachment (arrayex.cc): application/octet-stream, 1932 bytes
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i> &gt; _______________________________________________
+</I>&gt;&gt;<i> &gt; Gecode users mailing list
+</I>&gt;&gt;<i> &gt; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at ...</A>
+</I>&gt;&gt;<i> &gt; <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i> &gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>Thank you, I now see rel is useless and element is just enough.
+</I>&gt;&gt;<i>But one point is; we will need Var indexes inevitable when the relations
+</I>&gt;&gt;<i>get nested.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>For example; A[i] = B [ C [A[j]] ]
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>1) obviously rel does not work.
+</I>&gt;&gt;<i>rel(this, A.get(i), IRT_EQ, B.get(C.get(A.get(j))))
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>2) I tried to introduce new Vars, but below did not work also.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>IntVar intermediate1= new IntVar(this,min,max);
+</I>&gt;&gt;<i>IntVar intermediate2= new IntVar(this,min, max);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>element(this, C, A.get(j), intermediate1);
+</I>&gt;&gt;<i>element(this, B, intermediate1, intermediate2);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>rel(this, A.get(i), IRT_EQ, intermediate2);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>3) Any way to write this constraint?
+</I>&gt;<i>
+</I>&gt;<i>The element constraint implements A[I]=V where A is a VarArray of
+</I>&gt;<i>integer variables and I and V are integer variables. If you want your
+</I>&gt;<i>index variable to be looked up in another variable array, then this is
+</I>&gt;<i>another element constraint. Thus something like 2 is the correct way
+</I>&gt;<i>to model your desired constraints.
+</I>&gt;<i>
+</I>&gt;<i>One thing to note is that you can skip intermediate2, and directly
+</I>&gt;<i>replace it with A.get(i). This gives the following code:
+</I>&gt;<i>
+</I>&gt;<i>  IntVar intermediate1= new IntVar(this,min,max);
+</I>&gt;<i>  element(this, C, A.get(j), intermediate1);
+</I>&gt;<i>  element(this, B, intermediate1, A.get(j));
+</I>&gt;<i>
+</I>&gt;<i>this implements B[C[A[i]]] = A[j]. The only direct reason I see that
+</I>&gt;<i>this would not work is if min and max are wrong. Safe, unconstraining
+</I>&gt;<i>bounds are min=0 and max=B.size().
+</I>&gt;<i>
+</I>&gt;<i>Cheers,
+</I>&gt;<i>Mikael
+</I>&gt;<i>
+</I>&gt;<i>--
+</I>&gt;<i>Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>
+_________________________________________________________________
+Yagmura yakalanmamak i&#231;in sadece semsiyenize degil, MSN hava durumuna
+g&#252;venin! <A HREF="http://www.msn.com.tr/havadurumu/">http://www.msn.com.tr/havadurumu/</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

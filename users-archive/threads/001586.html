@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Strange behavior of BAB search with the function	CONSTRAIN — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Strange behavior of BAB search with the function	CONSTRAIN | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2008</p><h1 data-pagefind-meta="title">Strange behavior of BAB search with the function	CONSTRAIN</h1></header>
+      <p class="archive-thread-summary">2 messages · April 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001586">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Raffaele Cipriano</h2></div>
+          <p><time>Fri Apr 18 09:08:35 CEST 2008</time><small>April 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear Gecode developers,
+we are using the BAB search with the function &quot;constrain&quot;, to implement
+a cutting-plane search algorithm, and we have noticed a strange behavior.
+
+At some point of the search we need to add a constrain on the Space we
+are exploring and we use the function
+
+void constrain( T* t )
+
+The constrain is correctly posted and some solutions are cut off, but
+when the BAB engine backtracks it looses the constrain added and finds
+solutions that should be cut off.
+
+We have isolated this behavior in a small example: the source code
+(MyTest.cc) and the execution output (log.log) are attached. Here it is
+a brief explanation:
+
+In the example there is only an IntVarArray x, of length 3 and domain 0..2.
+We perform a branch on x, looking for all the solution.
+When the fifth solution has been discovered we post the constrain x[1] = 1.
+The constrain is posted, in fact solution {0, 2, 0}, {0, 2, 1}, {0,2, 2}
+are not enumerated.
+But when the engine backtracks to the x[0] level, the constraint is lost
+and all the possible remaining solutions are found: according to the
+constrain posted, solution 7 to 9, 13 to 18 and 22 to 24 should be cut-off.
+
+Is this a normal behavior or a bug?
+
+Is there any alternative way to add constraints at run time?
+
+Thank you very much
+
+Best regards
+
+Raffaele Cipriano
+
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: myTest.cc
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/908d58be/attachment.txt">http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/908d58be/attachment.txt</A>&gt;
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: log.log
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/908d58be/attachment.asc">http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/908d58be/attachment.asc</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001587">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Apr 18 11:52:11 CEST 2008</time><small>April 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear Raffaele,
+
+this behaviour is due to a bug in your code, or rather, due to a
+misunderstanding how the constrain function works.
+
+Constrain must post a constraint that states that all solutions found
+from now on are &quot;better&quot; than the one we just discovered.  In your
+code, you only make sure that the 5th solution is better than the 4th
+(where better means that x[1]==1), but you say nothing about how the
+6th solution is related to the 5th!
+
+In your concrete example, suppose you go down the left branch of the
+search tree and find the 4th solution.  You backtrack one level, go to
+the right, post the constraint x[1]==1, and find another solution.  So
+now you increment your solution counter, and when you backtrack
+further, there are still &quot;open nodes&quot; in the search tree that need to
+be constrained.  But as you incremented the solution counter, the
+constrain function will not post the x[1]==1 constraint again.  So,
+for the 5th solution, constrain does not subsume the constraint you
+posted for the 4th solution.
+
+If you replace solutions_number == 4 by solutions_number &gt;= 4, the
+code will do what you intended.  Not sure this can easily be done in
+your original example, though.
+
+I hope this clarifies things a bit!
+
+Cheers,
+	Guido
+
+Raffaele Cipriano wrote:
+
+&gt;<i> Dear Gecode developers,
+</I>&gt;<i> we are using the BAB search with the function &quot;constrain&quot;, to
+</I>&gt;<i> implement a cutting-plane search algorithm, and we have noticed a
+</I>&gt;<i> strange behavior.
+</I>&gt;<i>
+</I>&gt;<i> At some point of the search we need to add a constrain on the Space
+</I>&gt;<i> we are exploring and we use the function
+</I>&gt;<i>
+</I>&gt;<i> void constrain( T* t )
+</I>&gt;<i>
+</I>&gt;<i> The constrain is correctly posted and some solutions are cut off,
+</I>&gt;<i> but when the BAB engine backtracks it looses the constrain added and
+</I>&gt;<i> finds solutions that should be cut off.
+</I>&gt;<i>
+</I>&gt;<i> We have isolated this behavior in a small example: the source code
+</I>&gt;<i> (MyTest.cc) and the execution output (log.log) are attached. Here it
+</I>&gt;<i> is a brief explanation:
+</I>&gt;<i>
+</I>&gt;<i> In the example there is only an IntVarArray x, of length 3 and
+</I>&gt;<i> domain 0..2.
+</I>&gt;<i> We perform a branch on x, looking for all the solution.
+</I>&gt;<i> When the fifth solution has been discovered we post the constrain
+</I>&gt;<i> x[1] = 1.
+</I>&gt;<i> The constrain is posted, in fact solution {0, 2, 0}, {0, 2, 1},
+</I>&gt;<i> {0,2, 2} are not enumerated.
+</I>&gt;<i> But when the engine backtracks to the x[0] level, the constraint is
+</I>&gt;<i> lost and all the possible remaining solutions are found: according
+</I>&gt;<i> to the constrain posted, solution 7 to 9, 13 to 18 and 22 to 24
+</I>&gt;<i> should be cut-off.
+</I>&gt;<i>
+</I>&gt;<i> Is this a normal behavior or a bug?
+</I>&gt;<i>
+</I>&gt;<i> Is there any alternative way to add constraints at run time?
+</I>&gt;<i>
+</I>&gt;<i> Thank you very much
+</I>&gt;<i>
+</I>&gt;<i> Best regards
+</I>&gt;<i>
+</I>&gt;<i> Raffaele Cipriano
+</I>&gt;<i>
+</I>&gt;<i> #include &quot;support.hh&quot;
+</I>&gt;<i> #include &quot;gecode/minimodel.hh&quot;
+</I>&gt;<i>
+</I>&gt;<i> int solutions_number;
+</I>&gt;<i>
+</I>&gt;<i> class MyTest : public Example {
+</I>&gt;<i>
+</I>&gt;<i> public:
+</I>&gt;<i> 	IntVarArray x;
+</I>&gt;<i>
+</I>&gt;<i> 	MyTest(const SizeOptions&amp; opt)
+</I>&gt;<i> 	: x(this,3,0,2) {
+</I>&gt;<i> 		branch(this, x, INT_VAR_NONE, INT_VAL_MIN);
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	/// Constructor for cloning \a s
+</I>&gt;<i> 	MyTest(bool share, MyTest&amp; s) : Example(share,s) {
+</I>&gt;<i> 		x.update(this, share, s.x);
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	/// Perform copying during cloning
+</I>&gt;<i> 	virtual Space*
+</I>&gt;<i> 		copy(bool share) {
+</I>&gt;<i> 	return new MyTest(share,*this);
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	void constrain(MyTest * solution) {
+</I>&gt;<i> 		if (solutions_number == 4) {
+</I>&gt;<i> 			std::cout &lt;&lt; &quot;put constraint x[1] = 1&quot; &lt;&lt; std::endl;
+</I>&gt;<i> 			rel(this,x[1],IRT_EQ,1,ICL_DEF,PK_DEF);
+</I>&gt;<i> 		}
+</I>&gt;<i> 		solutions_number++;
+</I>&gt;<i> 	}
+</I>&gt;<i>
+</I>&gt;<i> 	/// Print solution
+</I>&gt;<i> 	virtual void print(std::ostream&amp; os) {
+</I>&gt;<i> 		os &lt;&lt; &quot;solution &quot;&lt;&lt; solutions_number &lt;&lt; &quot;: &quot; &lt;&lt; x &lt;&lt; std::endl;
+</I>&gt;<i> 	}
+</I>&gt;<i> };
+</I>&gt;<i>
+</I>&gt;<i> /** \brief Main-function
+</I>&gt;<i> */
+</I>&gt;<i> int main(int argc, char* argv[]) {
+</I>&gt;<i> 	solutions_number = 0;
+</I>&gt;<i> 	SizeOptions opt(&quot;MyTest&quot;);
+</I>&gt;<i> 	opt.iterations(20);
+</I>&gt;<i> 	opt.solutions(0);
+</I>&gt;<i> 	opt.parse(argc,argv);
+</I>&gt;<i> 	Example::run&lt;MyTest,BAB,SizeOptions&gt;(opt);
+</I>&gt;<i> 	return 0;
+</I>&gt;<i> }
+</I>&gt;<i> MyTest
+</I>&gt;<i> solution 0: {0, 0, 0}
+</I>&gt;<i> solution 1: {0, 0, 1}
+</I>&gt;<i> solution 2: {0, 0, 2}
+</I>&gt;<i> solution 3: {0, 1, 0}
+</I>&gt;<i> solution 4: {0, 1, 1}
+</I>&gt;<i> put constraint x[1] = 1
+</I>&gt;<i> solution 5: {0, 1, 2}
+</I>&gt;<i> solution 7: {1, 0, 0}
+</I>&gt;<i> solution 8: {1, 0, 1}
+</I>&gt;<i> solution 9: {1, 0, 2}
+</I>&gt;<i> solution 10: {1, 1, 0}
+</I>&gt;<i> solution 11: {1, 1, 1}
+</I>&gt;<i> solution 12: {1, 1, 2}
+</I>&gt;<i> solution 13: {1, 2, 0}
+</I>&gt;<i> solution 14: {1, 2, 1}
+</I>&gt;<i> solution 15: {1, 2, 2}
+</I>&gt;<i> solution 16: {2, 0, 0}
+</I>&gt;<i> solution 17: {2, 0, 1}
+</I>&gt;<i> solution 18: {2, 0, 2}
+</I>&gt;<i> solution 19: {2, 1, 0}
+</I>&gt;<i> solution 20: {2, 1, 1}
+</I>&gt;<i> solution 21: {2, 1, 2}
+</I>&gt;<i> solution 22: {2, 2, 0}
+</I>&gt;<i> solution 23: {2, 2, 1}
+</I>&gt;<i> solution 24: {2, 2, 2}
+</I>&gt;<i>
+</I>&gt;<i> Initial
+</I>&gt;<i> 	propagators:   0
+</I>&gt;<i> 	branchings:    1
+</I>&gt;<i>
+</I>&gt;<i> Summary
+</I>&gt;<i> 	runtime:       0.010 (10.000000 ms)
+</I>&gt;<i> 	solutions:     24
+</I>&gt;<i> 	propagations:  0
+</I>&gt;<i> 	failures:      1
+</I>&gt;<i> 	clones:        48
+</I>&gt;<i> 	commits:       66
+</I>&gt;<i> 	peak memory:   14 KB
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/9208259a/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/9208259a/attachment.htm</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/9208259a/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20080418/9208259a/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

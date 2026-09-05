@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="getting all solutions + interrupting gecode — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>getting all solutions + interrupting gecode | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · December 2008</p><h1 data-pagefind-meta="title">getting all solutions + interrupting gecode</h1></header>
+      <p class="archive-thread-summary">4 messages · December 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002068">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Marco Correia</h2></div>
+          <p><time>Fri Dec 5 13:11:46 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>hi!
+
+Q1:
+
+I have a problem for which I want to get all solutions. I have departed from
+one of the examples, but now I'm subclassing from the object Space directly.
+I have the feeling I'm not doing things right:
+
+class MyProblem : public Space
+{ /* ... */}
+
+int
+main(int argc, char* argv[])
+{
+   MyProblem* t = new MyProblem(args);
+   d = new DFS&lt;MyProblem&gt;(t);
+   while (t != NULL)
+   {
+	//t = d-&gt;next();	// with only this, it does not seem to release memory
+	TestLinear* n = d-&gt;next();
+        delete t;	// hum....
+        t = n;
+   }
+   return 0;
+}
+
+Q2:
+
+I'm registering a signal before the 'new MyProblem' line, to make gecode quit
+when I press Ctrl+C and show me the search statistics:
+
+signal(SIGINT, atExit);
+
+In the function atExit I use the methods from t and d (which I make global
+variables) to get the statistics. The last line of this function is a system
+call to exit(0).
+
+It seems to work sometimes, but other times it just crashes on the exit(0).
+Obviously I'm forgeting something, so I guess the solution to this is simple.
+Otherwise I can provide more details.
+
+
+Thanks!
+Marco
+
+--
+Marco Correia &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">mvc at netcabo.pt</A>&gt;
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002069">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Dec 5 14:12:10 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+For the first question, one thing you must remember is to delete the
+original instance of the problem also. An easy way to write a loop
+that goes through all solutions is for example:
+    MyProblem *root = new MyProblem();
+    DFS&lt;MyProblem&gt; dfs(root);
+    delete root;
+    while (MyProblem *sol = dfs.next()) {
+      // do something...
+      delete sol;
+    }
+
+As for question 2, t is probably not a valid Space most of the time
+when you might call the signal handler (the code is between deletion
+of the Space and having a new solution computed). A cleaner interface
+would be to write your own stop-object that stops the search when some
+variable is set due to the signal handler having been called.
+
+Cheers,
+Mikael
+
+On Fri, Dec 5, 2008 at 1:11 PM, Marco Correia &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">marco.v.correia at gmail.com</A>&gt; wrote:
+&gt;<i> hi!
+</I>&gt;<i>
+</I>&gt;<i> Q1:
+</I>&gt;<i>
+</I>&gt;<i> I have a problem for which I want to get all solutions. I have departed from
+</I>&gt;<i> one of the examples, but now I'm subclassing from the object Space directly.
+</I>&gt;<i> I have the feeling I'm not doing things right:
+</I>&gt;<i>
+</I>&gt;<i> class MyProblem : public Space
+</I>&gt;<i> { /* ... */}
+</I>&gt;<i>
+</I>&gt;<i> int
+</I>&gt;<i> main(int argc, char* argv[])
+</I>&gt;<i> {
+</I>&gt;<i>   MyProblem* t = new MyProblem(args);
+</I>&gt;<i>   d = new DFS&lt;MyProblem&gt;(t);
+</I>&gt;<i>   while (t != NULL)
+</I>&gt;<i>   {
+</I>&gt;<i>        //t = d-&gt;next();        // with only this, it does not seem to release memory
+</I>&gt;<i>        TestLinear* n = d-&gt;next();
+</I>&gt;<i>        delete t;       // hum....
+</I>&gt;<i>        t = n;
+</I>&gt;<i>   }
+</I>&gt;<i>   return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Q2:
+</I>&gt;<i>
+</I>&gt;<i> I'm registering a signal before the 'new MyProblem' line, to make gecode quit
+</I>&gt;<i> when I press Ctrl+C and show me the search statistics:
+</I>&gt;<i>
+</I>&gt;<i> signal(SIGINT, atExit);
+</I>&gt;<i>
+</I>&gt;<i> In the function atExit I use the methods from t and d (which I make global
+</I>&gt;<i> variables) to get the statistics. The last line of this function is a system
+</I>&gt;<i> call to exit(0).
+</I>&gt;<i>
+</I>&gt;<i> It seems to work sometimes, but other times it just crashes on the exit(0).
+</I>&gt;<i> Obviously I'm forgeting something, so I guess the solution to this is simple.
+</I>&gt;<i> Otherwise I can provide more details.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thanks!
+</I>&gt;<i> Marco
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Marco Correia &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">mvc at netcabo.pt</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002070">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Fri Dec 5 14:44:27 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+&gt;<i> For the first question, one thing you must remember is to delete the
+</I>&gt;<i> original instance of the problem also. An easy way to write a loop
+</I>&gt;<i> that goes through all solutions is for example:
+</I>&gt;<i>     MyProblem *root = new MyProblem();
+</I>&gt;<i>     DFS&lt;MyProblem&gt; dfs(root);
+</I>&gt;<i>     delete root;
+</I>&gt;<i>     while (MyProblem *sol = dfs.next()) {
+</I>&gt;<i>       // do something...
+</I>&gt;<i>       delete sol;
+</I>&gt;<i>     }
+</I>
+Just a technical note - this is quite error-prone, because throwing
+exception or returning in &quot;do something...&quot; results in memory leaks.
+
+A better way of doing this would be using auto_ptr (or shared_ptr), like
+this:
+
+typedef auto_ptr&lt;MyProblem&gt; APMyProblem;
+APMyProblem root(new MyProblem());
+DFS&lt;MyProblem&gt; dfs(root.get());
+root.reset();
+while(true) {
+   APMyProblem sol(dfs.next());
+   if ( !sol.get() )
+     break;
+   MyProblem&amp; solution=*sol;
+   // do something...
+}
+
+Cheers,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002071">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Dec 5 15:21:44 CET 2008</time><small>December 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Fri, Dec 5, 2008 at 2:44 PM, Filip Konvi&#269;ka &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>&gt; wrote:
+&gt;<i> Just a technical note - this is quite error-prone, because throwing
+</I>&gt;<i> exception or returning in &quot;do something...&quot; results in memory leaks.
+</I>
+Yes, using some auto_ptr-version is of course much better. My example
+was only meant for the case where the loop is in the main-function, as
+was the case in the OP. Thanks for the improved code.
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Efficiently excluding a set of values from the domains of multiple IntVars — 8 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Efficiently excluding a set of values from the domains of multiple IntVars | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>8 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2011</p><h1 data-pagefind-meta="title">Efficiently excluding a set of values from the domains of multiple IntVars</h1></header>
+      <p class="archive-thread-summary">8 messages · November 2011</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003478">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Kish Shen</h2></div>
+          <p><time>Mon Nov 7 20:55:57 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+A user who is testing the ECLiPSe Gecode Interface reports an issue he
+is having with trying to convert his application from using ECLiPSe's
+native solver:
+
+He needs to exclude the same set of values from the domains of a set of
+variables. With ECLiPSe's native ic solver, he is doing this with a
+primitive which exclude one value from one variable, so he has an outer
+loop that loops through the variables, and then for each variable, each
+value is excluded:
+
+foreach(V, Vars) do
+     foreach(Val, Values) do exclude(Val, V)
+
+where exclude removes Val from variable V's domain.
+
+When this code was used in the Gecode interface, the execution time was
+about 15 times slower than when running with ic.
+
+In the Gecode interface, the exclude is implemented using a reified
+dom() constraint, i.e. something like:
+
+    dom(home, V, Val, 0)
+
+Part of the reason for this difference is the removal of one element at
+a time. In ic, interer domains are represented as bitmaps, so removing
+one value at a time is quite efficient, it is simply a bit operation.
+I assume this is not the case with Gecode?
+
+As a way to exclude all the values at the same time, he used reified dom
+constraint directly, i.e. something like:
+
+     dom(V, Values, 0);
+
+this is faster, but is still 5 times slower than the original code in
+ic, and about 20% slower than the equivalent ic code (i.e. also using
+reified domain constraint).
+
+Some of the remaining difference is probably caused by the overheads the
+Gecode interface needs for allowing recomputation/cloning -- posting of
+constraints need to be remembered so that they can be recomputed if
+needed. So it should be much more efficient if the set of values can be
+excluded from all the variables at once, i.e. something like:
+
+    dom(Vars, Values, 0)
+
+however, the refieid domain constraint supports only IntVar, and not
+IntVarArgs (unlike the non-reified versions of the constraint).
+
+ECLiPSe also does not support reified domain constraint on multiple
+variables (nor the exclusion of a single value from multiple variables,
+which is why my user has a loop through the variables). Is there any
+strong reason for this restriction, or is it because it is unlikely that
+you want to reify the domain of a set of variables in the same way?
+
+Is there a more efficient/direct way in Gecode of excluding one value or
+a set of values from the domain of one (or multiple) variables? I am
+using reified domain constraint because I could not find any more direct
+way of doing this?
+
+Thanks and cheers,
+
+Kish
+
+
+
+
+--
+This e-mail may contain confidential and privileged material for the
+sole use of the intended recipient. Any review, use, distribution or
+disclosure by others is strictly prohibited. If you are not the intended
+recipient (or authorized to receive for the recipient), please contact
+the sender by reply e-mail and delete all copies of this message.
+Cisco Systems Limited (Company Number: 02558939), is registered in
+England and Wales with its registered office at 1 Callaghan Square,
+Cardiff, South Glamorgan CF10 5BT.
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003479">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Nov 8 10:15:48 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+I think the main difference will be the domain representation.  Gecode's list-of-ranges representation is inherently less efficient for this type of operation than a bitset.  The best option is of course to create the variables with the right domain in the first place.
+
+There was a small bug in the reified dom constraints in Gecode, which didn't update the domain immediately if the control variable was assigned, but posted propagators instead.  This was easy to fix (it's in the svn trunk now), but in my experiments only accounts for at most 25% overhead (tested with 50000 variables, domain 1..50000, and excluding a random set of 1000 integers from the domains).
+
+I don't think a reified dom for IntVarArgs would be very useful.  If you think it's useful for the eclipse interface, you could simply add that constraint to the native part of the interface (it wouldn't make the execution more efficient, but you'd only have to store one constraint for the backtracking).
+
+Cheers,
+Guido
+
+On 7 Nov 2011, at 20:55, Kish Shen wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> A user who is testing the ECLiPSe Gecode Interface reports an issue he is having with trying to convert his application from using ECLiPSe's native solver:
+</I>&gt;<i>
+</I>&gt;<i> He needs to exclude the same set of values from the domains of a set of variables. With ECLiPSe's native ic solver, he is doing this with a primitive which exclude one value from one variable, so he has an outer loop that loops through the variables, and then for each variable, each value is excluded:
+</I>&gt;<i>
+</I>&gt;<i> foreach(V, Vars) do
+</I>&gt;<i>    foreach(Val, Values) do exclude(Val, V)
+</I>&gt;<i>
+</I>&gt;<i> where exclude removes Val from variable V's domain.
+</I>&gt;<i>
+</I>&gt;<i> When this code was used in the Gecode interface, the execution time was about 15 times slower than when running with ic.
+</I>&gt;<i>
+</I>&gt;<i> In the Gecode interface, the exclude is implemented using a reified dom() constraint, i.e. something like:
+</I>&gt;<i>
+</I>&gt;<i>   dom(home, V, Val, 0)
+</I>&gt;<i>
+</I>&gt;<i> Part of the reason for this difference is the removal of one element at a time. In ic, interer domains are represented as bitmaps, so removing one value at a time is quite efficient, it is simply a bit operation.
+</I>&gt;<i> I assume this is not the case with Gecode?
+</I>&gt;<i>
+</I>&gt;<i> As a way to exclude all the values at the same time, he used reified dom constraint directly, i.e. something like:
+</I>&gt;<i>
+</I>&gt;<i>    dom(V, Values, 0);
+</I>&gt;<i>
+</I>&gt;<i> this is faster, but is still 5 times slower than the original code in ic, and about 20% slower than the equivalent ic code (i.e. also using reified domain constraint).
+</I>&gt;<i>
+</I>&gt;<i> Some of the remaining difference is probably caused by the overheads the Gecode interface needs for allowing recomputation/cloning -- posting of constraints need to be remembered so that they can be recomputed if needed. So it should be much more efficient if the set of values can be excluded from all the variables at once, i.e. something like:
+</I>&gt;<i>
+</I>&gt;<i>   dom(Vars, Values, 0)
+</I>&gt;<i>
+</I>&gt;<i> however, the refieid domain constraint supports only IntVar, and not IntVarArgs (unlike the non-reified versions of the constraint).
+</I>&gt;<i>
+</I>&gt;<i> ECLiPSe also does not support reified domain constraint on multiple variables (nor the exclusion of a single value from multiple variables, which is why my user has a loop through the variables). Is there any strong reason for this restriction, or is it because it is unlikely that you want to reify the domain of a set of variables in the same way?
+</I>&gt;<i>
+</I>&gt;<i> Is there a more efficient/direct way in Gecode of excluding one value or a set of values from the domain of one (or multiple) variables? I am using reified domain constraint because I could not find any more direct way of doing this?
+</I>&gt;<i>
+</I>&gt;<i> Thanks and cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> This e-mail may contain confidential and privileged material for the
+</I>&gt;<i> sole use of the intended recipient. Any review, use, distribution or
+</I>&gt;<i> disclosure by others is strictly prohibited. If you are not the intended
+</I>&gt;<i> recipient (or authorized to receive for the recipient), please contact
+</I>&gt;<i> the sender by reply e-mail and delete all copies of this message.
+</I>&gt;<i> Cisco Systems Limited (Company Number: 02558939), is registered in
+</I>&gt;<i> England and Wales with its registered office at 1 Callaghan Square,
+</I>&gt;<i> Cardiff, South Glamorgan CF10 5BT.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003480">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Milton Friedman</h2></div>
+          <p><time>Fri Nov 18 02:28:03 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+I've been learning and coding in Gecode for the past few weeks.  I read and re-read the modeling parts of MPG, and checked the online docs for syntax.I've tried recasting my application several times and each time I get blocked by syntax I'd expect to exist that doesn't.I hardly ever seem to have a reification-suitable situation, and when I do, it's with a function that doesn't support reification.I'm used to languages that let you put data in arrays and then index into the arrays to solve problems.  The Gecode examples seem to have variable arrays, and constant integer indices into them, based on a fixed problem structures, like Sudoku etc., but in my case the application structure that's constant is the array, and the parts of it that I need to index into are determined by the finite-domain variables.
+Below is an example.  I'm trying to use an IntVarArgs to index into a vector of constants (in this case booleans).I can't figure out how to get Gecode to index directly into the C++ vector, so I create a BoolVarArgs vector and copy the constants into it...seems wasteful but ok.Then I do the indexing into a vector of constants, with a single number (1-item domain), and it tells me the binary result is [0..1] -- not especially enlightening news about a binary.So I must be missing something obvious about how to index in Gecode.  Any thoughts?Any help or guidance would be appreciated.Thanks,-Milt
+	//notCD is a C++ boolean vector: knows nothing about Gecode        bool * notCD        notCD = new bool [VecLength];        for (int i = 0; i&lt;VecLength; i++) {                notCD[i] = abs(some2D_integer_array[i][2])==1;          }                      //Create nCD: BoolVarArgs vector of notCD       //only creating nCD because I can't get Gecode to let me work directly with notCD        BoolVarArgs nCD(VecLength);        for(int i=0; i&lt;VecLength; i++){ //expected to write nCD[i]=notCD[i]; or maybe nCD[i]=expr(*this,notCD[i]); or nCD[i]=expr(*this,element(notCD,i));                                        // but none of these forms compiled                if (notCD[i]){                        nCD[i]=T;                }                else {                        nCD[i]=F;                }        }        //I'm really just trying to index with an item of an IntVarArgs vector into a C++ boolean vector        IntVar da;        for(int i=0; i&lt;3; i++){                da = p[iterm+i];        //p is an IntVarArgs with all terms assigned, and p[iTerm+0] is 192                ds[i] = expr(*this,element(nCD,da),ICL_DOM);                cout&lt;&lt;&quot;da: &quot;&lt;&lt;da&lt;&lt;&quot;, ds[&quot;&lt;&lt;i&lt;&lt;&quot;]: &quot;&lt;&lt;ds[i]&lt;&lt;&quot;, nCD[192]: &quot;&lt;&lt;nCD[192]&lt;&lt;&quot;  &quot;;        }        //-------------------        //so unfortunately the output is:        //da: 192, ds[0]: [0..1], nCD[192]: 1        //        //why isn't the output:        //da: 192, ds[0]: 1, nCD[192]: 1        //why is there indecision about ds[0]?...how do I get Gecode to understand that ds[0] must be 1?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20111117/0b719d94/attachment.html">http://www.gecode.org/pipermail/users/attachments/20111117/0b719d94/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003481">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Nov 18 08:23:14 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Milt,
+
+just posting a constraint does not mean it is &quot;executed&quot;.  Running search for your problem (or, in fact, just calling status() on the space you post the constraints in) should determine that ds[0]=1.  See Tip 2.2 &quot;Propagation is explicit&quot; in Modeling and Programing with Gecode.
+
+Cheers,
+Guido
+
+On 18 Nov 2011, at 02:28, Milton Friedman wrote:
+
+&gt;<i> I've been learning and coding in Gecode for the past few weeks.  I read and re-read the modeling parts of MPG, and checked the online docs for syntax.
+</I>&gt;<i>
+</I>&gt;<i> I've tried recasting my application several times and each time I get blocked by syntax I'd expect to exist that doesn't.
+</I>&gt;<i>
+</I>&gt;<i> I hardly ever seem to have a reification-suitable situation, and when I do, it's with a function that doesn't support reification.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I'm used to languages that let you put data in arrays and then index into the arrays to solve problems.  The Gecode examples seem to have variable arrays, and constant integer indices into them, based on a fixed problem structures, like Sudoku etc., but in my case the application structure that's constant is the array, and the parts of it that I need to index into are determined by the finite-domain variables.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Below is an example.  I'm trying to use an IntVarArgs to index into a vector of constants (in this case booleans).
+</I>&gt;<i>
+</I>&gt;<i> I can't figure out how to get Gecode to index directly into the C++ vector, so I create a BoolVarArgs vector and copy the constants into it...seems wasteful but ok.
+</I>&gt;<i>
+</I>&gt;<i> Then I do the indexing into a vector of constants, with a single number (1-item domain), and it tells me the binary result is [0..1] -- not especially enlightening news about a binary.
+</I>&gt;<i>
+</I>&gt;<i> So I must be missing something obvious about how to index in Gecode.  Any thoughts?
+</I>&gt;<i>
+</I>&gt;<i> Any help or guidance would be appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i>
+</I>&gt;<i> -Milt
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> 	//notCD is a C++ boolean vector: knows nothing about Gecode
+</I>&gt;<i>
+</I>&gt;<i>         bool * notCD
+</I>&gt;<i>
+</I>&gt;<i>         notCD = new bool [VecLength];
+</I>&gt;<i>
+</I>&gt;<i>         for (int i = 0; i&lt;VecLength; i++) {
+</I>&gt;<i>
+</I>&gt;<i>                 notCD[i] = abs(some2D_integer_array[i][2])==1;
+</I>&gt;<i>
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         //Create nCD: BoolVarArgs vector of notCD       //only creating nCD because I can't get Gecode to let me work directly with notCD
+</I>&gt;<i>
+</I>&gt;<i>         BoolVarArgs nCD(VecLength);
+</I>&gt;<i>
+</I>&gt;<i>         for(int i=0; i&lt;VecLength; i++){ //expected to write nCD[i]=notCD[i]; or maybe nCD[i]=expr(*this,notCD[i]); or nCD[i]=expr(*this,element(notCD,i));
+</I>&gt;<i>
+</I>&gt;<i>                                         // but none of these forms compiled
+</I>&gt;<i>
+</I>&gt;<i>                 if (notCD[i]){
+</I>&gt;<i>
+</I>&gt;<i>                         nCD[i]=T;
+</I>&gt;<i>
+</I>&gt;<i>                 }
+</I>&gt;<i>
+</I>&gt;<i>                 else {
+</I>&gt;<i>
+</I>&gt;<i>                         nCD[i]=F;
+</I>&gt;<i>
+</I>&gt;<i>                 }
+</I>&gt;<i>
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         //I'm really just trying to index with an item of an IntVarArgs vector into a C++ boolean vector
+</I>&gt;<i>
+</I>&gt;<i>         IntVar da;
+</I>&gt;<i>
+</I>&gt;<i>         for(int i=0; i&lt;3; i++){
+</I>&gt;<i>
+</I>&gt;<i>                 da = p[iterm+i];        //p is an IntVarArgs with all terms assigned, and p[iTerm+0] is 192
+</I>&gt;<i>
+</I>&gt;<i>                 ds[i] = expr(*this,element(nCD,da),ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i>                 cout&lt;&lt;&quot;da: &quot;&lt;&lt;da&lt;&lt;&quot;, ds[&quot;&lt;&lt;i&lt;&lt;&quot;]: &quot;&lt;&lt;ds[i]&lt;&lt;&quot;, nCD[192]: &quot;&lt;&lt;nCD[192]&lt;&lt;&quot;  &quot;;
+</I>&gt;<i>
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         //-------------------
+</I>&gt;<i>
+</I>&gt;<i>         //so unfortunately the output is:
+</I>&gt;<i>
+</I>&gt;<i>         //da: 192, ds[0]: [0..1], nCD[192]: 1
+</I>&gt;<i>
+</I>&gt;<i>         //
+</I>&gt;<i>
+</I>&gt;<i>         //why isn't the output:
+</I>&gt;<i>
+</I>&gt;<i>         //da: 192, ds[0]: 1, nCD[192]: 1
+</I>&gt;<i>
+</I>&gt;<i>         //why is there indecision about ds[0]?...how do I get Gecode to understand that ds[0] must be 1?
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20111118/3bb75249/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20111118/3bb75249/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003487">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Milt</h2></div>
+          <p><time>Sun Nov 20 19:42:40 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido,
+Thanks for your quick reply!  I'd certainly missed that point about status()
+...got it.
+But I think I still must be missing something, because I'm getting behavior I
+don't quite understand.
+So I distilled my code down to the simple example below that behaves as
+follows.
+  -When I run the code below, I get these results (the rel(!A[0]) fails the
+space):
+      A[0]=1, B0=0, C=0
+      A[1]=[0..1], B1=193, C=0
+  -I'd have expected A[1] to be equal to 0.
+  -But when I change the assignment of B0 from
+      expr(*this,0) to
+      expr(*this,192),
+   I get what I'd expect as results (the rel(!A[0]) doesn't fail the space):
+      A[0]=0, B0=192, C=0
+      A[1]=0, B1=193, C=0
+Is this what's meant in MPG section 4.1.7, that after a space fails, the domain
+may have more content than expected?
+
+Question: If so, then when the space fails during the relation !A[0], why does
+Gecode keep running my code to define A[1], do the status, and the couts?
+(I'd have expected Gecode to recognize that the space failed, abandon the
+failed space ASAP, and hurry to try another branching variable or value.)
+
+Also, my approach to debugging the constraint posting within my model is to use
+compiler directives (#if, #else, #endif) to maintain 2 paths thru my code:
+
+1 - one that is normal, branching and exploring as intended, for example on an
+IntVarArray &quot;list&quot;, which my code uses to compose constraints to post, and
+
+2 - one that is for debugging a single test case at a time, so it branches and
+updates a different variable array &quot;list_other&quot;, which my code ignores, and
+defines an IntVarArgs &quot;list&quot;, and defines its items specifically to be a test
+case I'm debugging.  So my code, which is written to examine &quot;list&quot;, now
+focuses exclusively on the test case.  This lets me avoid the confusion of the
+entire design space, and see just how the test case is being treated. (e.g., why
+it isn't being filtered out by the constraint I'd expect to catch it, or failing
+good cases.)
+
+Question: But, if Gecode shows extra items once it fails, as in the example
+below, how can I tell when the space has failed, to know whether my code is
+faulty in not narrowing down a domain, or whether some constraint has failed
+for the test case and I'm getting the after-fail behavior? (and if so, is there
+any simple way to detect which constraint detected the failed space, i.e., the
+straw that broke the camel's back; or does order of constraint posting
+matter?)
+
+Question: Is this a reasonable debugging strategy for the constraint posting
+(I'm not dealing with the search issues yet), or do people typically use other
+better techniques?  (not sure where I'd look for Gecode debugging
+techniques...saw your interaction w/Roberto Pinto in 2006, but I'm looking for
+more of a targetable data dump of the data structures than an interactive Gist
+like exploration of the design-space search order -- Gist is great, but not what
+I think I need for this purpose.)
+
+Thanks for your help,
+-Milt
+---------------
+class Trim : public Space {
+protected:
+public:
+        IntVarArray IVA;
+        // Constructor for script
+        Trim()
+          :
+                IVA(*this, 1, 0, 3)
+                {
+                IntVar B0 = expr(*this,0);
+                IntVar B1 = expr(*this,193);
+                int C = 0;
+                BoolVarArgs A(2);
+                //Post constraints
+                A[0] = expr(*this,B0==C,ICL_DOM);
+                rel(*this,!A[0],ICL_DOM);
+                A[1] = expr(*this,B1==C,ICL_DOM);
+                status();
+                cout&lt;&lt;&quot;A[0]=&quot;&lt;&lt;A[0]&lt;&lt;&quot;, B0=&quot;&lt;&lt;B0&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                cout&lt;&lt;&quot;A[1]=&quot;&lt;&lt;A[1]&lt;&lt;&quot;, B1=&quot;&lt;&lt;B1&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                // post branching
+                branch(*this, IVA, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+        }
+        // search support: Constructor for cloning
+        Trim(bool share, Trim&amp; s) : Space(share, s) {
+                IVA.update(*this, share, s.IVA);
+        }
+        // perform copying during cloning
+        virtual Space* copy(bool share) {
+                return new
+                Trim(share,*this);
+        }
+};
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003488">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Nov 21 14:45:46 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Yes, you are absolutely correct in your analysis: failing a space does not
+stop execution of a space's method (or with other words, does not throw a
+C++ exception or something like that). The reason for that is that it does
+not matter! The code defining the variables, constraints, and propagators is
+executed just once initially in order to create the space for the root node
+of the search tree. This is cheap. What takes time is doing constraint
+propagation (triggered by status()) and this is terminated immediately when
+failure occurs.
+
+Maybe MPG should explain this at some point.
+
+I am not sure I understand your second point. After running status() you
+should always check whether a space is failed (status() returns that
+information). So, when testing why not run status() everytime to make sure
+that things are not yet failed?
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Milt
+Sent: Sunday, November 20, 2011 7:43 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Indexing into arrays
+
+Guido,
+Thanks for your quick reply!  I'd certainly missed that point about status()
+...got it.
+But I think I still must be missing something, because I'm getting behavior
+I don't quite understand.
+So I distilled my code down to the simple example below that behaves as
+follows.
+  -When I run the code below, I get these results (the rel(!A[0]) fails the
+space):
+      A[0]=1, B0=0, C=0
+      A[1]=[0..1], B1=193, C=0
+  -I'd have expected A[1] to be equal to 0.
+  -But when I change the assignment of B0 from
+      expr(*this,0) to
+      expr(*this,192),
+   I get what I'd expect as results (the rel(!A[0]) doesn't fail the space):
+      A[0]=0, B0=192, C=0
+      A[1]=0, B1=193, C=0
+Is this what's meant in MPG section 4.1.7, that after a space fails, the
+domain may have more content than expected?
+
+Question: If so, then when the space fails during the relation !A[0], why
+does Gecode keep running my code to define A[1], do the status, and the
+couts?
+(I'd have expected Gecode to recognize that the space failed, abandon the
+failed space ASAP, and hurry to try another branching variable or value.)
+
+Also, my approach to debugging the constraint posting within my model is to
+use compiler directives (#if, #else, #endif) to maintain 2 paths thru my
+code:
+
+1 - one that is normal, branching and exploring as intended, for example on
+an IntVarArray &quot;list&quot;, which my code uses to compose constraints to post,
+and
+
+2 - one that is for debugging a single test case at a time, so it branches
+and updates a different variable array &quot;list_other&quot;, which my code ignores,
+and defines an IntVarArgs &quot;list&quot;, and defines its items specifically to be a
+test case I'm debugging.  So my code, which is written to examine &quot;list&quot;,
+now focuses exclusively on the test case.  This lets me avoid the confusion
+of the entire design space, and see just how the test case is being treated.
+(e.g., why it isn't being filtered out by the constraint I'd expect to catch
+it, or failing good cases.)
+
+Question: But, if Gecode shows extra items once it fails, as in the example
+below, how can I tell when the space has failed, to know whether my code is
+faulty in not narrowing down a domain, or whether some constraint has failed
+for the test case and I'm getting the after-fail behavior? (and if so, is
+there any simple way to detect which constraint detected the failed space,
+i.e., the straw that broke the camel's back; or does order of constraint
+posting
+matter?)
+
+Question: Is this a reasonable debugging strategy for the constraint posting
+(I'm not dealing with the search issues yet), or do people typically use
+other better techniques?  (not sure where I'd look for Gecode debugging
+techniques...saw your interaction w/Roberto Pinto in 2006, but I'm looking
+for more of a targetable data dump of the data structures than an
+interactive Gist like exploration of the design-space search order -- Gist
+is great, but not what I think I need for this purpose.)
+
+Thanks for your help,
+-Milt
+---------------
+class Trim : public Space {
+protected:
+public:
+        IntVarArray IVA;
+        // Constructor for script
+        Trim()
+          :
+                IVA(*this, 1, 0, 3)
+                {
+                IntVar B0 = expr(*this,0);
+                IntVar B1 = expr(*this,193);
+                int C = 0;
+                BoolVarArgs A(2);
+                //Post constraints
+                A[0] = expr(*this,B0==C,ICL_DOM);
+                rel(*this,!A[0],ICL_DOM);
+                A[1] = expr(*this,B1==C,ICL_DOM);
+                status();
+                cout&lt;&lt;&quot;A[0]=&quot;&lt;&lt;A[0]&lt;&lt;&quot;, B0=&quot;&lt;&lt;B0&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                cout&lt;&lt;&quot;A[1]=&quot;&lt;&lt;A[1]&lt;&lt;&quot;, B1=&quot;&lt;&lt;B1&lt;&lt;&quot;, C=&quot;&lt;&lt;C&lt;&lt;endl;
+                // post branching
+                branch(*this, IVA, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+        }
+        // search support: Constructor for cloning
+        Trim(bool share, Trim&amp; s) : Space(share, s) {
+                IVA.update(*this, share, s.IVA);
+        }
+        // perform copying during cloning
+        virtual Space* copy(bool share) {
+                return new
+                Trim(share,*this);
+        }
+};
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003489">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Milt</h2></div>
+          <p><time>Mon Nov 21 16:10:34 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks Christian,
+
+&gt;<i> ...failing a space does not
+</I>&gt;<i> stop execution of a space's method (or with other words, does not throw a
+</I>&gt;<i> C++ exception or something like that). The reason for that is that it does
+</I>&gt;<i> not matter! The code defining the variables, constraints, and propagators is
+</I>&gt;<i> executed just once initially in order to create the space for the root node
+</I>&gt;<i> of the search tree. This is cheap. What takes time is doing constraint
+</I>&gt;<i> propagation (triggered by status()) and this is terminated immediately when
+</I>&gt;<i> failure occurs.
+</I>
+Good...so Gecode is right to keep going after failing the root node because it
+has to finish setting up the model infrastructure once (to post all of the
+constraints), but it's very efficient beyond the root node.  I'll read further
+in the branch and search sections of MPG to better understand how and in what
+order everything executes...that seems to be where I'm fuzziest right now.
+
+&gt;<i> I am not sure I understand your second point. After running status() you
+</I>&gt;<i> should always check whether a space is failed (status() returns that
+</I>&gt;<i> information). So, when testing why not run status() everytime to make sure
+</I>&gt;<i> that things are not yet failed?
+</I>
+Ok, so I can check for the result from status() e.g., SS_FAILED, rather than
+just running status() to force propagation. I just read some more of MPG
+chapter 20 and see there's also ES_FAILED which can be used to determine which
+propagator failed.
+
+I'll give that a shot.
+Thanks for your help!
+-Milt
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003490">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Nov 21 16:27:29 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Uuups, the ES_FAILED is a different beast all together! This is what a
+propagator will return to the kernel to signal failure but finding out which
+propagator returned it will require hacking the kernel. Frankly, that will
+require some stamina ;-)
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Milt
+Sent: Monday, November 21, 2011 4:11 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Indexing into arrays
+
+Thanks Christian,
+
+&gt;<i> ...failing a space does not
+</I>&gt;<i> stop execution of a space's method (or with other words, does not
+</I>&gt;<i> throw a
+</I>&gt;<i> C++ exception or something like that). The reason for that is that it
+</I>&gt;<i> C++ does
+</I>&gt;<i> not matter! The code defining the variables, constraints, and
+</I>&gt;<i> propagators is executed just once initially in order to create the
+</I>&gt;<i> space for the root node of the search tree. This is cheap. What takes
+</I>&gt;<i> time is doing constraint propagation (triggered by status()) and this
+</I>&gt;<i> is terminated immediately when failure occurs.
+</I>
+Good...so Gecode is right to keep going after failing the root node because
+it has to finish setting up the model infrastructure once (to post all of
+the constraints), but it's very efficient beyond the root node.  I'll read
+further in the branch and search sections of MPG to better understand how
+and in what order everything executes...that seems to be where I'm fuzziest
+right now.
+
+&gt;<i> I am not sure I understand your second point. After running status()
+</I>&gt;<i> you should always check whether a space is failed (status() returns
+</I>&gt;<i> that information). So, when testing why not run status() everytime to
+</I>&gt;<i> make sure that things are not yet failed?
+</I>
+Ok, so I can check for the result from status() e.g., SS_FAILED, rather than
+just running status() to force propagation. I just read some more of MPG
+chapter 20 and see there's also ES_FAILED which can be used to determine
+which propagator failed.
+
+I'll give that a shot.
+Thanks for your help!
+-Milt
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

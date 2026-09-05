@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="reified linear sum of booleans — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>reified linear sum of booleans | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · July 2008–August 2008</p><h1 data-pagefind-meta="title">reified linear sum of booleans</h1></header>
+      <p class="archive-thread-summary">5 messages · July 2008–August 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001752">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Tias Guns</h2></div>
+          <p><time>Mon Jul 28 18:08:06 CEST 2008</time><small>July 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Greetings,
+
+I'm using a model in which I rely heavily on reified linear sums of
+booleans. Unfortunately the existing boolean reified linear sum
+implementatiom is horribly slow for this ! To overcome this, I'm currently
+channeling all boolean variables to integers, and posting the reified
+linear sum over the integers. This gives incredibly faster runtimes.
+
+The first batch of constraints are regular reified linear sums, they are
+constructed by reading a binary matrix and creating an IntArgs 'row' which
+contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+decision variables, each representing one column. Doing so selects the
+desired subset of those variables after which they are constrained and
+reified to the variable representing that row:
+for (int r = 0; r!=nr_r;r++ ) {
+   // make row
+   for (int c = 0; c!=nr_c;c++ ) {
+     row[c] = (1-tdb[r][c]); // complement
+   }
+   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+}
+here, the col_vars is an IntVarArgs that is channeled to corresponding
+BoolVars.
+
+The second batch of constraints are imply-reified linear sums, having one
+sided reification. Because one-sided reification is not implemented in
+gecode directly, an extra auxiliary variable and constraint is used to
+manage it:
+for (int c = 0; c!=nr_c;c++ ) {
+   // make col
+   for (int r = 0; r!=nr_r;r++ ) {
+     col[r] = tdb[r][c];
+   }
+   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation, reformulation
+is) col_aux[c] =&lt; col_varsBool[c]
+   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+}
+similarly as above, row_vars is an IntVarArgs channeled to corresponding
+BoolVars.
+
+
+This model works very well but still, I'm wondering if there would be a
+better or cleaner way to model this, and if there are any plans to improve
+the reified linear sum of boolean constraints.
+
+
+Kind regards,
+Tias
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001753">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Jul 29 08:59:26 CEST 2008</time><small>July 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Tias,
+
+Tias Guns wrote:
+
+&gt;<i> Greetings,
+</I>&gt;<i>
+</I>&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm
+</I>&gt;<i> currently
+</I>&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>
+The reified Boolean sums are currently not implemented by special
+propagators but using a decomposition that is not very efficient.
+
+&gt;<i> The first batch of constraints are regular reified linear sums, they
+</I>&gt;<i> are
+</I>&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'
+</I>&gt;<i> which
+</I>&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;<i> reified to the variable representing that row:
+</I>&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>   // make row
+</I>&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;<i> BoolVars.
+</I>
+You may want to use Boolean disjunction here, although you'll have to
+use another temporary Boolean variable.  Something like this:
+
+for (int r = 0; r != nr_r; r++) {
+   BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+   for (int i = 0, int c = 0; c != nr_c; c++) {
+     if (tdb[r][c])
+	col[i++] = col_varsBool[c];
+   }
+   BoolVar tmp(this, 0, 1);
+   rel(this, BOT_OR, col, tmp);
+   rel(this, tmp, IRT_NQ, row_varsBool[r]);
+}
+
+I'm not sure whether this is going to be more efficient, but the
+specialized Boolean propagators should be better.
+
+&gt;<i> The second batch of constraints are imply-reified linear sums,
+</I>&gt;<i> having one
+</I>&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;<i> manage it:
+</I>&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>   // make col
+</I>&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,
+</I>&gt;<i> reformulation
+</I>&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;<i> }
+</I>&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to
+</I>&gt;<i> corresponding
+</I>&gt;<i> BoolVars.
+</I>
+As suggested above, you could post the first linear constraint using
+just the row_vars for which col[r] is 1, but in this case it probably
+isn't more efficient (since the linear will immediately throw away all
+the variables with 0 coefficients anyway).
+
+&gt;<i> This model works very well but still, I'm wondering if there would
+</I>&gt;<i> be a
+</I>&gt;<i> better or cleaner way to model this, and if there are any plans to
+</I>&gt;<i> improve
+</I>&gt;<i> the reified linear sum of boolean constraints.
+</I>
+Yes, the reified linear Boolean sum is going to be reimplemented, but
+not for the (upcoming) 2.2.0 release.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001754">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Tias Guns</h2></div>
+          <p><time>Tue Jul 29 18:15:30 CEST 2008</time><small>July 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Tue, 29 Jul 2008 08:59:26 +0200, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> Hi Tias,
+</I>
+Thank you for your answers,
+
+&gt;<i> Tias Guns wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Greetings,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm
+</I>&gt;&gt;<i> currently
+</I>&gt;&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>&gt;<i>
+</I>&gt;<i> The reified Boolean sums are currently not implemented by special
+</I>&gt;<i> propagators but using a decomposition that is not very efficient.
+</I>&gt;<i>
+</I>&gt;&gt;<i> The first batch of constraints are regular reified linear sums, they are
+</I>&gt;&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'
+</I>&gt;&gt;<i> which
+</I>&gt;&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;&gt;<i> reified to the variable representing that row:
+</I>&gt;&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>   // make row
+</I>&gt;&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> You may want to use Boolean disjunction here, although you'll have to
+</I>&gt;<i> use another temporary Boolean variable.  Something like this:
+</I>&gt;<i>
+</I>&gt;<i> for (int r = 0; r != nr_r; r++) {
+</I>&gt;<i>    BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+</I>&gt;<i>    for (int i = 0, int c = 0; c != nr_c; c++) {
+</I>&gt;<i>      if (tdb[r][c])
+</I>&gt;<i>      	col[i++] = col_varsBool[c];
+</I>&gt;<i>    }
+</I>&gt;<i>    BoolVar tmp(this, 0, 1);
+</I>&gt;<i>    rel(this, BOT_OR, col, tmp);
+</I>&gt;<i>    rel(this, tmp, IRT_NQ, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> I'm not sure whether this is going to be more efficient, but the
+</I>&gt;<i> specialized Boolean propagators should be better.
+</I>
+Unfortunately it's not more efficient. The number of propagations
+increases, probably because of the extra constraints. The runtime behaves
+worse and worse as the problem instances become larger and harder. I've
+looked into posting an NaryOr constraint with a BoolViewArray and a
+NegBoolView directly, but the current templating of NaryOr doesn't allow
+it. I'm hoping/thinking that a reified linear sum of booleans would be
+able to achieve equal propagation..
+
+&gt;&gt;<i> The second batch of constraints are imply-reified linear sums, having
+</I>&gt;&gt;<i> one
+</I>&gt;&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;&gt;<i> manage it:
+</I>&gt;&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>   // make col
+</I>&gt;&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,
+</I>&gt;&gt;<i> reformulation
+</I>&gt;&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> As suggested above, you could post the first linear constraint using
+</I>&gt;<i> just the row_vars for which col[r] is 1, but in this case it probably
+</I>&gt;<i> isn't more efficient (since the linear will immediately throw away all
+</I>&gt;<i> the variables with 0 coefficients anyway).
+</I>&gt;<i>
+</I>&gt;&gt;<i> This model works very well but still, I'm wondering if there would be a
+</I>&gt;&gt;<i> better or cleaner way to model this, and if there are any plans to
+</I>&gt;&gt;<i> improve
+</I>&gt;&gt;<i> the reified linear sum of boolean constraints.
+</I>&gt;<i>
+</I>&gt;<i> Yes, the reified linear Boolean sum is going to be reimplemented, but
+</I>&gt;<i> not for the (upcoming) 2.2.0 release.
+</I>
+Excellent, thanks in advance.
+
+
+Greetings,
+Tias
+
+&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001756">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Aug 4 11:36:35 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Tias,
+
+to comment on the reified linear Boolean: I believed that they were not that
+useful. Clearly, you proved me wrong here. A watched literal based
+implementation will be included in 3.0.
+
+On a more general note: if we don't know whether something is useful we
+leave it until demand for it arises.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Tuesday, July 29, 2008 8:59 AM
+To: Tias Guns
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] reified linear sum of booleans
+
+Hi Tias,
+
+Tias Guns wrote:
+
+&gt;<i> Greetings,
+</I>&gt;<i>
+</I>&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm
+</I>&gt;<i> currently
+</I>&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>
+The reified Boolean sums are currently not implemented by special
+propagators but using a decomposition that is not very efficient.
+
+&gt;<i> The first batch of constraints are regular reified linear sums, they
+</I>&gt;<i> are
+</I>&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'
+</I>&gt;<i> which
+</I>&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;<i> reified to the variable representing that row:
+</I>&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>   // make row
+</I>&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;<i> BoolVars.
+</I>
+You may want to use Boolean disjunction here, although you'll have to
+use another temporary Boolean variable.  Something like this:
+
+for (int r = 0; r != nr_r; r++) {
+   BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+   for (int i = 0, int c = 0; c != nr_c; c++) {
+     if (tdb[r][c])
+        col[i++] = col_varsBool[c];
+   }
+   BoolVar tmp(this, 0, 1);
+   rel(this, BOT_OR, col, tmp);
+   rel(this, tmp, IRT_NQ, row_varsBool[r]);
+}
+
+I'm not sure whether this is going to be more efficient, but the
+specialized Boolean propagators should be better.
+
+&gt;<i> The second batch of constraints are imply-reified linear sums,
+</I>&gt;<i> having one
+</I>&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;<i> manage it:
+</I>&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;<i>   // make col
+</I>&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;<i>   }
+</I>&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,
+</I>&gt;<i> reformulation
+</I>&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;<i> }
+</I>&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to
+</I>&gt;<i> corresponding
+</I>&gt;<i> BoolVars.
+</I>
+As suggested above, you could post the first linear constraint using
+just the row_vars for which col[r] is 1, but in this case it probably
+isn't more efficient (since the linear will immediately throw away all
+the variables with 0 coefficients anyway).
+
+&gt;<i> This model works very well but still, I'm wondering if there would
+</I>&gt;<i> be a
+</I>&gt;<i> better or cleaner way to model this, and if there are any plans to
+</I>&gt;<i> improve
+</I>&gt;<i> the reified linear sum of boolean constraints.
+</I>
+Yes, the reified linear Boolean sum is going to be reimplemented, but
+not for the (upcoming) 2.2.0 release.
+
+Cheers,
+        Guido
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001758">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Aug 4 11:39:23 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>That's another constraint I know some day would be requested: a clause
+constraint for both positive and negative literals. Also added to my list of
+things to add, but might make it only to 3.x and not 3.0.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Tias Guns
+Sent: Tuesday, July 29, 2008 6:16 PM
+To: Guido Tack
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] reified linear sum of booleans
+
+On Tue, 29 Jul 2008 08:59:26 +0200, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> Hi Tias,
+</I>
+Thank you for your answers,
+
+&gt;<i> Tias Guns wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Greetings,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I'm using a model in which I rely heavily on reified linear sums of
+</I>&gt;&gt;<i> booleans. Unfortunately the existing boolean reified linear sum
+</I>&gt;&gt;<i> implementatiom is horribly slow for this ! To overcome this, I'm
+</I>&gt;&gt;<i> currently
+</I>&gt;&gt;<i> channeling all boolean variables to integers, and posting the reified
+</I>&gt;&gt;<i> linear sum over the integers. This gives incredibly faster runtimes.
+</I>&gt;<i>
+</I>&gt;<i> The reified Boolean sums are currently not implemented by special
+</I>&gt;<i> propagators but using a decomposition that is not very efficient.
+</I>&gt;<i>
+</I>&gt;&gt;<i> The first batch of constraints are regular reified linear sums, they are
+</I>&gt;&gt;<i> constructed by reading a binary matrix and creating an IntArgs 'row'
+</I>&gt;&gt;<i> which
+</I>&gt;&gt;<i> contains 0 or 1 (out or in). This 'row' is multiplied by an array of
+</I>&gt;&gt;<i> decision variables, each representing one column. Doing so selects the
+</I>&gt;&gt;<i> desired subset of those variables after which they are constrained and
+</I>&gt;&gt;<i> reified to the variable representing that row:
+</I>&gt;&gt;<i> for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>   // make row
+</I>&gt;&gt;<i>   for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>     row[c] = (1-tdb[r][c]); // complement
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(row*col_vars) = 0 &lt;=&gt; row_vars[r]
+</I>&gt;&gt;<i>   linear(this, row, col_vars, IRT_EQ, 0, row_varsBool[r]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> here, the col_vars is an IntVarArgs that is channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> You may want to use Boolean disjunction here, although you'll have to
+</I>&gt;<i> use another temporary Boolean variable.  Something like this:
+</I>&gt;<i>
+</I>&gt;<i> for (int r = 0; r != nr_r; r++) {
+</I>&gt;<i>    BoolVarArgs col(noOfZeroesIn_tdb_Row[r]);
+</I>&gt;<i>    for (int i = 0, int c = 0; c != nr_c; c++) {
+</I>&gt;<i>      if (tdb[r][c])
+</I>&gt;<i>       col[i++] = col_varsBool[c];
+</I>&gt;<i>    }
+</I>&gt;<i>    BoolVar tmp(this, 0, 1);
+</I>&gt;<i>    rel(this, BOT_OR, col, tmp);
+</I>&gt;<i>    rel(this, tmp, IRT_NQ, row_varsBool[r]);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> I'm not sure whether this is going to be more efficient, but the
+</I>&gt;<i> specialized Boolean propagators should be better.
+</I>
+Unfortunately it's not more efficient. The number of propagations
+increases, probably because of the extra constraints. The runtime behaves
+worse and worse as the problem instances become larger and harder. I've
+looked into posting an NaryOr constraint with a BoolViewArray and a
+NegBoolView directly, but the current templating of NaryOr doesn't allow
+it. I'm hoping/thinking that a reified linear sum of booleans would be
+able to achieve equal propagation..
+
+&gt;&gt;<i> The second batch of constraints are imply-reified linear sums, having
+</I>&gt;&gt;<i> one
+</I>&gt;&gt;<i> sided reification. Because one-sided reification is not implemented in
+</I>&gt;&gt;<i> gecode directly, an extra auxiliary variable and constraint is used to
+</I>&gt;&gt;<i> manage it:
+</I>&gt;&gt;<i> for (int c = 0; c!=nr_c;c++ ) {
+</I>&gt;&gt;<i>   // make col
+</I>&gt;&gt;<i>   for (int r = 0; r!=nr_r;r++ ) {
+</I>&gt;&gt;<i>     col[r] = tdb[r][c];
+</I>&gt;&gt;<i>   }
+</I>&gt;&gt;<i>   // sum(col*row_vars) &gt;= X &lt;=&gt; col_aux[c]
+</I>&gt;&gt;<i>   linear(this, col, row_vars, IRT_GQ, X, col_aux[c]);
+</I>&gt;&gt;<i>   // col_aux[c] =&gt; col_varsBool[c] (one-sided reificiation,
+</I>&gt;&gt;<i> reformulation
+</I>&gt;&gt;<i> is) col_aux[c] =&lt; col_varsBool[c]
+</I>&gt;&gt;<i>   rel(this, col_aux[c], IRT_LQ, col_varsBool[c]);
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i> similarly as above, row_vars is an IntVarArgs channeled to corresponding
+</I>&gt;&gt;<i> BoolVars.
+</I>&gt;<i>
+</I>&gt;<i> As suggested above, you could post the first linear constraint using
+</I>&gt;<i> just the row_vars for which col[r] is 1, but in this case it probably
+</I>&gt;<i> isn't more efficient (since the linear will immediately throw away all
+</I>&gt;<i> the variables with 0 coefficients anyway).
+</I>&gt;<i>
+</I>&gt;&gt;<i> This model works very well but still, I'm wondering if there would be a
+</I>&gt;&gt;<i> better or cleaner way to model this, and if there are any plans to
+</I>&gt;&gt;<i> improve
+</I>&gt;&gt;<i> the reified linear sum of boolean constraints.
+</I>&gt;<i>
+</I>&gt;<i> Yes, the reified linear Boolean sum is going to be reimplemented, but
+</I>&gt;<i> not for the (upcoming) 2.2.0 release.
+</I>
+Excellent, thanks in advance.
+
+
+Greetings,
+Tias
+
+&gt;<i> Cheers,
+</I>&gt;<i>       Guido
+</I>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

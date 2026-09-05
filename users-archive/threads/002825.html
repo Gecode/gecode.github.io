@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Optimization — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Optimization | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · February 2010</p><h1 data-pagefind-meta="title">Optimization</h1></header>
+      <p class="archive-thread-summary">4 messages · February 2010</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002825">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Peter Vanhee</h2></div>
+          <p><time>Wed Feb 3 16:29:33 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all,
+
+I am working on an optimization problem defined using constraints,
+to compute the lowest energy model of a protein lattice. My variables are
+implemented as integer variables that refer to a pool of protein fragments,
+and I wish to implement an optimization function that - given an assignment
+of all variables - returns an energy value (double) that should be minimized.
+
+So far, I've implemented the optimization as follows:
+
+- in the model constructor, I use synchronized execution to call a function
+c when all variables become assigned (using wait(Space&amp;, IntVarArray&amp;, c&amp;)
+
+- a static variable that holds the best energy so far
+
+static BEST_ENERGY = 10000;
+
+- the continuation function c looks something like
+
+static void c(Space&amp; _home) {
+	// compute energy using assigned variables
+	double energy = ...;
+
+	if(energy &gt; BEST_ENERGY) {
+		// fail if energy is worse
+		home.fail();
+	} else {
+		BEST_ENERGY = energy;
+	}
+}
+
+
+This works fine, and I can use different search algorithms to traverse the tree
+and move into the direction of lowest energy. However, I am not sure if this is the
+correct way. Initially, I thought about implementing the cost() function but quickly
+discarded it because it only seems to work with integer variables. Also using the
+constrain function I need to use a static variable as well, and I don't know what
+kind of constrained I should post there (the energy function can not prune domains,
+it can either accept it as better or fail the space..)
+
+Thanks for the clarification!
+Peter
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002826">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Feb 3 16:39:28 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+The problem with your solution is that you do not use branch and bound for
+search (as you basically say yourself): what you will do is basically find
+all solutions and pick a best one among them (provided I really understand
+what you are doing). The idea of branch and bound is to add a constraint
+after a solution has been found such that the additional constraint will
+guarantee that a better solution is found next and - crucially! - the added
+constraint can prune the search space by triggering additional propagation.
+
+Moreover, your idea is not compatible with parallel search (static
+variable).
+
+Did you think about turning your double value into a sufficiently accurate
+integer variable?
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Peter Vanhee
+Sent: Wednesday, February 03, 2010 4:30 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Optimization
+
+Hi all,
+
+I am working on an optimization problem defined using constraints,
+to compute the lowest energy model of a protein lattice. My variables are
+implemented as integer variables that refer to a pool of protein fragments,
+and I wish to implement an optimization function that - given an assignment
+of all variables - returns an energy value (double) that should be
+minimized.
+
+So far, I've implemented the optimization as follows:
+
+- in the model constructor, I use synchronized execution to call a function
+c when all variables become assigned (using wait(Space&amp;, IntVarArray&amp;, c&amp;)
+
+- a static variable that holds the best energy so far
+
+static BEST_ENERGY = 10000;
+
+- the continuation function c looks something like
+
+static void c(Space&amp; _home) {
+	// compute energy using assigned variables
+	double energy = ...;
+
+	if(energy &gt; BEST_ENERGY) {
+		// fail if energy is worse
+		home.fail();
+	} else {
+		BEST_ENERGY = energy;
+	}
+}
+
+
+This works fine, and I can use different search algorithms to traverse the
+tree
+and move into the direction of lowest energy. However, I am not sure if this
+is the
+correct way. Initially, I thought about implementing the cost() function but
+quickly
+discarded it because it only seems to work with integer variables. Also
+using the
+constrain function I need to use a static variable as well, and I don't know
+what
+kind of constrained I should post there (the energy function can not prune
+domains,
+it can either accept it as better or fail the space..)
+
+Thanks for the clarification!
+Peter
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002827">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Peter Vanhee</h2></div>
+          <p><time>Wed Feb 3 16:56:04 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks for the answer. Conceptually, I see a problem in the energy constraint:
+it can only work if all variables are instantiated. Would it make sense to write
+a function that posts the energy constraint? Something like
+
+void energy(Home home, const IntVarArgs&amp; x, double n, IntConLevel icl=ICL_DEF);
+
+that would then implement a propagator that will get called once all variables
+are instantiated, checks if the energy is better than n, and if not, fails the space.
+
+I could then probably call this constraint within the constrain() function and bypass
+use of static variables. Still, it wouldn't change the search tree, but this is
+simply because the energy constraint is unable the domains. Is this correct
+reasoning? The static variable seemed much easier to implement than implementing
+a post function.
+
+I hadn't given it a thought to convert the double to an int, but would this make
+sense if there is nothing to prune?
+
+Thanks a lot,
+Peter
+
+On 3 Feb 2010, at 16:39, Christian Schulte wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> The problem with your solution is that you do not use branch and bound for
+</I>&gt;<i> search (as you basically say yourself): what you will do is basically find
+</I>&gt;<i> all solutions and pick a best one among them (provided I really understand
+</I>&gt;<i> what you are doing). The idea of branch and bound is to add a constraint
+</I>&gt;<i> after a solution has been found such that the additional constraint will
+</I>&gt;<i> guarantee that a better solution is found next and - crucially! - the added
+</I>&gt;<i> constraint can prune the search space by triggering additional propagation.
+</I>&gt;<i>
+</I>&gt;<i> Moreover, your idea is not compatible with parallel search (static
+</I>&gt;<i> variable).
+</I>&gt;<i>
+</I>&gt;<i> Did you think about turning your double value into a sufficiently accurate
+</I>&gt;<i> integer variable?
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Peter Vanhee
+</I>&gt;<i> Sent: Wednesday, February 03, 2010 4:30 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Optimization
+</I>&gt;<i>
+</I>&gt;<i> Hi all,
+</I>&gt;<i>
+</I>&gt;<i> I am working on an optimization problem defined using constraints,
+</I>&gt;<i> to compute the lowest energy model of a protein lattice. My variables are
+</I>&gt;<i> implemented as integer variables that refer to a pool of protein fragments,
+</I>&gt;<i> and I wish to implement an optimization function that - given an assignment
+</I>&gt;<i> of all variables - returns an energy value (double) that should be
+</I>&gt;<i> minimized.
+</I>&gt;<i>
+</I>&gt;<i> So far, I've implemented the optimization as follows:
+</I>&gt;<i>
+</I>&gt;<i> - in the model constructor, I use synchronized execution to call a function
+</I>&gt;<i> c when all variables become assigned (using wait(Space&amp;, IntVarArray&amp;, c&amp;)
+</I>&gt;<i>
+</I>&gt;<i> - a static variable that holds the best energy so far
+</I>&gt;<i>
+</I>&gt;<i> static BEST_ENERGY = 10000;
+</I>&gt;<i>
+</I>&gt;<i> - the continuation function c looks something like
+</I>&gt;<i>
+</I>&gt;<i> static void c(Space&amp; _home) {
+</I>&gt;<i> 	// compute energy using assigned variables
+</I>&gt;<i> 	double energy = ...;
+</I>&gt;<i>
+</I>&gt;<i> 	if(energy &gt; BEST_ENERGY) {
+</I>&gt;<i> 		// fail if energy is worse
+</I>&gt;<i> 		home.fail();
+</I>&gt;<i> 	} else {
+</I>&gt;<i> 		BEST_ENERGY = energy;
+</I>&gt;<i> 	}
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This works fine, and I can use different search algorithms to traverse the
+</I>&gt;<i> tree
+</I>&gt;<i> and move into the direction of lowest energy. However, I am not sure if this
+</I>&gt;<i> is the
+</I>&gt;<i> correct way. Initially, I thought about implementing the cost() function but
+</I>&gt;<i> quickly
+</I>&gt;<i> discarded it because it only seems to work with integer variables. Also
+</I>&gt;<i> using the
+</I>&gt;<i> constrain function I need to use a static variable as well, and I don't know
+</I>&gt;<i> what
+</I>&gt;<i> kind of constrained I should post there (the energy function can not prune
+</I>&gt;<i> domains,
+</I>&gt;<i> it can either accept it as better or fail the space..)
+</I>&gt;<i>
+</I>&gt;<i> Thanks for the clarification!
+</I>&gt;<i> Peter
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002830">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Feb 4 10:19:29 CET 2010</time><small>February 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Peter,
+
+Hmm. Why are you so sure that the energy constraint only works if all
+variables are already assigned? Don't think about a double as result but try
+to think (just for the sake of argument) to express the result of the energy
+function as an integer (with some approximation). Then it would be a
+constraint between the problem variables and the variable for the energy.
+
+The thing from which search can benefit is just the opposite case: you put a
+constraint on the energy variable (derived from a solution found earlier by
+search) and there is propagation that narrows down the potential values for
+your problem variables.
+
+Waiting for all the problem variables until they become assigned, then (as I
+tried to express before) normal search will do as branch and bound search
+offers no advantage. Even implementing a propagator that waits until all
+variables become assigned and then computes an energy value would not help.
+All of this is equivalent to:
+	- find a first solution and compute its energy value
+      - keep finding all solutions and discard the worse ones and update to
+the better ones
+And this, of course, is not really feasible for most problems!
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Peter Vanhee
+Sent: Wednesday, February 03, 2010 4:56 PM
+To: Christian Schulte
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Optimization
+
+Thanks for the answer. Conceptually, I see a problem in the energy
+constraint:
+it can only work if all variables are instantiated. Would it make sense to
+write
+a function that posts the energy constraint? Something like
+
+void energy(Home home, const IntVarArgs&amp; x, double n, IntConLevel
+icl=ICL_DEF);
+
+that would then implement a propagator that will get called once all
+variables
+are instantiated, checks if the energy is better than n, and if not, fails
+the space.
+
+I could then probably call this constraint within the constrain() function
+and bypass
+use of static variables. Still, it wouldn't change the search tree, but this
+is
+simply because the energy constraint is unable the domains. Is this correct
+reasoning? The static variable seemed much easier to implement than
+implementing
+a post function.
+
+I hadn't given it a thought to convert the double to an int, but would this
+make
+sense if there is nothing to prune?
+
+Thanks a lot,
+Peter
+
+On 3 Feb 2010, at 16:39, Christian Schulte wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> The problem with your solution is that you do not use branch and bound for
+</I>&gt;<i> search (as you basically say yourself): what you will do is basically find
+</I>&gt;<i> all solutions and pick a best one among them (provided I really understand
+</I>&gt;<i> what you are doing). The idea of branch and bound is to add a constraint
+</I>&gt;<i> after a solution has been found such that the additional constraint will
+</I>&gt;<i> guarantee that a better solution is found next and - crucially! - the
+</I>added
+&gt;<i> constraint can prune the search space by triggering additional
+</I>propagation.
+&gt;<i>
+</I>&gt;<i> Moreover, your idea is not compatible with parallel search (static
+</I>&gt;<i> variable).
+</I>&gt;<i>
+</I>&gt;<i> Did you think about turning your double value into a sufficiently accurate
+</I>&gt;<i> integer variable?
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Peter Vanhee
+</I>&gt;<i> Sent: Wednesday, February 03, 2010 4:30 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Optimization
+</I>&gt;<i>
+</I>&gt;<i> Hi all,
+</I>&gt;<i>
+</I>&gt;<i> I am working on an optimization problem defined using constraints,
+</I>&gt;<i> to compute the lowest energy model of a protein lattice. My variables are
+</I>&gt;<i> implemented as integer variables that refer to a pool of protein
+</I>fragments,
+&gt;<i> and I wish to implement an optimization function that - given an
+</I>assignment
+&gt;<i> of all variables - returns an energy value (double) that should be
+</I>&gt;<i> minimized.
+</I>&gt;<i>
+</I>&gt;<i> So far, I've implemented the optimization as follows:
+</I>&gt;<i>
+</I>&gt;<i> - in the model constructor, I use synchronized execution to call a
+</I>function
+&gt;<i> c when all variables become assigned (using wait(Space&amp;, IntVarArray&amp;, c&amp;)
+</I>&gt;<i>
+</I>&gt;<i> - a static variable that holds the best energy so far
+</I>&gt;<i>
+</I>&gt;<i> static BEST_ENERGY = 10000;
+</I>&gt;<i>
+</I>&gt;<i> - the continuation function c looks something like
+</I>&gt;<i>
+</I>&gt;<i> static void c(Space&amp; _home) {
+</I>&gt;<i> 	// compute energy using assigned variables
+</I>&gt;<i> 	double energy = ...;
+</I>&gt;<i>
+</I>&gt;<i> 	if(energy &gt; BEST_ENERGY) {
+</I>&gt;<i> 		// fail if energy is worse
+</I>&gt;<i> 		home.fail();
+</I>&gt;<i> 	} else {
+</I>&gt;<i> 		BEST_ENERGY = energy;
+</I>&gt;<i> 	}
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This works fine, and I can use different search algorithms to traverse the
+</I>&gt;<i> tree
+</I>&gt;<i> and move into the direction of lowest energy. However, I am not sure if
+</I>this
+&gt;<i> is the
+</I>&gt;<i> correct way. Initially, I thought about implementing the cost() function
+</I>but
+&gt;<i> quickly
+</I>&gt;<i> discarded it because it only seems to work with integer variables. Also
+</I>&gt;<i> using the
+</I>&gt;<i> constrain function I need to use a static variable as well, and I don't
+</I>know
+&gt;<i> what
+</I>&gt;<i> kind of constrained I should post there (the energy function can not prune
+</I>&gt;<i> domains,
+</I>&gt;<i> it can either accept it as better or fail the space..)
+</I>&gt;<i>
+</I>&gt;<i> Thanks for the clarification!
+</I>&gt;<i> Peter
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

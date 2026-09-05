@@ -1,0 +1,2672 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="assert in propagator cast — 25 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>assert in propagator cast | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>25 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2011–August 2012</p><h1 data-pagefind-meta="title">assert in propagator cast</h1></header>
+      <p class="archive-thread-summary">25 messages · October 2011–August 2012</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003437">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>David Rijsman</h2></div>
+          <p><time>Mon Oct 24 15:33:38 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I need some help with an assert being thrown by Gecode, hopefully by an error I made in a propagator I have created. Is there an obvious candidate for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+</PRE>
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003441">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Denys Duchier</h2></div>
+          <p><time>Mon Oct 24 21:26:08 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guys,
+
+unless I missed it, there doesn't seem to be any simple way for a
+gecode-using program to have #if/#ifdef sections conditioned on the
+version of gecode it is being built against.  That's a pain for
+portability.
+
+In gecode-python, I just added the macro GECODE_VERSION_NUMBER
+which is constructed in the same way as the boost version number:
+
+For version X.Y.Z, the version number is X*100000+Y*100+Z
+
+Would it be objectionable to add such a macro to gecode itself?
+
+Cheers,
+
+--Denys
+
+</PRE>
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003442">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Luca Di Gaspero</h2></div>
+          <p><time>Mon Oct 24 23:13:51 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+is there the possibility to define and use set variables with the python bindings? Could you provide a small example?
+
+Thanks in advance,
+
+Luca
+</PRE>
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003443">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Denys Duchier</h2></div>
+          <p><time>Mon Oct 24 23:21:44 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Luca Di Gaspero &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">l.digaspero at uniud.it</A>&gt; writes:
+
+&gt;<i> is there the possibility to define and use set variables with the python
+</I>&gt;<i> bindings? Could you provide a small example?
+</I>
+All is (succinctly) documented in the README file which I attach below:
+
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: README
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20111024/62ba46d4/attachment.asc">http://www.gecode.org/pipermail/users/attachments/20111024/62ba46d4/attachment.asc</A>&gt;
+-------------- next part --------------
+
+The constraints are exactly the same as in Gecode, except that they are
+methods of the space rather than take the space as first argument.
+
+Please, let me know if something is still unclear.  Eventually, I will
+provide more extensive documentation, but I haven't had time to work on
+that yet, sorry :-/
+
+Cheers,
+
+--Denys
+
+</PRE>
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003444">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Oct 25 10:16:00 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Denys,
+
+That's okay, if you send me a patch I'll add it to the trunk.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Denys Duchier
+Sent: Monday, October 24, 2011 9:26 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] compile-time testing of gecode version
+
+Hi Guys,
+
+unless I missed it, there doesn't seem to be any simple way for a
+gecode-using program to have #if/#ifdef sections conditioned on the
+version of gecode it is being built against.  That's a pain for
+portability.
+
+In gecode-python, I just added the macro GECODE_VERSION_NUMBER
+which is constructed in the same way as the boost version number:
+
+For version X.Y.Z, the version number is X*100000+Y*100+Z
+
+Would it be objectionable to add such a macro to gecode itself?
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003445">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Luca Di Gaspero</h2></div>
+          <p><time>Tue Oct 25 12:56:22 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all,
+
+would it be possible to have channeling constraints between SetVarArrays in the new gecode version. Even though they are just implemented with decomposition they would be extremely useful in modeling (and in teaching).
+The constraints I am thinking about are of the form:
+
+i \in SetA_j \iff j \in SetB_i
+
+which can be of course implemented through a few element() constraints, but it would be great to have a global channel(*this, Set_A, Set_B)!
+
+Thanks in advance,
+
+Luca
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003447">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Oct 25 17:42:01 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Sounds like a pretty good idea. I'll leave it to Guido as the master of set
+variables (he is away right now).
+
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Luca Di Gaspero
+Sent: Tuesday, October 25, 2011 12:56 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] New gecode version desiderata: channeling between
+set variables
+
+Hi all,
+
+would it be possible to have channeling constraints between SetVarArrays in
+the new gecode version. Even though they are just implemented with
+decomposition they would be extremely useful in modeling (and in teaching).
+The constraints I am thinking about are of the form:
+
+i \in SetA_j \iff j \in SetB_i
+
+which can be of course implemented through a few element() constraints, but
+it would be great to have a global channel(*this, Set_A, Set_B)!
+
+Thanks in advance,
+
+Luca
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003448">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Oct 25 17:47:46 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003450">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Denys Duchier</h2></div>
+          <p><time>Thu Oct 27 15:46:14 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I am pleased to announce release 0.23 of gecode-python, the simplified
+gecode bindings for python.
+
+WHAT'S NEW:
+
+- support for writing search engines in python:
+
+  + s.status() returns the status of space s
+  + s.choice() returns a Choice object
+  + s.commit(Choice, int) commits s to an alternative of the Choice
+  + if c is a Choice, c.alternatives() is the number of alternatives
+  + s.constrain(sol) constrains s to be better than solution sol
+    according to the stated optimization criterion
+
+INSTALL:
+
+- from pypi using easy_install (provided by setuptools):
+
+        sudo -E easy_install gecode-python
+  or    easy_install gecode-python --prefix ~
+
+  if you are upgrading a previous install:
+
+        sudo -E easy_install -U gecode-python
+  or    easy_install -U gecode-python --prefix ~
+
+- from pypi using the tarball:
+
+        tar zxf gecode-python-0.17.tar.gz
+        cd gecode-python-0.17
+        sudo -E python setup.py install
+  or    python setup.py install --prefix ~
+
+- using the launchpad branch:
+
+        bzr branch lp:gecode-python
+        cd gecode-python
+        sudo -E python setup.py install
+  or    python setup.py install --prefix ~
+
+if you are installing using &quot;--prefix ~&quot; I recommend that:
+1. you create directory ~/.local if it does not already exist
+2. you create a symbolic link:
+        ~/.local/lib   -&gt; ~/lib
+   or   ~/.local/lib64 -&gt; ~/lib64
+   depending on whether you have a ~/lib or a ~/lib64 directory in your
+   home after install.
+this will allow python to find your locally installed packages without
+requiring you to fiddle with environment variable PYTHONPATH.
+
+Cheers,
+
+--Denys
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003452">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Denys Duchier</h2></div>
+          <p><time>Sat Oct 29 13:05:37 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; writes:
+
+&gt;<i> Sounds like a pretty good idea. I'll leave it to Guido as the master of set
+</I>&gt;<i> variables (he is away right now).
+</I>&gt;<i> [...]
+</I>&gt;&gt;<i> From: Luca Di Gaspero &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">l.digaspero at uniud.it</A>&gt;
+</I>&gt;&gt;<i> [...]
+</I>&gt;&gt;<i> would it be possible to have channeling constraints between SetVarArrays in
+</I>&gt;&gt;<i> the new gecode version. Even though they are just implemented with
+</I>&gt;&gt;<i> decomposition they would be extremely useful in modeling (and in teaching).
+</I>&gt;&gt;<i> The constraints I am thinking about are of the form:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> i \in SetA_j \iff j \in SetB_i
+</I>
+Here you go:
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: channelset.patch
+Type: text/x-patch
+Size: 8432 bytes
+Desc: channeling between setvarargs
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20111029/8ce796f1/attachment.bin">http://www.gecode.org/pipermail/users/attachments/20111029/8ce796f1/attachment.bin</A>&gt;
+-------------- next part --------------
+
+Cheers,
+
+--Denys
+
+PS: Guido, you might want to shuffle the code to different files. I just
+wasn't sure where to put it.
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-003460">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>David Rijsman</h2></div>
+          <p><time>Fri Nov 4 11:43:46 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+a little bit delayed but yes you are pretty close with your guessing. I do step 1 and step 2 I do cancel the subscription. Also in the dispose method of the propagator I invoke the dispose method of the council.
+
+Should I also cancel all the subscriptions of the variables to the advisors in the propagators dispose although I invoke the dispose on the council? I checked the dispose of the council and it also invokes the dispose of the advisors which in my case do cancel the subscriptions.
+
+In the example  in gecode/int/bool/or.hpp you are using the advisor type Advisor in which the cancellation does not take place (in my case it does in the specialized implementation of dispose) so I understand the need to explicitly do it in the dispose of the propagator in your case. But I do not see it in my case....
+
+To give you a little more background, I have a propagator working on tasks, each task has five variables of which one is a boolean. When the boolean becomes false I want to dispose all the advisors on all the five variables associated with this task. When the boolean becomes false, in the advise of the propagator I iterate over all the advisors in the council, cast them to my advisor type, ask the advisor if it belongs to the same task as the boolean, if so it is disposed. I had made an optimization which would stop iterating over the advisors once it disposed  four, this is a mistake as it could have found the advisor of the boolean itself and dispose it, now if I exclude the explicit disposal of the advisor of the boolean variable the problem no longer occurs. I am a little puzzled here how this is related to the assert being raised (a double disposal also raises an assert and I do not see this), I will continue my search but if you have any suggestions that would be great,
+
+Another question for my understanding, who is (responsible for) disposing the advisor when a variable becomes assigned?
+
+thanks,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/25/2011 5:48 PM
+Subject: 	Re: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003461">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Nov 4 12:48:17 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+Ok, let's see: when the Boolean variable becomes assigned you dispose the
+advisors. But do you also cancel the subscriptions?
+
+As you correctly observed, some advisors have a dispose function that also
+does the cancel. If an advisor has a dispose function that does not cancel,
+then the cancel has to be done manually.
+
+For assigned views, subscriptions do not need to be cancelled but advisors
+still must be disposed. You might do that in the advise() function or in the
+dispose() function but have to be careful to only do it once!
+
+Please let me know whether this helps.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Friday, November 04, 2011 11:44 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: Re: [gecode-users] assert in propagator cast
+
+Hi Christian,
+
+a little bit delayed but yes you are pretty close with your guessing. I do
+step 1 and step 2 I do cancel the subscription. Also in the dispose method
+of the propagator I invoke the dispose method of the council.
+
+Should I also cancel all the subscriptions of the variables to the advisors
+in the propagators dispose although I invoke the dispose on the council? I
+checked the dispose of the council and it also invokes the dispose of the
+advisors which in my case do cancel the subscriptions.
+
+In the example  in gecode/int/bool/or.hpp you are using the advisor type
+Advisor in which the cancellation does not take place (in my case it does in
+the specialized implementation of dispose) so I understand the need to
+explicitly do it in the dispose of the propagator in your case. But I do not
+see it in my case....
+
+To give you a little more background, I have a propagator working on tasks,
+each task has five variables of which one is a boolean. When the boolean
+becomes false I want to dispose all the advisors on all the five variables
+associated with this task. When the boolean becomes false, in the advise of
+the propagator I iterate over all the advisors in the council, cast them to
+my advisor type, ask the advisor if it belongs to the same task as the
+boolean, if so it is disposed. I had made an optimization which would stop
+iterating over the advisors once it disposed  four, this is a mistake as it
+could have found the advisor of the boolean itself and dispose it, now if I
+exclude the explicit disposal of the advisor of the boolean variable the
+problem no longer occurs. I am a little puzzled here how this is related to
+the assert being raised (a double disposal also raises an assert and I do
+not see this), I will continue my search but if you have any suggestions
+that would be great,
+
+Another question for my understanding, who is (responsible for) disposing
+the advisor when a variable becomes assigned?
+
+thanks,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/25/2011 5:48 PM
+Subject: 	Re: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003463">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>David Rijsman</h2></div>
+          <p><time>Fri Nov 4 14:53:51 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+in my case the dispose of the advisor is the one that cancels the subscription to the variable.  The dispose of the propagator is the one that disposes the council (and the council disposes the advisors still in the council). So I think I dispose (and cancel) enough. The assert was raised when I only disposed 4 (any subset) out of 5 of the advisors related to a task for which the boolean turned false. I fixed this to 5 and the problem no longer happens. I just can not figure out why the assert was raised especially it should not hurt to wait with disposing of an individual advisor until the council disposes. I will keep searching and post when I find something,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	11/4/2011 12:50 PM
+Subject: 	RE: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Ok, let's see: when the Boolean variable becomes assigned you dispose the
+advisors. But do you also cancel the subscriptions?
+
+As you correctly observed, some advisors have a dispose function that also
+does the cancel. If an advisor has a dispose function that does not cancel,
+then the cancel has to be done manually.
+
+For assigned views, subscriptions do not need to be cancelled but advisors
+still must be disposed. You might do that in the advise() function or in the
+dispose() function but have to be careful to only do it once!
+
+Please let me know whether this helps.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Friday, November 04, 2011 11:44 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: Re: [gecode-users] assert in propagator cast
+
+Hi Christian,
+
+a little bit delayed but yes you are pretty close with your guessing. I do
+step 1 and step 2 I do cancel the subscription. Also in the dispose method
+of the propagator I invoke the dispose method of the council.
+
+Should I also cancel all the subscriptions of the variables to the advisors
+in the propagators dispose although I invoke the dispose on the council? I
+checked the dispose of the council and it also invokes the dispose of the
+advisors which in my case do cancel the subscriptions.
+
+In the example  in gecode/int/bool/or.hpp you are using the advisor type
+Advisor in which the cancellation does not take place (in my case it does in
+the specialized implementation of dispose) so I understand the need to
+explicitly do it in the dispose of the propagator in your case. But I do not
+see it in my case....
+
+To give you a little more background, I have a propagator working on tasks,
+each task has five variables of which one is a boolean. When the boolean
+becomes false I want to dispose all the advisors on all the five variables
+associated with this task. When the boolean becomes false, in the advise of
+the propagator I iterate over all the advisors in the council, cast them to
+my advisor type, ask the advisor if it belongs to the same task as the
+boolean, if so it is disposed. I had made an optimization which would stop
+iterating over the advisors once it disposed  four, this is a mistake as it
+could have found the advisor of the boolean itself and dispose it, now if I
+exclude the explicit disposal of the advisor of the boolean variable the
+problem no longer occurs. I am a little puzzled here how this is related to
+the assert being raised (a double disposal also raises an assert and I do
+not see this), I will continue my search but if you have any suggestions
+that would be great,
+
+Another question for my understanding, who is (responsible for) disposing
+the advisor when a variable becomes assigned?
+
+thanks,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/25/2011 5:48 PM
+Subject: 	Re: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003476">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Nov 7 10:23:43 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+What still could have happened is that you disposed the advisor without
+cancelling this one out of five subscriptions. In that case there still
+would a subscription left and there would be no possibility to cancel it as
+the advisor has been removed from the council (this is a side-effect of
+disposing an advisor, it gets removed from its council).
+
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+-----Original Message-----
+From: David Rijsman [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>]
+Sent: Friday, November 04, 2011 2:54 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: RE: [gecode-users] assert in propagator cast
+
+Hi Christian,
+
+in my case the dispose of the advisor is the one that cancels the
+subscription to the variable.  The dispose of the propagator is the one that
+disposes the council (and the council disposes the advisors still in the
+council). So I think I dispose (and cancel) enough. The assert was raised
+when I only disposed 4 (any subset) out of 5 of the advisors related to a
+task for which the boolean turned false. I fixed this to 5 and the problem
+no longer happens. I just can not figure out why the assert was raised
+especially it should not hurt to wait with disposing of an individual
+advisor until the council disposes. I will keep searching and post when I
+find something,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	11/4/2011 12:50 PM
+Subject: 	RE: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Ok, let's see: when the Boolean variable becomes assigned you dispose the
+advisors. But do you also cancel the subscriptions?
+
+As you correctly observed, some advisors have a dispose function that also
+does the cancel. If an advisor has a dispose function that does not cancel,
+then the cancel has to be done manually.
+
+For assigned views, subscriptions do not need to be cancelled but advisors
+still must be disposed. You might do that in the advise() function or in the
+dispose() function but have to be careful to only do it once!
+
+Please let me know whether this helps.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Friday, November 04, 2011 11:44 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: Re: [gecode-users] assert in propagator cast
+
+Hi Christian,
+
+a little bit delayed but yes you are pretty close with your guessing. I do
+step 1 and step 2 I do cancel the subscription. Also in the dispose method
+of the propagator I invoke the dispose method of the council.
+
+Should I also cancel all the subscriptions of the variables to the advisors
+in the propagators dispose although I invoke the dispose on the council? I
+checked the dispose of the council and it also invokes the dispose of the
+advisors which in my case do cancel the subscriptions.
+
+In the example  in gecode/int/bool/or.hpp you are using the advisor type
+Advisor in which the cancellation does not take place (in my case it does in
+the specialized implementation of dispose) so I understand the need to
+explicitly do it in the dispose of the propagator in your case. But I do not
+see it in my case....
+
+To give you a little more background, I have a propagator working on tasks,
+each task has five variables of which one is a boolean. When the boolean
+becomes false I want to dispose all the advisors on all the five variables
+associated with this task. When the boolean becomes false, in the advise of
+the propagator I iterate over all the advisors in the council, cast them to
+my advisor type, ask the advisor if it belongs to the same task as the
+boolean, if so it is disposed. I had made an optimization which would stop
+iterating over the advisors once it disposed  four, this is a mistake as it
+could have found the advisor of the boolean itself and dispose it, now if I
+exclude the explicit disposal of the advisor of the boolean variable the
+problem no longer occurs. I am a little puzzled here how this is related to
+the assert being raised (a double disposal also raises an assert and I do
+not see this), I will continue my search but if you have any suggestions
+that would be great,
+
+Another question for my understanding, who is (responsible for) disposing
+the advisor when a variable becomes assigned?
+
+thanks,
+
+David Rijsman
+
+&gt;&gt;&gt;<i>
+</I>From: 	&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+To:	&quot;'David Rijsman'&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;, &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/25/2011 5:48 PM
+Subject: 	Re: [gecode-users] assert in propagator cast
+
+Hi David,
+
+Let me do some guessing here:
+
+1) You are using a propagator that uses advisors.
+2) The dispose method of your advisors does not unsubscribe the advisor from
+the view.
+3) The propagator's dispose method disposes the advisors' council without
+deleting the advisors subscriptions
+
+Bang! Is that correct?
+
+If yes, there are two ways to fix it:
+a) The dispose method of the advisors also unsubscribes, or
+b) In the propagator's dispose method you iterate over all advisors and
+unsubscribe (The iterator is called Advisors&lt;A&gt; where A is the type of the
+advisor). You might want to search for Advisors in gecode/int/bool/or.hpp
+for an example.
+
+I hope that helps!
+
+Best
+Christian
+
+PS: Sorry for the delay, I was travelling.
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Monday, October 24, 2011 3:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] assert in propagator cast
+
+I need some help with an assert being thrown by Gecode, hopefully by an
+error I made in a propagator I have created. Is there an obvious candidate
+for an error I made in my propagator when this assert is thrown?
+
+The assert is thrown in core.hpp
+
+  forceinline Propagator&amp;
+  Advisor::propagator(void) const {
+    assert(!disposed());
+    return *Propagator::cast(ActorLink::prev());
+  }
+
+as a result of an invocation of  Advisor::cast(*a)-&gt;propagator().afc() in:
+
+
+  template&lt;class VIC&gt;
+  forceinline double
+  VarImp&lt;VIC&gt;::afc(void) const {
+    if (degree() == 0)
+      return 0.0;
+    double d = degree();
+    // Count the afc of each propagator
+    {
+      ActorLink** a = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actor(0);
+      ActorLink** e =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      while (a &lt; e) {
+        d += Propagator::cast(*a)-&gt;afc(); a++;
+      }
+    }
+    // Count the afc of each advisor's propagator
+    {
+      ActorLink** a =
+const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;actorNonZero(pc_max+1);
+      ActorLink** e = const_cast&lt;VarImp&lt;VIC&gt;*&gt;(this)-&gt;base+entries;
+      while (a &lt; e) {
+        d += Advisor::cast(*a)-&gt;propagator().afc(); a++;
+      }
+    }
+    return d;
+  }
+
+thanks,
+
+David Rijsman
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003668">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Max Ostrowski</h2></div>
+          <p><time>Wed Aug 8 13:41:44 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Sorry for reposting an old question. I'm just cleaning up my code and
+noticed that i still not managed to use gecode's functionality to
+precompute domains of IntVar.
+So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+I want to precompute the domain of &quot;a&quot;.
+I'm simply not able to find out how the Ranges iterators are used.
+How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+How do i create the intersection of both.
+And finally how to set the domain of IntVar x to this range then.
+
+
+I tried to grep the gecode code and the examples but was not able to
+find any.
+
+Sorry again for reposting this, i'm ashamed.
+
+Best,
+Max
+
+
+
+
+
+    The best is to look for examples in the code ;-) Just grep for it.
+
+    MinMax is nothing but a base-class for other classes and cannot be used
+    directly. Look for the iterators that take arrays as input, they
+    will do what
+    you want.
+
+    Best
+    Christian
+
+    --
+    Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+    -----Original Message-----
+    From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On
+    Behalf Of
+    Max Ostrowski
+    Sent: Thursday, July 21, 2011 10:49 AM
+    To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+    Subject: [gecode-users] Computing Variable Domains (Integer)
+
+    Hello everybody,
+
+    as variables in gecode need to have a domain, i want to compute the
+    domain of
+    the variables automatically, given the constraints.
+    I could also let the constraints restrict the domains of my
+    variables, but as i
+    understood, this is similar to propagation and could take some time.
+    There i want to restrict the domain manually for all unary constraints.
+    So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+    the domain should be {6..9,101..104}.
+    Therefore i wanted to use some Gecode classes to compute the
+    intersection/union/complement etc.. of the sets.
+    Am i right that i can use the Int::Iter::Ranges classes for this?
+    And second, how do they work?
+    So in this case, i would create a
+
+    IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+    IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+
+    And them somehow the intersection of this.
+    But i was neither able to initialize a set with a Range, nor to
+    combine Ranges
+    recursively.
+
+    So, how do i do this using the helping classes of gecode.
+
+    Best,
+    Max
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120808/1dd5c2dc/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120808/1dd5c2dc/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003669">
+        <header class="archive-thread-message-heading">
+          <div><span>16</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Aug 10 06:44:17 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+here's some code that will do what you want:
+
+      Iter::Ranges::Singleton si00(6,Int::Limits::max);
+      Iter::Ranges::Singleton si10(Int::Limits::min,9);
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+        inter0(si00,si10);
+
+      Iter::Ranges::Singleton si01(101,Int::Limits::max);
+      Iter::Ranges::Singleton si11(Int::Limits::min,104);
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+        inter1(si01,si11);
+
+      Iter::Ranges::Union&lt;
+        Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+        Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; &gt;
+        u(inter0,inter1);
+
+      IntVar a(*this,IntSet(u));
+
+You can also use the n-ary variants of the iterators if you need to compute a union or intersection of more than two sets.
+
+Cheers,
+Guido
+
+On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+&gt;<i> Sorry for reposting an old question. I'm just cleaning up my code and noticed that i still not managed to use gecode's functionality to precompute domains of IntVar.
+</I>&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;<i> I want to precompute the domain of &quot;a&quot;.
+</I>&gt;<i> I'm simply not able to find out how the Ranges iterators are used.
+</I>&gt;<i> How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+</I>&gt;<i> How do i create the intersection of both.
+</I>&gt;<i> And finally how to set the domain of IntVar x to this range then.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I tried to grep the gecode code and the examples but was not able to find any.
+</I>&gt;<i>
+</I>&gt;<i> Sorry again for reposting this, i'm ashamed.
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> The best is to look for examples in the code ;-) Just grep for it.
+</I>&gt;<i>
+</I>&gt;<i> MinMax is nothing but a base-class for other classes and cannot be used
+</I>&gt;<i> directly. Look for the iterators that take arrays as input, they will do what
+</I>&gt;<i> you want.
+</I>&gt;<i>
+</I>&gt;<i> Best
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On Behalf Of
+</I>&gt;<i> Max Ostrowski
+</I>&gt;<i> Sent: Thursday, July 21, 2011 10:49 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Computing Variable Domains (Integer)
+</I>&gt;<i>
+</I>&gt;<i> Hello everybody,
+</I>&gt;<i>
+</I>&gt;<i> as variables in gecode need to have a domain, i want to compute the domain of
+</I>&gt;<i> the variables automatically, given the constraints.
+</I>&gt;<i> I could also let the constraints restrict the domains of my variables, but as i
+</I>&gt;<i> understood, this is similar to propagation and could take some time.
+</I>&gt;<i> There i want to restrict the domain manually for all unary constraints.
+</I>&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;<i> the domain should be {6..9,101..104}.
+</I>&gt;<i> Therefore i wanted to use some Gecode classes to compute the
+</I>&gt;<i> intersection/union/complement etc.. of the sets.
+</I>&gt;<i> Am i right that i can use the Int::Iter::Ranges classes for this?
+</I>&gt;<i> And second, how do they work?
+</I>&gt;<i> So in this case, i would create a
+</I>&gt;<i>
+</I>&gt;<i> IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+</I>&gt;<i> IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+</I>&gt;<i>
+</I>&gt;<i> And them somehow the intersection of this.
+</I>&gt;<i> But i was neither able to initialize a set with a Range, nor to combine Ranges
+</I>&gt;<i> recursively.
+</I>&gt;<i>
+</I>&gt;<i> So, how do i do this using the helping classes of gecode.
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120810/f20995f1/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120810/f20995f1/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003670">
+        <header class="archive-thread-message-heading">
+          <div><span>17</span><h2>Max Ostrowski</h2></div>
+          <p><time>Mon Aug 13 12:57:24 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thank you very much for the fast answer.
+I tried to play around with them but still face a lot of problems.
+
+In the documentation
+<A HREF="http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html">http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html</A> it
+is written that
+&quot;Iterators with virtual member functions have to be used when they are
+combined dynamically ...&quot;
+The only base class i found is MinMax.
+
+So how can i use the iterator dynamically.
+In the given example i have to know the type of the iterator used before.
+(To build the intersection of two Singletons for example)
+But if i want to build the intersection of two &quot;domains&quot; which could
+have been constructed in various ways (for example recursively),
+i need to have a general Base Type, right ?
+Is the Iter::Ranges thing still the right thing to use or is there
+something else.
+
+Also i found only iterators for union/intersection etc...
+Given that you want to add two variables a and b with known domain
+(stored in a RangeList?), how do you compute the domain of the result.
+Is there any functionality for this or do i have to iterate through both
+lists of ranges and add them together to form a new list.
+
+
+I hope i made things clear, if not please ask.
+
+
+Best,
+Max
+
+
+On 08/10/2012 06:44 AM, Guido Tack wrote:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> here's some code that will do what you want:
+</I>&gt;<i>
+</I>&gt;<i>       Iter::Ranges::Singleton si00(6,Int::Limits::max);
+</I>&gt;<i>       Iter::Ranges::Singleton si10(Int::Limits::min,9);
+</I>&gt;<i>
+</I>&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;<i>         inter0(si00,si10);
+</I>&gt;<i>
+</I>&gt;<i>       Iter::Ranges::Singleton si01(101,Int::Limits::max);
+</I>&gt;<i>       Iter::Ranges::Singleton si11(Int::Limits::min,104);
+</I>&gt;<i>
+</I>&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;<i>         inter1(si01,si11);
+</I>&gt;<i>
+</I>&gt;<i>       Iter::Ranges::Union&lt;
+</I>&gt;<i>
+</I>&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+</I>&gt;<i>
+</I>&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; &gt;
+</I>&gt;<i>         u(inter0,inter1);
+</I>&gt;<i>
+</I>&gt;<i>       IntVar a(*this,IntSet(u));
+</I>&gt;<i>
+</I>&gt;<i> You can also use the n-ary variants of the iterators if you need to
+</I>&gt;<i> compute a union or intersection of more than two sets.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>
+</I>&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Sorry for reposting an old question. I'm just cleaning up my code and
+</I>&gt;&gt;<i> noticed that i still not managed to use gecode's functionality to
+</I>&gt;&gt;<i> precompute domains of IntVar.
+</I>&gt;&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;<i> I want to precompute the domain of &quot;a&quot;.
+</I>&gt;&gt;<i> I'm simply not able to find out how the Ranges iterators are used.
+</I>&gt;&gt;<i> How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+</I>&gt;&gt;<i> How do i create the intersection of both.
+</I>&gt;&gt;<i> And finally how to set the domain of IntVar x to this range then.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I tried to grep the gecode code and the examples but was not able to
+</I>&gt;&gt;<i> find any.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Sorry again for reposting this, i'm ashamed.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best,
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     The best is to look for examples in the code ;-) Just grep for it.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     MinMax is nothing but a base-class for other classes and cannot
+</I>&gt;&gt;<i>     be used
+</I>&gt;&gt;<i>     directly. Look for the iterators that take arrays as input, they
+</I>&gt;&gt;<i>     will do what
+</I>&gt;&gt;<i>     you want.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     Best
+</I>&gt;&gt;<i>     Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     --
+</I>&gt;&gt;<i>     Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;&gt;<i>     &lt;<A HREF="http://web.it.kth.se/%7Ecschulte/">http://web.it.kth.se/%7Ecschulte/</A>&gt;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     -----Original Message-----
+</I>&gt;&gt;<i>     From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>]
+</I>&gt;&gt;<i>     On Behalf Of
+</I>&gt;&gt;<i>     Max Ostrowski
+</I>&gt;&gt;<i>     Sent: Thursday, July 21, 2011 10:49 AM
+</I>&gt;&gt;<i>     To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i>     Subject: [gecode-users] Computing Variable Domains (Integer)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     Hello everybody,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     as variables in gecode need to have a domain, i want to compute
+</I>&gt;&gt;<i>     the domain of
+</I>&gt;&gt;<i>     the variables automatically, given the constraints.
+</I>&gt;&gt;<i>     I could also let the constraints restrict the domains of my
+</I>&gt;&gt;<i>     variables, but as i
+</I>&gt;&gt;<i>     understood, this is similar to propagation and could take some time.
+</I>&gt;&gt;<i>     There i want to restrict the domain manually for all unary
+</I>&gt;&gt;<i>     constraints.
+</I>&gt;&gt;<i>     So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;<i>     the domain should be {6..9,101..104}.
+</I>&gt;&gt;<i>     Therefore i wanted to use some Gecode classes to compute the
+</I>&gt;&gt;<i>     intersection/union/complement etc.. of the sets.
+</I>&gt;&gt;<i>     Am i right that i can use the Int::Iter::Ranges classes for this?
+</I>&gt;&gt;<i>     And second, how do they work?
+</I>&gt;&gt;<i>     So in this case, i would create a
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+</I>&gt;&gt;<i>     IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     And them somehow the intersection of this.
+</I>&gt;&gt;<i>     But i was neither able to initialize a set with a Range, nor to
+</I>&gt;&gt;<i>     combine Ranges
+</I>&gt;&gt;<i>     recursively.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     So, how do i do this using the helping classes of gecode.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     Best,
+</I>&gt;&gt;<i>     Max
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120813/e79eea51/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120813/e79eea51/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003671">
+        <header class="archive-thread-message-heading">
+          <div><span>18</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Aug 14 06:52:20 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Sorry but I'm not sure I understand what you're trying to do.  Are you trying to precompute bounds on the domains of a and b given that there is a constraint a+b=c in your model?  We don't have specialised iterators for that kind of computation, and just running propagation (i.e. calling status once) will give you the same result.  You should only restrict the variables to reasonable initial domains (i.e., use some easy to compute upper and lower bounds). But you don't have to do the propagators' job.
+
+Cheers,
+Guido
+
+On 13/08/2012, at 8:57 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+&gt;<i> Thank you very much for the fast answer.
+</I>&gt;<i> I tried to play around with them but still face a lot of problems.
+</I>&gt;<i>
+</I>&gt;<i> In the documentation <A HREF="http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html">http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html</A> it is written that
+</I>&gt;<i> &quot;Iterators with virtual member functions have to be used when they are combined dynamically ...&quot;
+</I>&gt;<i> The only base class i found is MinMax.
+</I>&gt;<i>
+</I>&gt;<i> So how can i use the iterator dynamically.
+</I>&gt;<i> In the given example i have to know the type of the iterator used before.
+</I>&gt;<i> (To build the intersection of two Singletons for example)
+</I>&gt;<i> But if i want to build the intersection of two &quot;domains&quot; which could have been constructed in various ways (for example recursively),
+</I>&gt;<i> i need to have a general Base Type, right ?
+</I>&gt;<i> Is the Iter::Ranges thing still the right thing to use or is there something else.
+</I>&gt;<i>
+</I>&gt;<i> Also i found only iterators for union/intersection etc...
+</I>&gt;<i> Given that you want to add two variables a and b with known domain (stored in a RangeList?), how do you compute the domain of the result.
+</I>&gt;<i> Is there any functionality for this or do i have to iterate through both lists of ranges and add them together to form a new list.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I hope i made things clear, if not please ask.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On 08/10/2012 06:44 AM, Guido Tack wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> here's some code that will do what you want:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>       Iter::Ranges::Singleton si00(6,Int::Limits::max);
+</I>&gt;&gt;<i>       Iter::Ranges::Singleton si10(Int::Limits::min,9);
+</I>&gt;&gt;<i>       Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;&gt;<i>         inter0(si00,si10);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>       Iter::Ranges::Singleton si01(101,Int::Limits::max);
+</I>&gt;&gt;<i>       Iter::Ranges::Singleton si11(Int::Limits::min,104);
+</I>&gt;&gt;<i>       Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;&gt;<i>         inter1(si01,si11);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>       Iter::Ranges::Union&lt;
+</I>&gt;&gt;<i>         Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+</I>&gt;&gt;<i>         Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; &gt;
+</I>&gt;&gt;<i>         u(inter0,inter1);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>       IntVar a(*this,IntSet(u));
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> You can also use the n-ary variants of the iterators if you need to compute a union or intersection of more than two sets.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Sorry for reposting an old question. I'm just cleaning up my code and noticed that i still not managed to use gecode's functionality to precompute domains of IntVar.
+</I>&gt;&gt;&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;&gt;<i> I want to precompute the domain of &quot;a&quot;.
+</I>&gt;&gt;&gt;<i> I'm simply not able to find out how the Ranges iterators are used.
+</I>&gt;&gt;&gt;<i> How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+</I>&gt;&gt;&gt;<i> How do i create the intersection of both.
+</I>&gt;&gt;&gt;<i> And finally how to set the domain of IntVar x to this range then.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I tried to grep the gecode code and the examples but was not able to find any.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Sorry again for reposting this, i'm ashamed.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> The best is to look for examples in the code ;-) Just grep for it.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> MinMax is nothing but a base-class for other classes and cannot be used
+</I>&gt;&gt;&gt;<i> directly. Look for the iterators that take arrays as input, they will do what
+</I>&gt;&gt;&gt;<i> you want.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Best
+</I>&gt;&gt;&gt;<i> Christian
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;<i> Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On Behalf Of
+</I>&gt;&gt;&gt;<i> Max Ostrowski
+</I>&gt;&gt;&gt;<i> Sent: Thursday, July 21, 2011 10:49 AM
+</I>&gt;&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> Subject: [gecode-users] Computing Variable Domains (Integer)
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Hello everybody,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> as variables in gecode need to have a domain, i want to compute the domain of
+</I>&gt;&gt;&gt;<i> the variables automatically, given the constraints.
+</I>&gt;&gt;&gt;<i> I could also let the constraints restrict the domains of my variables, but as i
+</I>&gt;&gt;&gt;<i> understood, this is similar to propagation and could take some time.
+</I>&gt;&gt;&gt;<i> There i want to restrict the domain manually for all unary constraints.
+</I>&gt;&gt;&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;&gt;<i> the domain should be {6..9,101..104}.
+</I>&gt;&gt;&gt;<i> Therefore i wanted to use some Gecode classes to compute the
+</I>&gt;&gt;&gt;<i> intersection/union/complement etc.. of the sets.
+</I>&gt;&gt;&gt;<i> Am i right that i can use the Int::Iter::Ranges classes for this?
+</I>&gt;&gt;&gt;<i> And second, how do they work?
+</I>&gt;&gt;&gt;<i> So in this case, i would create a
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+</I>&gt;&gt;&gt;<i> IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> And them somehow the intersection of this.
+</I>&gt;&gt;&gt;<i> But i was neither able to initialize a set with a Range, nor to combine Ranges
+</I>&gt;&gt;&gt;<i> recursively.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> So, how do i do this using the helping classes of gecode.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120814/fb314fbd/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120814/fb314fbd/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003672">
+        <header class="archive-thread-message-heading">
+          <div><span>19</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Aug 14 09:33:44 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>OK, i see.
+This was indeed the thing i wanted to do.
+I had some bad experiences with posting propagators on unrestricted
+variables.
+Given that my supports has a declarative language for the description of
+the constraints, no domain is given as input.
+That why i wanted to compute one.
+But i will now leave it with a simple bound computation using
+boost::numeric::interval.
+
+Thanks a lot,
+Max
+
+On 08/14/2012 06:52 AM, Guido Tack wrote:
+&gt;<i> Sorry but I'm not sure I understand what you're trying to do.  Are you
+</I>&gt;<i> trying to precompute bounds on the domains of a and b given that there
+</I>&gt;<i> is a constraint a+b=c in your model?  We don't have specialised
+</I>&gt;<i> iterators for that kind of computation, and just running propagation
+</I>&gt;<i> (i.e. calling status once) will give you the same result.  You should
+</I>&gt;<i> only restrict the variables to reasonable initial domains (i.e., use
+</I>&gt;<i> some easy to compute upper and lower bounds). But you don't have to do
+</I>&gt;<i> the propagators' job.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> On 13/08/2012, at 8:57 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>
+</I>&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;&gt; wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Thank you very much for the fast answer.
+</I>&gt;&gt;<i> I tried to play around with them but still face a lot of problems.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> In the documentation
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html">http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html</A>
+</I>&gt;&gt;<i> it is written that
+</I>&gt;&gt;<i> &quot;Iterators with virtual member functions have to be used when they
+</I>&gt;&gt;<i> are combined dynamically ...&quot;
+</I>&gt;&gt;<i> The only base class i found is MinMax.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> So how can i use the iterator dynamically.
+</I>&gt;&gt;<i> In the given example i have to know the type of the iterator used before.
+</I>&gt;&gt;<i> (To build the intersection of two Singletons for example)
+</I>&gt;&gt;<i> But if i want to build the intersection of two &quot;domains&quot; which could
+</I>&gt;&gt;<i> have been constructed in various ways (for example recursively),
+</I>&gt;&gt;<i> i need to have a general Base Type, right ?
+</I>&gt;&gt;<i> Is the Iter::Ranges thing still the right thing to use or is there
+</I>&gt;&gt;<i> something else.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Also i found only iterators for union/intersection etc...
+</I>&gt;&gt;<i> Given that you want to add two variables a and b with known domain
+</I>&gt;&gt;<i> (stored in a RangeList?), how do you compute the domain of the result.
+</I>&gt;&gt;<i> Is there any functionality for this or do i have to iterate through
+</I>&gt;&gt;<i> both lists of ranges and add them together to form a new list.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I hope i made things clear, if not please ask.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best,
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 08/10/2012 06:44 AM, Guido Tack wrote:
+</I>&gt;&gt;&gt;<i> Hi,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> here's some code that will do what you want:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       Iter::Ranges::Singleton si00(6,Int::Limits::max);
+</I>&gt;&gt;&gt;<i>       Iter::Ranges::Singleton si10(Int::Limits::min,9);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;&gt;&gt;<i>         inter0(si00,si10);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       Iter::Ranges::Singleton si01(101,Int::Limits::max);
+</I>&gt;&gt;&gt;<i>       Iter::Ranges::Singleton si11(Int::Limits::min,104);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+</I>&gt;&gt;&gt;<i>         inter1(si01,si11);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       Iter::Ranges::Union&lt;
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt; &gt;
+</I>&gt;&gt;&gt;<i>         u(inter0,inter1);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>       IntVar a(*this,IntSet(u));
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> You can also use the n-ary variants of the iterators if you need to
+</I>&gt;&gt;&gt;<i> compute a union or intersection of more than two sets.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;<i> Guido
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>
+</I>&gt;&gt;&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;&gt; wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Sorry for reposting an old question. I'm just cleaning up my code
+</I>&gt;&gt;&gt;&gt;<i> and noticed that i still not managed to use gecode's functionality
+</I>&gt;&gt;&gt;&gt;<i> to precompute domains of IntVar.
+</I>&gt;&gt;&gt;&gt;<i> So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;&gt;&gt;<i> I want to precompute the domain of &quot;a&quot;.
+</I>&gt;&gt;&gt;&gt;<i> I'm simply not able to find out how the Ranges iterators are used.
+</I>&gt;&gt;&gt;&gt;<i> How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+</I>&gt;&gt;&gt;&gt;<i> How do i create the intersection of both.
+</I>&gt;&gt;&gt;&gt;<i> And finally how to set the domain of IntVar x to this range then.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I tried to grep the gecode code and the examples but was not able
+</I>&gt;&gt;&gt;&gt;<i> to find any.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Sorry again for reposting this, i'm ashamed.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     The best is to look for examples in the code ;-) Just grep for it.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     MinMax is nothing but a base-class for other classes and cannot
+</I>&gt;&gt;&gt;&gt;<i>     be used
+</I>&gt;&gt;&gt;&gt;<i>     directly. Look for the iterators that take arrays as input,
+</I>&gt;&gt;&gt;&gt;<i>     they will do what
+</I>&gt;&gt;&gt;&gt;<i>     you want.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     Best
+</I>&gt;&gt;&gt;&gt;<i>     Christian
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     --
+</I>&gt;&gt;&gt;&gt;<i>     Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;&gt;&gt;&gt;<i>     &lt;<A HREF="http://web.it.kth.se/%7Ecschulte/">http://web.it.kth.se/%7Ecschulte/</A>&gt;
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     -----Original Message-----
+</I>&gt;&gt;&gt;&gt;<i>     From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i>     [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On Behalf Of
+</I>&gt;&gt;&gt;&gt;<i>     Max Ostrowski
+</I>&gt;&gt;&gt;&gt;<i>     Sent: Thursday, July 21, 2011 10:49 AM
+</I>&gt;&gt;&gt;&gt;<i>     To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i>     Subject: [gecode-users] Computing Variable Domains (Integer)
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     Hello everybody,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     as variables in gecode need to have a domain, i want to compute
+</I>&gt;&gt;&gt;&gt;<i>     the domain of
+</I>&gt;&gt;&gt;&gt;<i>     the variables automatically, given the constraints.
+</I>&gt;&gt;&gt;&gt;<i>     I could also let the constraints restrict the domains of my
+</I>&gt;&gt;&gt;&gt;<i>     variables, but as i
+</I>&gt;&gt;&gt;&gt;<i>     understood, this is similar to propagation and could take some
+</I>&gt;&gt;&gt;&gt;<i>     time.
+</I>&gt;&gt;&gt;&gt;<i>     There i want to restrict the domain manually for all unary
+</I>&gt;&gt;&gt;&gt;<i>     constraints.
+</I>&gt;&gt;&gt;&gt;<i>     So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+</I>&gt;&gt;&gt;&gt;<i>     the domain should be {6..9,101..104}.
+</I>&gt;&gt;&gt;&gt;<i>     Therefore i wanted to use some Gecode classes to compute the
+</I>&gt;&gt;&gt;&gt;<i>     intersection/union/complement etc.. of the sets.
+</I>&gt;&gt;&gt;&gt;<i>     Am i right that i can use the Int::Iter::Ranges classes for this?
+</I>&gt;&gt;&gt;&gt;<i>     And second, how do they work?
+</I>&gt;&gt;&gt;&gt;<i>     So in this case, i would create a
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+</I>&gt;&gt;&gt;&gt;<i>     IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     And them somehow the intersection of this.
+</I>&gt;&gt;&gt;&gt;<i>     But i was neither able to initialize a set with a Range, nor to
+</I>&gt;&gt;&gt;&gt;<i>     combine Ranges
+</I>&gt;&gt;&gt;&gt;<i>     recursively.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     So, how do i do this using the helping classes of gecode.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>     Best,
+</I>&gt;&gt;&gt;&gt;<i>     Max
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120814/7626f55c/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20120814/7626f55c/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003673">
+        <header class="archive-thread-message-heading">
+          <div><span>20</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 14 10:19:18 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I think Guido's proposal is a very good one: just reasonable bounds. Here,
+reasonable means that the only thing you have to get right is to come up
+with bounds for linear constraints. The other constraints do not suffer that
+easily from arithmetic overflow.
+
+
+
+Keep it simple!
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 14, 2012 9:34 AM
+To: Guido Tack
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Computing Variable Domains
+
+
+
+OK, i see.
+This was indeed the thing i wanted to do.
+I had some bad experiences with posting propagators on unrestricted
+variables.
+Given that my supports has a declarative language for the description of the
+constraints, no domain is given as input.
+That why i wanted to compute one.
+But i will now leave it with a simple bound computation using
+boost::numeric::interval.
+
+Thanks a lot,
+Max
+
+On 08/14/2012 06:52 AM, Guido Tack wrote:
+
+Sorry but I'm not sure I understand what you're trying to do.  Are you
+trying to precompute bounds on the domains of a and b given that there is a
+constraint a+b=c in your model?  We don't have specialised iterators for
+that kind of computation, and just running propagation (i.e. calling status
+once) will give you the same result.  You should only restrict the variables
+to reasonable initial domains (i.e., use some easy to compute upper and
+lower bounds). But you don't have to do the propagators' job.
+
+
+
+Cheers,
+
+Guido
+
+
+
+On 13/08/2012, at 8:57 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+
+
+
+
+Thank you very much for the fast answer.
+I tried to play around with them but still face a lot of problems.
+
+In the documentation
+<A HREF="http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html">http://www.gecode.org/doc-latest/reference/group__FuncIterRangesVirt.html</A> it
+is written that
+&quot;Iterators with virtual member functions have to be used when they are
+combined dynamically ...&quot;
+The only base class i found is MinMax.
+
+So how can i use the iterator dynamically.
+In the given example i have to know the type of the iterator used before.
+(To build the intersection of two Singletons for example)
+But if i want to build the intersection of two &quot;domains&quot; which could have
+been constructed in various ways (for example recursively),
+i need to have a general Base Type, right ?
+Is the Iter::Ranges thing still the right thing to use or is there something
+else.
+
+Also i found only iterators for union/intersection etc...
+Given that you want to add two variables a and b with known domain (stored
+in a RangeList?), how do you compute the domain of the result.
+Is there any functionality for this or do i have to iterate through both
+lists of ranges and add them together to form a new list.
+
+
+I hope i made things clear, if not please ask.
+
+
+Best,
+Max
+
+
+On 08/10/2012 06:44 AM, Guido Tack wrote:
+
+Hi,
+
+
+
+here's some code that will do what you want:
+
+
+
+      Iter::Ranges::Singleton si00(6,Int::Limits::max);
+
+      Iter::Ranges::Singleton si10(Int::Limits::min,9);
+
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+
+        inter0(si00,si10);
+
+
+
+      Iter::Ranges::Singleton si01(101,Int::Limits::max);
+
+      Iter::Ranges::Singleton si11(Int::Limits::min,104);
+
+      Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+
+        inter1(si01,si11);
+
+
+
+      Iter::Ranges::Union&lt;
+
+
+Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;,
+
+        Iter::Ranges::Inter&lt;Iter::Ranges::Singleton,Iter::Ranges::Singleton&gt;
+&gt;<i>
+</I>
+        u(inter0,inter1);
+
+
+
+      IntVar a(*this,IntSet(u));
+
+
+
+You can also use the n-ary variants of the iterators if you need to compute
+a union or intersection of more than two sets.
+
+
+
+Cheers,
+
+Guido
+
+
+
+On 08/08/2012, at 9:41 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+
+
+
+
+Sorry for reposting an old question. I'm just cleaning up my code and
+noticed that i still not managed to use gecode's functionality to precompute
+domains of IntVar.
+So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+I want to precompute the domain of &quot;a&quot;.
+I'm simply not able to find out how the Ranges iterators are used.
+How to i create a range &quot;5..inf&quot; and a range &quot;-inf..10&quot;
+How do i create the intersection of both.
+And finally how to set the domain of IntVar x to this range then.
+
+
+I tried to grep the gecode code and the examples but was not able to find
+any.
+
+Sorry again for reposting this, i'm ashamed.
+
+Best,
+Max
+
+
+
+
+
+
+The best is to look for examples in the code ;-) Just grep for it.
+
+MinMax is nothing but a base-class for other classes and cannot be used
+directly. Look for the iterators that take arrays as input, they will do
+what
+you want.
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+&lt;<A HREF="http://web.it.kth.se/%7Ecschulte/">http://web.it.kth.se/%7Ecschulte/</A>&gt;
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-boun... at gecode.org</A>] On Behalf
+Of
+Max Ostrowski
+Sent: Thursday, July 21, 2011 10:49 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Computing Variable Domains (Integer)
+
+Hello everybody,
+
+as variables in gecode need to have a domain, i want to compute the domain
+of
+the variables automatically, given the constraints.
+I could also let the constraints restrict the domains of my variables, but
+as i
+understood, this is similar to propagation and could take some time.
+There i want to restrict the domain manually for all unary constraints.
+So, given a constraint &quot;(a&gt;5 /\ a&lt;10) \/ (a&gt;100 /\ a&lt;105)&quot;
+the domain should be {6..9,101..104}.
+Therefore i wanted to use some Gecode classes to compute the
+intersection/union/complement etc.. of the sets.
+Am i right that i can use the Int::Iter::Ranges classes for this?
+And second, how do they work?
+So in this case, i would create a
+
+IntSet a1(Gecode::Iter::Ranges::MinMax(5+1,Int::Limits::max));
+IntSet a2(Gecode::Iter::Ranges::MinMax(Int::Limits::min, 10-1));
+
+And them somehow the intersection of this.
+But i was neither able to initialize a set with a Range, nor to combine
+Ranges
+recursively.
+
+So, how do i do this using the helping classes of gecode.
+
+Best,
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120814/e57e3806/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120814/e57e3806/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003674">
+        <header class="archive-thread-message-heading">
+          <div><span>21</span><h2>Max Ostrowski</h2></div>
+          <p><time>Fri Aug 17 15:24:18 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Is there a way to remove all propagators from a space &quot;a&quot;.
+In this way the space contains only the restricted variables so far but
+no constraints on them.
+I need such a space and i want to avoid creating an empty space &quot;b&quot; and
+adding all variables and constraining them to the values they had in &quot;a&quot;.
+
+
+Is this possible?
+
+
+Best,
+Max
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003675">
+        <header class="archive-thread-message-heading">
+          <div><span>22</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Aug 17 21:05:57 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>No, that's currently not supported.  You'll have to work around it as you suggested.
+
+Cheers,
+Guido
+
+--
+Guido Tack
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+On 17/08/2012, at 11:24 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt; wrote:
+
+&gt;<i> Is there a way to remove all propagators from a space &quot;a&quot;.
+</I>&gt;<i> In this way the space contains only the restricted variables so far but
+</I>&gt;<i> no constraints on them.
+</I>&gt;<i> I need such a space and i want to avoid creating an empty space &quot;b&quot; and
+</I>&gt;<i> adding all variables and constraining them to the values they had in &quot;a&quot;.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Is this possible?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120818/81e69dfe/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120818/81e69dfe/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003676">
+        <header class="archive-thread-message-heading">
+          <div><span>23</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Aug 17 21:17:17 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>But I could add it for Gecode 4.*, should not be that hard. Do you want it?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Friday, August 17, 2012 9:06 PM
+To: Max Ostrowski
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Removing propagators from a Space
+
+
+
+No, that's currently not supported.  You'll have to work around it as you
+suggested.
+
+
+
+Cheers,
+
+Guido
+
+
+
+--
+
+Guido Tack
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+
+
+
+
+On 17/08/2012, at 11:24 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;
+wrote:
+
+
+
+
+
+Is there a way to remove all propagators from a space &quot;a&quot;.
+In this way the space contains only the restricted variables so far but
+no constraints on them.
+I need such a space and i want to avoid creating an empty space &quot;b&quot; and
+adding all variables and constraining them to the values they had in &quot;a&quot;.
+
+
+Is this possible?
+
+
+Best,
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120817/c91a048d/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120817/c91a048d/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003677">
+        <header class="archive-thread-message-heading">
+          <div><span>24</span><h2>Max Ostrowski</h2></div>
+          <p><time>Mon Aug 20 09:33:42 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>That would be cool.
+I think it is not useful for the normal use of GeCode, so you have to
+decide if you want to bloat your code with this.
+But I would appreciate it.
+If there would be also the possibility to only remove certain
+constraints, that would be even more awesome.
+But here I see why it is difficult, as Propagators would need to be
+identified by something.
+
+
+Best,
+Max
+
+On 08/17/2012 09:17 PM, Christian Schulte wrote:
+&gt;<i>
+</I>&gt;<i> But I could add it for Gecode 4.*, should not be that hard. Do you
+</I>&gt;<i> want it?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Guido Tack
+</I>&gt;<i> *Sent:* Friday, August 17, 2012 9:06 PM
+</I>&gt;<i> *To:* Max Ostrowski
+</I>&gt;<i> *Cc:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* Re: [gecode-users] Removing propagators from a Space
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> No, that's currently not supported.  You'll have to work around it as
+</I>&gt;<i> you suggested.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On 17/08/2012, at 11:24 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>
+</I>&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;&gt; wrote:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Is there a way to remove all propagators from a space &quot;a&quot;.
+</I>&gt;<i> In this way the space contains only the restricted variables so far but
+</I>&gt;<i> no constraints on them.
+</I>&gt;<i> I need such a space and i want to avoid creating an empty space &quot;b&quot; and
+</I>&gt;<i> adding all variables and constraining them to the values they had in &quot;a&quot;.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Is this possible?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120820/e3fc2819/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120820/e3fc2819/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003678">
+        <header class="archive-thread-message-heading">
+          <div><span>25</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 21 09:49:47 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Removing all is easy and useful. Removing some is a pain in the .
+
+
+
+I'll do the former.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Monday, August 20, 2012 9:34 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: 'Guido Tack'; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Removing propagators from a Space
+
+
+
+That would be cool.
+I think it is not useful for the normal use of GeCode, so you have to decide
+if you want to bloat your code with this.
+But I would appreciate it.
+If there would be also the possibility to only remove certain constraints,
+that would be even more awesome.
+But here I see why it is difficult, as Propagators would need to be
+identified by something.
+
+
+Best,
+Max
+
+On 08/17/2012 09:17 PM, Christian Schulte wrote:
+
+But I could add it for Gecode 4.*, should not be that hard. Do you want it?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Guido Tack
+Sent: Friday, August 17, 2012 9:06 PM
+To: Max Ostrowski
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Removing propagators from a Space
+
+
+
+No, that's currently not supported.  You'll have to work around it as you
+suggested.
+
+
+
+Cheers,
+
+Guido
+
+
+
+--
+
+Guido Tack
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+
+
+
+
+
+
+
+On 17/08/2012, at 11:24 PM, Max Ostrowski &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>&gt;
+wrote:
+
+
+
+
+
+
+Is there a way to remove all propagators from a space &quot;a&quot;.
+In this way the space contains only the restricted variables so far but
+no constraints on them.
+I need such a space and i want to avoid creating an empty space &quot;b&quot; and
+adding all variables and constraining them to the values they had in &quot;a&quot;.
+
+
+Is this possible?
+
+
+Best,
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/dc68a8d4/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120821/dc68a8d4/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>
