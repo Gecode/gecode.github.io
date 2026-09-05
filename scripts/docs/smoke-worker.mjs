@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
 
-const [base, version, mode] = process.argv.slice(2);
+const [base, version, ...options] = process.argv.slice(2);
 assert(base && /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version ?? ""),
-  "Usage: node scripts/docs/smoke-worker.mjs <base-url> <version> [--immutable-only]");
-assert(mode === undefined || mode === "--immutable-only", "Unknown smoke-check mode");
-const immutableOnly = mode === "--immutable-only";
+  "Usage: node scripts/docs/smoke-worker.mjs <base-url> <version> [--revision <id>] [--immutable-only]");
+let revision;
+let immutableOnly = false;
+for (let index = 0; index < options.length; index++) {
+  if (options[index] === "--immutable-only") immutableOnly = true;
+  else if (options[index] === "--revision") {
+    revision = options[++index];
+    assert(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(revision ?? ""), "Invalid documentation revision");
+  } else assert.fail(`Unknown smoke-check option: ${options[index]}`);
+}
 const origin = new URL(base).origin;
 const production = origin === "https://www.gecode.dev";
 const latestBase = "https://www.gecode.dev/doc/latest/";
@@ -23,6 +30,10 @@ async function check(path, status, options = {}, verify = () => {}) {
     if (!production || path.startsWith(`/doc/${version}/`) || path.startsWith("/doc-latest/")) {
       assertNoindex(response);
     }
+    if ([200, 206, 304].includes(status) && /^\/(?:doc\/|doc-latest\/)/.test(path)) {
+      assert.equal(response.headers.get("x-gecode-documentation-version"), version, `${path}: selected version`);
+      assert.equal(response.headers.get("x-gecode-documentation-revision"), revision ?? "legacy", `${path}: selected revision`);
+    }
     await verify(response);
     console.log(`${options.method ?? "GET"} ${path}: ${status}`);
   } finally {
@@ -30,7 +41,18 @@ async function check(path, status, options = {}, verify = () => {}) {
   }
 }
 
-for (const prefix of immutableOnly ? [`/doc/${version}`] : [`/doc/${version}`, "/doc/latest", "/doc-latest"]) {
+const prefixes = [`/doc/${version}`];
+if (revision) prefixes.push(`/doc/${version}/revisions/${revision}`);
+if (!immutableOnly) prefixes.push("/doc/latest", "/doc-latest");
+
+function assertCanonical(response, prefix, relative) {
+  const indexable = production && prefix === "/doc/latest";
+  assertNoindex(response, !indexable);
+  assert.equal(response.headers.get("link"), indexable
+    ? `<${latestBase}${relative}>; rel="canonical"` : null);
+}
+
+for (const prefix of prefixes) {
   await check(`${prefix}/reference/index.html`, 200, {}, (response) => {
     assert.equal(response.headers.get("x-gecode-documentation-version"), version);
     assert.match(response.headers.get("content-type"), /text\/html/);
@@ -42,6 +64,41 @@ for (const prefix of immutableOnly ? [`/doc/${version}`] : [`/doc/${version}`, "
   await check(`${prefix}/reference?smoke=1`, 308, {}, (response) => {
     assert.equal(response.headers.get("location"), `${origin}${prefix}/reference/?smoke=1`);
   });
+  if (revision) {
+    for (const relative of ["index.html", "modeling/index.html", "modeling/search/index.html"]) {
+      await check(`${prefix}/${relative}`, 200, {}, async (response) => {
+        assert.match(response.headers.get("content-type"), /text\/html/);
+        assertCanonical(response, prefix, relative);
+        const html = await response.text();
+        assert.match(html, /<html\b/i, `${relative}: HTML document`);
+        if (relative.startsWith("modeling/")) assert.match(html, /pagefind/i, `${relative}: search UI`);
+      });
+    }
+    for (const [relative, mime] of [
+      ["modeling/_static/mpg.css", /text\/css/],
+      ["modeling/_static/mpg-search.js", /(?:text|application)\/javascript/],
+      ["modeling/pagefind/pagefind.js", /(?:text|application)\/javascript/],
+      ["modeling/pagefind/pagefind-component-ui.js", /(?:text|application)\/javascript/],
+      ["modeling/pagefind/pagefind-component-ui.css", /text\/css/],
+    ]) {
+      await check(`${prefix}/${relative}`, 200, {}, (response) => {
+        assert.match(response.headers.get("content-type"), mime, `${relative}: asset content type`);
+      });
+    }
+    let language;
+    await check(`${prefix}/modeling/pagefind/pagefind-entry.json`, 200, {}, async (response) => {
+      assert.match(response.headers.get("content-type"), /application\/json/);
+      const index = await response.json();
+      language = index.languages?.en;
+      assert(language?.page_count > 0, "English search index is empty");
+      assert(/^[A-Za-z0-9_-]+$/.test(language.hash), "Invalid search metadata filename");
+      assert(/^[A-Za-z0-9_-]+$/.test(language.wasm), "Invalid search runtime filename");
+    });
+    for (const asset of [`pagefind.${language.hash}.pf_meta`, `wasm.${language.wasm}.pagefind`]) {
+      await check(`${prefix}/modeling/pagefind/${asset}`, 200);
+    }
+    await check(`${prefix}/readiness-missing-page.html`, 404);
+  }
 }
 
 if (!immutableOnly) {
@@ -94,23 +151,28 @@ await checkSitemap(`/doc/${version}/sitemap.xml`, false);
 if (!immutableOnly) await checkSitemap("/doc/sitemap.xml", true);
 await check(`/doc/${version}/readiness-missing-page.html`, 404);
 
-const pdf = `/doc/${version}/MPG.pdf`;
-let etag;
-await check(pdf, 200, { method: "HEAD", headers: { Range: "bytes=0-15" } }, (response) => {
-  assert.match(response.headers.get("content-type"), /application\/pdf/);
-  assert(Number(response.headers.get("content-length")) > 16);
-  assert.equal(response.headers.get("content-range"), null);
-  assert.equal(response.headers.get("link"), null);
-  etag = response.headers.get("etag");
-  assert(etag);
-});
-await check(pdf, 206, { headers: { Range: "bytes=0-15", "If-Range": etag } }, (response) => {
-  assert.match(response.headers.get("content-range"), /^bytes 0-15\/\d+$/);
-  assert.equal(response.headers.get("content-length"), "16");
-  assert.equal(response.headers.get("link"), null);
-});
-await check(pdf, 200, { headers: { Range: "bytes=0-15", "If-Range": '"stale-readiness-validator"' } }, (response) => {
-  assert.equal(response.headers.get("content-range"), null);
-  assert(Number(response.headers.get("content-length")) > 16);
-});
-console.log(`Documentation smoke checks passed for ${origin}, version ${version}.`);
+for (const prefix of prefixes) {
+  const pdf = `${prefix}/MPG.pdf`;
+  let etag;
+  await check(pdf, 200, { method: "HEAD", headers: { Range: "bytes=0-15" } }, (response) => {
+    assert.match(response.headers.get("content-type"), /application\/pdf/);
+    assert(Number(response.headers.get("content-length")) > 16);
+    assert.equal(response.headers.get("content-range"), null);
+    assertCanonical(response, prefix, "MPG.pdf");
+    etag = response.headers.get("etag");
+    assert(etag);
+  });
+  await check(pdf, 206, { headers: { Range: "bytes=0-15", "If-Range": etag } }, async (response) => {
+    assert.match(response.headers.get("content-range"), /^bytes 0-15\/\d+$/);
+    assert.equal(response.headers.get("content-length"), "16");
+    assertCanonical(response, prefix, "MPG.pdf");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    assert.equal(bytes.length, 16, `${pdf}: range response length`);
+    assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-", `${pdf}: PDF signature`);
+  });
+  await check(pdf, 200, { headers: { Range: "bytes=0-15", "If-Range": '"stale-readiness-validator"' } }, (response) => {
+    assert.equal(response.headers.get("content-range"), null);
+    assert(Number(response.headers.get("content-length")) > 16);
+  });
+}
+console.log(`Documentation smoke checks passed for ${origin}, version ${version}, revision ${revision ?? "legacy"}.`);
