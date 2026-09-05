@@ -104,11 +104,17 @@ version. A request for `/doc/latest/reference/index.html` reads
 promotion a single configuration change. Alias caches converge within five
 minutes; promotion is not instantaneous.
 
-Treat immutable `/doc/<version>/...` URLs as canonical. HTML responses carry an
-HTTP `Link` canonical for their versioned URL, including responses reached
-through either alias. Allow crawlers to index versioned documentation, exclude
-the aliases in `robots.txt`, and publish only versioned URLs in documentation
-sitemaps.
+Only production `/doc/latest/...` documentation is indexable. Its HTML uses
+the corresponding latest URL as its canonical. Every immutable
+`/doc/<version>/...` response, including PDFs, carries `X-Robots-Tag: noindex`.
+The `/doc-latest/...` compatibility alias continues to serve content with HTTP
+200 and `noindex`; all staging documentation also carries `noindex`.
+Keep these paths crawlable so search engines can read the indexing headers.
+
+Submit `/doc/sitemap.xml`, which exposes the selected release using only
+`/doc/latest/...` sitemap and page URLs. The Worker rewrites stored sitemap
+URLs in its responses; immutable R2 sitemap artifacts remain unchanged and
+are never submitted as versioned sitemaps.
 
 ## Worker behavior
 
@@ -125,7 +131,8 @@ The Worker should implement only the behavior object storage lacks:
 8. Return a small branded 404 page without trying extension fallbacks.
 9. Add `X-Content-Type-Options: nosniff` and a conservative referrer policy.
 10. Emit structured logs for misses, range failures, and unexpected methods.
-11. Add an HTTP canonical link to versioned HTML responses.
+11. Apply latest-only canonical and indexing headers to HTML, PDFs, and other
+    documentation responses; rewrite published sitemap URLs to `/doc/latest/`.
 
 Versioned objects can use a one-year shared cache because their keys never
 change. Alias responses should use a five-minute cache and expose the resolved
@@ -175,7 +182,8 @@ The local implementation now includes the tested Worker in `workers/docs/`,
 manifest, inventory, and sitemap generators in `scripts/docs/`, an immutable
 staged `rclone` publisher with SHA-256 verification, and CI validation.
 Generated sitemap files are part of each immutable release, and the Worker
-serves the selected sitemap at `/doc/sitemap.xml`. Provisioning buckets and
+serves the selected sitemap at `/doc/sitemap.xml`, rewriting its URLs to
+`/doc/latest/...` without modifying stored objects. Provisioning buckets and
 credentials, uploading objects, and changing DNS remain operator actions
 because they affect external infrastructure.
 
@@ -232,8 +240,9 @@ while ordinary website URLs still come from GitHub Pages.
   commit. Keep a tagged pre-migration commit for provenance.
 - Consider a separate, carefully announced history rewrite only if clone size
   remains a problem; it is not required for serving the site.
-- Update website links to versioned documentation URLs. Keep `latest` for human
-  entry points, not for citations or release notes.
+- Use `/doc/latest/...` for website documentation entry points. Keep immutable
+  version URLs for citations and release notes; those URLs remain available
+  but are not indexable.
 
 Exit criterion: the GitHub Pages artifact contains only the Astro site and
 small first-party downloads.
@@ -262,8 +271,11 @@ Automate these checks before changing DNS:
 - directory index behavior;
 - `GET`, `HEAD`, conditional requests, and byte ranges;
 - cache headers for versioned and alias paths;
+- latest-only indexing and canonical URLs, with `noindex` on immutable URLs,
+  PDFs under those URLs, the compatibility alias, and staging;
 - branded 404s with no accidental bucket listing;
-- sitemap size and URL-count limits;
+- sitemap size and URL-count limits, with only latest URLs in the submitted
+  sitemap index and shards;
 - ordinary `www.gecode.dev` pages bypassing the documentation Worker.
 
 Set documentation routes to fail closed after the Pages archive is removed;

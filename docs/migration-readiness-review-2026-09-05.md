@@ -1,19 +1,17 @@
 # Website migration and release readiness
 
-Reviewed and updated on 5 September 2026 in `explore/astro-rework`, based on
-`72760fbcf`. Three subagents reviewed deployment, documentation serving and
-publication, and the Gecode/MPG release integration. Fixes are in the local
-website, MPG and release-support working trees. Existing uncommitted work was
-preserved. A limited documentation Worker snapshot was subsequently committed
-and pushed on an isolated staging branch, then deployed through GitHub Actions.
-The migration branch and production website remain unchanged by that deployment.
+Reviewed and updated on 5 September 2026. Three subagents reviewed deployment,
+documentation serving and publication, and Gecode/MPG release integration.
+The website migration was merged in [PR #7](https://github.com/Gecode/gecode.github.io/pull/7)
+as `30ccd9636fb7eabed4b14ed5fea09602652ac0be` after clean-checkout CI passed.
+The MPG and release-support producer changes remain local. Existing working
+trees were preserved.
 
-The DNS move is complete. Production still serves Jekyll, and documentation
-still comes from the old origin. The immediate code defects have been fixed
-locally. Deployment access is now provisioned. The remaining cutover needs
-clean-checkout website CI and staged production verification. Future coordinated
-releases have a working local preparation slice; their publication coordinator
-is unfinished.
+DNS migration, staging verification, full historical R2 verification and the
+6.4.0 documentation canary are complete. Jekyll still serves the active website.
+The remaining traffic changes are the full documentation routes, a one-day
+soak, and the separate Astro cutover. Future coordinated releases have a
+working local preparation slice; their publication coordinator is unfinished.
 
 The hosting arrangement is Cloudflare DNS/proxy, Workers and private R2, with
 **GitHub Pages as the Astro origin**. Moving Astro itself to Cloudflare Pages
@@ -26,14 +24,14 @@ or Workers is a separate project and is unnecessary for this cutover.
 | DNS | Cloudflare nameservers `milan` and `tegan` are authoritative; the zone is active. MX and SPF use Cloudflare Email Routing. |
 | TLS | Cloudflare uses Full (strict) and Always Use HTTPS. Public HTTP redirects to HTTPS and the apex redirects to `www`. GitHub reports `https_enforced: false`; reconcile the origin setting separately. |
 | Production website | `/download.html` returns 200; `/download/` returns 404. Jekyll remains live. |
-| Production documentation | Responses lack the documentation Worker's version header; `/doc/sitemap.xml` returns 404. There are no production or canary zone routes. |
+| Production documentation | The 6.4.0 canary passes live HTTP and browser checks. Both narrow routes are fail-closed. Other versions and aliases still use the old origin pending production rollout. |
 | Staging documentation | The reviewed Worker was deployed through GitHub. Its tests and live HTTP smoke checks pass for immutable 6.4.0, both aliases, canonical links, redirects, static assets and PDF range behavior. |
-| R2 | Public `r2.dev` access is disabled. The 14-day lifecycle applies only to staging. Nine local historical manifests exist; the complete bucket was not rehashed during this review. |
+| R2 | Public `r2.dev` access is disabled. The 14-day lifecycle applies only to staging. All nine archives were fully verified: 52,385 objects / 1,138,898,740 bytes, with no missing objects or hash failures. The 326 historical image-map MIME declarations are documented below. |
 | Email | Email Routing destinations and catch-all Worker configuration are present. Real delivery and delivery alerts were not exercised. |
-| GitHub | The latest production Pages run remains the [15 July deployment](https://github.com/Gecode/gecode.github.io/actions/runs/29430643821). The [5 September staging Worker run](https://github.com/Gecode/gecode.github.io/actions/runs/33964652752) passed. The migration is not on the remote default branch. |
+| GitHub | The latest production Pages run remains the [15 July deployment](https://github.com/Gecode/gecode.github.io/actions/runs/29430643821). The [5 September staging Worker run](https://github.com/Gecode/gecode.github.io/actions/runs/33964652752) passed. The migration is merged on `main`; clean-checkout [CI passed](https://github.com/Gecode/gecode.github.io/actions/runs/33967188164), with Pages deployment skipped. |
 | Deployment credentials | All three Cloudflare environments now contain the account ID and dedicated `gecode-github-workers` token. Production accepts only `main` and `release/*-website` branches; the existing `zayenz` reviewer and approval settings were preserved. |
 
-## Fixes completed locally
+## Fixes completed
 
 | Area | Result |
 | --- | --- |
@@ -73,8 +71,8 @@ exceed the published-site size limit. The new
 mail archive, dereferences symlinks and checks required pages and size.
 
 A real build succeeded: **91,168,795 bytes** uncompressed. Its archive is
-[dist/classic-rollback.tar.gz](../dist/classic-rollback.tar.gz). Retain it outside
-this checkout and ephemeral CI storage before cutover. It requires the
+[dist/classic-rollback.tar.gz](../dist/classic-rollback.tar.gz). A verified copy is retained outside
+this checkout at `/Users/zayenz/gecode/website-rollback/classic-site-2026-07-15.tar.gz`. It requires the
 production documentation Worker and R2; remove active-site redirects when
 restoring classic pages. The build was verified locally, not deployed.
 
@@ -85,10 +83,10 @@ Do not delete immutable R2 objects during rollback.
 
 ## Remaining cutover sequence
 
-1. **Land the reviewed code.** Review and commit the current website, Worker,
-   archive and producer changes, including untracked dependencies. Run CI from
-   clean checkouts. Keep the first Pages deployment manual and retain the
-   classic rollback artifact.
+1. **Website code landed.** The migration, archive and Worker changes are on
+   `main`, and clean-checkout CI passed. Pages deployment remains manual and
+   the classic rollback archive is retained outside the checkout. MPG and
+   release-support changes still need separate commits and producer rehearsal.
 2. **Deployment access verified.** The dedicated Worker token is installed in
    `cloudflare-staging`, `cloudflare-canary` and `cloudflare-production`.
    Production branch restrictions and the existing reviewer were verified.
@@ -98,10 +96,9 @@ Do not delete immutable R2 objects during rollback.
 3. **Check operational records.** Confirm historical upload verification,
    fail-closed documentation routes, fail-open redirect routes, real mail
    delivery and useful error/delivery alerts. Keep the current DNS delegation.
-4. **Canary documentation.** Deploy documentation only on the configured 6.4.0
-   canary routes. Check HTML, source view, changelog fragment, CSS/JS/image, PDF
-   ranges, missing paths, canonical links and sitemap. Ordinary Jekyll pages
-   must continue to work.
+4. **Canary documentation verified.** The 6.4.0 deployment passed HTML, source
+   folding, changelog fragment, CSS/JS/image, PDF ranges, missing paths,
+   canonical links and sitemap checks. Ordinary Jekyll pages remain unchanged.
 5. **Move documentation.** Deploy production documentation routes, verify
    historical versions and both aliases, then remove the narrower canary.
    Allow at least one day with the Jekyll origin still available as fallback.
@@ -135,7 +132,53 @@ used commit `5ec53f3b111a46d92c42f8b996d79b86dc39cd80` on
 live checks in `scripts/docs/smoke-worker.mjs` passed. A bounded retry allows
 for propagation immediately after deployment; the first attempt observed the
 old redirect behavior before the new Worker reached that request. Production
-routes remain absent and production still serves the classic origin.
+routes were absent at that stage. The subsequent canary is recorded below.
+
+
+## Historical archive and canary verification
+
+Every historical R2 object was downloaded and compared with its manifest using
+SHA-256, byte count, response length and MIME type. Complete key sets and sizes
+were checked before and after downloading. All 52,385 files passed, across
+1.3.1, 2.2.0, 3.7.3, 4.4.0, 5.1.0, 6.0.1, 6.1.1, 6.2.0 and 6.4.0.
+Verification records are retained beside the rollback artifact in
+`/Users/zayenz/gecode/website-rollback/verification-2026-09-05/`.
+
+The old manifests wrongly declared 326 Graphviz `.map` files as JSON. R2 serves
+them as `application/octet-stream`. Their bytes are intact. Verification accepts
+only the known image-map formats (`<map`, `<area`, or `base referer` followed by
+`rect`) with the original SHA-256. New manifests classify JavaScript/CSS source
+maps as JSON and generic image maps as binary. No immutable objects or completion
+records were rewritten.
+
+The [canary deployment](https://github.com/Gecode/gecode.github.io/actions/runs/33967976199)
+used merged commit `30ccd9636fb7eabed4b14ed5fea09602652ac0be`; Worker version
+`aa0b09d7-026f-463d-af9f-5dfaa6fbec2f`. Its two routes cover only
+`www.gecode.dev/doc/6.4.0` and `www.gecode.dev/doc/6.4.0/*`, both with
+`request_limit_fail_open: false`. Browser checks confirmed the 6.4.0 changelog
+fragment and functioning code folding, with no missing images or console errors
+on the sampled source page. `/`, `/download.html` and the latest alias still
+return classic content; `/download/` retains the expected pre-Astro 404.
+
+Operational review found an enabled $10 budget email alert, but no failure-alert
+policy. Documentation Worker logging is configured for the next deployment,
+using [native Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).
+Production deployment smoke checks allow for the five-minute alias cache TTL.
+Email Routing is ready, but delivery-event access requires Zone Analytics Read;
+real delivery remains unverified.
+
+## Documentation indexing policy
+
+The requested policy is to index only `https://www.gecode.dev/doc/latest/...`.
+Versioned URLs, PDFs included, remain accessible with `X-Robots-Tag: noindex`.
+The `/doc-latest/...` compatibility alias and staging hosts also return noindex.
+Latest HTML and PDF responses identify their own latest URL as canonical.
+
+The Worker rewrites the selected sitemap responses to latest URLs while leaving
+immutable R2 artifacts intact. The shared robots file permits documentation
+crawling, because crawlers must fetch a URL to see its noindex header. The
+production Worker also serves `/robots.txt` so this policy can take effect before
+Astro is deployed. Search results will change as search engines recrawl the URLs.
 
 ## Gecode and MPG release plan
 
@@ -175,7 +218,7 @@ outside the live bucket.
 Completed locally:
 
 - Full website quality gate: Astro build, HTML, executable modes, 23 canonical
-  routes, rendered semantics, 2 content tests, 8 documentation-tool tests,
+  routes, rendered semantics, 2 content tests, 10 documentation-tool tests,
   13 documentation-Worker tests, 5 redirect tests and 9 email tests; all configured
   Worker dry-run builds pass.
 - Pages artifact: 12,198 files and 124,084,466 bytes, without documentation
@@ -193,7 +236,8 @@ Completed locally:
   stop. No real Gecode release was built or published.
 - The 91 MB classic rollback build from the exact July commit succeeds.
 
-Still required: clean-checkout website CI/lychee, full Gecode plus MPG PDF preparation,
-full R2 verification records, canary and production smoke tests, real
-mail delivery, and monitoring/alert review. The archive browser samples are not
+Still required: full Gecode plus MPG PDF preparation, production documentation
+rollout and soak, Astro cutover, real mail delivery, and failure-alert setup.
+Clean-checkout CI and internal lychee checks pass; nonblocking external checks
+include new Astro URLs that are not live yet and broken historical external links. The archive browser samples are not
 an exhaustive accessibility or Lighthouse audit.

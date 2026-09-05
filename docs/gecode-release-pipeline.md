@@ -85,6 +85,11 @@ Record the website-tool commit and final manifest digest in release state.
 The final manifest's SHA-256 values identify the approved local release tree;
 do not describe them as hashes recomputed by R2.
 
+Stored sitemap artifacts may contain immutable version URLs. The Worker
+rewrites the selected release's published sitemap index and shards to
+`/doc/latest/...`; submit only `/doc/sitemap.xml`. Do not rewrite completed R2
+objects to change indexing policy.
+
 The ordinary release must not invoke this repository's historical Doxygen
 patcher, staging publisher, staging verifier, or promotion scripts. Those
 scripts may remain useful for the one-time migration of historical content,
@@ -160,8 +165,12 @@ content release, the candidate updates:
 - the production `LATEST_DOC_VERSION` selection.
 
 Keep generated documentation and R2 credentials out of the candidate. Use
-`latest` aliases for human entry points, but use immutable version URLs in
-release news and citations.
+`/doc/latest/...` for human entry points and immutable version URLs in release
+news and citations. Only the production latest URLs are indexable and
+canonical. Immutable version URLs, including PDFs, and the HTTP 200
+`/doc-latest/...` compatibility alias carry `X-Robots-Tag: noindex`; staging
+documentation is also `noindex`. Producer HTML must not contain conflicting
+versioned canonical links; the Worker owns the served canonical selection.
 
 Run the configured website quality command and validate the release,
 download, and documentation pages. Before changing either alias, smoke-test
@@ -196,6 +205,12 @@ documentation 404, ordinary Astro pages, and the release-news anchor. Alias
 caches may serve the previous version for up to five minutes. Roll back an
 alias failure by redeploying the previous `LATEST_DOC_VERSION`; immutable
 versions remain unchanged.
+
+Check indexing headers on HTML and PDFs: only production `/doc/latest/...`
+may be indexed. Verify latest HTML canonicals and that the published sitemap
+index and every shard contain only latest URLs, including after alias
+promotion. Keep immutable and compatibility paths crawlable so crawlers can
+observe their `noindex` headers.
 
 Staging and canary Worker deployments belong to the initial migration or to a
 Worker-code change. They are not required for an ordinary content-only
