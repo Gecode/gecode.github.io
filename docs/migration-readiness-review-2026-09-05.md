@@ -7,10 +7,11 @@ as `30ccd9636fb7eabed4b14ed5fea09602652ac0be` after clean-checkout CI passed.
 The MPG and release-support producer changes remain local. Existing working
 trees were preserved.
 
-DNS migration, staging verification, full historical R2 verification and the
-6.4.0 documentation canary are complete. Jekyll still serves the active website.
-The remaining traffic changes are the full documentation routes, a one-day
-soak, and the separate Astro cutover. Future coordinated releases have a
+DNS migration, full historical R2 verification, staging/canary checks and the
+production documentation cutover are complete. The final production checks
+passed on 5 September at about 14:15 UTC. Jekyll still serves the active website.
+Allow at least one day of documentation soak before the separate Astro cutover
+(no earlier than 6 September, 16:30 Europe/Stockholm). Future coordinated releases have a
 working local preparation slice; their publication coordinator is unfinished.
 
 The hosting arrangement is Cloudflare DNS/proxy, Workers and private R2, with
@@ -24,7 +25,7 @@ or Workers is a separate project and is unnecessary for this cutover.
 | DNS | Cloudflare nameservers `milan` and `tegan` are authoritative; the zone is active. MX and SPF use Cloudflare Email Routing. |
 | TLS | Cloudflare uses Full (strict) and Always Use HTTPS. Public HTTP redirects to HTTPS and the apex redirects to `www`. GitHub reports `https_enforced: false`; reconcile the origin setting separately. |
 | Production website | `/download.html` returns 200; `/download/` returns 404. Jekyll remains live. |
-| Production documentation | The 6.4.0 canary passes live HTTP and browser checks. Both narrow routes are fail-closed. Other versions and aliases still use the old origin pending production rollout. |
+| Production documentation | All nine historical versions and both aliases use R2. Only `/doc/latest/...` is indexable. The two production route patterns are fail-closed; the canary and superseded routes have been removed. |
 | Staging documentation | The reviewed Worker was deployed through GitHub. Its tests and live HTTP smoke checks pass for immutable 6.4.0, both aliases, canonical links, redirects, static assets and PDF range behavior. |
 | R2 | Public `r2.dev` access is disabled. The 14-day lifecycle applies only to staging. All nine archives were fully verified: 52,385 objects / 1,138,898,740 bytes, with no missing objects or hash failures. The 326 historical image-map MIME declarations are documented below. |
 | Email | Email Routing destinations and catch-all Worker configuration are present. Real delivery and delivery alerts were not exercised. |
@@ -93,15 +94,16 @@ Do not delete immutable R2 objects during rollback.
    The workflow additionally limits release branches to documentation deployment
    and validates the version pattern. Staging deployment through GitHub and its
    live smoke checks have passed.
-3. **Check operational records.** Confirm historical upload verification,
-   fail-closed documentation routes, fail-open redirect routes, real mail
-   delivery and useful error/delivery alerts. Keep the current DNS delegation.
+3. **Operational checks partly complete.** Historical uploads and fail-closed
+   documentation routes are verified. Native documentation logs are enabled.
+   Real mail delivery and useful failure alerts remain to be checked; redirect
+   routes will be checked after Astro. Keep the current DNS delegation.
 4. **Canary documentation verified.** The 6.4.0 deployment passed HTML, source
    folding, changelog fragment, CSS/JS/image, PDF ranges, missing paths,
    canonical links and sitemap checks. Ordinary Jekyll pages remain unchanged.
-5. **Move documentation.** Deploy production documentation routes, verify
-   historical versions and both aliases, then remove the narrower canary.
-   Allow at least one day with the Jekyll origin still available as fallback.
+5. **Documentation moved.** Production routes, every historical version and
+   both aliases pass verification. The canary is removed. Allow at least one
+   day with the Jekyll origin still available as fallback before Astro.
 6. **Publish Astro.** Deploy `build:pages` from reviewed `main`. Verify ordinary
    pages, downloads, publications, archive search/browsing and mobile layout,
    plus R2 documentation. The Pages artifact must contain no documentation tree.
@@ -161,11 +163,37 @@ on the sampled source page. `/`, `/download.html` and the latest alias still
 return classic content; `/download/` retains the expected pre-Astro 404.
 
 Operational review found an enabled $10 budget email alert, but no failure-alert
-policy. Documentation Worker logging is configured for the next deployment,
+policy. Documentation Worker logging is enabled in production,
 using [native Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).
 Production deployment smoke checks allow for the five-minute alias cache TTL.
 Email Routing is ready, but delivery-event access requires Zone Analytics Read;
-real delivery remains unverified.
+real delivery remains unverified. The native alert UI requires a Cloudflare
+dashboard sign-in, and a notification policy alone does not configure a Worker
+failure detector.
+
+## Production cutover result
+
+[PR #8](https://github.com/Gecode/gecode.github.io/pull/8) added latest-only indexing,
+verified legacy map compatibility, native logs and production smoke checks.
+[PR #9](https://github.com/Gecode/gecode.github.io/pull/9) fixed query routing and
+the landing-page redirect. Both passed clean-checkout CI, staging and canary.
+
+The [successful production run](https://github.com/Gecode/gecode.github.io/actions/runs/33970884194)
+deployed `f4051a2c15626d99236cc284e1afa88ce8e4215e` as Worker version
+`4d257836-ea9d-4820-8acb-d691082150f5`.
+[Canary cleanup](https://github.com/Gecode/gecode.github.io/actions/runs/33971074416)
+passed. The live route set was checked afterward and five superseded routes
+were removed; only `www.gecode.dev/doc*` and `www.gecode.dev/robots.txt*` remain,
+both fail-closed. After changing route patterns, verify the live set explicitly:
+this Wrangler deployment retained older routes instead of removing them.
+
+The final public checks cover all historical version headers/noindex, latest
+and compatibility aliases, HTML/PDF indexing, query redirects, robots rules,
+sitemap index and shards, missing pages, PDF ranges and the classic landing page.
+The original production verification correctly failed on the queried `/doc`
+entry point; the corrected deployment and final checks passed. `/doc` now uses
+`/documentation.html`, which works throughout the classic-to-Astro transition.
+No Astro or active-site redirect Worker deployment has occurred.
 
 ## Documentation indexing policy
 
@@ -219,7 +247,7 @@ Completed locally:
 
 - Full website quality gate: Astro build, HTML, executable modes, 23 canonical
   routes, rendered semantics, 2 content tests, 10 documentation-tool tests,
-  13 documentation-Worker tests, 5 redirect tests and 9 email tests; all configured
+  21 documentation-Worker tests, 5 redirect tests and 9 email tests; all configured
   Worker dry-run builds pass.
 - Pages artifact: 12,198 files and 124,084,466 bytes, without documentation
   trees or symlinks. Archive path checks across 8,767 HTML files, restored
@@ -231,13 +259,17 @@ Completed locally:
 - Real MPG HTML build: 51 pages, local links, redirects, search assets and
   version marker verified. MPG's 14 unit tests and package-release platform
   tests pass.
+- Full MPG 6.4.0 PDF rehearsal: 609 pages / 2,799,680 bytes. PDF metadata,
+  references, glyph/text extraction checks and immutable/latest URL annotations
+  pass. The successful version marker matches the earlier HTML build. No MPG
+  release was published.
 - Release-support's 50 tests and existing build dry run pass. Tests cover
   metadata advancing to 7.0.0, bundle corruption/mismatch and the publication
   stop. No real Gecode release was built or published.
 - The 91 MB classic rollback build from the exact July commit succeeds.
 
-Still required: full Gecode plus MPG PDF preparation, production documentation
-rollout and soak, Astro cutover, real mail delivery, and failure-alert setup.
+Still required: a complete coordinated Gecode producer rehearsal, the
+documentation soak, Astro cutover, real mail delivery, and failure-alert setup.
 Clean-checkout CI and internal lychee checks pass; nonblocking external checks
 include new Astro URLs that are not live yet and broken historical external links. The archive browser samples are not
 an exhaustive accessibility or Lighthouse audit.

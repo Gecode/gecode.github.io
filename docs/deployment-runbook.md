@@ -8,15 +8,15 @@ irreversible step.
 
 The Astro site is ready to build with `npm run build:pages`. That artifact
 contains the active website and `users-archive`, but not `doc` or `doc-latest`.
-The tested R2 Worker will serve generated documentation after phase 5. The
+The tested R2 Worker now serves generated documentation in production. The
 Astro artifact pairs a redirect Worker for classic active `.html` URLs with
 small Pages fallback files.
 
 As checked on 5 September 2026, Cloudflare is authoritative for `gecode.dev`.
 Cloudflare proxies the apex GitHub Pages A records and the `www` CNAME to
 `gecode.github.io` with Full (strict) TLS and Always Use HTTPS. GitHub Pages
-still serves the active website. The 6.4.0 documentation canary now uses R2;
-other versions and aliases await production rollout. Astro has not been deployed.
+still serves the active website. All nine historical documentation versions
+and both latest aliases now use R2. Astro has not been deployed.
 
 Cloudflare Email Routing is ready. Its managed MX, SPF, and DKIM records are
 authoritative, both forwarding destinations are verified, and the catch-all
@@ -24,7 +24,8 @@ rule sends mail through the checked-in `gecode-email-routing` Worker. The
 private R2 documentation archive and `docs-staging.gecode.dev` Worker custom
 domain are live and pass the phase 4 smoke tests. Full R2 verification passed
 for all nine versions (52,385 files / 1,138,898,740 bytes). The 6.4.0 canary
-passes live checks and its two routes are fail-closed.
+has been removed after the production rollout. The two production route
+patterns are fail-closed, and final live checks pass.
 
 The `cloudflare-staging`, `cloudflare-canary`, and `cloudflare-production`
 GitHub environments contain the stable Cloudflare account ID and the dedicated
@@ -38,7 +39,10 @@ records the local fixes, rollback build, verification limits and remaining
 work. Phases 2–4 below describe the original migration sequence; DNS delegation
 and infrastructure setup are largely complete. Staging deployment through
 GitHub and clean-checkout website CI pass. The website migration is merged
-in PR #7; Pages remains manual. Continue with phase 5 production rollout.
+in PR #7, with follow-up fixes in PRs #8 and #9; Pages remains manual.
+Production deployment and canary cleanup passed. The final checks completed
+on 5 September at about 14:15 UTC. Continue with the one-day documentation
+soak; do not deploy Astro before 6 September, 16:30 Europe/Stockholm.
 
 ## Cutover overview
 
@@ -234,6 +238,8 @@ Worker route remains sufficient rollback.
 4. Verify Doxygen `.html` routes remain content pages and are handled by the
    documentation Worker.
 5. Deploy the production documentation routes and rerun the smoke tests.
+   Read back the live route set and remove superseded routes only after their
+   replacements are verified; Wrangler may retain old patterns.
    Confirm `/doc/sitemap.xml` serves the selected version's index and that its
    shards contain only canonical `/doc/latest/...` URLs. Confirm versioned
    content and `/doc-latest/...` return `X-Robots-Tag: noindex`, including PDFs.
