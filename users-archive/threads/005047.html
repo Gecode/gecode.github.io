@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Float overflow exceptions with &#x27;linear&#x27; in 6.0.1 — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Float overflow exceptions with &#x27;linear&#x27; in 6.0.1 | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2018–September 2018</p><h1 data-pagefind-meta="title">Float overflow exceptions with &#x27;linear&#x27; in 6.0.1</h1></header>
+      <p class="archive-thread-summary">5 messages · August 2018–September 2018</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-005047">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Konvicka Filip</h2></div>
+          <p><time>Fri Aug 24 09:48:29 CEST 2018</time><small>August 2018</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include &lt;gecode/float.hh&gt;
+#include &lt;iostream&gt;
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180824/1fb570c1/attachment.html">http://www.gecode.org/pipermail/users/attachments/20180824/1fb570c1/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-005048">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 28 16:55:32 CEST 2018</time><small>August 2018</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include &lt;gecode/float.hh&gt;
+#include &lt;iostream&gt;
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180828/252a2379/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20180828/252a2379/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-005049">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Konvicka Filip</h2></div>
+          <p><time>Thu Aug 30 21:09:46 CEST 2018</time><small>August 2018</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some &quot;random&quot; way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are &quot;fresh&quot; (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include &lt;gecode/float.hh&gt;
+#include &lt;iostream&gt;
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180830/33e74989/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20180830/33e74989/attachment-0001.html</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-005050">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Sat Sep 1 13:40:04 CEST 2018</time><small>September 2018</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+Actually, it is the other way around: now the float propagators behave as the integer propagators always did.
+
+Well, the risk was there before but the system would not tell that.
+
+Best
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; On Behalf Of Konvicka Filip
+Sent: 30 August 2018 21:10
+To: Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: Re: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some &quot;random&quot; way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are &quot;fresh&quot; (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt;&gt; On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;&gt;
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include &lt;gecode/float.hh&gt;
+#include &lt;iostream&gt;
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180901/59c8c043/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20180901/59c8c043/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-005051">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Konvicka Filip</h2></div>
+          <p><time>Mon Sep 3 08:36:54 CEST 2018</time><small>September 2018</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+OK, I yield! :)  Thanks.  I didn't know that about the integer propagators and I guess I should check that I'm careful enough where I'm using them.
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Saturday, September 1, 2018 1:40 PM
+To: Konvicka Filip; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Filip,
+
+Actually, it is the other way around: now the float propagators behave as the integer propagators always did.
+
+Well, the risk was there before but the system would not tell that.
+
+Best
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; On Behalf Of Konvicka Filip
+Sent: 30 August 2018 21:10
+To: Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: Re: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi Christian,
+
+Thanks.  I'll see what I can do.  I think I understand the intention.... I guess my expectation was that the propagators do the necessary domain pruning themselves (like they do with integers), and I guess that this is not being done as there could be multiple ways of eliminating the overflow risk, so Gecode would in fact influence the results in some &quot;random&quot; way.
+
+My fear is that unless I get to understand in detail what checks are being made by each constraint that I post, I'll run the risk of a runtime error, or that I'll unnecessarily reduce the solution space.
+
+In my scenario, I have several arithmetic expressions (equations or the like) provided by the end user as input, and after parsing this into an AST I'm translating these to Gecode constraints.  The intermediates in the AST are &quot;fresh&quot; (unconstrained) variables.  Hopefully I can do some domain analysis upfront.... but it's still surprising to me, I would guess that e.g. the minizinc interface would also be impacted...
+
+Cheers,
+Filip
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Tuesday, August 28, 2018 4:56 PM
+To: Konvicka Filip; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+This is not a bug: it is really a restriction compared to Gecode 5. You will have to do some thinking on the initial variable domains.
+
+The implementation in Gecode 5 _was_ in fact broken: the overflow might not have occurred but the new checks make sure that there will never be an overflow.
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="https://chschulte.github.io/">https://chschulte.github.io/</A>
+Professor of Computer Science
+Software and  Computer Systems
+School of Electrical Engineering and Computer Science
+KTH Royal Institute of Technology, Sweden
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt;&gt; On Behalf Of Konvicka Filip
+Sent: 24 August 2018 09:48
+To: '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>' &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;&gt;
+Subject: [gecode-users] Float overflow exceptions with 'linear' in 6.0.1
+
+Hi,
+
+I'm in process of upgrading our code to Gecode 6.0.1 (which looks great by the way!)
+
+I found some cases where code that used to run fine with Gecode 5 now throws exceptions.  The following is a simple example that demonstrates this.  I was able to work around to defaulting to (Gecode::Float::Limits::max/4) as the default max bound of float variables, but I think it's still probably a bug.
+
+Thanks,
+Filip
+
+#include &lt;gecode/float.hh&gt;
+#include &lt;iostream&gt;
+using namespace Gecode;
+int main() {
+  struct MySpace : public Space {
+    Space* copy() { return nullptr;  }
+  };
+  MySpace s;
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+
+  try {
+    FloatVarArgs args(2);
+    args[0] = FloatVar(s, 1., 1.);
+    args[1] = FloatVar(s, 0., Gecode::Float::Limits::max);
+    FloatVar result(s, 0., Gecode::Float::Limits::max);
+    linear(s, args, FRT_EQ, result);
+  }
+  catch (std::exception&amp; e) {
+    std::cerr &lt;&lt; e.what() &lt;&lt; &quot;\n&quot;;
+  }
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20180903/b4f93e65/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20180903/b4f93e65/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

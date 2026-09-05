@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Schedule Branching Recommendations — 9 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Schedule Branching Recommendations | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>9 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2007–August 2007</p><h1 data-pagefind-meta="title">Schedule Branching Recommendations</h1></header>
+      <p class="archive-thread-summary">9 messages · April 2007–August 2007</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000853">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Graham, Justin G</h2></div>
+          <p><time>Wed Apr 4 23:37:03 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I am attempting to implement an edge-finding algorithm that is similar
+to that of firstsDist used in Mozart.  In order to do this, two major
+events should occur for every branch:
+
+
+
+- Propagation:  Generate propagators that specify that a given task will
+be first.
+
+- Accounting:   Keep track of what tasks have been ordered in some kind
+of data structure.
+
+
+
+I am assuming that a left branch specifies that a given task should be
+first while a right branch specifies that the same task is not first.
+In the case that a task is not first, the appropriate data structure
+will need to be updated so that the task should not be chosen until
+another task goes first.  It appears that streams are used to accomplish
+this type of accounting in Mozart.
+
+
+
+&gt;<i>From what I understand of the Gecode branching framework this is what I
+</I>can work with:
+
+
+
+-status
+
+Find if there are any tasks that need to be ordered.  At this point the
+Space instance cannot be modified, but the Branching instance can be
+modified in order to keep track of the tasks.
+
+
+
+-description
+
+Return some sort of identifier specifying which task should be ordered
+first. The Space instance is still not modifiable here.
+
+
+
+-commit
+
+Perform the necessary propagation depending on the branching alternative
+(left or right).  The Space is modifiable, but it appears that the
+Branching instance should not be modified.  Is this a correct
+assumption?  Depending on the branching alternative, I need to specify
+that the chosen task is first or specify that the chosen task cannot be
+first using a data structure for accounting purposes.
+
+
+
+
+
+Given that information, is it OK to keep the additional data structures,
+such as vectors, within the Space instance so that the ordered tasks can
+be tracked?  I considered keeping this information in the Branching
+instance; however this is not possible since I need to update the
+accounting data within commit.  This needs to be done within commit
+since that is the only place I know whether I am taking a left or right
+branch and I cannot edit the branching instance according to my
+assumption listed above.  So, my questions boil down to the following:
+
+
+
+Is it bad to edit Branching member variables in commit?
+
+Is it OK to edit native data structures contained in the Space instance
+within commit?
+
+Do you have any other recommendations for how I can keep track of the
+ordered/unordered tasks?
+
+
+
+Thanks,
+
+Justin
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20070404/f8527e5d/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20070404/f8527e5d/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000863">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Apr 10 15:26:21 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Justin,
+
+a rather elaborate question that took me some time... Your findings about
+status and description are accurate: you cannot change the space and you
+should not change the branching in a way such that it becomes observable.
+Remember, const does not mean that you do not change but that a second call
+will deliver the same result (think of the mutable modifier, for example as
+is used for ViewValBranchings).
+
+The findings about commit are not correct: you are absolutely free to modify
+your branching! Nothing suggests otherwise. And you are right to keep it
+inside the branching, anything else would be very bad and difficult (you
+would have to have spaces that are special in order to use them with your
+branching, so not that hot).
+
+Please do not hesitate to ask more questions of that sort! Do you consider
+to only do branching or also propagation? Because there is a very
+interesting issue for edge-finding/first-last: both propagation and
+branching should share the same data structures to maintain their
+information for efficiency. Support for sharing state among several
+propagators/branching is on our todo list for a long time but we decided to
+only do it when we implement exactly what you are now appareantly trying to
+do...
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Graham, Justin G
+Sent: Wednesday, April 04, 2007 11:37 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Schedule Branching Recommendations
+
+
+I am attempting to implement an edge-finding algorithm that is similar to
+that of firstsDist used in Mozart.  In order to do this, two major events
+should occur for every branch:
+
+- Propagation:  Generate propagators that specify that a given task will be
+first.
+- Accounting:   Keep track of what tasks have been ordered in some kind of
+data structure.
+
+I am assuming that a left branch specifies that a given task should be first
+while a right branch specifies that the same task is not first.  In the case
+that a task is not first, the appropriate data structure will need to be
+updated so that the task should not be chosen until another task goes first.
+It appears that streams are used to accomplish this type of accounting in
+Mozart.
+
+&gt;<i>From what I understand of the Gecode branching framework this is what I can
+</I>work with:
+
+-status
+Find if there are any tasks that need to be ordered.  At this point the
+Space instance cannot be modified, but the Branching instance can be
+modified in order to keep track of the tasks.
+
+-description
+Return some sort of identifier specifying which task should be ordered
+first. The Space instance is still not modifiable here.
+
+-commit
+Perform the necessary propagation depending on the branching alternative
+(left or right).  The Space is modifiable, but it appears that the Branching
+instance should not be modified.  Is this a correct assumption?  Depending
+on the branching alternative, I need to specify that the chosen task is
+first or specify that the chosen task cannot be first using a data structure
+for accounting purposes.
+
+
+Given that information, is it OK to keep the additional data structures,
+such as vectors, within the Space instance so that the ordered tasks can be
+tracked?  I considered keeping this information in the Branching instance;
+however this is not possible since I need to update the accounting data
+within commit.  This needs to be done within commit since that is the only
+place I know whether I am taking a left or right branch and I cannot edit
+the branching instance according to my assumption listed above.  So, my
+questions boil down to the following:
+
+Is it bad to edit Branching member variables in commit?
+Is it OK to edit native data structures contained in the Space instance
+within commit?
+Do you have any other recommendations for how I can keep track of the
+ordered/unordered tasks?
+
+Thanks,
+Justin
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000867">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Graham, Justin G</h2></div>
+          <p><time>Tue Apr 10 20:30:49 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks, that information was very helpful.
+
+As for your question, I am not implementing the edge finding in the most
+efficient manner since this is my first shot at the algorithm and I just
+wanted to get something working quickly.  This is the basic idea of what
+I plan to do now:
+
+Status:
+Order the resources according to slack then order the tasks on the
+selected resource.  This includes trimming the list to eliminate the
+tasks that can go first, which is similar to the algorithm in Mozart.
+
+Description:
+Copy the accounting data structure to the description instance.
+
+Note that multiple calls to status and description will give the same
+result until a commit is called since I am just sorting the data.
+
+Commit:
+As an example, on the first alternative I will propagate with something
+like this in a loop for all of the unordered tasks:
+rel(home, s-&gt;end[firstTaskIndex], IRT_LQ, s-&gt;start[unorderedTaskIndex]);
+
+After that I will mark the task as sorted in my data structure.
+
+&gt;<i>From my experience, it seems as though I will need to copy my accounting
+</I>data structure to the description instance.  Then I will need to copy
+the data structure from the description to the branching instance within
+commit.  Originally, I was trying to avoid the extra copying but that
+seems like the right way to pass the information to the next branching
+instance.  Is that correct?
+
+Also, I have another question:
+Within the branching constructor there is a variable that denotes if the
+data should be shared.  Do I need to pay attention to this variable
+since I am carrying around extra data for the edge finding?  Or can I
+just copy the entire data structure when the copy constructor is called?
+
+Thanks,
+Justin
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Tuesday, April 10, 2007 8:26 AM
+To: Graham, Justin G; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Schedule Branching Recommendations
+
+Hi Justin,
+
+a rather elaborate question that took me some time... Your findings
+about
+status and description are accurate: you cannot change the space and you
+should not change the branching in a way such that it becomes
+observable.
+Remember, const does not mean that you do not change but that a second
+call
+will deliver the same result (think of the mutable modifier, for example
+as
+is used for ViewValBranchings).
+
+The findings about commit are not correct: you are absolutely free to
+modify
+your branching! Nothing suggests otherwise. And you are right to keep it
+inside the branching, anything else would be very bad and difficult (you
+would have to have spaces that are special in order to use them with
+your
+branching, so not that hot).
+
+Please do not hesitate to ask more questions of that sort! Do you
+consider
+to only do branching or also propagation? Because there is a very
+interesting issue for edge-finding/first-last: both propagation and
+branching should share the same data structures to maintain their
+information for efficiency. Support for sharing state among several
+propagators/branching is on our todo list for a long time but we decided
+to
+only do it when we implement exactly what you are now appareantly trying
+to
+do...
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+Behalf
+Of Graham, Justin G
+Sent: Wednesday, April 04, 2007 11:37 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Schedule Branching Recommendations
+
+
+I am attempting to implement an edge-finding algorithm that is similar
+to
+that of firstsDist used in Mozart.  In order to do this, two major
+events
+should occur for every branch:
+
+- Propagation:  Generate propagators that specify that a given task will
+be
+first.
+- Accounting:   Keep track of what tasks have been ordered in some kind
+of
+data structure.
+
+I am assuming that a left branch specifies that a given task should be
+first
+while a right branch specifies that the same task is not first.  In the
+case
+that a task is not first, the appropriate data structure will need to be
+updated so that the task should not be chosen until another task goes
+first.
+It appears that streams are used to accomplish this type of accounting
+in
+Mozart.
+
+&gt;<i>From what I understand of the Gecode branching framework this is what I
+</I>can
+work with:
+
+-status
+Find if there are any tasks that need to be ordered.  At this point the
+Space instance cannot be modified, but the Branching instance can be
+modified in order to keep track of the tasks.
+
+-description
+Return some sort of identifier specifying which task should be ordered
+first. The Space instance is still not modifiable here.
+
+-commit
+Perform the necessary propagation depending on the branching alternative
+(left or right).  The Space is modifiable, but it appears that the
+Branching
+instance should not be modified.  Is this a correct assumption?
+Depending
+on the branching alternative, I need to specify that the chosen task is
+first or specify that the chosen task cannot be first using a data
+structure
+for accounting purposes.
+
+
+Given that information, is it OK to keep the additional data structures,
+such as vectors, within the Space instance so that the ordered tasks can
+be
+tracked?  I considered keeping this information in the Branching
+instance;
+however this is not possible since I need to update the accounting data
+within commit.  This needs to be done within commit since that is the
+only
+place I know whether I am taking a left or right branch and I cannot
+edit
+the branching instance according to my assumption listed above.  So, my
+questions boil down to the following:
+
+Is it bad to edit Branching member variables in commit?
+Is it OK to edit native data structures contained in the Space instance
+within commit?
+Do you have any other recommendations for how I can keep track of the
+ordered/unordered tasks?
+
+Thanks,
+Justin
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000870">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Apr 12 16:51:41 CEST 2007</time><small>April 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear Justin,
+
+again: looks the right way to do. As it comes to copying between branching
+and description, it might be not a bad idea to design your accounting
+structures to be small enough. Also, an idea might be that you only keep
+that part of the information that you need to do the actually commit,
+because that's the only thing that matters.
+
+Then, you can not use rel(...) for ordering. The reason is that the ordering
+might fail and rel(...) use a mechanism for reporting that is designed for
+being used in modelling and not in implementing branchings or propagators.
+However it is very simple. Look into gecode/int/rel.cc. There you look for
+the definition or rel. Then just rip out the part you need. It will look
+something like:
+
+	return Int::Rel::Lq&lt;IntView&gt;::post(home, s-&gt;..., s-&gt; ...);
+
+This post function returns an ExecStatus that must be returned by the commit
+function of the branching.
+
+Then, the Boolean share argument has only significance for datastructures
+that are shared among several spaces. So that is nothing you need to worry
+about (it is needed for parallel or multi-threaded search).
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Graham, Justin G [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">justin.g.graham at lmco.com</A>]
+Sent: Tuesday, April 10, 2007 8:31 PM
+To: Christian Schulte; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Schedule Branching Recommendations
+
+
+Thanks, that information was very helpful.
+
+As for your question, I am not implementing the edge finding in the most
+efficient manner since this is my first shot at the algorithm and I just
+wanted to get something working quickly.  This is the basic idea of what I
+plan to do now:
+
+Status:
+Order the resources according to slack then order the tasks on the selected
+resource.  This includes trimming the list to eliminate the tasks that can
+go first, which is similar to the algorithm in Mozart.
+
+Description:
+Copy the accounting data structure to the description instance.
+
+Note that multiple calls to status and description will give the same result
+until a commit is called since I am just sorting the data.
+
+Commit:
+As an example, on the first alternative I will propagate with something like
+this in a loop for all of the unordered tasks: rel(home,
+s-&gt;end[firstTaskIndex], IRT_LQ, s-&gt;start[unorderedTaskIndex]);
+
+After that I will mark the task as sorted in my data structure.
+
+&gt;<i>From my experience, it seems as though I will need to copy my accounting
+</I>data structure to the description instance.  Then I will need to copy the
+data structure from the description to the branching instance within commit.
+Originally, I was trying to avoid the extra copying but that seems like the
+right way to pass the information to the next branching instance.  Is that
+correct?
+
+Also, I have another question:
+Within the branching constructor there is a variable that denotes if the
+data should be shared.  Do I need to pay attention to this variable since I
+am carrying around extra data for the edge finding?  Or can I just copy the
+entire data structure when the copy constructor is called?
+
+Thanks,
+Justin
+
+
+-----Original Message-----
+From: Christian Schulte [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Tuesday, April 10, 2007 8:26 AM
+To: Graham, Justin G; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Schedule Branching Recommendations
+
+Hi Justin,
+
+a rather elaborate question that took me some time... Your findings about
+status and description are accurate: you cannot change the space and you
+should not change the branching in a way such that it becomes observable.
+Remember, const does not mean that you do not change but that a second call
+will deliver the same result (think of the mutable modifier, for example as
+is used for ViewValBranchings).
+
+The findings about commit are not correct: you are absolutely free to modify
+your branching! Nothing suggests otherwise. And you are right to keep it
+inside the branching, anything else would be very bad and difficult (you
+would have to have spaces that are special in order to use them with your
+branching, so not that hot).
+
+Please do not hesitate to ask more questions of that sort! Do you consider
+to only do branching or also propagation? Because there is a very
+interesting issue for edge-finding/first-last: both propagation and
+branching should share the same data structures to maintain their
+information for efficiency. Support for sharing state among several
+propagators/branching is on our todo list for a long time but we decided to
+only do it when we implement exactly what you are now appareantly trying to
+do...
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Graham, Justin G
+Sent: Wednesday, April 04, 2007 11:37 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Schedule Branching Recommendations
+
+
+I am attempting to implement an edge-finding algorithm that is similar to
+that of firstsDist used in Mozart.  In order to do this, two major events
+should occur for every branch:
+
+- Propagation:  Generate propagators that specify that a given task will be
+first.
+- Accounting:   Keep track of what tasks have been ordered in some kind
+of
+data structure.
+
+I am assuming that a left branch specifies that a given task should be first
+while a right branch specifies that the same task is not first.  In the case
+that a task is not first, the appropriate data structure will need to be
+updated so that the task should not be chosen until another task goes first.
+It appears that streams are used to accomplish this type of accounting in
+Mozart.
+
+&gt;<i>From what I understand of the Gecode branching framework this is what I can
+</I>work with:
+
+-status
+Find if there are any tasks that need to be ordered.  At this point the
+Space instance cannot be modified, but the Branching instance can be
+modified in order to keep track of the tasks.
+
+-description
+Return some sort of identifier specifying which task should be ordered
+first. The Space instance is still not modifiable here.
+
+-commit
+Perform the necessary propagation depending on the branching alternative
+(left or right).  The Space is modifiable, but it appears that the Branching
+instance should not be modified.  Is this a correct assumption? Depending on
+the branching alternative, I need to specify that the chosen task is first
+or specify that the chosen task cannot be first using a data structure for
+accounting purposes.
+
+
+Given that information, is it OK to keep the additional data structures,
+such as vectors, within the Space instance so that the ordered tasks can be
+tracked?  I considered keeping this information in the Branching instance;
+however this is not possible since I need to update the accounting data
+within commit.  This needs to be done within commit since that is the only
+place I know whether I am taking a left or right branch and I cannot edit
+the branching instance according to my assumption listed above.  So, my
+questions boil down to the following:
+
+Is it bad to edit Branching member variables in commit?
+Is it OK to edit native data structures contained in the Space instance
+within commit? Do you have any other recommendations for how I can keep
+track of the ordered/unordered tasks?
+
+Thanks,
+Justin
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001038">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Mon Aug 27 17:54:34 CEST 2007</time><small>August 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+&gt;<i> Please do not hesitate to ask more questions of that sort! Do you consider
+</I>&gt;<i> to only do branching or also propagation? Because there is a very
+</I>&gt;<i> interesting issue for edge-finding/first-last: both propagation and
+</I>&gt;<i> branching should share the same data structures to maintain their
+</I>&gt;<i> information for efficiency. Support for sharing state among several
+</I>&gt;<i> propagators/branching is on our todo list for a long time but we decided to
+</I>&gt;<i> only do it when we implement exactly what you are now appareantly trying to
+</I>&gt;<i> do...
+</I>&gt;<i>
+</I>
+I am in a similar situation now. Could you please explain why (if this
+is the case indeed) is it not possible to just share the data in some
+raw data structure inside the Space? I mean, in the above mentioned
+case, propagation computes some information that can be re-used in the
+branching. I was under the impression that the following might work in
+similar cases:
+
+- During propagation, store (overwrite) some &quot;raw&quot; data in the Space
+instance (I know, this is not exactly a good architecture design...)
+- As soon as the Space is stable, the system looks for active
+branchings, asking for alternatives
+- The branching might access the data now, knowing that it is the result
+of the last propagation (which led to the fixpoint), and return some
+alternatives
+
+The thing I'm not sure about is whether there must always be a
+propagation step after recomputation. In case that not, the branching
+should have the possibility to compute the data from scratch, using only
+the variables' domains (in this case, copying the space should
+invalidate the data to make sure it is recomputed).
+
+The reason I believe this could work is that the shared information is
+after all just some kind of cache which reflects the current domains.
+
+Thanks for any comments,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001039">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 28 09:49:20 CEST 2007</time><small>August 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+well, well. Let me just summarize some facts:
+
+ - Your idea will work but, as you say yourself, is not going to win any
+   software design beauty contest. It might be good to tinker, but for
+   Gecode itself a design will be needed that does not require to change
+   a space (that's typically a user's model) when using a propagator
+   cum branching.
+
+ - The idea that this data is just a cache is very helpful. Indeed, we
+   use the very same idea to great advantage in many propagators that
+   ship with Gecode: do not copy the data just reconstruct it when needed,
+   and if the data is already there keep it up to date while doing
+   propagation. If the data becomes to messy, just flush the cache (data)
+   an reconstruct it.
+
+ - Invoking the status method of a space will always compute a fixpoint,
+   regardless of recomputation or not (as does the attempt to clone a
+   space). This also entails that when the status method of a branching
+   is called, the home is at fixpoint (stable).
+
+ - Invoking a commit method however will not compute a fixpoint: the very
+   idea of making recomputation efficient relies on this.
+
+ - You might be able to speed up branching considerably if you take
+advantage
+   of branching descriptions. They must store information to actually
+perform
+   a commit operation (as the space is typically not at fixpoint, see
+above).
+   You have the possibility to add additional information to the branching
+   description that assists in maintaing your data.
+
+The idea to maintain the data as a cache is orthogonal to these facts.
+
+Hope that helps
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Filip Konvicka [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>]
+Sent: Monday, August 27, 2007 5:55 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Schedule Branching Recommendations
+
+
+Hi Christian,
+
+&gt;<i> Please do not hesitate to ask more questions of that sort! Do you
+</I>&gt;<i> consider to only do branching or also propagation? Because there is a
+</I>&gt;<i> very interesting issue for edge-finding/first-last: both propagation
+</I>&gt;<i> and branching should share the same data structures to maintain their
+</I>&gt;<i> information for efficiency. Support for sharing state among several
+</I>&gt;<i> propagators/branching is on our todo list for a long time but we
+</I>&gt;<i> decided to only do it when we implement exactly what you are now
+</I>&gt;<i> appareantly trying to do...
+</I>&gt;<i>
+</I>
+I am in a similar situation now. Could you please explain why (if this
+is the case indeed) is it not possible to just share the data in some
+raw data structure inside the Space? I mean, in the above mentioned
+case, propagation computes some information that can be re-used in the
+branching. I was under the impression that the following might work in
+similar cases:
+
+- During propagation, store (overwrite) some &quot;raw&quot; data in the Space
+instance (I know, this is not exactly a good architecture design...)
+- As soon as the Space is stable, the system looks for active
+branchings, asking for alternatives
+- The branching might access the data now, knowing that it is the result
+of the last propagation (which led to the fixpoint), and return some
+alternatives
+
+The thing I'm not sure about is whether there must always be a
+propagation step after recomputation. In case that not, the branching
+should have the possibility to compute the data from scratch, using only
+the variables' domains (in this case, copying the space should
+invalidate the data to make sure it is recomputed).
+
+The reason I believe this could work is that the shared information is
+after all just some kind of cache which reflects the current domains.
+
+Thanks for any comments,
+Filip
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001040">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Tue Aug 28 11:08:39 CEST 2007</time><small>August 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+&gt;<i> Hi Filip,
+</I>&gt;<i>
+</I>&gt;<i> well, well. Let me just summarize some facts:
+</I>&gt;<i>
+</I>&gt;<i>  - Your idea will work but, as you say yourself, is not going to win any
+</I>&gt;<i>    software design beauty contest. It might be good to tinker, but for
+</I>&gt;<i>    Gecode itself a design will be needed that does not require to change
+</I>&gt;<i>    a space (that's typically a user's model) when using a propagator
+</I>&gt;<i>    cum branching.
+</I>&gt;<i>
+</I>
+:<i>-D
+</I>
+Yes, I realize that the approach is not generally applicable and is not
+&quot;clean&quot; at all, and I am looking forward for your general solution!
+
+&gt;<i>  - The idea that this data is just a cache is very helpful. Indeed, we
+</I>&gt;<i>    use the very same idea to great advantage in many propagators that
+</I>&gt;<i>    ship with Gecode: do not copy the data just reconstruct it when needed,
+</I>&gt;<i>    and if the data is already there keep it up to date while doing
+</I>&gt;<i>    propagation. If the data becomes to messy, just flush the cache (data)
+</I>&gt;<i>    an reconstruct it.
+</I>&gt;<i>
+</I>
+This I understand, and this is also one of the things that make Gecode
+so nice for me.
+
+&gt;<i>  - Invoking the status method of a space will always compute a fixpoint,
+</I>&gt;<i>    regardless of recomputation or not (as does the attempt to clone a
+</I>&gt;<i>    space). This also entails that when the status method of a branching
+</I>&gt;<i>    is called, the home is at fixpoint (stable).
+</I>&gt;<i>
+</I>&gt;<i>  - Invoking a commit method however will not compute a fixpoint: the very
+</I>&gt;<i>    idea of making recomputation efficient relies on this.
+</I>&gt;<i>
+</I>&gt;<i>  - You might be able to speed up branching considerably if you take
+</I>&gt;<i> advantage
+</I>&gt;<i>    of branching descriptions. They must store information to actually
+</I>&gt;<i> perform
+</I>&gt;<i>    a commit operation (as the space is typically not at fixpoint, see
+</I>&gt;<i> above).
+</I>&gt;<i>    You have the possibility to add additional information to the branching
+</I>&gt;<i>    description that assists in maintaing your data.
+</I>&gt;<i>
+</I>
+I think that in most cases, the branching descriptions can be really
+small and fast to copy. Currently I don't think I'd use it for
+maintaining the data.
+
+I was thinking about one more thing - whether it is possible to
+communicate with existing propagators to extend the constraints on the
+fly. In the case of scheduling constraints, this could be adding tasks
+to a resource for example. Again, I think this could be done in commit,
+I'm just not sure whether it's possible to somehow access the
+propagators. One way I thought of is having some dedicated &quot;spare&quot;
+variables (probably quite clean, but not much flexible and quite
+costly); another approach that I think could work is implementing a
+(probably one-way) &quot;message queue&quot; for the communication. I realize that
+in this case, a variable would have to be associated with the queue that
+would wake up the propagator when needed.
+
+&gt;<i> The idea to maintain the data as a cache is orthogonal to these facts.
+</I>&gt;<i>
+</I>&gt;<i> Hope that helps
+</I>&gt;<i>
+</I>It certainly does. Thanks very much, Christian!
+
+Cheers,
+Filip
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001041">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 28 14:30:21 CEST 2007</time><small>August 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Filip,
+
+as you might have guessed, Gecode has nothing built in that is not used. So
+far, we had no need to have first class references to propagators. That
+entails that communication with a propagator currently is not possible.
+That's another thing we knew would come up some day, but so far there was no
+need. If you see a little clearer of what you want, we will try to come up
+with something that does the job.
+
+Actually, I believe the only thing that's needed are first-class references
+to a propagator that you can store somewhere (this is not totally
+straightforward as these references must be updated during cloning and the
+current architecture for cloning takes advantage of the fact that there are
+no references to propagator but at a single well-defined location). But
+that's something we could easily squeeze in for 2.0.
+
+Another small point, branching descriptions are not copied: they act as a
+closure to a space and are hence maintained by the search engine
+independently of cloning.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Filip Konvicka [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>]
+Sent: Tuesday, August 28, 2007 11:09 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Schedule Branching Recommendations
+
+
+
+&gt;<i> Hi Filip,
+</I>&gt;<i>
+</I>&gt;<i> well, well. Let me just summarize some facts:
+</I>&gt;<i>
+</I>&gt;<i>  - Your idea will work but, as you say yourself, is not going to win any
+</I>&gt;<i>    software design beauty contest. It might be good to tinker, but for
+</I>&gt;<i>    Gecode itself a design will be needed that does not require to change
+</I>&gt;<i>    a space (that's typically a user's model) when using a propagator
+</I>&gt;<i>    cum branching.
+</I>&gt;<i>
+</I>
+:<i>-D
+</I>
+Yes, I realize that the approach is not generally applicable and is not
+&quot;clean&quot; at all, and I am looking forward for your general solution!
+
+&gt;<i>  - The idea that this data is just a cache is very helpful. Indeed, we
+</I>&gt;<i>    use the very same idea to great advantage in many propagators that
+</I>&gt;<i>    ship with Gecode: do not copy the data just reconstruct it when needed,
+</I>&gt;<i>    and if the data is already there keep it up to date while doing
+</I>&gt;<i>    propagation. If the data becomes to messy, just flush the cache (data)
+</I>&gt;<i>    an reconstruct it.
+</I>&gt;<i>
+</I>
+This I understand, and this is also one of the things that make Gecode
+so nice for me.
+
+&gt;<i>  - Invoking the status method of a space will always compute a fixpoint,
+</I>&gt;<i>    regardless of recomputation or not (as does the attempt to clone a
+</I>&gt;<i>    space). This also entails that when the status method of a branching
+</I>&gt;<i>    is called, the home is at fixpoint (stable).
+</I>&gt;<i>
+</I>&gt;<i>  - Invoking a commit method however will not compute a fixpoint: the very
+</I>&gt;<i>    idea of making recomputation efficient relies on this.
+</I>&gt;<i>
+</I>&gt;<i>  - You might be able to speed up branching considerably if you take
+</I>&gt;<i> advantage
+</I>&gt;<i>    of branching descriptions. They must store information to actually
+</I>&gt;<i> perform
+</I>&gt;<i>    a commit operation (as the space is typically not at fixpoint, see
+</I>&gt;<i> above).
+</I>&gt;<i>    You have the possibility to add additional information to the branching
+</I>
+&gt;<i>    description that assists in maintaing your data.
+</I>&gt;<i>
+</I>
+I think that in most cases, the branching descriptions can be really
+small and fast to copy. Currently I don't think I'd use it for
+maintaining the data.
+
+I was thinking about one more thing - whether it is possible to
+communicate with existing propagators to extend the constraints on the
+fly. In the case of scheduling constraints, this could be adding tasks
+to a resource for example. Again, I think this could be done in commit,
+I'm just not sure whether it's possible to somehow access the
+propagators. One way I thought of is having some dedicated &quot;spare&quot;
+variables (probably quite clean, but not much flexible and quite
+costly); another approach that I think could work is implementing a
+(probably one-way) &quot;message queue&quot; for the communication. I realize that
+in this case, a variable would have to be associated with the queue that
+would wake up the propagator when needed.
+
+&gt;<i> The idea to maintain the data as a cache is orthogonal to these facts.
+</I>&gt;<i>
+</I>&gt;<i> Hope that helps
+</I>&gt;<i>
+</I>It certainly does. Thanks very much, Christian!
+
+Cheers,
+Filip
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001042">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Filip Konvi&amp;#269;ka</h2></div>
+          <p><time>Tue Aug 28 15:10:04 CEST 2007</time><small>August 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+&gt;<i> as you might have guessed, Gecode has nothing built in that is not used. So
+</I>&gt;<i> far, we had no need to have first class references to propagators. That
+</I>&gt;<i> entails that communication with a propagator currently is not possible.
+</I>&gt;<i> That's another thing we knew would come up some day, but so far there was no
+</I>&gt;<i> need. If you see a little clearer of what you want, we will try to come up
+</I>&gt;<i> with something that does the job.
+</I>&gt;<i>
+</I>&gt;<i> Actually, I believe the only thing that's needed are first-class references
+</I>&gt;<i> to a propagator that you can store somewhere (this is not totally
+</I>&gt;<i> straightforward as these references must be updated during cloning and the
+</I>&gt;<i> current architecture for cloning takes advantage of the fact that there are
+</I>&gt;<i> no references to propagator but at a single well-defined location). But
+</I>&gt;<i> that's something we could easily squeeze in for 2.0.
+</I>&gt;<i>
+</I>
+I should have been more specific here - I was not asking whether it is
+possible now, using the current library, but wheter it is possible at
+all. I'm definitely not asking you to add anything to Gecode now,
+because I don't know exactly what I will need, nor whether it would be
+generally useful. I was just thinking of what could be possible in
+version 8.0 :-)
+
+As for first-class references to propagators - that's why I thought I'd
+do it the other way round: the message queue could be a part of the
+space, accessible both from branching during commits and in the
+propagator as well. This does not require changes in the library, and
+will be sufficien for my needs (should I find out that I really need
+it). Of course, this is not good design, as the propagators/branchings
+need to know the space's type (though some generalization is possible at
+this level too).
+
+&gt;<i> Another small point, branching descriptions are not copied: they act as a
+</I>&gt;<i> closure to a space and are hence maintained by the search engine
+</I>&gt;<i> independently of cloning.
+</I>&gt;<i>
+</I>
+I did not think of them being copied during cloning, but rather as a
+part of some computation-path-structure reorganization (I don't know
+whether a branching description is ever copied...I thought that perhaps
+some std::vector or the like could be used internally by the library).
+
+Thanks!
+Filip
+
+&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Filip Konvicka [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">filip.konvicka at logis.cz</A>]
+</I>&gt;<i> Sent: Tuesday, August 28, 2007 11:09 AM
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Schedule Branching Recommendations
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi Filip,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> well, well. Let me just summarize some facts:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>  - Your idea will work but, as you say yourself, is not going to win any
+</I>&gt;&gt;<i>    software design beauty contest. It might be good to tinker, but for
+</I>&gt;&gt;<i>    Gecode itself a design will be needed that does not require to change
+</I>&gt;&gt;<i>    a space (that's typically a user's model) when using a propagator
+</I>&gt;&gt;<i>    cum branching.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> :-D
+</I>&gt;<i>
+</I>&gt;<i> Yes, I realize that the approach is not generally applicable and is not
+</I>&gt;<i> &quot;clean&quot; at all, and I am looking forward for your general solution!
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i>  - The idea that this data is just a cache is very helpful. Indeed, we
+</I>&gt;&gt;<i>    use the very same idea to great advantage in many propagators that
+</I>&gt;&gt;<i>    ship with Gecode: do not copy the data just reconstruct it when needed,
+</I>&gt;&gt;<i>    and if the data is already there keep it up to date while doing
+</I>&gt;&gt;<i>    propagation. If the data becomes to messy, just flush the cache (data)
+</I>&gt;&gt;<i>    an reconstruct it.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This I understand, and this is also one of the things that make Gecode
+</I>&gt;<i> so nice for me.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i>  - Invoking the status method of a space will always compute a fixpoint,
+</I>&gt;&gt;<i>    regardless of recomputation or not (as does the attempt to clone a
+</I>&gt;&gt;<i>    space). This also entails that when the status method of a branching
+</I>&gt;&gt;<i>    is called, the home is at fixpoint (stable).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>  - Invoking a commit method however will not compute a fixpoint: the very
+</I>&gt;&gt;<i>    idea of making recomputation efficient relies on this.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>  - You might be able to speed up branching considerably if you take
+</I>&gt;&gt;<i> advantage
+</I>&gt;&gt;<i>    of branching descriptions. They must store information to actually
+</I>&gt;&gt;<i> perform
+</I>&gt;&gt;<i>    a commit operation (as the space is typically not at fixpoint, see
+</I>&gt;&gt;<i> above).
+</I>&gt;&gt;<i>    You have the possibility to add additional information to the branching
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i>    description that assists in maintaing your data.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I think that in most cases, the branching descriptions can be really
+</I>&gt;<i> small and fast to copy. Currently I don't think I'd use it for
+</I>&gt;<i> maintaining the data.
+</I>&gt;<i>
+</I>&gt;<i> I was thinking about one more thing - whether it is possible to
+</I>&gt;<i> communicate with existing propagators to extend the constraints on the
+</I>&gt;<i> fly. In the case of scheduling constraints, this could be adding tasks
+</I>&gt;<i> to a resource for example. Again, I think this could be done in commit,
+</I>&gt;<i> I'm just not sure whether it's possible to somehow access the
+</I>&gt;<i> propagators. One way I thought of is having some dedicated &quot;spare&quot;
+</I>&gt;<i> variables (probably quite clean, but not much flexible and quite
+</I>&gt;<i> costly); another approach that I think could work is implementing a
+</I>&gt;<i> (probably one-way) &quot;message queue&quot; for the communication. I realize that
+</I>&gt;<i> in this case, a variable would have to be associated with the queue that
+</I>&gt;<i> would wake up the propagator when needed.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i> The idea to maintain the data as a cache is orthogonal to these facts.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hope that helps
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i> It certainly does. Thanks very much, Christian!
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Filip
+</I>
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

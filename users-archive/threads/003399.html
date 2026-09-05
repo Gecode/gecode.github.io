@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Problems with some REG and some suggestions — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Problems with some REG and some suggestions | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · September 2011</p><h1 data-pagefind-meta="title">Problems with some REG and some suggestions</h1></header>
+      <p class="archive-thread-summary">6 messages · September 2011</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003399">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>TeXitoi</h2></div>
+          <p><time>Mon Sep 26 20:32:09 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+First, Thanks for you're very good CP library: I enjoy using it.
+
+I have see 1 &quot;bug&quot; and have identified some missing features.
+
+First, I have poblems when I try to generate REG of the form
+  REG r = *a + a(1000,1000);
+It takes a lot of RAM.  Here is a main function that show the problem:
+
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+using namespace std;
+
+int main(void)
+{
+        REG any_l = REG(0) | REG(1);
+        cout &lt;&lt; &quot;Generating '.{1000}'...&quot; &lt;&lt; flush;
+        REG bigReg_l = any_l(1000,1000);
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000})...&quot; &lt;&lt; flush;
+        DFA dfa_l(bigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.{1000}.{1000}'...&quot; &lt;&lt; flush;
+        REG veryBigReg_l = bigReg_l + bigReg_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000}.{1000})...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.{1000}.*'...&quot; &lt;&lt; flush;
+        veryBigReg_l = bigReg_l + *any_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000}.*)...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.*.{1000}'...&quot; &lt;&lt; flush;
+        veryBigReg_l = *any_l + bigReg_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.*.{1000})...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//takes lots of RAM...
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+}
+
+Then, it could be great to have different IntConLevel for the sequence
+constraint.  In my model, the filtering does not help and takes time, so
+I post a count constraint for each interval.  It can be useful to have
+that with IntConLevel = ICL_VAL. And with IntConLevel = ICL_DOM, the
+extensional version (which is exponential).
+
+Finally, DFA operations can be very useful : union, intersection,
+concatenation, star and opposite.  I already coded intersection and
+opposite for my needs (I can show them if you want, but the
+implementation is quite naive).
+
+Again, thanks a lot for Gecode!
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003402">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Sep 26 21:42:41 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Great that you like Gecode.
+
+Unfortunately there is very little that we can do about 1: the algorithm we
+use for turning a regexp into a DFA actually uses that much memory (and it
+is not even na&#239;ve). Remember: you are creating a DFA with 1000 states
+_after_ minimization. The intermediate DFA that is created has millions of
+states (any conversion of a regexp directly to a DFA or  via a NFA can show
+this behavior as the DFA that is constructed might be exponentially larger
+than the regexp/NFA). And you artfully picked a pretty bad example ;-)
+
+Maybe there are better algorithms that combine DFA construction with
+minimization to deal with the DFAs but for most cases it works fine for
+Gecode...
+
+Is your regexp related to a real example or did you want to torture Gecode
+;-)
+
+I never thought about operations on DFAs as I thought one would use regexps
+anyway. The only hard part is in fact intersection, the rest is very simple.
+What do you need them for?
+
+Best
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of TeXitoi
+Sent: Monday, September 26, 2011 8:32 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Problems with some REG and some suggestions
+
+Hi,
+
+First, Thanks for you're very good CP library: I enjoy using it.
+
+I have see 1 &quot;bug&quot; and have identified some missing features.
+
+First, I have poblems when I try to generate REG of the form
+  REG r = *a + a(1000,1000);
+It takes a lot of RAM.  Here is a main function that show the problem:
+
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+using namespace std;
+
+int main(void)
+{
+        REG any_l = REG(0) | REG(1);
+        cout &lt;&lt; &quot;Generating '.{1000}'...&quot; &lt;&lt; flush;
+        REG bigReg_l = any_l(1000,1000);
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000})...&quot; &lt;&lt; flush;
+        DFA dfa_l(bigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.{1000}.{1000}'...&quot; &lt;&lt; flush;
+        REG veryBigReg_l = bigReg_l + bigReg_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000}.{1000})...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.{1000}.*'...&quot; &lt;&lt; flush;
+        veryBigReg_l = bigReg_l + *any_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.{1000}.*)...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//OK
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating '.*.{1000}'...&quot; &lt;&lt; flush;
+        veryBigReg_l = *any_l + bigReg_l;
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+        cout &lt;&lt; &quot;Generating DFA(.*.{1000})...&quot; &lt;&lt; flush;
+        dfa_l = DFA(veryBigReg_l);//takes lots of RAM...
+        cout &lt;&lt; &quot; done.&quot; &lt;&lt; endl;
+}
+
+Then, it could be great to have different IntConLevel for the sequence
+constraint.  In my model, the filtering does not help and takes time, so I
+post a count constraint for each interval.  It can be useful to have that
+with IntConLevel = ICL_VAL. And with IntConLevel = ICL_DOM, the extensional
+version (which is exponential).
+
+Finally, DFA operations can be very useful : union, intersection,
+concatenation, star and opposite.  I already coded intersection and opposite
+for my needs (I can show them if you want, but the implementation is quite
+naive).
+
+Again, thanks a lot for Gecode!
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus rien &#224;
+ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003403">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>TeXitoi</h2></div>
+          <p><time>Tue Sep 27 11:43:58 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&quot;Christian Schulte&quot; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; writes:
+
+&gt;<i> Maybe there are better algorithms that combine DFA construction with
+</I>&gt;<i> minimization to deal with the DFAs but for most cases it works fine for
+</I>&gt;<i> Gecode...
+</I>
+OK
+
+&gt;<i> Is your regexp related to a real example or did you want to torture Gecode
+</I>&gt;<i> ;-)
+</I>
+I work on about 400 integer variables (about 15 months), and I have
+regex that are applied on different intervals (year, semester, month,
+week...).  To improve the performances, I would like to combine some
+of the constraints on a unique DFA. So, the idea I had was generating
+a regex that affect only a period but that have the length of my
+problem:
+  - first month : myReg + any(nbDaysIn14Month,nbDaysIn14Month)
+  - second month : any(nbDaysIn1Month,nbDaysIn1Month) + myReg +
+        any(nbDaysIn13Month,nbDaysIn13Month)
+  - ...
+  - first semester : ...
+  - ...
+and then I compute the intersection of the DFA.
+
+&gt;<i> I never thought about operations on DFAs as I thought one would use regexps
+</I>&gt;<i> anyway. The only hard part is in fact intersection, the rest is very simple.
+</I>&gt;<i> What do you need them for?
+</I>
+Naive intersection is quite simple because we can easily generate a
+DFA, and then, Gecode minimizes it.  But an effective implementation
+may be difficult.
+
+I use inverse (giving the alphabet) a lot because sometime it is
+easier to write the regex of the forbidden pattern than the allowed
+one.  As a simple example, I have this kind of forbidden pattern:
+ 0110 (on a subsequence of 4 variables) which is very simple to write
+using the inverse:
+  inverse(DFA(REG(0)+REG(1)+REG(1)+REG(0)), alphabet)
+but much more difficult to write directly.
+
+I have pattern rules of the type &quot;this pattern or that pattern&quot;. Here,
+the union is useful, especially when one pattern is easier to write
+with an inverse (else I can do REG r = firstPattern | secondPattern).
+
+I can do what I have explain earlier using concatenation and
+intersection of DFA (here, &quot;+&quot; is the concatenation of DFA):
+  - first month: intersection(DFA(myReg), DFA(any(nbDaysIn1Month,
+       nbDaysIn1Month))) + DFA(*any)
+  - second month: DFA(any(nbDaysIn1Month,nbDaysIn1Month)) +
+        intersection(DFA(myReg,DFA(any(nbDaysIn1Month,nbDaysIn1Month)))) +
+        DFA(*any)
+  - ...
+
+But maybe you have a better solution for the special problem I have
+now: I have at least n_i &quot;1&quot; on each month_i, exactly m_j &quot;1&quot; on each
+semester_j, and minimum one &quot;1&quot; on a slidding horizon of 7, and a
+minimum of two &quot;1&quot; on a slidding horizon of 11.  The problem I have is
+when there is a lot of possibilities for the first semester, but none
+for the second (because of the 4 constraints, not because directly of
+one of them), but the propagation do not detect the infeasibility of
+the second semester. Of course, I cannot solve each semester
+separatedly because there is pattern constraint that overlap.  For the
+moment, I have a variable that &quot;count&quot; the &quot;1&quot; on each month, I use
+rel to constraint these variables according to my data for the month
+and the semester constraints, and I use sequence (in reality a count
+for each interval of length 11, and an extensional for 1 on 7, which
+is much faster than sequence) for the slidding constraints.  I also
+have extensional version of these constraints.  The idea was to
+combine the DFA to detect directly the infeasability.
+
+I hope I am understandable.  Thanks for your attention.
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003406">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Sep 28 15:36:36 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 27 Sep 2011, at 11:43, TeXitoi wrote:
+&gt;<i> I work on about 400 integer variables (about 15 months), and I have
+</I>&gt;<i> regex that are applied on different intervals (year, semester, month,
+</I>&gt;<i> week...).  To improve the performances, I would like to combine some
+</I>&gt;<i> of the constraints on a unique DFA. So, the idea I had was generating
+</I>&gt;<i> a regex that affect only a period but that have the length of my
+</I>&gt;<i> problem:
+</I>&gt;<i>  - first month : myReg + any(nbDaysIn14Month,nbDaysIn14Month)
+</I>&gt;<i>  - second month : any(nbDaysIn1Month,nbDaysIn1Month) + myReg +
+</I>&gt;<i>        any(nbDaysIn13Month,nbDaysIn13Month)
+</I>&gt;<i>  - ...
+</I>&gt;<i>  - first semester : ...
+</I>&gt;<i>  - ...
+</I>&gt;<i> and then I compute the intersection of the DFA.
+</I>
+One thing I noticed (but which may be just because you simplified the problem for presentation) is that you could build expressions for a whole year without any wildcards, e.g.
+
+year = myReg(15,15)
+
+and probably similarly for weeks and semesters.
+
+Cheers,
+Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003407">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>TeXitoi</h2></div>
+          <p><time>Wed Sep 28 16:09:16 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; writes:
+
+&gt;<i> On 27 Sep 2011, at 11:43, TeXitoi wrote:
+</I>&gt;<i> &gt; I work on about 400 integer variables (about 15 months), and I have
+</I>&gt;<i> &gt; regex that are applied on different intervals (year, semester, month,
+</I>&gt;<i> &gt; week...).  To improve the performances, I would like to combine some
+</I>&gt;<i> &gt; of the constraints on a unique DFA. So, the idea I had was generating
+</I>&gt;<i> &gt; a regex that affect only a period but that have the length of my
+</I>&gt;<i> &gt; problem:
+</I>&gt;<i> &gt;  - first month : myReg + any(nbDaysIn14Month,nbDaysIn14Month)
+</I>&gt;<i> &gt;  - second month : any(nbDaysIn1Month,nbDaysIn1Month) + myReg +
+</I>&gt;<i> &gt;        any(nbDaysIn13Month,nbDaysIn13Month)
+</I>&gt;<i> &gt;  - ...
+</I>&gt;<i> &gt;  - first semester : ...
+</I>&gt;<i> &gt;  - ...
+</I>&gt;<i> &gt; and then I compute the intersection of the DFA.
+</I>&gt;<i>
+</I>&gt;<i> One thing I noticed (but which may be just because you simplified
+</I>&gt;<i> the problem for presentation) is that you could build expressions
+</I>&gt;<i> for a whole year without any wildcards, e.g.
+</I>&gt;<i>
+</I>&gt;<i> year = myReg(15,15)
+</I>
+Interesting idea.  But it does not work just like that: imagine you
+have a 2 week problem and that you want 2 consecutive &quot;1&quot; each week.
+
+  REG myReg = *any + one(2,2) + *any;
+
+if we do what you said (myReg(2,2)), the string
+
+  1111000 0000000
+
+will match.  We have 2 consecutive &quot;1&quot; on the first week but 0 on the
+second.  To make this work, you need to do the intersection of
+DFA(myReg) with DFA(any(7,7)).  I cannot see how to do it without
+concatenation of DFA.
+
+Then, this is not so simple, some patterns must use some characters
+before and after the period to work correctly, and so the regexen
+overlap, and you cannot use this idea.
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003408">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Sep 28 16:19:26 CEST 2011</time><small>September 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 28 Sep 2011, at 16:09, TeXitoi wrote:
+
+&gt;<i> Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; writes:
+</I>&gt;<i>
+</I>&gt;&gt;<i> On 27 Sep 2011, at 11:43, TeXitoi wrote:
+</I>&gt;&gt;&gt;<i> I work on about 400 integer variables (about 15 months), and I have
+</I>&gt;&gt;&gt;<i> regex that are applied on different intervals (year, semester, month,
+</I>&gt;&gt;&gt;<i> week...).  To improve the performances, I would like to combine some
+</I>&gt;&gt;&gt;<i> of the constraints on a unique DFA. So, the idea I had was generating
+</I>&gt;&gt;&gt;<i> a regex that affect only a period but that have the length of my
+</I>&gt;&gt;&gt;<i> problem:
+</I>&gt;&gt;&gt;<i> - first month : myReg + any(nbDaysIn14Month,nbDaysIn14Month)
+</I>&gt;&gt;&gt;<i> - second month : any(nbDaysIn1Month,nbDaysIn1Month) + myReg +
+</I>&gt;&gt;&gt;<i>       any(nbDaysIn13Month,nbDaysIn13Month)
+</I>&gt;&gt;&gt;<i> - ...
+</I>&gt;&gt;&gt;<i> - first semester : ...
+</I>&gt;&gt;&gt;<i> - ...
+</I>&gt;&gt;&gt;<i> and then I compute the intersection of the DFA.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> One thing I noticed (but which may be just because you simplified
+</I>&gt;&gt;<i> the problem for presentation) is that you could build expressions
+</I>&gt;&gt;<i> for a whole year without any wildcards, e.g.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> year = myReg(15,15)
+</I>&gt;<i>
+</I>&gt;<i> Interesting idea.  But it does not work just like that: imagine you
+</I>&gt;<i> have a 2 week problem and that you want 2 consecutive &quot;1&quot; each week.
+</I>&gt;<i>
+</I>&gt;<i>  REG myReg = *any + one(2,2) + *any;
+</I>&gt;<i>
+</I>&gt;<i> if we do what you said (myReg(2,2)), the string
+</I>&gt;<i>
+</I>&gt;<i>  1111000 0000000
+</I>&gt;<i>
+</I>&gt;<i> will match.  We have 2 consecutive &quot;1&quot; on the first week but 0 on the
+</I>&gt;<i> second.  To make this work, you need to do the intersection of
+</I>&gt;<i> DFA(myReg) with DFA(any(7,7)).  I cannot see how to do it without
+</I>&gt;<i> concatenation of DFA.
+</I>
+Right, of course.  I somehow assumed myReg was one month long, but of course you use the any(...) to make it exactly one month long.
+
+&gt;<i> Then, this is not so simple, some patterns must use some characters
+</I>&gt;<i> before and after the period to work correctly, and so the regexen
+</I>&gt;<i> overlap, and you cannot use this idea.
+</I>
+Yes, I had already expected that overlap could be a problem.
+
+Cheers,
+Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

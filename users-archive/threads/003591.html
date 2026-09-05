@@ -1,0 +1,1258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NaryUnion, infinite loop — 12 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>NaryUnion, infinite loop | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>12 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · March 2012–April 2012</p><h1 data-pagefind-meta="title">NaryUnion, infinite loop</h1></header>
+      <p class="archive-thread-summary">12 messages · March 2012–April 2012</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003591">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Jean-No&amp;#235;l Monette</h2></div>
+          <p><time>Thu Mar 29 10:56:00 CEST 2012</time><small>March 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+Here is a new problem I came across with NaryUnion. As suggested by
+Christian, I created a fresh region for every new NaryUnion, however I
+ran into an infinite loop. Below is a minimal example. I located the
+infinite loop inside the &quot;two(I&amp; i, J&amp; j)&quot; method of NaryUnion, and the
+reason seems to be that, after the call to &quot;RangeList* t = range(j)&quot; in
+the &quot;else if&quot; block (I unfortunately cannot give you line numbers as I
+messed around with print statements), &quot;i.c&quot; and &quot;t&quot; point to the very
+same RangeList (while they should not). I'm not expert enough to go
+deeper/further...
+
+Notice that this appears only when region2 is created in a block (in
+real code, it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no
+influence if it is actually used or not.
+
+I guess it is again related to the Region implementation that is going
+to change, but I think it is worth mentioning it anyway.
+
+Jean-No&#235;l
+
+
+#include &quot;gecode/driver.hh&quot;
+#include &quot;gecode/iter.hh&quot;
+using namespace Gecode;
+class MySpace:public Space {
+public:
+     virtual Space* copy(bool share){return this;}
+};
+int main(int argc, char* argv[]){
+     MySpace home;
+     Iter::Ranges::Singleton dom0(3,3);
+     Iter::Ranges::Singleton dom1(1,1);
+     Region region1(home);
+     Iter::Ranges::NaryUnion u0;
+     {
+         Region region2(home);
+         u0 = Iter::Ranges::NaryUnion(region2,dom0);//or using region1
+     }
+     Iter::Ranges::NaryUnion u1(region1,u0,dom1); //loops forever
+     /*or
+      * Region region3(home);
+      * Iter::Ranges::NaryUnion u1(region3,u0,dom1);
+      */
+     return 0;
+}
+
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003594">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Mar 30 00:41:33 CEST 2012</time><small>March 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> Here is a new problem I came across with NaryUnion. As suggested by Christian, I created a fresh region for every new NaryUnion, however I ran into an infinite loop. Below is a minimal example. I located the infinite loop inside the &quot;two(I&amp; i, J&amp; j)&quot; method of NaryUnion, and the reason seems to be that, after the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I unfortunately cannot give you line numbers as I messed around with print statements), &quot;i.c&quot; and &quot;t&quot; point to the very same RangeList (while they should not). I'm not expert enough to go deeper/further...
+</I>&gt;<i>
+</I>&gt;<i> Notice that this appears only when region2 is created in a block (in real code, it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it is actually used or not.
+</I>&gt;<i>
+</I>&gt;<i> I guess it is again related to the Region implementation that is going to change, but I think it is worth mentioning it anyway.
+</I>
+Memory allocated from a region only lives as long as the region, and by passing u0 out of its region's scope, you get a dangling pointer.  It's like writing
+
+char* c;
+{ string s = &quot;hello&quot;; c = s.c_str(); }
+string s = &quot;world&quot;;
+printf(&quot;%s&quot;,c);
+
+which will probably print world rather than hello.  So I'd say this is a bug in your code (and we should improve the documentation to make this clear).
+
+Cheers,
+Guido
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003596">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Jean-No&amp;#235;l Monette</h2></div>
+          <p><time>Fri Mar 30 09:48:44 CEST 2012</time><small>March 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido,
+
+You are totally right and this is indeed a bug in my (real) code, and I
+will change it accordingly. However, in the small example, I get the
+same problem when u0 is created using region1 instead of region2, i.e.
+
+Region region1(home);
+Iter::Ranges::NaryUnion u0;
+{
+     Region region2(home);
+     u0 = Iter::Ranges::NaryUnion(region1,dom0); //region1 here
+}
+Iter::Ranges::NaryUnion u1(region1,u0,dom1);
+
+
+In this case, as far as I understand, there should be no dangling
+pointer, as u0 is initialized with memory from region1. Or do the two
+regions share their memory, and the destruction of region2 affects the
+memory of region1?
+
+Thank you for you answers, and sorry for the inconvenience.
+
+Jean-No&#235;l
+
+On 03/30/2012 12:41 AM, Guido Tack wrote:
+&gt;<i> On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hello,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Here is a new problem I came across with NaryUnion. As suggested by Christian, I created a fresh region for every new NaryUnion, however I ran into an infinite loop. Below is a minimal example. I located the infinite loop inside the &quot;two(I&amp;  i, J&amp;  j)&quot; method of NaryUnion, and the reason seems to be that, after the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I unfortunately cannot give you line numbers as I messed around with print statements), &quot;i.c&quot; and &quot;t&quot; point to the very same RangeList (while they should not). I'm not expert enough to go deeper/further...
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Notice that this appears only when region2 is created in a block (in real code, it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it is actually used or not.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I guess it is again related to the Region implementation that is going to change, but I think it is worth mentioning it anyway.
+</I>&gt;<i> Memory allocated from a region only lives as long as the region, and by passing u0 out of its region's scope, you get a dangling pointer.  It's like writing
+</I>&gt;<i>
+</I>&gt;<i> char* c;
+</I>&gt;<i> { string s = &quot;hello&quot;; c = s.c_str(); }
+</I>&gt;<i> string s = &quot;world&quot;;
+</I>&gt;<i> printf(&quot;%s&quot;,c);
+</I>&gt;<i>
+</I>&gt;<i> which will probably print world rather than hello.  So I'd say this is a bug in your code (and we should improve the documentation to make this clear).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003597">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Mar 30 10:13:07 CEST 2012</time><small>March 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 30 Mar 2012, at 18:48, Jean-No&#235;l Monette wrote:
+
+&gt;<i> Hi Guido,
+</I>&gt;<i>
+</I>&gt;<i> You are totally right and this is indeed a bug in my (real) code, and I will change it accordingly. However, in the small example, I get the same problem when u0 is created using region1 instead of region2, i.e.
+</I>&gt;<i>
+</I>&gt;<i> Region region1(home);
+</I>&gt;<i> Iter::Ranges::NaryUnion u0;
+</I>&gt;<i> {
+</I>&gt;<i>    Region region2(home);
+</I>&gt;<i>    u0 = Iter::Ranges::NaryUnion(region1,dom0); //region1 here
+</I>&gt;<i> }
+</I>&gt;<i> Iter::Ranges::NaryUnion u1(region1,u0,dom1);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> In this case, as far as I understand, there should be no dangling pointer, as u0 is initialized with memory from region1. Or do the two regions share their memory, and the destruction of region2 affects the memory of region1?
+</I>
+Right, that's a bug.  You currently can't use region1 while another &quot;inner&quot; region is active (i.e., in scope).  That's a bug and requires rewriting the region code, so it will have to wait until a future release.  Sorry about that.
+
+Cheers,
+Guido
+
+&gt;<i>
+</I>&gt;<i> Thank you for you answers, and sorry for the inconvenience.
+</I>&gt;<i>
+</I>&gt;<i> Jean-No&#235;l
+</I>&gt;<i>
+</I>&gt;<i> On 03/30/2012 12:41 AM, Guido Tack wrote:
+</I>&gt;&gt;<i> On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Here is a new problem I came across with NaryUnion. As suggested by Christian, I created a fresh region for every new NaryUnion, however I ran into an infinite loop. Below is a minimal example. I located the infinite loop inside the &quot;two(I&amp;  i, J&amp;  j)&quot; method of NaryUnion, and the reason seems to be that, after the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I unfortunately cannot give you line numbers as I messed around with print statements), &quot;i.c&quot; and &quot;t&quot; point to the very same RangeList (while they should not). I'm not expert enough to go deeper/further...
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Notice that this appears only when region2 is created in a block (in real code, it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it is actually used or not.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I guess it is again related to the Region implementation that is going to change, but I think it is worth mentioning it anyway.
+</I>&gt;&gt;<i> Memory allocated from a region only lives as long as the region, and by passing u0 out of its region's scope, you get a dangling pointer.  It's like writing
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> char* c;
+</I>&gt;&gt;<i> { string s = &quot;hello&quot;; c = s.c_str(); }
+</I>&gt;&gt;<i> string s = &quot;world&quot;;
+</I>&gt;&gt;<i> printf(&quot;%s&quot;,c);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> which will probably print world rather than hello.  So I'd say this is a bug in your code (and we should improve the documentation to make this clear).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120330/a2e47263/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20120330/a2e47263/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003599">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Mar 30 14:34:46 CEST 2012</time><small>March 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+The problem is really that both iterators must allocate from the same
+region. You should try to avoid the assignment operator for NaryUnion (I
+should have not implemented it in the first place, because I know it is
+troublesome). Normally there should be no reason to use an assignment
+operator, just initialize when you create or use the copy constructor.
+
+Sorry
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Jean-No&#235;l Monette
+</I>&gt;<i> Sent: Friday, March 30, 2012 9:49 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] NaryUnion, infinite loop
+</I>&gt;<i>
+</I>&gt;<i> Hi Guido,
+</I>&gt;<i>
+</I>&gt;<i> You are totally right and this is indeed a bug in my (real) code, and I
+</I>will change it
+&gt;<i> accordingly. However, in the small example, I get the same problem when u0
+</I>is
+&gt;<i> created using region1 instead of region2, i.e.
+</I>&gt;<i>
+</I>&gt;<i> Region region1(home);
+</I>&gt;<i> Iter::Ranges::NaryUnion u0;
+</I>&gt;<i> {
+</I>&gt;<i>      Region region2(home);
+</I>&gt;<i>      u0 = Iter::Ranges::NaryUnion(region1,dom0); //region1 here }
+</I>&gt;<i> Iter::Ranges::NaryUnion u1(region1,u0,dom1);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> In this case, as far as I understand, there should be no dangling pointer,
+</I>as u0 is
+&gt;<i> initialized with memory from region1. Or do the two regions share their
+</I>&gt;<i> memory, and the destruction of region2 affects the memory of region1?
+</I>&gt;<i>
+</I>&gt;<i> Thank you for you answers, and sorry for the inconvenience.
+</I>&gt;<i>
+</I>&gt;<i> Jean-No&#235;l
+</I>&gt;<i>
+</I>&gt;<i> On 03/30/2012 12:41 AM, Guido Tack wrote:
+</I>&gt;<i> &gt; On 29/03/2012, at 7:56 PM, Jean-No&#235;l Monette wrote:
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;&gt; Hello,
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; Here is a new problem I came across with NaryUnion. As suggested by
+</I>&gt;<i> Christian, I created a fresh region for every new NaryUnion, however I ran
+</I>into
+&gt;<i> an infinite loop. Below is a minimal example. I located the infinite loop
+</I>inside the
+&gt;<i> &quot;two(I&amp;  i, J&amp;  j)&quot; method of NaryUnion, and the reason seems to be that,
+</I>after
+&gt;<i> the call to &quot;RangeList* t = range(j)&quot; in the &quot;else if&quot; block (I
+</I>unfortunately cannot
+&gt;<i> give you line numbers as I messed around with print statements), &quot;i.c&quot; and
+</I>&quot;t&quot;
+&gt;<i> point to the very same RangeList (while they should not). I'm not expert
+</I>enough
+&gt;<i> to go deeper/further...
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; Notice that this appears only when region2 is created in a block (in
+</I>real code,
+&gt;<i> it would be inside a &quot;for&quot; or a &quot;if&quot;), however there is no influence if it
+</I>is actually
+&gt;<i> used or not.
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; I guess it is again related to the Region implementation that is going
+</I>to
+&gt;<i> change, but I think it is worth mentioning it anyway.
+</I>&gt;<i> &gt; Memory allocated from a region only lives as long as the region, and
+</I>&gt;<i> &gt; by passing u0 out of its region's scope, you get a dangling pointer.
+</I>&gt;<i> &gt; It's like writing
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; char* c;
+</I>&gt;<i> &gt; { string s = &quot;hello&quot;; c = s.c_str(); } string s = &quot;world&quot;;
+</I>&gt;<i> &gt; printf(&quot;%s&quot;,c);
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; which will probably print world rather than hello.  So I'd say this is a
+</I>bug in your
+&gt;<i> code (and we should improve the documentation to make this clear).
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Cheers,
+</I>&gt;<i> &gt; Guido
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003600">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Apr 10 11:20:37 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I have a small example where i do not understand why no propagation
+takes place.
+
+test is a pointer to the space instance
+x_ is an array of 10 IntVars(0,10)
+b_ is an array of 2 BoolVars(0,1)
+
+
+    LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+    rel1.post(*test,true,ICL_DEF);
+
+    Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+
+    LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+    Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+
+    test-&gt;status();
+    if (test-&gt;failed())
+        std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+    std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+    std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+
+
+So i post das one of my elements x_[0] is 5, and all elements are distinct.
+Now i have a reified constraint that x_[1] == 5.
+The distinct constraint removes 5 from he domain of x_[1],
+ but the propagator does not fire.
+The result is:
+
+{5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+{0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+
+{[0..1], [0..1]}
+
+
+Even with ICL_DOM the boolean variable is not touched if values are
+removed from the domain.
+Also i think this could be easily done with &quot;Advisors&quot; ?
+I have no experience with this, so my question:
+Is this behavior the desired one?
+Can this be changed if i have reifications like mine where i compare to
+constants?
+
+Thanks a lot,
+
+Max
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120410/72a459f4/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20120410/72a459f4/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003601">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Apr 10 12:32:01 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>This is a current shortcoming of the minimodel library.  For some linear constraints (such as x==5 in this case) the IntConLevel is ignored.  To get the full propagation, you have to post the constraint directly, like this:
+
+Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+
+Cheers,
+Guido
+
+On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+
+&gt;<i> I have a small example where i do not understand why no propagation takes place.
+</I>&gt;<i>
+</I>&gt;<i> test is a pointer to the space instance
+</I>&gt;<i> x_ is an array of 10 IntVars(0,10)
+</I>&gt;<i> b_ is an array of 2 BoolVars(0,1)
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>     LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+</I>&gt;<i>     rel1.post(*test,true,ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+</I>&gt;<i>     Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     test-&gt;status();
+</I>&gt;<i>     if (test-&gt;failed())
+</I>&gt;<i>         std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+</I>&gt;<i>     std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+</I>&gt;<i>     std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> So i post das one of my elements x_[0] is 5, and all elements are distinct.
+</I>&gt;<i> Now i have a reified constraint that x_[1] == 5.
+</I>&gt;<i> The distinct constraint removes 5 from he domain of x_[1],
+</I>&gt;<i>  but the propagator does not fire.
+</I>&gt;<i> The result is:
+</I>&gt;<i> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+</I>&gt;<i> {[0..1], [0..1]}
+</I>&gt;<i>
+</I>&gt;<i> Even with ICL_DOM the boolean variable is not touched if values are removed from the domain.
+</I>&gt;<i> Also i think this could be easily done with &quot;Advisors&quot; ?
+</I>&gt;<i> I have no experience with this, so my question:
+</I>&gt;<i> Is this behavior the desired one?
+</I>&gt;<i> Can this be changed if i have reifications like mine where i compare to constants?
+</I>&gt;<i>
+</I>&gt;<i> Thanks a lot,
+</I>&gt;<i>
+</I>&gt;<i> Max
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack,
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120410/20570323/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20120410/20570323/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003602">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Apr 10 12:41:48 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thank you very much for the insight.
+Unfortunately this could be a problem,
+as i have to change my data structures.
+
+Will this be fixed in future versions?
+
+Best,
+Max
+
+On 04/10/2012 12:32 PM, Guido Tack wrote:
+&gt;<i> This is a current shortcoming of the minimodel library.  For some
+</I>&gt;<i> linear constraints (such as x==5 in this case) the IntConLevel is
+</I>&gt;<i> ignored.  To get the full propagation, you have to post the constraint
+</I>&gt;<i> directly, like this:
+</I>&gt;<i>
+</I>&gt;<i> Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> I have a small example where i do not understand why no propagation
+</I>&gt;&gt;<i> takes place.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> test is a pointer to the space instance
+</I>&gt;&gt;<i> x_ is an array of 10 IntVars(0,10)
+</I>&gt;&gt;<i> b_ is an array of 2 BoolVars(0,1)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+</I>&gt;&gt;<i>     rel1.post(*test,true,ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+</I>&gt;&gt;<i>     Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     test-&gt;status();
+</I>&gt;&gt;<i>     if (test-&gt;failed())
+</I>&gt;&gt;<i>         std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+</I>&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+</I>&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> So i post das one of my elements x_[0] is 5, and all elements are
+</I>&gt;&gt;<i> distinct.
+</I>&gt;&gt;<i> Now i have a reified constraint that x_[1] == 5.
+</I>&gt;&gt;<i> The distinct constraint removes 5 from he domain of x_[1],
+</I>&gt;&gt;<i>  but the propagator does not fire.
+</I>&gt;&gt;<i> The result is:
+</I>&gt;&gt;<i> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+</I>&gt;&gt;<i> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+</I>&gt;&gt;<i> {[0..1], [0..1]}
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Even with ICL_DOM the boolean variable is not touched if values are
+</I>&gt;&gt;<i> removed from the domain.
+</I>&gt;&gt;<i> Also i think this could be easily done with &quot;Advisors&quot; ?
+</I>&gt;&gt;<i> I have no experience with this, so my question:
+</I>&gt;&gt;<i> Is this behavior the desired one?
+</I>&gt;&gt;<i> Can this be changed if i have reifications like mine where i compare
+</I>&gt;&gt;<i> to constants?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks a lot,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guido Tack,
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120410/7c6ce2f7/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20120410/7c6ce2f7/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003603">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Apr 10 13:19:58 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Maybe, not so clear yet. We will change reification for the next major
+release and might at that time also think how to fix passing the consistency
+level.
+
+
+
+For the time being you should stick to what Guido has suggested.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, April 10, 2012 12:42 PM
+To: Guido Tack
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Reified Constraints do not propagate
+
+
+
+Thank you very much for the insight.
+Unfortunately this could be a problem,
+as i have to change my data structures.
+
+Will this be fixed in future versions?
+
+Best,
+Max
+
+On 04/10/2012 12:32 PM, Guido Tack wrote:
+
+This is a current shortcoming of the minimodel library.  For some linear
+constraints (such as x==5 in this case) the IntConLevel is ignored.  To get
+the full propagation, you have to post the constraint directly, like this:
+
+
+
+Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+
+
+
+Cheers,
+
+Guido
+
+
+
+On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+
+
+
+
+
+I have a small example where i do not understand why no propagation takes
+place.
+
+test is a pointer to the space instance
+x_ is an array of 10 IntVars(0,10)
+b_ is an array of 2 BoolVars(0,1)
+
+
+    LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+    rel1.post(*test,true,ICL_DEF);
+
+    Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+
+    LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+    Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+
+    test-&gt;status();
+    if (test-&gt;failed())
+        std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+    std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+    std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+
+
+So i post das one of my elements x_[0] is 5, and all elements are distinct.
+Now i have a reified constraint that x_[1] == 5.
+The distinct constraint removes 5 from he domain of x_[1],
+ but the propagator does not fire.
+The result is:
+
+{5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+{0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+
+{[0..1], [0..1]}
+
+
+Even with ICL_DOM the boolean variable is not touched if values are removed
+from the domain.
+Also i think this could be easily done with &quot;Advisors&quot; ?
+I have no experience with this, so my question:
+Is this behavior the desired one?
+Can this be changed if i have reifications like mine where i compare to
+constants?
+
+Thanks a lot,
+
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+
+Guido Tack,
+
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+
+
+
+
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120410/0546bd47/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20120410/0546bd47/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003606">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Max Ostrowski</h2></div>
+          <p><time>Fri Apr 13 13:17:27 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks and sorry for bugging you again.
+
+I tried to analyze the minimodel code.
+I think that posting LinExpr instead of LinRel won't change the problem,
+right?
+So is there any interface so that one can still use the very handy
+LinExpr class?
+I do parse some quite complicated formulas and want to post a linear()
+constraint.
+LinExpr as far as I understood, optimizes this formula and reformulates
+it to fit into the form that is needed for the linear constraint.
+Is there a way to get this linear constraint out of it again to post it
+manually and preserve the ICL?
+
+Or do i have to generate the linear constraint (array of variables and
+numbers) myself to get the full propagation power. Is there a logical
+reason why the ICL is lost during this &quot;translation&quot;?
+
+Best,
+Max
+
+On 04/10/2012 01:19 PM, Christian Schulte wrote:
+&gt;<i>
+</I>&gt;<i> Maybe, not so clear yet. We will change reification for the next major
+</I>&gt;<i> release and might at that time also think how to fix passing the
+</I>&gt;<i> consistency level.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> For the time being you should stick to what Guido has suggested.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Max Ostrowski
+</I>&gt;<i> *Sent:* Tuesday, April 10, 2012 12:42 PM
+</I>&gt;<i> *To:* Guido Tack
+</I>&gt;<i> *Cc:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* Re: [gecode-users] Reified Constraints do not propagate
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thank you very much for the insight.
+</I>&gt;<i> Unfortunately this could be a problem,
+</I>&gt;<i> as i have to change my data structures.
+</I>&gt;<i>
+</I>&gt;<i> Will this be fixed in future versions?
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> On 04/10/2012 12:32 PM, Guido Tack wrote:
+</I>&gt;<i>
+</I>&gt;<i> This is a current shortcoming of the minimodel library.  For some
+</I>&gt;<i> linear constraints (such as x==5 in this case) the IntConLevel is
+</I>&gt;<i> ignored.  To get the full propagation, you have to post the constraint
+</I>&gt;<i> directly, like this:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I have a small example where i do not understand why no propagation
+</I>&gt;<i> takes place.
+</I>&gt;<i>
+</I>&gt;<i> test is a pointer to the space instance
+</I>&gt;<i> x_ is an array of 10 IntVars(0,10)
+</I>&gt;<i> b_ is an array of 2 BoolVars(0,1)
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>     LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+</I>&gt;<i>     rel1.post(*test,true,ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+</I>&gt;<i>     Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+</I>&gt;<i>
+</I>&gt;<i>     test-&gt;status();
+</I>&gt;<i>     if (test-&gt;failed())
+</I>&gt;<i>         std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+</I>&gt;<i>     std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+</I>&gt;<i>     std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> So i post das one of my elements x_[0] is 5, and all elements are
+</I>&gt;<i> distinct.
+</I>&gt;<i> Now i have a reified constraint that x_[1] == 5.
+</I>&gt;<i> The distinct constraint removes 5 from he domain of x_[1],
+</I>&gt;<i>  but the propagator does not fire.
+</I>&gt;<i> The result is:
+</I>&gt;<i>
+</I>&gt;<i> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+</I>&gt;<i> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+</I>&gt;<i>
+</I>&gt;<i> {[0..1], [0..1]}
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Even with ICL_DOM the boolean variable is not touched if values are
+</I>&gt;<i> removed from the domain.
+</I>&gt;<i> Also i think this could be easily done with &quot;Advisors&quot; ?
+</I>&gt;<i> I have no experience with this, so my question:
+</I>&gt;<i> Is this behavior the desired one?
+</I>&gt;<i> Can this be changed if i have reifications like mine where i compare
+</I>&gt;<i> to constants?
+</I>&gt;<i>
+</I>&gt;<i> Thanks a lot,
+</I>&gt;<i>
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack,
+</I>&gt;<i>
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120413/df465066/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20120413/df465066/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003612">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Apr 17 01:20:58 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I just added a fix to the svn trunk for the case of a reified equality between an IntVar and an int.  The default ICL for that case is now ICL_DOM (consistent with just using rel directly).
+
+Other cases (e.g. equality between two variables) may still ignore the ICL, but we'll have a look at that, too.
+
+Cheers,
+Guido
+
+--
+Guido Tack
+<A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+
+
+
+On 13/04/2012, at 9:17 PM, Max Ostrowski wrote:
+
+&gt;<i> Thanks and sorry for bugging you again.
+</I>&gt;<i>
+</I>&gt;<i> I tried to analyze the minimodel code.
+</I>&gt;<i> I think that posting LinExpr instead of LinRel won't change the problem, right?
+</I>&gt;<i> So is there any interface so that one can still use the very handy LinExpr class?
+</I>&gt;<i> I do parse some quite complicated formulas and want to post a linear() constraint.
+</I>&gt;<i> LinExpr as far as I understood, optimizes this formula and reformulates it to fit into the form that is needed for the linear constraint.
+</I>&gt;<i> Is there a way to get this linear constraint out of it again to post it manually and preserve the ICL?
+</I>&gt;<i>
+</I>&gt;<i> Or do i have to generate the linear constraint (array of variables and numbers) myself to get the full propagation power. Is there a logical reason why the ICL is lost during this &quot;translation&quot;?
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> On 04/10/2012 01:19 PM, Christian Schulte wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Maybe, not so clear yet. We will change reification for the next major release and might at that time also think how to fix passing the consistency level.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> For the time being you should stick to what Guido has suggested.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Max Ostrowski
+</I>&gt;&gt;<i> Sent: Tuesday, April 10, 2012 12:42 PM
+</I>&gt;&gt;<i> To: Guido Tack
+</I>&gt;&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: Re: [gecode-users] Reified Constraints do not propagate
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you very much for the insight.
+</I>&gt;&gt;<i> Unfortunately this could be a problem,
+</I>&gt;&gt;<i> as i have to change my data structures.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Will this be fixed in future versions?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best,
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 04/10/2012 12:32 PM, Guido Tack wrote:
+</I>&gt;&gt;<i> This is a current shortcoming of the minimodel library.  For some linear constraints (such as x==5 in this case) the IntConLevel is ignored.  To get the full propagation, you have to post the constraint directly, like this:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i> Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have a small example where i do not understand why no propagation takes place.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> test is a pointer to the space instance
+</I>&gt;&gt;<i> x_ is an array of 10 IntVars(0,10)
+</I>&gt;&gt;<i> b_ is an array of 2 BoolVars(0,1)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+</I>&gt;&gt;<i>     rel1.post(*test,true,ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+</I>&gt;&gt;<i>     Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>     test-&gt;status();
+</I>&gt;&gt;<i>     if (test-&gt;failed())
+</I>&gt;&gt;<i>         std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+</I>&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+</I>&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> So i post das one of my elements x_[0] is 5, and all elements are distinct.
+</I>&gt;&gt;<i> Now i have a reified constraint that x_[1] == 5.
+</I>&gt;&gt;<i> The distinct constraint removes 5 from he domain of x_[1],
+</I>&gt;&gt;<i>  but the propagator does not fire.
+</I>&gt;&gt;<i> The result is:
+</I>&gt;&gt;<i> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+</I>&gt;&gt;<i> {[0..1], [0..1]}
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Even with ICL_DOM the boolean variable is not touched if values are removed from the domain.
+</I>&gt;&gt;<i> Also i think this could be easily done with &quot;Advisors&quot; ?
+</I>&gt;&gt;<i> I have no experience with this, so my question:
+</I>&gt;&gt;<i> Is this behavior the desired one?
+</I>&gt;&gt;<i> Can this be changed if i have reifications like mine where i compare to constants?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks a lot,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Guido Tack,
+</I>&gt;&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120417/588a3ac6/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20120417/588a3ac6/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003613">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Apr 17 09:41:09 CEST 2012</time><small>April 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Big thanks for this, will make things so much easier.
+
+Best,
+Max
+
+
+On 04/17/2012 01:20 AM, Guido Tack wrote:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I just added a fix to the svn trunk for the case of a reified equality
+</I>&gt;<i> between an IntVar and an int.  The default ICL for that case is now
+</I>&gt;<i> ICL_DOM (consistent with just using rel directly).
+</I>&gt;<i>
+</I>&gt;<i> Other cases (e.g. equality between two variables) may still ignore the
+</I>&gt;<i> ICL, but we'll have a look at that, too.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guido Tack
+</I>&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On 13/04/2012, at 9:17 PM, Max Ostrowski wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Thanks and sorry for bugging you again.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I tried to analyze the minimodel code.
+</I>&gt;&gt;<i> I think that posting LinExpr instead of LinRel won't change the
+</I>&gt;&gt;<i> problem, right?
+</I>&gt;&gt;<i> So is there any interface so that one can still use the very handy
+</I>&gt;&gt;<i> LinExpr class?
+</I>&gt;&gt;<i> I do parse some quite complicated formulas and want to post a
+</I>&gt;&gt;<i> linear() constraint.
+</I>&gt;&gt;<i> LinExpr as far as I understood, optimizes this formula and
+</I>&gt;&gt;<i> reformulates it to fit into the form that is needed for the linear
+</I>&gt;&gt;<i> constraint.
+</I>&gt;&gt;<i> Is there a way to get this linear constraint out of it again to post
+</I>&gt;&gt;<i> it manually and preserve the ICL?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Or do i have to generate the linear constraint (array of variables
+</I>&gt;&gt;<i> and numbers) myself to get the full propagation power. Is there a
+</I>&gt;&gt;<i> logical reason why the ICL is lost during this &quot;translation&quot;?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Best,
+</I>&gt;&gt;<i> Max
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 04/10/2012 01:19 PM, Christian Schulte wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Maybe, not so clear yet. We will change reification for the next
+</I>&gt;&gt;&gt;<i> major release and might at that time also think how to fix passing
+</I>&gt;&gt;&gt;<i> the consistency level.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> For the time being you should stick to what Guido has suggested.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Christian
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]
+</I>&gt;&gt;&gt;<i> *On Behalf Of *Max Ostrowski
+</I>&gt;&gt;&gt;<i> *Sent:* Tuesday, April 10, 2012 12:42 PM
+</I>&gt;&gt;&gt;<i> *To:* Guido Tack
+</I>&gt;&gt;&gt;<i> *Cc:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;<i> *Subject:* Re: [gecode-users] Reified Constraints do not propagate
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thank you very much for the insight.
+</I>&gt;&gt;&gt;<i> Unfortunately this could be a problem,
+</I>&gt;&gt;&gt;<i> as i have to change my data structures.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Will this be fixed in future versions?
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Best,
+</I>&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> On 04/10/2012 12:32 PM, Guido Tack wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> This is a current shortcoming of the minimodel library.  For some
+</I>&gt;&gt;&gt;<i> linear constraints (such as x==5 in this case) the IntConLevel is
+</I>&gt;&gt;&gt;<i> ignored.  To get the full propagation, you have to post the
+</I>&gt;&gt;&gt;<i> constraint directly, like this:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Gecode::rel(*test, test-&gt;x_[1], IRT_EQ, 5, test-&gt;b_[1], ICL_DOM);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Guido
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> On 10 Apr 2012, at 19:20, Max Ostrowski wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I have a small example where i do not understand why no propagation
+</I>&gt;&gt;&gt;<i> takes place.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> test is a pointer to the space instance
+</I>&gt;&gt;&gt;<i> x_ is an array of 10 IntVars(0,10)
+</I>&gt;&gt;&gt;<i> b_ is an array of 2 BoolVars(0,1)
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>     LinRel rel1(test-&gt;x_[0],IRT_EQ,5);
+</I>&gt;&gt;&gt;<i>     rel1.post(*test,true,ICL_DEF);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>     Gecode::distinct(*test,test-&gt;x_,ICL_DEF);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>     LinRel rel2(test-&gt;x_[1],IRT_EQ,5);
+</I>&gt;&gt;&gt;<i>     Gecode::rel(*test, rel2 == test-&gt;b_[1],ICL_DEF);
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>     test-&gt;status();
+</I>&gt;&gt;&gt;<i>     if (test-&gt;failed())
+</I>&gt;&gt;&gt;<i>         std::cout &lt;&lt; &quot;Failed&quot; &lt;&lt; std::endl;
+</I>&gt;&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;x_ &lt;&lt; std::endl;
+</I>&gt;&gt;&gt;<i>     std::cout &lt;&lt; test-&gt;b_ &lt;&lt; std::endl;
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> So i post das one of my elements x_[0] is 5, and all elements are
+</I>&gt;&gt;&gt;<i> distinct.
+</I>&gt;&gt;&gt;<i> Now i have a reified constraint that x_[1] == 5.
+</I>&gt;&gt;&gt;<i> The distinct constraint removes 5 from he domain of x_[1],
+</I>&gt;&gt;&gt;<i>  but the propagator does not fire.
+</I>&gt;&gt;&gt;<i> The result is:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> {5, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10},
+</I>&gt;&gt;&gt;<i> {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}, {0..4,6..10}}
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> {[0..1], [0..1]}
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Even with ICL_DOM the boolean variable is not touched if values are
+</I>&gt;&gt;&gt;<i> removed from the domain.
+</I>&gt;&gt;&gt;<i> Also i think this could be easily done with &quot;Advisors&quot; ?
+</I>&gt;&gt;&gt;<i> I have no experience with this, so my question:
+</I>&gt;&gt;&gt;<i> Is this behavior the desired one?
+</I>&gt;&gt;&gt;<i> Can this be changed if i have reifications like mine where i compare
+</I>&gt;&gt;&gt;<i> to constants?
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Thanks a lot,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Max
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> --
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Guido Tack,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> <A HREF="http://www.csse.monash.edu/~guidot/">http://www.csse.monash.edu/~guidot/</A>
+</I>&gt;&gt;&gt;<i> &lt;<A HREF="http://www.csse.monash.edu/%7Eguidot/">http://www.csse.monash.edu/%7Eguidot/</A>&gt;
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120417/aff0129e/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20120417/aff0129e/attachment-0001.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

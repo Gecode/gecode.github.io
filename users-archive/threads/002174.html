@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Any Advise on Delta — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Any Advise on Delta | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2009</p><h1 data-pagefind-meta="title">Any Advise on Delta</h1></header>
+      <p class="archive-thread-summary">4 messages · January 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002174">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>David Rijsman</h2></div>
+          <p><time>Wed Jan 21 14:38:26 CET 2009</time><small>January 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian,
+
+in a previous conversation on 'Any Advise on assignment delta' you mentioned &quot;the other operations that lead to 'any' are iterator-based variable domain updates which in most cases just remove a single value or a range (and hence the delta information is accurate).&quot;. Concerning this I have the following question:
+
+I have been implementing a propagator which implements its own advise method. The intention of the advise method is to only schedule the invoking propagator if the maximum has changed. This is relatively easy to implement but I noticed that the 'delta' reporting is rather 'rough' implemented and my propagator gets scheduled quite often to conclude nothing. That is I am getting a lot of 'any' hits when there could have been more information. Specifically in my use case I have a cumulatives constraint whose propagator uses View::minus_r a lot and this propagator only reports 'any' deltas (as far as I can conclude). In the example in this e-mail clearly shows we could be more informative in the delta, it streams 1-0 (any) although I would expect 0-50.
+
+My question is if this is done for a reason and if so if this is done for many operators on the views?
+
+//----------------------------------
+
+#include &quot;gecode/kernel.hh&quot;
+#include &quot;gecode/int.hh&quot;
+#include &quot;gecode/iter.hh&quot;
+
+namespace Gecode
+{
+  class MyPropagator : public Propagator
+  {
+  public:
+    MyPropagator(Space *home, Int::IntView v):
+        Propagator(home),
+        MView(v)
+    {
+      MView.subscribe(home, new (home) ViewAdvisor&lt;Int::IntView&gt;(home,this,MCouncil,MView));
+    }
+
+    MyPropagator* copy (Space* home, bool share)
+    {
+      return 0;
+    }
+
+    ExecStatus propagate(Space *home, ModEventDelta med)
+    {
+      return ES_OK;
+    }
+
+    PropCost  cost (ModEventDelta med) const
+    {
+      return PC_LINEAR_LO;
+    }
+
+    ExecStatus  advise (Space *home, Advisor *a, const Delta *d)
+    {
+      ViewAdvisor&lt;Int::IntView&gt;&amp; advisor = static_cast&lt;ViewAdvisor&lt;Int::IntView&gt;&amp;&gt;(*a);
+
+      std::cout &lt;&lt; advisor.view().min(d) &lt;&lt; &quot;-&quot; &lt;&lt; advisor.view().max(d) &lt;&lt; std::endl;
+
+      return ES_OK;
+    }
+  private:
+    Int::IntView MView;
+    Council&lt;ViewAdvisor&lt;Int::IntView&gt;&gt; MCouncil;
+  };
+
+  class MySpace : public Space
+  {
+  public:
+    MySpace()
+    {
+      MX.init(this,0,100);
+
+    }
+
+    MySpace(bool share, MySpace &amp;s):
+      Space(share,s)
+    {
+       MX.update(this,share,s.MX);
+    }
+
+    MySpace* copy(bool share)
+    {
+      return new MySpace(share, *this);
+    }
+
+    IntVar MX;
+  };
+}
+
+int main()
+{
+  Gecode::MySpace space;
+
+  new (&amp;space) Gecode::MyPropagator(&amp;space,space.MX);
+
+  Gecode::Int::IntView view(space.MX);
+
+  Gecode::Iter::Ranges::Singleton d(0,50);
+
+  view.minus_r(&amp;space,d,false);
+}
+
+//----------------------------------
+
+David
+
+Quintiq Conference &quot;Quintessence 09&quot; Tuesday May 12th, 2009, Country Estate Duin &amp; Kruidberg, near Amsterdam Schiphol, The Netherlands - for more information visit www.quintiq.com
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002176">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Wed Jan 21 15:48:24 CET 2009</time><small>January 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+In the case of cumulatives, the domain information could be reported
+in a better way since singleton ranges are removed, mapping naturally
+onto the integer delta abstraction. Unfortunately, this would
+complicate the code for the minus_r operation, and thus it is not
+clear that we will do it.
+
+If your interest is to check if the upper bound of a variable has
+changed, then caching the maximum value in the advisor is simple and
+rather efficient. This is probably what I would do, and it is
+independent of the delta-information that is computed.
+
+Cheers,
+Mikael
+
+On Wed, Jan 21, 2009 at 2:38 PM, David Rijsman
+&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt; wrote:
+&gt;<i> Christian,
+</I>&gt;<i>
+</I>&gt;<i> in a previous conversation on 'Any Advise on assignment delta' you mentioned &quot;the other operations that lead to 'any' are iterator-based variable domain updates which in most cases just remove a single value or a range (and hence the delta information is accurate).&quot;. Concerning this I have the following question:
+</I>&gt;<i>
+</I>&gt;<i> I have been implementing a propagator which implements its own advise method. The intention of the advise method is to only schedule the invoking propagator if the maximum has changed. This is relatively easy to implement but I noticed that the 'delta' reporting is rather 'rough' implemented and my propagator gets scheduled quite often to conclude nothing. That is I am getting a lot of 'any' hits when there could have been more information. Specifically in my use case I have a cumulatives constraint whose propagator uses View::minus_r a lot and this propagator only reports 'any' deltas (as far as I can conclude). In the example in this e-mail clearly shows we could be more informative in the delta, it streams 1-0 (any) although I would expect 0-50.
+</I>&gt;<i>
+</I>&gt;<i> My question is if this is done for a reason and if so if this is done for many operators on the views?
+</I>&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> #include &quot;gecode/kernel.hh&quot;
+</I>&gt;<i> #include &quot;gecode/int.hh&quot;
+</I>&gt;<i> #include &quot;gecode/iter.hh&quot;
+</I>&gt;<i>
+</I>&gt;<i> namespace Gecode
+</I>&gt;<i> {
+</I>&gt;<i>  class MyPropagator : public Propagator
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MyPropagator(Space *home, Int::IntView v):
+</I>&gt;<i>        Propagator(home),
+</I>&gt;<i>        MView(v)
+</I>&gt;<i>    {
+</I>&gt;<i>      MView.subscribe(home, new (home) ViewAdvisor&lt;Int::IntView&gt;(home,this,MCouncil,MView));
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MyPropagator* copy (Space* home, bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return 0;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus propagate(Space *home, ModEventDelta med)
+</I>&gt;<i>    {
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    PropCost  cost (ModEventDelta med) const
+</I>&gt;<i>    {
+</I>&gt;<i>      return PC_LINEAR_LO;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus  advise (Space *home, Advisor *a, const Delta *d)
+</I>&gt;<i>    {
+</I>&gt;<i>      ViewAdvisor&lt;Int::IntView&gt;&amp; advisor = static_cast&lt;ViewAdvisor&lt;Int::IntView&gt;&amp;&gt;(*a);
+</I>&gt;<i>
+</I>&gt;<i>      std::cout &lt;&lt; advisor.view().min(d) &lt;&lt; &quot;-&quot; &lt;&lt; advisor.view().max(d) &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>  private:
+</I>&gt;<i>    Int::IntView MView;
+</I>&gt;<i>    Council&lt;ViewAdvisor&lt;Int::IntView&gt;&gt; MCouncil;
+</I>&gt;<i>  };
+</I>&gt;<i>
+</I>&gt;<i>  class MySpace : public Space
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MySpace()
+</I>&gt;<i>    {
+</I>&gt;<i>      MX.init(this,0,100);
+</I>&gt;<i>
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace(bool share, MySpace &amp;s):
+</I>&gt;<i>      Space(share,s)
+</I>&gt;<i>    {
+</I>&gt;<i>       MX.update(this,share,s.MX);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace* copy(bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return new MySpace(share, *this);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    IntVar MX;
+</I>&gt;<i>  };
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> int main()
+</I>&gt;<i> {
+</I>&gt;<i>  Gecode::MySpace space;
+</I>&gt;<i>
+</I>&gt;<i>  new (&amp;space) Gecode::MyPropagator(&amp;space,space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Int::IntView view(space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Iter::Ranges::Singleton d(0,50);
+</I>&gt;<i>
+</I>&gt;<i>  view.minus_r(&amp;space,d,false);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> David
+</I>&gt;<i>
+</I>&gt;<i> Quintiq Conference &quot;Quintessence 09&quot; Tuesday May 12th, 2009, Country Estate Duin &amp; Kruidberg, near Amsterdam Schiphol, The Netherlands - for more information visit www.quintiq.com
+</I>&gt;<i>
+</I>&gt;<i> This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002178">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jan 22 11:09:03 CET 2009</time><small>January 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+I just checked the code for minus_r and I was a little surprised: I just
+forgot to add the detection of this special case for minus_r, the other
+iterator-based variable operations check for special cases (precisely to get
+a more accurate delta). I'll jot it down to my list and it should be in
+3.0.0 as it is not hard (Mikael, sorry for contradicting you here ;-) ).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 21, 2009 3:48 PM
+To: David Rijsman
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Any Advise on Delta
+
+Hi,
+
+In the case of cumulatives, the domain information could be reported
+in a better way since singleton ranges are removed, mapping naturally
+onto the integer delta abstraction. Unfortunately, this would
+complicate the code for the minus_r operation, and thus it is not
+clear that we will do it.
+
+If your interest is to check if the upper bound of a variable has
+changed, then caching the maximum value in the advisor is simple and
+rather efficient. This is probably what I would do, and it is
+independent of the delta-information that is computed.
+
+Cheers,
+Mikael
+
+On Wed, Jan 21, 2009 at 2:38 PM, David Rijsman
+&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt; wrote:
+&gt;<i> Christian,
+</I>&gt;<i>
+</I>&gt;<i> in a previous conversation on 'Any Advise on assignment delta' you
+</I>mentioned &quot;the other operations that lead to 'any' are iterator-based
+variable domain updates which in most cases just remove a single value or a
+range (and hence the delta information is accurate).&quot;. Concerning this I
+have the following question:
+&gt;<i>
+</I>&gt;<i> I have been implementing a propagator which implements its own advise
+</I>method. The intention of the advise method is to only schedule the invoking
+propagator if the maximum has changed. This is relatively easy to implement
+but I noticed that the 'delta' reporting is rather 'rough' implemented and
+my propagator gets scheduled quite often to conclude nothing. That is I am
+getting a lot of 'any' hits when there could have been more information.
+Specifically in my use case I have a cumulatives constraint whose propagator
+uses View::minus_r a lot and this propagator only reports 'any' deltas (as
+far as I can conclude). In the example in this e-mail clearly shows we could
+be more informative in the delta, it streams 1-0 (any) although I would
+expect 0-50.
+&gt;<i>
+</I>&gt;<i> My question is if this is done for a reason and if so if this is done for
+</I>many operators on the views?
+&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> #include &quot;gecode/kernel.hh&quot;
+</I>&gt;<i> #include &quot;gecode/int.hh&quot;
+</I>&gt;<i> #include &quot;gecode/iter.hh&quot;
+</I>&gt;<i>
+</I>&gt;<i> namespace Gecode
+</I>&gt;<i> {
+</I>&gt;<i>  class MyPropagator : public Propagator
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MyPropagator(Space *home, Int::IntView v):
+</I>&gt;<i>        Propagator(home),
+</I>&gt;<i>        MView(v)
+</I>&gt;<i>    {
+</I>&gt;<i>      MView.subscribe(home, new (home)
+</I>ViewAdvisor&lt;Int::IntView&gt;(home,this,MCouncil,MView));
+&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MyPropagator* copy (Space* home, bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return 0;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus propagate(Space *home, ModEventDelta med)
+</I>&gt;<i>    {
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    PropCost  cost (ModEventDelta med) const
+</I>&gt;<i>    {
+</I>&gt;<i>      return PC_LINEAR_LO;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    ExecStatus  advise (Space *home, Advisor *a, const Delta *d)
+</I>&gt;<i>    {
+</I>&gt;<i>      ViewAdvisor&lt;Int::IntView&gt;&amp; advisor =
+</I>static_cast&lt;ViewAdvisor&lt;Int::IntView&gt;&amp;&gt;(*a);
+&gt;<i>
+</I>&gt;<i>      std::cout &lt;&lt; advisor.view().min(d) &lt;&lt; &quot;-&quot; &lt;&lt; advisor.view().max(d) &lt;&lt;
+</I>std::endl;
+&gt;<i>
+</I>&gt;<i>      return ES_OK;
+</I>&gt;<i>    }
+</I>&gt;<i>  private:
+</I>&gt;<i>    Int::IntView MView;
+</I>&gt;<i>    Council&lt;ViewAdvisor&lt;Int::IntView&gt;&gt; MCouncil;
+</I>&gt;<i>  };
+</I>&gt;<i>
+</I>&gt;<i>  class MySpace : public Space
+</I>&gt;<i>  {
+</I>&gt;<i>  public:
+</I>&gt;<i>    MySpace()
+</I>&gt;<i>    {
+</I>&gt;<i>      MX.init(this,0,100);
+</I>&gt;<i>
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace(bool share, MySpace &amp;s):
+</I>&gt;<i>      Space(share,s)
+</I>&gt;<i>    {
+</I>&gt;<i>       MX.update(this,share,s.MX);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace* copy(bool share)
+</I>&gt;<i>    {
+</I>&gt;<i>      return new MySpace(share, *this);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    IntVar MX;
+</I>&gt;<i>  };
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> int main()
+</I>&gt;<i> {
+</I>&gt;<i>  Gecode::MySpace space;
+</I>&gt;<i>
+</I>&gt;<i>  new (&amp;space) Gecode::MyPropagator(&amp;space,space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Int::IntView view(space.MX);
+</I>&gt;<i>
+</I>&gt;<i>  Gecode::Iter::Ranges::Singleton d(0,50);
+</I>&gt;<i>
+</I>&gt;<i>  view.minus_r(&amp;space,d,false);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> //----------------------------------
+</I>&gt;<i>
+</I>&gt;<i> David
+</I>&gt;<i>
+</I>&gt;<i> Quintiq Conference &quot;Quintessence 09&quot; Tuesday May 12th, 2009, Country
+</I>Estate Duin &amp; Kruidberg, near Amsterdam Schiphol, The Netherlands - for more
+information visit www.quintiq.com
+&gt;<i>
+</I>&gt;<i> This message contains information that may be privileged or confidential
+</I>and is the property of Quintiq. It is only intended for the person to whom
+it is addressed. If you are not the intended recipient, you are not
+authorized to read, print, retain, copy, disseminate, distribute or use this
+message or any part thereof. If you have received this message in error,
+please notify the sender immediately and delete all copies of this message.
+Please note that e-mails are susceptible to change, therefore they are not
+binding.
+&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002200">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Jan 26 16:04:09 CET 2009</time><small>January 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Done for 3.0 Cheers, Christian
+
+
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

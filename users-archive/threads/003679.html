@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Writing Advisors — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Writing Advisors | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2012</p><h1 data-pagefind-meta="title">Writing Advisors</h1></header>
+      <p class="archive-thread-summary">4 messages · August 2012</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003679">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Aug 21 10:11:43 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi, i want to write an advisor for my propagator that gets notified when the
+watched variable changes it bounds.
+In the attached code, the advise method now prints the view min and max.
+According to the Gecode Documentation min(d)/max(d) return the old value
+of the variable,
+while min()/max() return the new value, is this correct?
+
+In my current test setting, i have only one variable &quot;a=[0..10]&quot;
+Then i add the constraint a&gt;5.
+The advisor is called properly.
+The first line prints:
+
+0 5 6 10
+
+This would mean that the domain of &quot;a&quot; before the progagation was [0..5]
+and now is [6..10].
+This of course can't be true (as they do not overlap).
+So how do I use the Delta Information correctly.
+I found no example actually using this information.
+
+2nd Question:
+With my two if statements in the advisor method,
+will i catch all changes of the bounds? Or is it possible to catch more.
+
+
+Best,
+Max
+
+PS: Thanks for the possibility to remove all propagators.
+
+class Waiter : public Propagator {
+
+        ...
+
+        class Watcher  : public Advisor {
+        public:
+            Int::IntView b_;
+            unsigned int lowerVar_;
+            Watcher(Space&amp; home, Propagator&amp; p,
+                    Council&lt;Watcher&gt;&amp; c, Int::IntView b, Clasp::Var lower)
+                : Advisor(home,p,c), b_(b), lowerVar_(lower)
+            {
+                b_.subscribe(home,*this);
+            }
+
+            Watcher(Space&amp; home, bool share, Watcher&amp; w)
+                : Advisor(home,share,w), lowerVar_(w.lowerVar_)
+            {
+                b_.update(home,share,w.b_);
+            }
+
+            void dispose(Space&amp; home, Council&lt;Watcher&gt;&amp; c)
+            {
+                b_.cancel(home,*this);
+                Advisor::dispose(home,c);
+            }
+        };
+        Council&lt;Watcher&gt; c_;
+    public:
+        Waiter(Space&amp; home) : Propagator(home), c_(home)
+        {
+            home.notice(*this,AP_DISPOSE);
+        }
+
+        Waiter(Space&amp; home, bool shared, Waiter&amp; p)
+            : Propagator(home,shared,p)
+        {
+            c_.update(home,shared,p.c_);
+        }
+
+        void init(Space&amp; home, GecodeSolver* csps, Int::IntView b,
+unsigned int varNumber)
+        {
+            solver = csps;
+            ...
+            (void) new (home) Watcher(home,*this,c_,b,varNumber);
+        }
+
+        /// Perform copying during cloning
+        virtual  Actor* copy(Space&amp; home, bool share) {
+            return new (home) Waiter(home,share,*this);
+        }
+
+        /// Const function (defined as low unary)
+        PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+            return PropCost::unary(PropCost::LO);
+        }
+
+        virtual size_t dispose(Space &amp;home) {
+            home.ignore(*this,AP_DISPOSE);
+            c_.dispose(home);
+            (void) Propagator::dispose(home);
+            return sizeof(*this);
+        }
+
+        virtual ExecStatus advise(Space &amp;home, Advisor &amp;a, const Delta &amp;d)
+        {
+            std::cout &lt;&lt; static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) &lt;&lt; &quot;\t&quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.min() &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max() &lt;&lt; std::endl;
+            Gecode::ModEvent e =
+static_cast&lt;Watcher&amp;&gt;(a).b_.modevent(d); //use this modevent
+            if (e == Gecode::Int::ME_INT_BND)
+            {
+                if (!static_cast&lt;Watcher&amp;&gt;(a).b_.any(d))
+                {
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.min()) // minimum has changed
+                    {
+                        ...
+                    }
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.max()) // maximum has changed
+                    {
+                        ...
+                    }
+                }
+            }
+            if (static_cast&lt;Watcher&amp;&gt;(a).b_.assigned())
+                return home.ES_FIX_DISPOSE(c_,static_cast&lt;Watcher&amp;&gt;(a));
+            else
+                return ES_FIX;
+        }
+
+
+        virtual ExecStatus propagate(Space &amp;home, const ModEventDelta &amp;med)
+        {
+            return ES_FIX;
+        }
+
+    };
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/7bf19dcf/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120821/7bf19dcf/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003680">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 21 10:27:24 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Please read the examples in MPG again. It is not the old domain. It is the
+delta (as the name suggests).
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 21, 2012 10:12 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Writing Advisors
+
+
+
+Hi, i want to write an advisor for my propagator that gets notified when the
+watched variable changes it bounds.
+In the attached code, the advise method now prints the view min and max.
+According to the Gecode Documentation min(d)/max(d) return the old value of
+the variable,
+while min()/max() return the new value, is this correct?
+
+In my current test setting, i have only one variable &quot;a=[0..10]&quot;
+Then i add the constraint a&gt;5.
+The advisor is called properly.
+The first line prints:
+
+0 5 6 10
+
+This would mean that the domain of &quot;a&quot; before the progagation was [0..5] and
+now is [6..10].
+This of course can't be true (as they do not overlap).
+So how do I use the Delta Information correctly.
+I found no example actually using this information.
+
+2nd Question:
+With my two if statements in the advisor method,
+will i catch all changes of the bounds? Or is it possible to catch more.
+
+
+Best,
+Max
+
+PS: Thanks for the possibility to remove all propagators.
+
+class Waiter : public Propagator {
+
+        ...
+
+        class Watcher  : public Advisor {
+        public:
+            Int::IntView b_;
+            unsigned int lowerVar_;
+            Watcher(Space&amp; home, Propagator&amp; p,
+                    Council&lt;Watcher&gt;&amp; c, Int::IntView b, Clasp::Var lower)
+                : Advisor(home,p,c), b_(b), lowerVar_(lower)
+            {
+                b_.subscribe(home,*this);
+            }
+
+            Watcher(Space&amp; home, bool share, Watcher&amp; w)
+                : Advisor(home,share,w), lowerVar_(w.lowerVar_)
+            {
+                b_.update(home,share,w.b_);
+            }
+
+            void dispose(Space&amp; home, Council&lt;Watcher&gt;&amp; c)
+            {
+                b_.cancel(home,*this);
+                Advisor::dispose(home,c);
+            }
+        };
+        Council&lt;Watcher&gt; c_;
+    public:
+        Waiter(Space&amp; home) : Propagator(home), c_(home)
+        {
+            home.notice(*this,AP_DISPOSE);
+        }
+
+        Waiter(Space&amp; home, bool shared, Waiter&amp; p)
+            : Propagator(home,shared,p)
+        {
+            c_.update(home,shared,p.c_);
+        }
+
+        void init(Space&amp; home, GecodeSolver* csps, Int::IntView b, unsigned
+int varNumber)
+        {
+            solver = csps;
+            ...
+            (void) new (home) Watcher(home,*this,c_,b,varNumber);
+        }
+
+        /// Perform copying during cloning
+        virtual  Actor* copy(Space&amp; home, bool share) {
+            return new (home) Waiter(home,share,*this);
+        }
+
+        /// Const function (defined as low unary)
+        PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+            return PropCost::unary(PropCost::LO);
+        }
+
+        virtual size_t dispose(Space &amp;home) {
+            home.ignore(*this,AP_DISPOSE);
+            c_.dispose(home);
+            (void) Propagator::dispose(home);
+            return sizeof(*this);
+        }
+
+        virtual ExecStatus advise(Space &amp;home, Advisor &amp;a, const Delta &amp;d)
+        {
+            std::cout &lt;&lt; static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) &lt;&lt; &quot;\t&quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.min() &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max() &lt;&lt; std::endl;
+            Gecode::ModEvent e = static_cast&lt;Watcher&amp;&gt;(a).b_.modevent(d);
+//use this modevent
+            if (e == Gecode::Int::ME_INT_BND)
+            {
+                if (!static_cast&lt;Watcher&amp;&gt;(a).b_.any(d))
+                {
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.min()) // minimum has changed
+                    {
+                        ...
+                    }
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.max()) // maximum has changed
+                    {
+                        ...
+                    }
+                }
+            }
+            if (static_cast&lt;Watcher&amp;&gt;(a).b_.assigned())
+                return home.ES_FIX_DISPOSE(c_,static_cast&lt;Watcher&amp;&gt;(a));
+            else
+                return ES_FIX;
+        }
+
+
+        virtual ExecStatus propagate(Space &amp;home, const ModEventDelta &amp;med)
+        {
+            return ES_FIX;
+        }
+
+    };
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/ba49ffac/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20120821/ba49ffac/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003681">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Aug 21 11:05:25 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I'm very sorry that I misinterpreted the manual.
+But on page 288 you state
+&quot;Only if x.any(d) is false, x.min(d) returns the previously (that is,
+the value before the domain modification) smallest value of x and
+x.max(d) returns the previously largest value of x.&quot;
+Isn't this the bounds of the old domain?
+
+
+Unfortunately in the only example of the advise() function that uses the
+Delta in the MPG (page 287) you use
+Int::BoolView::zero(d)
+to determine that the variable has been assigned to zero.
+
+Could you just state me what the min(d)==0 and max(d)==5 means when the
+domain is restricted from [0..10] to [6..10].
+
+Thanks again for your patience.
+Max
+
+
+On 08/21/2012 10:27 AM, Christian Schulte wrote:
+&gt;<i>
+</I>&gt;<i> Please read the examples in MPG again. It is not the old domain. It is
+</I>&gt;<i> the delta (as the name suggests).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, KTH, web.it.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Max Ostrowski
+</I>&gt;<i> *Sent:* Tuesday, August 21, 2012 10:12 AM
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Writing Advisors
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi, i want to write an advisor for my propagator that gets notified
+</I>&gt;<i> when the
+</I>&gt;<i> watched variable changes it bounds.
+</I>&gt;<i> In the attached code, the advise method now prints the view min and max.
+</I>&gt;<i> According to the Gecode Documentation min(d)/max(d) return the old
+</I>&gt;<i> value of the variable,
+</I>&gt;<i> while min()/max() return the new value, is this correct?
+</I>&gt;<i>
+</I>&gt;<i> In my current test setting, i have only one variable &quot;a=[0..10]&quot;
+</I>&gt;<i> Then i add the constraint a&gt;5.
+</I>&gt;<i> The advisor is called properly.
+</I>&gt;<i> The first line prints:
+</I>&gt;<i>
+</I>&gt;<i> 0 5 6 10
+</I>&gt;<i>
+</I>&gt;<i> This would mean that the domain of &quot;a&quot; before the progagation was
+</I>&gt;<i> [0..5] and now is [6..10].
+</I>&gt;<i> This of course can't be true (as they do not overlap).
+</I>&gt;<i> So how do I use the Delta Information correctly.
+</I>&gt;<i> I found no example actually using this information.
+</I>&gt;<i>
+</I>&gt;<i> 2nd Question:
+</I>&gt;<i> With my two if statements in the advisor method,
+</I>&gt;<i> will i catch all changes of the bounds? Or is it possible to catch more.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> PS: Thanks for the possibility to remove all propagators.
+</I>&gt;<i>
+</I>&gt;<i> class Waiter : public Propagator {
+</I>&gt;<i>
+</I>&gt;<i>         ...
+</I>&gt;<i>
+</I>&gt;<i>         class Watcher  : public Advisor {
+</I>&gt;<i>         public:
+</I>&gt;<i>             Int::IntView b_;
+</I>&gt;<i>             unsigned int lowerVar_;
+</I>&gt;<i>             Watcher(Space&amp; home, Propagator&amp; p,
+</I>&gt;<i>                     Council&lt;Watcher&gt;&amp; c, Int::IntView b, Clasp::Var lower)
+</I>&gt;<i>                 : Advisor(home,p,c), b_(b), lowerVar_(lower)
+</I>&gt;<i>             {
+</I>&gt;<i>                 b_.subscribe(home,*this);
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             Watcher(Space&amp; home, bool share, Watcher&amp; w)
+</I>&gt;<i>                 : Advisor(home,share,w), lowerVar_(w.lowerVar_)
+</I>&gt;<i>             {
+</I>&gt;<i>                 b_.update(home,share,w.b_);
+</I>&gt;<i>             }
+</I>&gt;<i>
+</I>&gt;<i>             void dispose(Space&amp; home, Council&lt;Watcher&gt;&amp; c)
+</I>&gt;<i>             {
+</I>&gt;<i>                 b_.cancel(home,*this);
+</I>&gt;<i>                 Advisor::dispose(home,c);
+</I>&gt;<i>             }
+</I>&gt;<i>         };
+</I>&gt;<i>         Council&lt;Watcher&gt; c_;
+</I>&gt;<i>     public:
+</I>&gt;<i>         Waiter(Space&amp; home) : Propagator(home), c_(home)
+</I>&gt;<i>         {
+</I>&gt;<i>             home.notice(*this,AP_DISPOSE);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         Waiter(Space&amp; home, bool shared, Waiter&amp; p)
+</I>&gt;<i>             : Propagator(home,shared,p)
+</I>&gt;<i>         {
+</I>&gt;<i>             c_.update(home,shared,p.c_);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         void init(Space&amp; home, GecodeSolver* csps, Int::IntView b,
+</I>&gt;<i> unsigned int varNumber)
+</I>&gt;<i>         {
+</I>&gt;<i>             solver = csps;
+</I>&gt;<i>             ...
+</I>&gt;<i>             (void) new (home) Watcher(home,*this,c_,b,varNumber);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         /// Perform copying during cloning
+</I>&gt;<i>         virtual  Actor* copy(Space&amp; home, bool share) {
+</I>&gt;<i>             return new (home) Waiter(home,share,*this);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         /// Const function (defined as low unary)
+</I>&gt;<i>         PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+</I>&gt;<i>             return PropCost::unary(PropCost::LO);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         virtual size_t dispose(Space &amp;home) {
+</I>&gt;<i>             home.ignore(*this,AP_DISPOSE);
+</I>&gt;<i>             c_.dispose(home);
+</I>&gt;<i>             (void) Propagator::dispose(home);
+</I>&gt;<i>             return sizeof(*this);
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>         virtual ExecStatus advise(Space &amp;home, Advisor &amp;a, const Delta &amp;d)
+</I>&gt;<i>         {
+</I>&gt;<i>             std::cout &lt;&lt; static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) &lt;&lt; &quot; &quot; &lt;&lt;
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) &lt;&lt; &quot;\t&quot; &lt;&lt;
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.min() &lt;&lt; &quot; &quot; &lt;&lt;
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.max() &lt;&lt; std::endl;
+</I>&gt;<i>             Gecode::ModEvent e =
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.modevent(d); //use this modevent
+</I>&gt;<i>             if (e == Gecode::Int::ME_INT_BND)
+</I>&gt;<i>             {
+</I>&gt;<i>                 if (!static_cast&lt;Watcher&amp;&gt;(a).b_.any(d))
+</I>&gt;<i>                 {
+</I>&gt;<i>                     if (static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) !=
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.min()) // minimum has changed
+</I>&gt;<i>                     {
+</I>&gt;<i>                         ...
+</I>&gt;<i>                     }
+</I>&gt;<i>                     if (static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) !=
+</I>&gt;<i> static_cast&lt;Watcher&amp;&gt;(a).b_.max()) // maximum has changed
+</I>&gt;<i>                     {
+</I>&gt;<i>                         ...
+</I>&gt;<i>                     }
+</I>&gt;<i>                 }
+</I>&gt;<i>             }
+</I>&gt;<i>             if (static_cast&lt;Watcher&amp;&gt;(a).b_.assigned())
+</I>&gt;<i>                 return home.ES_FIX_DISPOSE(c_,static_cast&lt;Watcher&amp;&gt;(a));
+</I>&gt;<i>             else
+</I>&gt;<i>                 return ES_FIX;
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>         virtual ExecStatus propagate(Space &amp;home, const ModEventDelta
+</I>&gt;<i> &amp;med)
+</I>&gt;<i>         {
+</I>&gt;<i>             return ES_FIX;
+</I>&gt;<i>         }
+</I>&gt;<i>
+</I>&gt;<i>     };
+</I>&gt;<i>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/e5678b4c/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120821/e5678b4c/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003682">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 21 11:10:45 CEST 2012</time><small>August 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Oh damn, I have to fix the doc. It is really the delta: what has been
+removed. So in your example, 0..5 has been removed, that is what the delta
+tells you.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+
+From: Max Ostrowski [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">ostrowsk at cs.uni-potsdam.de</A>]
+Sent: Tuesday, August 21, 2012 11:05 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Writing Advisors
+
+
+
+I'm very sorry that I misinterpreted the manual.
+But on page 288 you state
+&quot;Only if x.any(d) is false, x.min(d) returns the previously (that is, the
+value before the domain modification) smallest value of x and x.max(d)
+returns the previously largest value of x.&quot;
+Isn't this the bounds of the old domain?
+
+
+Unfortunately in the only example of the advise() function that uses the
+Delta in the MPG (page 287) you use
+Int::BoolView::zero(d)
+to determine that the variable has been assigned to zero.
+
+Could you just state me what the min(d)==0 and max(d)==5 means when the
+domain is restricted from [0..10] to [6..10].
+
+Thanks again for your patience.
+Max
+
+
+On 08/21/2012 10:27 AM, Christian Schulte wrote:
+
+Please read the examples in MPG again. It is not the old domain. It is the
+delta (as the name suggests).
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 21, 2012 10:12 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Writing Advisors
+
+
+
+Hi, i want to write an advisor for my propagator that gets notified when the
+watched variable changes it bounds.
+In the attached code, the advise method now prints the view min and max.
+According to the Gecode Documentation min(d)/max(d) return the old value of
+the variable,
+while min()/max() return the new value, is this correct?
+
+In my current test setting, i have only one variable &quot;a=[0..10]&quot;
+Then i add the constraint a&gt;5.
+The advisor is called properly.
+The first line prints:
+
+0 5 6 10
+
+This would mean that the domain of &quot;a&quot; before the progagation was [0..5] and
+now is [6..10].
+This of course can't be true (as they do not overlap).
+So how do I use the Delta Information correctly.
+I found no example actually using this information.
+
+2nd Question:
+With my two if statements in the advisor method,
+will i catch all changes of the bounds? Or is it possible to catch more.
+
+
+Best,
+Max
+
+PS: Thanks for the possibility to remove all propagators.
+
+class Waiter : public Propagator {
+
+        ...
+
+        class Watcher  : public Advisor {
+        public:
+            Int::IntView b_;
+            unsigned int lowerVar_;
+            Watcher(Space&amp; home, Propagator&amp; p,
+                    Council&lt;Watcher&gt;&amp; c, Int::IntView b, Clasp::Var lower)
+                : Advisor(home,p,c), b_(b), lowerVar_(lower)
+            {
+                b_.subscribe(home,*this);
+            }
+
+            Watcher(Space&amp; home, bool share, Watcher&amp; w)
+                : Advisor(home,share,w), lowerVar_(w.lowerVar_)
+            {
+                b_.update(home,share,w.b_);
+            }
+
+            void dispose(Space&amp; home, Council&lt;Watcher&gt;&amp; c)
+            {
+                b_.cancel(home,*this);
+                Advisor::dispose(home,c);
+            }
+        };
+        Council&lt;Watcher&gt; c_;
+    public:
+        Waiter(Space&amp; home) : Propagator(home), c_(home)
+        {
+            home.notice(*this,AP_DISPOSE);
+        }
+
+        Waiter(Space&amp; home, bool shared, Waiter&amp; p)
+            : Propagator(home,shared,p)
+        {
+            c_.update(home,shared,p.c_);
+        }
+
+        void init(Space&amp; home, GecodeSolver* csps, Int::IntView b, unsigned
+int varNumber)
+        {
+            solver = csps;
+            ...
+            (void) new (home) Watcher(home,*this,c_,b,varNumber);
+        }
+
+        /// Perform copying during cloning
+        virtual  Actor* copy(Space&amp; home, bool share) {
+            return new (home) Waiter(home,share,*this);
+        }
+
+        /// Const function (defined as low unary)
+        PropCost cost(const Space&amp;, const ModEventDelta&amp;) const {
+            return PropCost::unary(PropCost::LO);
+        }
+
+        virtual size_t dispose(Space &amp;home) {
+            home.ignore(*this,AP_DISPOSE);
+            c_.dispose(home);
+            (void) Propagator::dispose(home);
+            return sizeof(*this);
+        }
+
+        virtual ExecStatus advise(Space &amp;home, Advisor &amp;a, const Delta &amp;d)
+        {
+            std::cout &lt;&lt; static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) &lt;&lt; &quot;\t&quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.min() &lt;&lt; &quot; &quot; &lt;&lt;
+static_cast&lt;Watcher&amp;&gt;(a).b_.max() &lt;&lt; std::endl;
+            Gecode::ModEvent e = static_cast&lt;Watcher&amp;&gt;(a).b_.modevent(d);
+//use this modevent
+            if (e == Gecode::Int::ME_INT_BND)
+            {
+                if (!static_cast&lt;Watcher&amp;&gt;(a).b_.any(d))
+                {
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.min(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.min()) // minimum has changed
+                    {
+                        ...
+                    }
+                    if (static_cast&lt;Watcher&amp;&gt;(a).b_.max(d) !=
+static_cast&lt;Watcher&amp;&gt;(a).b_.max()) // maximum has changed
+                    {
+                        ...
+                    }
+                }
+            }
+            if (static_cast&lt;Watcher&amp;&gt;(a).b_.assigned())
+                return home.ES_FIX_DISPOSE(c_,static_cast&lt;Watcher&amp;&gt;(a));
+            else
+                return ES_FIX;
+        }
+
+
+        virtual ExecStatus propagate(Space &amp;home, const ModEventDelta &amp;med)
+        {
+            return ES_FIX;
+        }
+
+    };
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120821/33e7e94e/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20120821/33e7e94e/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

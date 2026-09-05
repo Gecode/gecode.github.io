@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cumulatives for scheduling — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Cumulatives for scheduling | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2012</p><h1 data-pagefind-meta="title">Cumulatives for scheduling</h1></header>
+      <p class="archive-thread-summary">5 messages · October 2012</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003730">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Baptiste Soyer</h2></div>
+          <p><time>Thu Oct 18 23:41:12 CEST 2012</time><small>October 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I've run into some issue while trying to implement a scheduler using
+gecode. I hope someone can help me...
+My goal is to make a schedule of different tasks with the following
+requirements :
+
+   - Some task consumes resources. They are defined by :
+      - The type of resources that it consumes
+      - The amount consumed
+      - The duration of the task
+      - The earliest and latest start time (earliest start time + time out
+      time)  allowed
+   - Some task can produce resources. They are defined by :
+   - The type of resources that it produces
+      - The amount produced
+      - The start time (no timeout, the start time is a fixed value) and
+      duration of the production
+
+My end goal is to have the possible start time for producer, so that the
+amount of resource is always greater or equal to 0.
+
+&gt;<i>From all the above, I thought that the cumulatives constraint implemented
+</I>in gecode would be suitable (use of machines for different type of
+resources, positive or negative usage for production and consumption,...).
+
+So what I'm doing is defining 2 variables array representing the start time
+and end time of each task, and then constraining the start time to be
+between the earliest start time and latest start time (same value for
+producers). The end time is constraint for fixed duration tasks. And
+finally I'm posting the cumulatives constraint.
+
+The gecode code looks something like that :
+
+for(unsigned int i = 0;i&lt;n;i++)
+    {
+        Booking booking = Bookings[i];//Get the current booking
+
+        //Set Duration, Capacity and Machine arguments
+        Duration[i] = booking.getDuration();
+        Capacity[i] = booking.getCapacity();
+        Machine[i]  = ResourceList[i];
+
+        //Constraint the domain of the StartValue
+        StartTime[i] =
+IntVar(*this,booking.earliestStart(),booking.latestStart());
+
+        //Constraint to a fixed duration activity
+        rel(*this,EndTime[i] == StartTime[i] + Duration[i]);
+
+}
+
+// Constrain the problem with a cumulative scheduling constraint
+
+cumulatives(*this,Machine,StartTime,Duration,EndTime,Capacity,Zero,false);
+
+// Choose the branching mechanism
+    branch(*this, EndTime, INT_VAR_MAX_MAX, INT_VAL_MAX);
+    branch(*this, StartTime, INT_VAR_MIN_MIN, INT_VAL_MIN);
+
+So my problem (after this long introduction...). I'm checking that gecode
+gives me the expected schedule for simple problem. I have 2 consumers and 1
+producer which have the following value.
+
+consumer 1(Power:2)
+Start Time :0
+Duration   :5
+TimeOut    :4
+
+consumer 2(Power:9)
+Start Time :0
+Duration   :5
+TimeOut    :5
+
+producer 1(Power:10)
+Start Time :0
+Duration   :10
+TimeOut    :0
+
+Which gives me the following value for the cumulative constraint on :
+    Machine :{0, 0, 0}
+    StartTime :{[0..4], [0..5], 0}
+    Duration :{5, 5, 10}
+    EndTime :{[0..10], [0..10], 10}
+    Capacity :{-2, -9, 10}
+
+So I'm expecting to have 1 solution :consumer 1 starting at 0 and consumer
+2 starting at 5. But my code finds no solutions.
+
+If I'm putting the time out for the first producer at 5 I find 1 solutions
+where I should find 2 (both producer are interchangeable). The solution
+found depends on the branching selected (which I understand in a way, but
+it should still find me both solutions).
+
+So I'm sure I'm doing something wrong, but I can't find out what.
+
+I hope I made myself clear.
+
+Cheers,
+
+Baptiste
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20121018/36d2e08e/attachment.html">http://www.gecode.org/pipermail/users/attachments/20121018/36d2e08e/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003731">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Oct 22 04:50:28 CEST 2012</time><small>October 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I can't reproduce your problem on my machine.  Can you please have a look at the attached source code and check if it models the problem correctly.  If this does not give the expected answers, please let me know exactly which version of Gecode you're using, which operating system etc.
+
+Cheers,
+Guido
+
+
+
+On 19/10/2012, at 8:41 AM, Baptiste Soyer &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">baptiste.soyer at opencubeproject.org</A>&gt; wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I've run into some issue while trying to implement a scheduler using gecode. I hope someone can help me...
+</I>&gt;<i> My goal is to make a schedule of different tasks with the following requirements :
+</I>&gt;<i> Some task consumes resources. They are defined by :
+</I>&gt;<i> The type of resources that it consumes
+</I>&gt;<i> The amount consumed
+</I>&gt;<i> The duration of the task
+</I>&gt;<i> The earliest and latest start time (earliest start time + time out time)  allowed
+</I>&gt;<i> Some task can produce resources. They are defined by :
+</I>&gt;<i> The type of resources that it produces
+</I>&gt;<i> The amount produced
+</I>&gt;<i> The start time (no timeout, the start time is a fixed value) and duration of the production
+</I>&gt;<i> My end goal is to have the possible start time for producer, so that the amount of resource is always greater or equal to 0.
+</I>&gt;<i> From all the above, I thought that the cumulatives constraint implemented in gecode would be suitable (use of machines for different type of resources, positive or negative usage for production and consumption,...).
+</I>&gt;<i>
+</I>&gt;<i> So what I'm doing is defining 2 variables array representing the start time and end time of each task, and then constraining the start time to be between the earliest start time and latest start time (same value for producers). The end time is constraint for fixed duration tasks. And finally I'm posting the cumulatives constraint.
+</I>&gt;<i>
+</I>&gt;<i> The gecode code looks something like that :
+</I>&gt;<i>
+</I>&gt;<i> for(unsigned int i = 0;i&lt;n;i++)
+</I>&gt;<i>     {
+</I>&gt;<i>         Booking booking = Bookings[i];//Get the current booking
+</I>&gt;<i>
+</I>&gt;<i>         //Set Duration, Capacity and Machine arguments
+</I>&gt;<i>         Duration[i] = booking.getDuration();
+</I>&gt;<i>         Capacity[i] = booking.getCapacity();
+</I>&gt;<i>         Machine[i]  = ResourceList[i];
+</I>&gt;<i>
+</I>&gt;<i>         //Constraint the domain of the StartValue
+</I>&gt;<i>         StartTime[i] = IntVar(*this,booking.earliestStart(),booking.latestStart());
+</I>&gt;<i>
+</I>&gt;<i>         //Constraint to a fixed duration activity
+</I>&gt;<i>         rel(*this,EndTime[i] == StartTime[i] + Duration[i]);
+</I>&gt;<i>
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> // Constrain the problem with a cumulative scheduling constraint
+</I>&gt;<i>     cumulatives(*this,Machine,StartTime,Duration,EndTime,Capacity,Zero,false);
+</I>&gt;<i>
+</I>&gt;<i> // Choose the branching mechanism
+</I>&gt;<i>     branch(*this, EndTime, INT_VAR_MAX_MAX, INT_VAL_MAX);
+</I>&gt;<i>     branch(*this, StartTime, INT_VAR_MIN_MIN, INT_VAL_MIN);
+</I>&gt;<i>
+</I>&gt;<i> So my problem (after this long introduction...). I'm checking that gecode gives me the expected schedule for simple problem. I have 2 consumers and 1 producer which have the following value.
+</I>&gt;<i> consumer 1(Power:2)
+</I>&gt;<i> Start Time :0
+</I>&gt;<i> Duration   :5
+</I>&gt;<i> TimeOut    :4
+</I>&gt;<i>
+</I>&gt;<i> consumer 2(Power:9)
+</I>&gt;<i> Start Time :0
+</I>&gt;<i> Duration   :5
+</I>&gt;<i> TimeOut    :5
+</I>&gt;<i>
+</I>&gt;<i> producer 1(Power:10)
+</I>&gt;<i> Start Time :0
+</I>&gt;<i> Duration   :10
+</I>&gt;<i> TimeOut    :0
+</I>&gt;<i>
+</I>&gt;<i> Which gives me the following value for the cumulative constraint on :
+</I>&gt;<i>     Machine :{0, 0, 0}
+</I>&gt;<i>     StartTime :{[0..4], [0..5], 0}
+</I>&gt;<i>     Duration :{5, 5, 10}
+</I>&gt;<i>     EndTime :{[0..10], [0..10], 10}
+</I>&gt;<i>     Capacity :{-2, -9, 10}
+</I>&gt;<i>
+</I>&gt;<i> So I'm expecting to have 1 solution :consumer 1 starting at 0 and consumer 2 starting at 5. But my code finds no solutions.
+</I>&gt;<i>
+</I>&gt;<i> If I'm putting the time out for the first producer at 5 I find 1 solutions where I should find 2 (both producer are interchangeable). The solution found depends on the branching selected (which I understand in a way, but it should still find me both solutions).
+</I>&gt;<i>
+</I>&gt;<i> So I'm sure I'm doing something wrong, but I can't find out what.
+</I>&gt;<i>
+</I>&gt;<i> I hope I made myself clear.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Baptiste
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment.html">http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment.html</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: cumul.cpp
+Type: application/octet-stream
+Size: 1270 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment.obj">http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment.obj</A>&gt;
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20121022/eb963bf3/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003732">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Oct 23 13:31:12 CEST 2012</time><small>October 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+i want to compare some statistics,
+and want to find out how many choices (non-deterministic decisions)
+gecode has made during branching.
+(So, not talking about non-deterministic propagation, just simple
+select/propagate).
+
+The statistic object
+dfsSearchEngine_-&gt;statistics().node
+tells me something about the used nodes, but this not seem to be the
+right thing to use.
+
+So, for a simple CSP, with variable x = 0..9 without any constraint,
+i get 19 nodes (enumerating all solutions).
+Can i simply divide this by 2 to get my 9 decisions?
+
+Best,
+Max
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003733">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Oct 23 16:50:19 CEST 2012</time><small>October 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+So we could say that every edge (corresponding to an alternative) in the
+search tree is a decision made during search (even though the branching in
+the parent node defines all alternatives directly below).
+
+Then, if we are talking binary branchings only, we all know that the number
+of edges #e is the number of nodes #n minus 1. The total number of nodes #n
+is the number of nodes reported plus the number of solutions and failures.
+Voila!
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, October 23, 2012 1:31 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Number of branches/choices
+
+Hi,
+
+i want to compare some statistics,
+and want to find out how many choices (non-deterministic decisions) gecode
+has made during branching.
+(So, not talking about non-deterministic propagation, just simple
+select/propagate).
+
+The statistic object
+dfsSearchEngine_-&gt;statistics().node
+tells me something about the used nodes, but this not seem to be the right
+thing to use.
+
+So, for a simple CSP, with variable x = 0..9 without any constraint, i get
+19 nodes (enumerating all solutions).
+Can i simply divide this by 2 to get my 9 decisions?
+
+Best,
+Max
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003736">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Max Ostrowski</h2></div>
+          <p><time>Wed Oct 24 10:24:27 CEST 2012</time><small>October 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks for this, so a solution and a failure is also a node.
+This formula seems to fit.
+Thx
+
+On 10/23/2012 04:50 PM, Christian Schulte wrote:
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> So we could say that every edge (corresponding to an alternative) in the
+</I>&gt;<i> search tree is a decision made during search (even though the branching in
+</I>&gt;<i> the parent node defines all alternatives directly below).
+</I>&gt;<i>
+</I>&gt;<i> Then, if we are talking binary branchings only, we all know that the number
+</I>&gt;<i> of edges #e is the number of nodes #n minus 1. The total number of nodes #n
+</I>&gt;<i> is the number of nodes reported plus the number of solutions and failures.
+</I>&gt;<i> Voila!
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Max Ostrowski
+</I>&gt;<i> Sent: Tuesday, October 23, 2012 1:31 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Number of branches/choices
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> i want to compare some statistics,
+</I>&gt;<i> and want to find out how many choices (non-deterministic decisions) gecode
+</I>&gt;<i> has made during branching.
+</I>&gt;<i> (So, not talking about non-deterministic propagation, just simple
+</I>&gt;<i> select/propagate).
+</I>&gt;<i>
+</I>&gt;<i> The statistic object
+</I>&gt;<i> dfsSearchEngine_-&gt;statistics().node
+</I>&gt;<i> tells me something about the used nodes, but this not seem to be the right
+</I>&gt;<i> thing to use.
+</I>&gt;<i>
+</I>&gt;<i> So, for a simple CSP, with variable x = 0..9 without any constraint, i get
+</I>&gt;<i> 19 nodes (enumerating all solutions).
+</I>&gt;<i> Can i simply divide this by 2 to get my 9 decisions?
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i> Max
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

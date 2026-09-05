@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Unary and Cumulative constraints — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Unary and Cumulative constraints | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2010</p><h1 data-pagefind-meta="title">Unary and Cumulative constraints</h1></header>
+      <p class="archive-thread-summary">5 messages · August 2010</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002992">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>David Rijsman</h2></div>
+          <p><time>Fri Aug 13 08:36:11 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido,
+
+you are right, it should be 'implied reification' and yes it is unnecessary overhead to post e = p + s for each propagator but it would also give you some more control on scheduling or not scheduling the propagator on deltas on e,p or s.  Perhaps not much to gain.
+
+I read you are working on a temporal propagator (STN?) and on a nice modeling API? Are you going to put this in the mini model part or are you building a complete new scheduling layer? Any pointers on what kind of construct are going to expose and if you are planning any new scheduling constraints?
+
+David
+
+
+&gt;&gt;&gt;<i> Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; 08/10/10 2:15 PM &gt;&gt;&gt;
+</I>David Rijsman wrote:
+&gt;<i> would it make more sense to always propagate when mandatory argument is not part of the argument list. When we allow a task not to be mandatory only enforce s = p + e when mandatory becomes true and make mandatory false when s = p + e can no longer be enforced (reify s = p + e on mandatory)?
+</I>
+The algorithms already perform the latter reasoning, i.e., if a propagation on the start or end time of an optional task would result in failure, the task is excluded.
+
+I think one would have to use &quot;implied reification&quot;, i.e., m -&gt; s+p=e, where m is the mandatory flag (you don't want s+p!=e for an excluded task).  And there is potential for more propagation.  In [1], the temporal constraints can be propagated even for optional tasks. E.g., if two tasks A and B are optional, and A is present if and only if B is present, and if A and B are present, then A is before B, we can always propagate e(A)&lt;=s(B), even before it is determined if A and B are actually present.  We cannot repeat this kind of reasoning for every resource.  Instead, we need a centralized data structure that stores the temporal information, and a propagator for the global temporal constraint.
+
+&gt;<i> This way we can model a task which can require one or more resources using the sum of the mandatory variables for the different constraints as the minimum and maximum constraints without having to worry about the temporal constraints within a task?
+</I>
+I don't think this solves the problem.  Assume a mandatory task that requires a certain tool, of which we have two, as well as a skilled worker.  Then that task would be on a cumulative constraint with capacity 2 for the tool, and on a unary constraint for the worker (assuming he's not a great multi-tasker).  If both propagators propagated s+p=e, there would be an unnecessary overhead.
+
+The s+p=e propagation is a matter of having a nice modeling API (which we will provide, eventually).  The current interface is designed to include no &quot;magic&quot;, so that the modeler has full control over which propagators actually get posted.
+
+Cheers,
+    Guido
+
+[1] P. Laborie and J. Rogerie. Reasoning with conditional time-intervals. In D. Wilson and H. C. Lane, editors, FLAIRS Conference, pages 555&#150;560. AAAI Press, 2008.
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002993">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Aug 13 09:46:00 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>David Rijsman wrote:
+&gt;<i> you are right, it should be 'implied reification' and yes it is unnecessary overhead to post e = p + s for each propagator but it would also give you some more control on scheduling or not scheduling the propagator on deltas on e,p or s.  Perhaps not much to gain.
+</I>
+When you have hundreds of tasks, propagator scheduling might actually become important.  But I think I'll start with the simple version, and then see if there is a problem.
+
+&gt;<i> I read you are working on a temporal propagator (STN?) and on a nice modeling API? Are you going to put this in the mini model part or are you building a complete new scheduling layer? Any pointers on what kind of construct are going to expose and if you are planning any new scheduling constraints?
+</I>
+There would be an STN-like propagator, which is exposed on the same level as the current scheduling constraints (i.e., variables and integers).  On top of that, in the minimodel layer, there would be abstractions for tasks, resources and the like.  I don't have plans to add any other scheduling constraints at the moment (anything in particular you'd be interested in?).
+
+I haven't decided on the actual interface for the modeling layer yet.  It could be something like cumulative functions in ILOG CP Optimizer, or a more classical model with resources etc.
+
+The current state is that I have an STN propagator for mandatory tasks with fixed durations, so I have to put some work into generalizing it for optional tasks and flexible durations.  The main thing that is currently missing are specialized branchings that order tasks on resources.  I'll build them on top of the STN, because they require information about the partial order of the tasks.
+
+I can't say yet when these things will be available, though.
+
+Cheers,
+	Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002994">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Aug 13 10:40:27 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Fri, Aug 13, 2010 at 9:46 AM, Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; wrote:
+&gt;&gt;<i> you are right, it should be 'implied reification' and yes it is unnecessary
+</I>&gt;&gt;<i> overhead to post e = p + s for each propagator but it would also give
+</I>&gt;&gt;<i> you some more control on scheduling or not scheduling the propagator
+</I>&gt;&gt;<i> on deltas on e,p or s. &#160;Perhaps not much to gain.
+</I>
+Scheduling and executing a propagator for e=p+s is actually very very
+cheap. I would expect that trying to use deltas to control scheduling
+is not worth it at all, doing the check would almost equal all the job
+anyway.
+
+&gt;<i> When you have hundreds of tasks, propagator scheduling might actually
+</I>&gt;<i> become important. &#160;But I think I'll start with the simple version, and then
+</I>&gt;<i> see if there is a problem.
+</I>
+Just to expand on what Guido is saying, the issues one might encounter
+for a large set of propagators that have variables in common, is that
+one might get a bad order for the propagator executions. Lets take a
+worst-case example from [1] as an illustration. Given a sequence of
+propagators
+ x1 &lt; x2 &lt; x3 &lt; ... &lt; xn
+for variables with domains {1..n}, most systems will require O(n&#178;)
+propagation steps to find infeasibility. Using the best propagation
+order, it only takes O(n). Such pure cases of degenerate behavior are
+fortunately not very common.
+
+Cheers,
+Mikael
+
+[1] Propagator Groups, Mikael Z. Lagerkvist and Christian Schulte. CP
+2010. <A HREF="http://www.ict.kth.se/~zayenz/papers/LagerkvistSchulte_CP_2009.pdf">http://www.ict.kth.se/~zayenz/papers/LagerkvistSchulte_CP_2009.pdf</A>
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002995">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Mon Aug 16 11:41:05 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear all,
+
+I have a question (probably very naive!) about the use of advisor return
+values. From MPG, an advisor could: schedule the associated propagator
+(ES_NOFIX), avoid its execution (ES_FIX) or fail the propagator in advance
+(ES_FAILURE). My question comes out when using multiple advisors in the same
+propagator. Let suppose the propagator is posted on a variable and an array
+of variables (in my case both are sets). Now let us suppose that one of the
+advisors (say a_i) on the array is executed (i.e. the advise method of the
+propagator is called with it as argument). I would like to have clear what
+will happen to the other advisors executed after it depending on it return
+value.
+
+
+1) a_i returns ES_FAILURE. My guess is that the propagator wont be run, as
+the entire space will become failed. Am I right?
+
+2) a_i returns ES_NOFIX. My guess here is that the propagator will  be
+scheduled, how ever what happen if after this advisor, the advisor a_i+1
+returns ES_FIX?. IMO the right thing to schedule the propagator, but is this
+done by gecode automatically?
+
+In general, my question is how gecode handles incremental information got
+from the execution of advisors?. I am asking that because I have some
+changes in the search tree between using advised vs. nod-advised propagation
+and favoring unadvised propagation. This is a bit strange to me since in the
+past I have been used advisors and they greatly outperform non advised
+propagation. Of course it can be a bug in my problem (the most probable
+case!).
+
+Regards,
+--
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100816/b086597f/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100816/b086597f/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002996">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Mon Aug 16 11:59:40 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>2010/8/16 Gustavo Gutierrez &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">gutierrez.gustavo at uclouvain.be</A>&gt;
+
+&gt;<i> 1) a_i returns ES_FAILURE. My guess is that the propagator wont be run, as
+</I>&gt;<i> the entire space will become failed. Am I right?
+</I>&gt;<i>
+</I>
+When an advisor returns ES_FAILURE, the current tell will report failure.
+The propagator that made the tell will then see that and report failure back
+to the kernel, and propagation will be aborted.
+
+
+2) a_i returns ES_NOFIX. My guess here is that the propagator will  be
+&gt;<i> scheduled, how ever what happen if after this advisor, the advisor a_i+1
+</I>&gt;<i> returns ES_FIX?. IMO the right thing to schedule the propagator, but is this
+</I>&gt;<i> done by gecode automatically?
+</I>&gt;<i>
+</I>
+If a propagator has been scheduled for execution, it will be executed when
+the propagation queue reaches it. Returning ES_FIX will not affect the
+scheduled status of the advisors propagator in any way.
+
+
+In general, my question is how gecode handles incremental information got
+&gt;<i> from the execution of advisors?. I am asking that because I have some
+</I>&gt;<i> changes in the search tree between using advised vs. nod-advised propagation
+</I>&gt;<i> and favoring unadvised propagation. This is a bit strange to me since in the
+</I>&gt;<i> past I have been used advisors and they greatly outperform non advised
+</I>&gt;<i> propagation. Of course it can be a bug in my problem (the most probable
+</I>&gt;<i> case!).
+</I>&gt;<i>
+</I>
+One issue that could lead to different search-spaces is non-monotonic
+propagation. If your propagator is monotonic, and both versions are supposed
+to perform the same amount of propagation, then it sounds like a bug. What
+kind of propagator is it, and how do you use advisors?
+
+Cheers,
+Mikael
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100816/067306a3/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100816/067306a3/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

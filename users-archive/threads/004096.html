@@ -1,0 +1,2077 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Adding restart-based search to ECLiPSe&#x27;s interface	to Gecode — 15 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Adding restart-based search to ECLiPSe&#x27;s interface	to Gecode | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>15 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2013–September 2013</p><h1 data-pagefind-meta="title">Adding restart-based search to ECLiPSe&#x27;s interface	to Gecode</h1></header>
+      <p class="archive-thread-summary">15 messages · August 2013–September 2013</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004096">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Kish Shen</h2></div>
+          <p><time>Fri Aug 16 22:16:51 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I am still trying to figure out how to add restart based search to
+ECLiPSe's interface to Gecode. I tried modifying my existing code (which
+does not support restart-based search), and managed to get a restarted
+based bab search to return the optimal answer, but the code then
+crashes, probably because I am not doing things correctly.
+
+If someone can point me in the right direction, I would be very
+grateful. I sent a message about this about 2 weeks ago to this mailing
+list, but perhaps I did not give the correct information to get any
+help, so I will try again.
+
+An outline of what I am doing now:
+
+The user defines the problem to be solved in ECLiPSe, and the interface
+maps this to Gecode. At the Gecode level, the problem is represented in
+GecodeSpace, which is derived from Gecode::MinimizeSpace
+
+Searching can be done with a Gecode search engine, or it can be done at
+the ECLiPSe level (in which case search engines are not used).
+
+To do the search with a search engine, I have a GecodeSearch class,
+which has a Search::Engine* sengine, which is then dynamically assigned
+with the problem and search engine type when the user specify that a
+search is to be done by Gecode with a particular search method (like
+bab), e.g.
+
+solver-&gt;vCost = &lt;Cost variable&gt;
+sengine = Search::bab(solver, option)
+
+where solver is a GecodeSpace*, and vCost is the cost variable (for
+MinimizeSpace).
+
+The MPG describes the search engine classes such as BAB, which I don't
+use directly. I think the reason is that I want to be able to assign
+different types of search engines to sengine, as the search type is only
+known at run-time, and in fact the user can call search as often as they
+like on the same problem.
+
+My problem is that I cannot extend this current scheme to work with
+restart-based search. What I tried was to use Search::rbs, which is also
+of class Engine*, and so can be assigned to sengine, but this crashed
+after returning the solution:
+
+sengine0 = Search::bab(solver, option);
+sengine = Search::rbs(solver, metastop, sengine0, metaoption);
+
+I needed to use an extra Engine* sengine0, because using the same engine
+in bab and rbs crashed immediately.
+
+The crash seems to happen when the rbs engine is destroyed, and it looks
+like it is related to using 2 search engines.
+
+Is rbs supposed to be used by the user? I found it by looking for rbs in
+the documentation, but I noticed that although it is listed, it doesn't
+seem to have any description associated with it.
+
+Can I use Engine* in this way if I want to use restart-based search, or
+do I need to use something else (i.e. not a Engine*)?
+
+Thanks in advance for any help!
+
+Cheers,
+
+Kish
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004099">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 20 21:51:56 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Sorry for the delay, I was on holidays and I am still catching up.
+
+You are basically on your own. The stuff in the Search namespace is not
+documented in MPG for a reason ;-)
+
+Having said that, the stuff you are doing might work and I have an idea
+where the problem is: the meta engine deletes the engine that you pass to it
+(so sengine0 in your example). That means you are not allowed to delete it
+yourself in your code. But as said, just an idea.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Kish Shen
+</I>&gt;<i> Sent: Friday, August 16, 2013 10:17 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Adding restart-based search to ECLiPSe's interface
+</I>to
+&gt;<i> Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I am still trying to figure out how to add restart based search to
+</I>ECLiPSe's
+&gt;<i> interface to Gecode. I tried modifying my existing code (which does not
+</I>support
+&gt;<i> restart-based search), and managed to get a restarted based bab search to
+</I>&gt;<i> return the optimal answer, but the code then crashes, probably because I
+</I>am
+&gt;<i> not doing things correctly.
+</I>&gt;<i>
+</I>&gt;<i> If someone can point me in the right direction, I would be very grateful.
+</I>I sent a
+&gt;<i> message about this about 2 weeks ago to this mailing list, but perhaps I
+</I>did not
+&gt;<i> give the correct information to get any help, so I will try again.
+</I>&gt;<i>
+</I>&gt;<i> An outline of what I am doing now:
+</I>&gt;<i>
+</I>&gt;<i> The user defines the problem to be solved in ECLiPSe, and the interface
+</I>maps
+&gt;<i> this to Gecode. At the Gecode level, the problem is represented in
+</I>GecodeSpace,
+&gt;<i> which is derived from Gecode::MinimizeSpace
+</I>&gt;<i>
+</I>&gt;<i> Searching can be done with a Gecode search engine, or it can be done at
+</I>the
+&gt;<i> ECLiPSe level (in which case search engines are not used).
+</I>&gt;<i>
+</I>&gt;<i> To do the search with a search engine, I have a GecodeSearch class, which
+</I>has a
+&gt;<i> Search::Engine* sengine, which is then dynamically assigned with the
+</I>problem
+&gt;<i> and search engine type when the user specify that a search is to be done
+</I>by
+&gt;<i> Gecode with a particular search method (like bab), e.g.
+</I>&gt;<i>
+</I>&gt;<i> solver-&gt;vCost = &lt;Cost variable&gt;
+</I>&gt;<i> sengine = Search::bab(solver, option)
+</I>&gt;<i>
+</I>&gt;<i> where solver is a GecodeSpace*, and vCost is the cost variable (for
+</I>&gt;<i> MinimizeSpace).
+</I>&gt;<i>
+</I>&gt;<i> The MPG describes the search engine classes such as BAB, which I don't use
+</I>&gt;<i> directly. I think the reason is that I want to be able to assign different
+</I>types of
+&gt;<i> search engines to sengine, as the search type is only known at run-time,
+</I>and in
+&gt;<i> fact the user can call search as often as they like on the same problem.
+</I>&gt;<i>
+</I>&gt;<i> My problem is that I cannot extend this current scheme to work with
+</I>restart-
+&gt;<i> based search. What I tried was to use Search::rbs, which is also of class
+</I>Engine*,
+&gt;<i> and so can be assigned to sengine, but this crashed after returning the
+</I>solution:
+&gt;<i>
+</I>&gt;<i> sengine0 = Search::bab(solver, option);
+</I>&gt;<i> sengine = Search::rbs(solver, metastop, sengine0, metaoption);
+</I>&gt;<i>
+</I>&gt;<i> I needed to use an extra Engine* sengine0, because using the same engine
+</I>in
+&gt;<i> bab and rbs crashed immediately.
+</I>&gt;<i>
+</I>&gt;<i> The crash seems to happen when the rbs engine is destroyed, and it looks
+</I>like it
+&gt;<i> is related to using 2 search engines.
+</I>&gt;<i>
+</I>&gt;<i> Is rbs supposed to be used by the user? I found it by looking for rbs in
+</I>the
+&gt;<i> documentation, but I noticed that although it is listed, it doesn't seem
+</I>to have
+&gt;<i> any description associated with it.
+</I>&gt;<i>
+</I>&gt;<i> Can I use Engine* in this way if I want to use restart-based search, or do
+</I>I need
+&gt;<i> to use something else (i.e. not a Engine*)?
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance for any help!
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004102">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Kish Shen</h2></div>
+          <p><time>Wed Aug 21 06:53:27 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks for your reply!
+
+On 20/08/2013 20:51, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Sorry for the delay, I was on holidays and I am still catching up.
+</I>&gt;<i>
+</I>&gt;<i> You are basically on your own. The stuff in the Search namespace is not
+</I>&gt;<i> documented in MPG for a reason ;-)
+</I>
+I don't mind changing the existing code more extensively, but I think I
+probably would need to have a pointer to a 'search engine' thingy
+(currently I have a class -- GecodeSearch for this, sengine is not
+visible outside the class), which I can set to the appropriate search or
+meta- search engine, and for which I can call a next() function to get
+the next solution. Can this be done?
+
+
+&gt;<i> Having said that, the stuff you are doing might work and I have an idea
+</I>&gt;<i> where the problem is: the meta engine deletes the engine that you pass to it
+</I>&gt;<i> (so sengine0 in your example). That means you are not allowed to delete it
+</I>&gt;<i> yourself in your code. But as said, just an idea.
+</I>
+I actually do not delete sengine0 already, i.e. in ~GecodeSearch, I only
+delete sengine. This was because deleting segine0 crashed.
+
+Cheers,
+
+Kish
+
+&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;&gt;<i> Behalf Of Kish Shen
+</I>&gt;&gt;<i> Sent: Friday, August 16, 2013 10:17 PM
+</I>&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: [gecode-users] Adding restart-based search to ECLiPSe's interface
+</I>&gt;<i> to
+</I>&gt;&gt;<i> Gecode
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I am still trying to figure out how to add restart based search to
+</I>&gt;<i> ECLiPSe's
+</I>&gt;&gt;<i> interface to Gecode. I tried modifying my existing code (which does not
+</I>&gt;<i> support
+</I>&gt;&gt;<i> restart-based search), and managed to get a restarted based bab search to
+</I>&gt;&gt;<i> return the optimal answer, but the code then crashes, probably because I
+</I>&gt;<i> am
+</I>&gt;&gt;<i> not doing things correctly.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> If someone can point me in the right direction, I would be very grateful.
+</I>&gt;<i> I sent a
+</I>&gt;&gt;<i> message about this about 2 weeks ago to this mailing list, but perhaps I
+</I>&gt;<i> did not
+</I>&gt;&gt;<i> give the correct information to get any help, so I will try again.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> An outline of what I am doing now:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The user defines the problem to be solved in ECLiPSe, and the interface
+</I>&gt;<i> maps
+</I>&gt;&gt;<i> this to Gecode. At the Gecode level, the problem is represented in
+</I>&gt;<i> GecodeSpace,
+</I>&gt;&gt;<i> which is derived from Gecode::MinimizeSpace
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Searching can be done with a Gecode search engine, or it can be done at
+</I>&gt;<i> the
+</I>&gt;&gt;<i> ECLiPSe level (in which case search engines are not used).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> To do the search with a search engine, I have a GecodeSearch class, which
+</I>&gt;<i> has a
+</I>&gt;&gt;<i> Search::Engine* sengine, which is then dynamically assigned with the
+</I>&gt;<i> problem
+</I>&gt;&gt;<i> and search engine type when the user specify that a search is to be done
+</I>&gt;<i> by
+</I>&gt;&gt;<i> Gecode with a particular search method (like bab), e.g.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> solver-&gt;vCost = &lt;Cost variable&gt;
+</I>&gt;&gt;<i> sengine = Search::bab(solver, option)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> where solver is a GecodeSpace*, and vCost is the cost variable (for
+</I>&gt;&gt;<i> MinimizeSpace).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The MPG describes the search engine classes such as BAB, which I don't use
+</I>&gt;&gt;<i> directly. I think the reason is that I want to be able to assign different
+</I>&gt;<i> types of
+</I>&gt;&gt;<i> search engines to sengine, as the search type is only known at run-time,
+</I>&gt;<i> and in
+</I>&gt;&gt;<i> fact the user can call search as often as they like on the same problem.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> My problem is that I cannot extend this current scheme to work with
+</I>&gt;<i> restart-
+</I>&gt;&gt;<i> based search. What I tried was to use Search::rbs, which is also of class
+</I>&gt;<i> Engine*,
+</I>&gt;&gt;<i> and so can be assigned to sengine, but this crashed after returning the
+</I>&gt;<i> solution:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> sengine0 = Search::bab(solver, option);
+</I>&gt;&gt;<i> sengine = Search::rbs(solver, metastop, sengine0, metaoption);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I needed to use an extra Engine* sengine0, because using the same engine
+</I>&gt;<i> in
+</I>&gt;&gt;<i> bab and rbs crashed immediately.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The crash seems to happen when the rbs engine is destroyed, and it looks
+</I>&gt;<i> like it
+</I>&gt;&gt;<i> is related to using 2 search engines.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Is rbs supposed to be used by the user? I found it by looking for rbs in
+</I>&gt;<i> the
+</I>&gt;&gt;<i> documentation, but I noticed that although it is listed, it doesn't seem
+</I>&gt;<i> to have
+</I>&gt;&gt;<i> any description associated with it.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Can I use Engine* in this way if I want to use restart-based search, or do
+</I>&gt;<i> I need
+</I>&gt;&gt;<i> to use something else (i.e. not a Engine*)?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks in advance for any help!
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Kish
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004104">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Aug 21 10:53:35 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Yes, that can be done.  There is even a virtual base class for it (so a type
+for all engines). It is Gecode::Search::Engine.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Wednesday, August 21, 2013 6:53 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks for your reply!
+
+On 20/08/2013 20:51, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Sorry for the delay, I was on holidays and I am still catching up.
+</I>&gt;<i>
+</I>&gt;<i> You are basically on your own. The stuff in the Search namespace is
+</I>&gt;<i> not documented in MPG for a reason ;-)
+</I>
+I don't mind changing the existing code more extensively, but I think I
+probably would need to have a pointer to a 'search engine' thingy (currently
+I have a class -- GecodeSearch for this, sengine is not visible outside the
+class), which I can set to the appropriate search or
+meta- search engine, and for which I can call a next() function to get the
+next solution. Can this be done?
+
+
+&gt;<i> Having said that, the stuff you are doing might work and I have an
+</I>&gt;<i> idea where the problem is: the meta engine deletes the engine that you
+</I>&gt;<i> pass to it (so sengine0 in your example). That means you are not
+</I>&gt;<i> allowed to delete it yourself in your code. But as said, just an idea.
+</I>
+I actually do not delete sengine0 already, i.e. in ~GecodeSearch, I only
+delete sengine. This was because deleting segine0 crashed.
+
+Cheers,
+
+Kish
+
+&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;&gt;<i> Behalf Of Kish Shen
+</I>&gt;&gt;<i> Sent: Friday, August 16, 2013 10:17 PM
+</I>&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;&gt;<i> interface
+</I>&gt;<i> to
+</I>&gt;&gt;<i> Gecode
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I am still trying to figure out how to add restart based search to
+</I>&gt;<i> ECLiPSe's
+</I>&gt;&gt;<i> interface to Gecode. I tried modifying my existing code (which does
+</I>&gt;&gt;<i> not
+</I>&gt;<i> support
+</I>&gt;&gt;<i> restart-based search), and managed to get a restarted based bab
+</I>&gt;&gt;<i> search to return the optimal answer, but the code then crashes,
+</I>&gt;&gt;<i> probably because I
+</I>&gt;<i> am
+</I>&gt;&gt;<i> not doing things correctly.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> If someone can point me in the right direction, I would be very grateful.
+</I>&gt;<i> I sent a
+</I>&gt;&gt;<i> message about this about 2 weeks ago to this mailing list, but
+</I>&gt;&gt;<i> perhaps I
+</I>&gt;<i> did not
+</I>&gt;&gt;<i> give the correct information to get any help, so I will try again.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> An outline of what I am doing now:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The user defines the problem to be solved in ECLiPSe, and the
+</I>&gt;&gt;<i> interface
+</I>&gt;<i> maps
+</I>&gt;&gt;<i> this to Gecode. At the Gecode level, the problem is represented in
+</I>&gt;<i> GecodeSpace,
+</I>&gt;&gt;<i> which is derived from Gecode::MinimizeSpace
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Searching can be done with a Gecode search engine, or it can be done
+</I>&gt;&gt;<i> at
+</I>&gt;<i> the
+</I>&gt;&gt;<i> ECLiPSe level (in which case search engines are not used).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> To do the search with a search engine, I have a GecodeSearch class,
+</I>&gt;&gt;<i> which
+</I>&gt;<i> has a
+</I>&gt;&gt;<i> Search::Engine* sengine, which is then dynamically assigned with the
+</I>&gt;<i> problem
+</I>&gt;&gt;<i> and search engine type when the user specify that a search is to be
+</I>&gt;&gt;<i> done
+</I>&gt;<i> by
+</I>&gt;&gt;<i> Gecode with a particular search method (like bab), e.g.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> solver-&gt;vCost = &lt;Cost variable&gt;
+</I>&gt;&gt;<i> sengine = Search::bab(solver, option)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> where solver is a GecodeSpace*, and vCost is the cost variable (for
+</I>&gt;&gt;<i> MinimizeSpace).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The MPG describes the search engine classes such as BAB, which I
+</I>&gt;&gt;<i> don't use directly. I think the reason is that I want to be able to
+</I>&gt;&gt;<i> assign different
+</I>&gt;<i> types of
+</I>&gt;&gt;<i> search engines to sengine, as the search type is only known at
+</I>&gt;&gt;<i> run-time,
+</I>&gt;<i> and in
+</I>&gt;&gt;<i> fact the user can call search as often as they like on the same problem.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> My problem is that I cannot extend this current scheme to work with
+</I>&gt;<i> restart-
+</I>&gt;&gt;<i> based search. What I tried was to use Search::rbs, which is also of
+</I>&gt;&gt;<i> class
+</I>&gt;<i> Engine*,
+</I>&gt;&gt;<i> and so can be assigned to sengine, but this crashed after returning
+</I>&gt;&gt;<i> the
+</I>&gt;<i> solution:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> sengine0 = Search::bab(solver, option); sengine = Search::rbs(solver,
+</I>&gt;&gt;<i> metastop, sengine0, metaoption);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I needed to use an extra Engine* sengine0, because using the same
+</I>&gt;&gt;<i> engine
+</I>&gt;<i> in
+</I>&gt;&gt;<i> bab and rbs crashed immediately.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The crash seems to happen when the rbs engine is destroyed, and it
+</I>&gt;&gt;<i> looks
+</I>&gt;<i> like it
+</I>&gt;&gt;<i> is related to using 2 search engines.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Is rbs supposed to be used by the user? I found it by looking for rbs
+</I>&gt;&gt;<i> in
+</I>&gt;<i> the
+</I>&gt;&gt;<i> documentation, but I noticed that although it is listed, it doesn't
+</I>&gt;&gt;<i> seem
+</I>&gt;<i> to have
+</I>&gt;&gt;<i> any description associated with it.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Can I use Engine* in this way if I want to use restart-based search,
+</I>&gt;&gt;<i> or do
+</I>&gt;<i> I need
+</I>&gt;&gt;<i> to use something else (i.e. not a Engine*)?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks in advance for any help!
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Kish
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004105">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Kish Shen</h2></div>
+          <p><time>Wed Aug 21 19:07:48 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks again for your reply!
+
+On 21/08/2013 09:53, Christian Schulte wrote:
+&gt;<i> Yes, that can be done.  There is even a virtual base class for it (so a type
+</I>&gt;<i> for all engines). It is Gecode::Search::Engine.
+</I>&gt;<i>
+</I>
+As far as I can tell from the documentation pages, sengine in my code is
+(a pointer to) class Gecode::Search::Engine, in
+
+Engine* Gecode::Search::bab(...)
+
+Engine* Gecode::Search::dfs(...)
+
+Engine* Gecode::Search::rbs(...)
+
+clicking on the &quot;Engine&quot; in the reference doc brings me to the
+Gecode::Search::Engine page.
+
+So am I doing this incorrectly (I am not very familiar with C++)? Should
+I be assigning the engine type differently than what I am doing with
+sengine (and sengine0 -- it would be much better if I don't have to
+explicitly use two Engines)?
+
+Cheers,
+
+Kish
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004106">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Aug 21 20:17:03 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Try to avoid the Gecode::Search::bab .... functions. Just create as follows:
+	Gecode::Search::Engine* e = new Gecode::BAB(...)
+Then it also will work for RBS, and you do not have to create a second
+engine yourself, this will the RBS class do for you.
+
+And do not forget to delete e eventually!
+
+Cheers
+Christian
+--
+Christian Schulte, www.ict.kth.se/~cschulte
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Wednesday, August 21, 2013 07:08 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks again for your reply!
+
+On 21/08/2013 09:53, Christian Schulte wrote:
+&gt;<i> Yes, that can be done.  There is even a virtual base class for it (so
+</I>&gt;<i> a type for all engines). It is Gecode::Search::Engine.
+</I>&gt;<i>
+</I>
+As far as I can tell from the documentation pages, sengine in my code is (a
+pointer to) class Gecode::Search::Engine, in
+
+Engine* Gecode::Search::bab(...)
+
+Engine* Gecode::Search::dfs(...)
+
+Engine* Gecode::Search::rbs(...)
+
+clicking on the &quot;Engine&quot; in the reference doc brings me to the
+Gecode::Search::Engine page.
+
+So am I doing this incorrectly (I am not very familiar with C++)? Should I
+be assigning the engine type differently than what I am doing with sengine
+(and sengine0 -- it would be much better if I don't have to explicitly use
+two Engines)?
+
+Cheers,
+
+Kish
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004110">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Kish Shen</h2></div>
+          <p><time>Thu Aug 22 09:44:34 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks again!
+
+On 21/08/2013 19:17, Christian Schulte wrote:
+&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as follows:
+</I>&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...)
+</I>&gt;<i> Then it also will work for RBS, and you do not have to create a second
+</I>&gt;<i> engine yourself, this will the RBS class do for you.
+</I>&gt;<i>
+</I>&gt;<i> And do not forget to delete e eventually!
+</I>&gt;<i>
+</I>
+This is the part that I don't know how to do correct -- probably because
+of my lack of C++ knowledge, but as far as I can tell,
+Gecode::DFS etc are not of class Engine*, according to the doc:
+
+template&lt;class T&gt;
+class Gecode::DFS&lt;T&gt;
+
+for subclasses T of Space
+
+T is GecodeSpace in my case, I assume. I am not sure what class DFS is,
+but I can't see how it could be Engine*.
+
+Anway, I tried to do the assignment as you suggested:
+
+
+Search::Engine* segine;
+...
+sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+
+cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+
+(I first tried sengine = new DFS(solver, o) but got an error 'expected
+type-specifier')
+
+So I am not sure what to do -- do I need to change the type of sengine,
+and/or the way I assign an engine to sengine?
+
+Cheers,
+
+Kish
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004111">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Aug 22 09:49:32 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+My bad... There is really no common basetype for search engines, the type I
+mentioned is actually for the implementations and not the interfaces...
+
+I think you will have to wait until I have added a common basetype (there is
+a basetype, but it is not powerful enough), I might be able to do it until
+the end of the week.
+
+Sorry for the confusion!
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Thursday, August 22, 2013 9:45 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks again!
+
+On 21/08/2013 19:17, Christian Schulte wrote:
+&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>follows:
+&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;<i> work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;<i> this will the RBS class do for you.
+</I>&gt;<i>
+</I>&gt;<i> And do not forget to delete e eventually!
+</I>&gt;<i>
+</I>
+This is the part that I don't know how to do correct -- probably because of
+my lack of C++ knowledge, but as far as I can tell, Gecode::DFS etc are not
+of class Engine*, according to the doc:
+
+template&lt;class T&gt;
+class Gecode::DFS&lt;T&gt;
+
+for subclasses T of Space
+
+T is GecodeSpace in my case, I assume. I am not sure what class DFS is, but
+I can't see how it could be Engine*.
+
+Anway, I tried to do the assignment as you suggested:
+
+
+Search::Engine* segine;
+...
+sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+
+cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+
+(I first tried sengine = new DFS(solver, o) but got an error 'expected
+type-specifier')
+
+So I am not sure what to do -- do I need to change the type of sengine,
+and/or the way I assign an engine to sengine?
+
+Cheers,
+
+Kish
+
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004112">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Kish Shen</h2></div>
+          <p><time>Fri Aug 23 20:25:34 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks for your reply again!
+
+I am reluctant to use Gecode features that are not in the official
+releases yet, as the user should be able to compile ECLiPSe and its
+open-source third-party components (like Gecode) on their own.
+
+Currently, the released gfd interface is to Gecode 3.7. I have not
+updated the release to Gecode 4(.2) mainly because I do not want to
+remove the RESTART search engine, only to reintroduce the equivalent
+when I get RBS working with gfd.
+
+I understand that it is easiest and perhaps best to use a common base
+type for the search engines, but in the absence of this base type at the
+moment, should I try to hide the different types of search engines
+inside my GecodeSearch class? Currently I have a singe Engine* (sengine)
+that points to the actual search engine, and a next method to obtain the
+next solution but I assume I can have different (private) pointers to
+the different search engines, and a next method that calls the
+appropriate next, depending on the search method.
+
+I also have a related question about getting the next solution with RBS
+-- I had assumed that the next solution will be computed with a restart,
+but as there seems to be 2 search engines in rbs, with RBS controlling
+the restart on another engine doing the &quot;actual&quot; search (e.g. BAB), I am
+wondering if the behaviour when getting the next solution is controlled
+by this &quot;actual&quot; search engine, and for BAB, I don't think this is done
+with a restart (hence the need for the old RESTART engine). So is the
+search restarted when next() is called in RBS, or does this depend on
+the &quot;actual&quot; search engine?
+
+Assuming that the search is restarted with next(), then can the
+functionality of the old RESTART engine be reproduced by setting the
+cutoff threshold to be very high? A related question is if it make sense
+(and if so, is there any way to do so) to use something other than the
+number of failures for deciding when to restart?
+
+Cheers,
+Kish
+
+
+On 22/08/2013 08:49, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> My bad... There is really no common basetype for search engines, the type I
+</I>&gt;<i> mentioned is actually for the implementations and not the interfaces...
+</I>&gt;<i>
+</I>&gt;<i> I think you will have to wait until I have added a common basetype (there is
+</I>&gt;<i> a basetype, but it is not powerful enough), I might be able to do it until
+</I>&gt;<i> the end of the week.
+</I>&gt;<i>
+</I>&gt;<i> Sorry for the confusion!
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> Sent: Thursday, August 22, 2013 9:45 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> interface to Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i>
+</I>&gt;<i> Thanks again!
+</I>&gt;<i>
+</I>&gt;<i> On 21/08/2013 19:17, Christian Schulte wrote:
+</I>&gt;&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>&gt;<i> follows:
+</I>&gt;&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;&gt;<i> work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;&gt;<i> this will the RBS class do for you.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> And do not forget to delete e eventually!
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This is the part that I don't know how to do correct -- probably because of
+</I>&gt;<i> my lack of C++ knowledge, but as far as I can tell, Gecode::DFS etc are not
+</I>&gt;<i> of class Engine*, according to the doc:
+</I>&gt;<i>
+</I>&gt;<i> template&lt;class T&gt;
+</I>&gt;<i> class Gecode::DFS&lt;T&gt;
+</I>&gt;<i>
+</I>&gt;<i> for subclasses T of Space
+</I>&gt;<i>
+</I>&gt;<i> T is GecodeSpace in my case, I assume. I am not sure what class DFS is, but
+</I>&gt;<i> I can't see how it could be Engine*.
+</I>&gt;<i>
+</I>&gt;<i> Anway, I tried to do the assignment as you suggested:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Search::Engine* segine;
+</I>&gt;<i> ...
+</I>&gt;<i> sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+</I>&gt;<i>
+</I>&gt;<i> cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+</I>&gt;<i>
+</I>&gt;<i> (I first tried sengine = new DFS(solver, o) but got an error 'expected
+</I>&gt;<i> type-specifier')
+</I>&gt;<i>
+</I>&gt;<i> So I am not sure what to do -- do I need to change the type of sengine,
+</I>&gt;<i> and/or the way I assign an engine to sengine?
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004113">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Christian Schulte</h2></div>
+          <p><time>Sun Aug 25 15:45:24 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>What I wrote earlier was just nonsense. I think I really have to use my
+brain here and think it through how to do it best. I'll get back to you
+later.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Friday, August 23, 2013 08:26 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks for your reply again!
+
+I am reluctant to use Gecode features that are not in the official releases
+yet, as the user should be able to compile ECLiPSe and its open-source
+third-party components (like Gecode) on their own.
+
+Currently, the released gfd interface is to Gecode 3.7. I have not updated
+the release to Gecode 4(.2) mainly because I do not want to remove the
+RESTART search engine, only to reintroduce the equivalent when I get RBS
+working with gfd.
+
+I understand that it is easiest and perhaps best to use a common base type
+for the search engines, but in the absence of this base type at the moment,
+should I try to hide the different types of search engines inside my
+GecodeSearch class? Currently I have a singe Engine* (sengine) that points
+to the actual search engine, and a next method to obtain the next solution
+but I assume I can have different (private) pointers to the different search
+engines, and a next method that calls the appropriate next, depending on the
+search method.
+
+I also have a related question about getting the next solution with RBS
+-- I had assumed that the next solution will be computed with a restart, but
+as there seems to be 2 search engines in rbs, with RBS controlling the
+restart on another engine doing the &quot;actual&quot; search (e.g. BAB), I am
+wondering if the behaviour when getting the next solution is controlled by
+this &quot;actual&quot; search engine, and for BAB, I don't think this is done with a
+restart (hence the need for the old RESTART engine). So is the search
+restarted when next() is called in RBS, or does this depend on the &quot;actual&quot;
+search engine?
+
+Assuming that the search is restarted with next(), then can the
+functionality of the old RESTART engine be reproduced by setting the cutoff
+threshold to be very high? A related question is if it make sense (and if
+so, is there any way to do so) to use something other than the number of
+failures for deciding when to restart?
+
+Cheers,
+Kish
+
+
+On 22/08/2013 08:49, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> My bad... There is really no common basetype for search engines, the
+</I>&gt;<i> type I mentioned is actually for the implementations and not the
+</I>interfaces...
+&gt;<i>
+</I>&gt;<i> I think you will have to wait until I have added a common basetype
+</I>&gt;<i> (there is a basetype, but it is not powerful enough), I might be able
+</I>&gt;<i> to do it until the end of the week.
+</I>&gt;<i>
+</I>&gt;<i> Sorry for the confusion!
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> Sent: Thursday, August 22, 2013 9:45 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> interface to Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i>
+</I>&gt;<i> Thanks again!
+</I>&gt;<i>
+</I>&gt;<i> On 21/08/2013 19:17, Christian Schulte wrote:
+</I>&gt;&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>&gt;<i> follows:
+</I>&gt;&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;&gt;<i> work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;&gt;<i> this will the RBS class do for you.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> And do not forget to delete e eventually!
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This is the part that I don't know how to do correct -- probably
+</I>&gt;<i> because of my lack of C++ knowledge, but as far as I can tell,
+</I>&gt;<i> Gecode::DFS etc are not of class Engine*, according to the doc:
+</I>&gt;<i>
+</I>&gt;<i> template&lt;class T&gt;
+</I>&gt;<i> class Gecode::DFS&lt;T&gt;
+</I>&gt;<i>
+</I>&gt;<i> for subclasses T of Space
+</I>&gt;<i>
+</I>&gt;<i> T is GecodeSpace in my case, I assume. I am not sure what class DFS
+</I>&gt;<i> is, but I can't see how it could be Engine*.
+</I>&gt;<i>
+</I>&gt;<i> Anway, I tried to do the assignment as you suggested:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Search::Engine* segine;
+</I>&gt;<i> ...
+</I>&gt;<i> sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+</I>&gt;<i>
+</I>&gt;<i> cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+</I>&gt;<i>
+</I>&gt;<i> (I first tried sengine = new DFS(solver, o) but got an error 'expected
+</I>&gt;<i> type-specifier')
+</I>&gt;<i>
+</I>&gt;<i> So I am not sure what to do -- do I need to change the type of
+</I>&gt;<i> sengine, and/or the way I assign an engine to sengine?
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004114">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 27 10:51:02 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Here is a solution built on top of Gecode. It defines a type
+Kish::EngineBase that can be passed around irrespective of which engine it
+actual is. The other stuff is just for illustration and how to recast
+Gecode's engines as engines of type Kish::EngineBase.
+
+Hope this helps.
+
+Best
+Christian
+
+
+namespace Kish {
+
+  class EngineBase {
+  public:
+    EngineBase(void) {}
+    virtual Gecode::Space* next(void) = 0;
+    virtual Gecode::Search::Statistics statistics(void) const = 0;
+    virtual bool stopped(void) const = 0;
+    virtual ~EngineBase(void) {}
+  };
+
+  class DFS : public EngineBase {
+  protected:
+    Gecode::DFS&lt;Gecode::Space&gt; e;
+  public:
+    DFS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) {
+      return e.next();
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~DFS(void) {}
+  };
+
+  class BAB : public EngineBase {
+  protected:
+    Gecode::BAB&lt;Gecode::Space&gt; e;
+  public:
+    BAB(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) {
+      return e.next();
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~BAB(void) {}
+  };
+
+  template&lt;template&lt;class&gt; class E&gt;
+  class RBS : public EngineBase {
+  protected:
+    Gecode::RBS&lt;E,Gecode::Space&gt; e;
+  public:
+    RBS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+      : e(s,o) {}
+    virtual Gecode::Space* next(void) {
+      return e.next();
+    }
+    virtual Gecode::Search::Statistics statistics(void) const {
+      return e.statistics();
+    }
+    virtual bool stopped(void) const {
+      return e.stopped();
+    }
+    virtual ~RBS(void) {}
+  };
+
+  enum WhichEngine {
+    WE_DFS, WE_BAB,
+    WE_RBS_DFS, WE_RBS_BAB
+  };
+
+  EngineBase* engine(WhichEngine we,
+                     Gecode::Space* s,
+                     const Gecode::Search::Options&amp; o) {
+    switch (we) {
+    case WE_DFS: return new DFS(s,o);
+    case WE_BAB: return new BAB(s,o);
+    case WE_RBS_DFS: return new RBS&lt;Gecode::DFS&gt;(s,o);
+    case WE_RBS_BAB: return new RBS&lt;Gecode::BAB&gt;(s,o);
+    }
+  }
+}
+
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Christian Schulte
+Sent: Thursday, August 22, 2013 9:50 AM
+To: 'Kish Shen'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Kish,
+
+My bad... There is really no common basetype for search engines, the type I
+mentioned is actually for the implementations and not the interfaces...
+
+I think you will have to wait until I have added a common basetype (there is
+a basetype, but it is not powerful enough), I might be able to do it until
+the end of the week.
+
+Sorry for the confusion!
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Thursday, August 22, 2013 9:45 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+interface to Gecode
+
+Hi Christian,
+
+Thanks again!
+
+On 21/08/2013 19:17, Christian Schulte wrote:
+&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>follows:
+&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;<i> work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;<i> this will the RBS class do for you.
+</I>&gt;<i>
+</I>&gt;<i> And do not forget to delete e eventually!
+</I>&gt;<i>
+</I>
+This is the part that I don't know how to do correct -- probably because of
+my lack of C++ knowledge, but as far as I can tell, Gecode::DFS etc are not
+of class Engine*, according to the doc:
+
+template&lt;class T&gt;
+class Gecode::DFS&lt;T&gt;
+
+for subclasses T of Space
+
+T is GecodeSpace in my case, I assume. I am not sure what class DFS is, but
+I can't see how it could be Engine*.
+
+Anway, I tried to do the assignment as you suggested:
+
+
+Search::Engine* segine;
+...
+sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+
+cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+
+(I first tried sengine = new DFS(solver, o) but got an error 'expected
+type-specifier')
+
+So I am not sure what to do -- do I need to change the type of sengine,
+and/or the way I assign an engine to sengine?
+
+Cheers,
+
+Kish
+
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004115">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Max Ostrowski</h2></div>
+          <p><time>Tue Aug 27 11:50:45 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I recognized that the div constraint for integers removes the zero from
+the domain of the second argument (to avoid division by zero).
+This seems to be a problem as i want to express the following:
+
+
+x/y+c &gt; 7 reified b
+
+So, if b1 is true, y should not be zero or otherwise some undefined
+behaviour happens.
+So  i add a constraint
+
+y != 0 reified b
+
+to avoid this case.
+(Sometimes it happens that this is done via other boolean variables,
+more complex constructs, own propagators etc...,
+but i always avoid the case that y is zero if b is true).
+
+To express this in gecode i currently use
+div(x,y,z);
+z + c &gt; 7 refied b
+y != 0 reified b
+
+This gives wrong results, as in the case where b is false, y is also
+constraint to be != 0 via the div constraint.
+I thought about reifying the division with b, but this would also lead
+to wrong results.
+
+So any idea how to express this?
+Is removing the 0 from the domain via the div constraint really the
+right way?
+I could live with an undefined behaviour in the case that y \in {0}.
+
+Any ideas?
+Best Max
+
+Sample Code follows
+
+
+class TempSpace : public Space
+{
+public:
+
+    TempSpace() : x_(*this,4), b_(*this,2)
+    {
+        x_[0] = IntVar(*this,1,3);
+        x_[1] = IntVar(*this,-4,4);
+        x_[2] = IntVar(*this, -10,10);
+        x_[3] = IntVar(*this, -10,10);
+        b_[0] = BoolVar(*this,0,1);
+        b_[1] = BoolVar(*this,0,1);
+
+        Gecode::div(*this,x_[0],x_[1],x_[2]);
+
+        if (status()==SS_FAILED)
+            std::cout &lt;&lt; &quot;failed &quot; &lt;&lt; std::endl;
+        print();
+
+        IntArgs intArgs;
+        IntVarArgs intVarArgs;
+        intArgs &lt;&lt; 1;
+        intVarArgs &lt;&lt; x_[2];
+        intArgs &lt;&lt; 1;
+        intVarArgs &lt;&lt; x_[3];
+        linear(*this, intArgs, intVarArgs, IRT_EQ,0,b_[0],ICL_DEF);
+
+        rel(*this,x_[2],IRT_NQ,0, b_[0], ICL_DEF);
+
+        //rel(*this, b_[0], IRT_EQ, b_[1], ICL_DEF);
+
+        if (status()==SS_FAILED)
+            std::cout &lt;&lt; &quot;failed &quot; &lt;&lt; std::endl;
+        print();
+        branch(*this, x_, branchVar, branchVal);
+    }
+
+
+    TempSpace(bool share, TempSpace&amp; sp) : Space(share, sp)
+    {
+        x_.update(*this, share, sp.x_);
+        b_.update(*this, share, sp.b_);
+    }
+
+    virtual TempSpace* copy(bool share)
+    {
+        return new TempSpace(share, *this);
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; x_[0] &lt;&lt; &quot; &quot; &lt;&lt; x_[1] &lt;&lt; &quot; &quot; &lt;&lt; x_[2] &lt;&lt; std::endl;
+    }
+
+    virtual ~TempSpace(){}
+    void run()
+    {
+        dfsSearchEngine_ = new DFS&lt;TempSpace&gt;(this);
+        while (enumerator_ = dfsSearchEngine_-&gt;next())
+            enumerator_-&gt;print();
+    }
+
+    IntVarArray x_;
+    BoolVarArray b_;
+    DFS&lt;TempSpace&gt;* dfsSearchEngine_;
+    TempSpace* enumerator_;
+};
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004116">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 27 13:23:47 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Yes, that is the right definition: the values for x,y,z must be solutions of
+div(x,y,z).
+
+There is a standard trick: introduce a new variable y' and reify that if y
+!= 0, then y=y' and post div(x,y',z). The problem is that you do not get
+much propagation.
+
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Max Ostrowski
+Sent: Tuesday, August 27, 2013 11:51 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Division by zero
+
+I recognized that the div constraint for integers removes the zero from the
+domain of the second argument (to avoid division by zero).
+This seems to be a problem as i want to express the following:
+
+
+x/y+c &gt; 7 reified b
+
+So, if b1 is true, y should not be zero or otherwise some undefined
+behaviour happens.
+So  i add a constraint
+
+y != 0 reified b
+
+to avoid this case.
+(Sometimes it happens that this is done via other boolean variables, more
+complex constructs, own propagators etc..., but i always avoid the case that
+y is zero if b is true).
+
+To express this in gecode i currently use div(x,y,z); z + c &gt; 7 refied b y
+!= 0 reified b
+
+This gives wrong results, as in the case where b is false, y is also
+constraint to be != 0 via the div constraint.
+I thought about reifying the division with b, but this would also lead to
+wrong results.
+
+So any idea how to express this?
+Is removing the 0 from the domain via the div constraint really the right
+way?
+I could live with an undefined behaviour in the case that y \in {0}.
+
+Any ideas?
+Best Max
+
+Sample Code follows
+
+
+class TempSpace : public Space
+{
+public:
+
+    TempSpace() : x_(*this,4), b_(*this,2)
+    {
+        x_[0] = IntVar(*this,1,3);
+        x_[1] = IntVar(*this,-4,4);
+        x_[2] = IntVar(*this, -10,10);
+        x_[3] = IntVar(*this, -10,10);
+        b_[0] = BoolVar(*this,0,1);
+        b_[1] = BoolVar(*this,0,1);
+
+        Gecode::div(*this,x_[0],x_[1],x_[2]);
+
+        if (status()==SS_FAILED)
+            std::cout &lt;&lt; &quot;failed &quot; &lt;&lt; std::endl;
+        print();
+
+        IntArgs intArgs;
+        IntVarArgs intVarArgs;
+        intArgs &lt;&lt; 1;
+        intVarArgs &lt;&lt; x_[2];
+        intArgs &lt;&lt; 1;
+        intVarArgs &lt;&lt; x_[3];
+        linear(*this, intArgs, intVarArgs, IRT_EQ,0,b_[0],ICL_DEF);
+
+        rel(*this,x_[2],IRT_NQ,0, b_[0], ICL_DEF);
+
+        //rel(*this, b_[0], IRT_EQ, b_[1], ICL_DEF);
+
+        if (status()==SS_FAILED)
+            std::cout &lt;&lt; &quot;failed &quot; &lt;&lt; std::endl;
+        print();
+        branch(*this, x_, branchVar, branchVal);
+    }
+
+
+    TempSpace(bool share, TempSpace&amp; sp) : Space(share, sp)
+    {
+        x_.update(*this, share, sp.x_);
+        b_.update(*this, share, sp.b_);
+    }
+
+    virtual TempSpace* copy(bool share)
+    {
+        return new TempSpace(share, *this);
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; x_[0] &lt;&lt; &quot; &quot; &lt;&lt; x_[1] &lt;&lt; &quot; &quot; &lt;&lt; x_[2] &lt;&lt; std::endl;
+    }
+
+    virtual ~TempSpace(){}
+    void run()
+    {
+        dfsSearchEngine_ = new DFS&lt;TempSpace&gt;(this);
+        while (enumerator_ = dfsSearchEngine_-&gt;next())
+            enumerator_-&gt;print();
+    }
+
+    IntVarArray x_;
+    BoolVarArray b_;
+    DFS&lt;TempSpace&gt;* dfsSearchEngine_;
+    TempSpace* enumerator_;
+};
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004120">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Kish Shen</h2></div>
+          <p><time>Fri Aug 30 20:01:26 CEST 2013</time><small>August 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks for the code. This code looks to be more C++ like than what I
+have now, where my GecodeSearch class (equivalent to EngineBase here)
+has several private engine pointers for the different engine types, and
+the functions like next() switch on the search methods to call the
+function of the correct engine type. I will change my code to be more
+like what you are doing here. Thanks again.
+
+My next question is now about doing the restart: are there any
+alternatives to doing restart based on the number of failures? One
+alternative is to do restart only with a new solution. I assume this is
+what the old RESTART engine did. As the current gfd interface supports
+this engine, I would like to continue to support it. As I said in my
+previous posting, I am not sure if the next solution is done via restart
+in RBS, because it seem to use DFS or BAB as the &quot;actual&quot; search engine,
+and these engines don't restart (as far as I can tell) with the next
+solution.
+
+Thanks and cheers,
+
+Kish
+
+On 27/08/2013 09:51, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Here is a solution built on top of Gecode. It defines a type
+</I>&gt;<i> Kish::EngineBase that can be passed around irrespective of which engine it
+</I>&gt;<i> actual is. The other stuff is just for illustration and how to recast
+</I>&gt;<i> Gecode's engines as engines of type Kish::EngineBase.
+</I>&gt;<i>
+</I>&gt;<i> Hope this helps.
+</I>&gt;<i>
+</I>&gt;<i> Best
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> namespace Kish {
+</I>&gt;<i>
+</I>&gt;<i>    class EngineBase {
+</I>&gt;<i>    public:
+</I>&gt;<i>      EngineBase(void) {}
+</I>&gt;<i>      virtual Gecode::Space* next(void) = 0;
+</I>&gt;<i>      virtual Gecode::Search::Statistics statistics(void) const = 0;
+</I>&gt;<i>      virtual bool stopped(void) const = 0;
+</I>&gt;<i>      virtual ~EngineBase(void) {}
+</I>&gt;<i>    };
+</I>&gt;<i>
+</I>&gt;<i>    class DFS : public EngineBase {
+</I>&gt;<i>    protected:
+</I>&gt;<i>      Gecode::DFS&lt;Gecode::Space&gt; e;
+</I>&gt;<i>    public:
+</I>&gt;<i>      DFS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i>        : e(s,o) {}
+</I>&gt;<i>      virtual Gecode::Space* next(void) {
+</I>&gt;<i>        return e.next();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i>        return e.statistics();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual bool stopped(void) const {
+</I>&gt;<i>        return e.stopped();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual ~DFS(void) {}
+</I>&gt;<i>    };
+</I>&gt;<i>
+</I>&gt;<i>    class BAB : public EngineBase {
+</I>&gt;<i>    protected:
+</I>&gt;<i>      Gecode::BAB&lt;Gecode::Space&gt; e;
+</I>&gt;<i>    public:
+</I>&gt;<i>      BAB(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i>        : e(s,o) {}
+</I>&gt;<i>      virtual Gecode::Space* next(void) {
+</I>&gt;<i>        return e.next();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i>        return e.statistics();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual bool stopped(void) const {
+</I>&gt;<i>        return e.stopped();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual ~BAB(void) {}
+</I>&gt;<i>    };
+</I>&gt;<i>
+</I>&gt;<i>    template&lt;template&lt;class&gt; class E&gt;
+</I>&gt;<i>    class RBS : public EngineBase {
+</I>&gt;<i>    protected:
+</I>&gt;<i>      Gecode::RBS&lt;E,Gecode::Space&gt; e;
+</I>&gt;<i>    public:
+</I>&gt;<i>      RBS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i>        : e(s,o) {}
+</I>&gt;<i>      virtual Gecode::Space* next(void) {
+</I>&gt;<i>        return e.next();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i>        return e.statistics();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual bool stopped(void) const {
+</I>&gt;<i>        return e.stopped();
+</I>&gt;<i>      }
+</I>&gt;<i>      virtual ~RBS(void) {}
+</I>&gt;<i>    };
+</I>&gt;<i>
+</I>&gt;<i>    enum WhichEngine {
+</I>&gt;<i>      WE_DFS, WE_BAB,
+</I>&gt;<i>      WE_RBS_DFS, WE_RBS_BAB
+</I>&gt;<i>    };
+</I>&gt;<i>
+</I>&gt;<i>    EngineBase* engine(WhichEngine we,
+</I>&gt;<i>                       Gecode::Space* s,
+</I>&gt;<i>                       const Gecode::Search::Options&amp; o) {
+</I>&gt;<i>      switch (we) {
+</I>&gt;<i>      case WE_DFS: return new DFS(s,o);
+</I>&gt;<i>      case WE_BAB: return new BAB(s,o);
+</I>&gt;<i>      case WE_RBS_DFS: return new RBS&lt;Gecode::DFS&gt;(s,o);
+</I>&gt;<i>      case WE_RBS_BAB: return new RBS&lt;Gecode::BAB&gt;(s,o);
+</I>&gt;<i>      }
+</I>&gt;<i>    }
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Christian Schulte
+</I>&gt;<i> Sent: Thursday, August 22, 2013 9:50 AM
+</I>&gt;<i> To: 'Kish Shen'
+</I>&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> interface to Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> My bad... There is really no common basetype for search engines, the type I
+</I>&gt;<i> mentioned is actually for the implementations and not the interfaces...
+</I>&gt;<i>
+</I>&gt;<i> I think you will have to wait until I have added a common basetype (there is
+</I>&gt;<i> a basetype, but it is not powerful enough), I might be able to do it until
+</I>&gt;<i> the end of the week.
+</I>&gt;<i>
+</I>&gt;<i> Sorry for the confusion!
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> Sent: Thursday, August 22, 2013 9:45 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> interface to Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i>
+</I>&gt;<i> Thanks again!
+</I>&gt;<i>
+</I>&gt;<i> On 21/08/2013 19:17, Christian Schulte wrote:
+</I>&gt;&gt;<i> Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>&gt;<i> follows:
+</I>&gt;&gt;<i> 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;&gt;<i> work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;&gt;<i> this will the RBS class do for you.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> And do not forget to delete e eventually!
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> This is the part that I don't know how to do correct -- probably because of
+</I>&gt;<i> my lack of C++ knowledge, but as far as I can tell, Gecode::DFS etc are not
+</I>&gt;<i> of class Engine*, according to the doc:
+</I>&gt;<i>
+</I>&gt;<i> template&lt;class T&gt;
+</I>&gt;<i> class Gecode::DFS&lt;T&gt;
+</I>&gt;<i>
+</I>&gt;<i> for subclasses T of Space
+</I>&gt;<i>
+</I>&gt;<i> T is GecodeSpace in my case, I assume. I am not sure what class DFS is, but
+</I>&gt;<i> I can't see how it could be Engine*.
+</I>&gt;<i>
+</I>&gt;<i> Anway, I tried to do the assignment as you suggested:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Search::Engine* segine;
+</I>&gt;<i> ...
+</I>&gt;<i> sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+</I>&gt;<i>
+</I>&gt;<i> cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+</I>&gt;<i>
+</I>&gt;<i> (I first tried sengine = new DFS(solver, o) but got an error 'expected
+</I>&gt;<i> type-specifier')
+</I>&gt;<i>
+</I>&gt;<i> So I am not sure what to do -- do I need to change the type of sengine,
+</I>&gt;<i> and/or the way I assign an engine to sengine?
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-004122">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Christian Schulte</h2></div>
+          <p><time>Sun Sep 1 18:19:08 CEST 2013</time><small>September 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+No, the engine can only restart based on the number of failures. But, it
+will also restart when it has found a solution. So what you could do is to
+use an embarrassingly large number of failures (ULONG_MAX) and a constant
+cutoff generator (Search::Cutoff::constant(ULONG_MAX)).
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> Sent: Friday, August 30, 2013 8:01 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>interface
+&gt;<i> to Gecode
+</I>&gt;<i>
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i>
+</I>&gt;<i> Thanks for the code. This code looks to be more C++ like than what I have
+</I>now,
+&gt;<i> where my GecodeSearch class (equivalent to EngineBase here) has several
+</I>&gt;<i> private engine pointers for the different engine types, and the functions
+</I>like
+&gt;<i> next() switch on the search methods to call the function of the correct
+</I>engine
+&gt;<i> type. I will change my code to be more like what you are doing here.
+</I>Thanks
+&gt;<i> again.
+</I>&gt;<i>
+</I>&gt;<i> My next question is now about doing the restart: are there any
+</I>alternatives to
+&gt;<i> doing restart based on the number of failures? One alternative is to do
+</I>restart
+&gt;<i> only with a new solution. I assume this is what the old RESTART engine
+</I>did. As
+&gt;<i> the current gfd interface supports this engine, I would like to continue
+</I>to
+&gt;<i> support it. As I said in my previous posting, I am not sure if the next
+</I>solution is
+&gt;<i> done via restart in RBS, because it seem to use DFS or BAB as the &quot;actual&quot;
+</I>search
+&gt;<i> engine, and these engines don't restart (as far as I can tell) with the
+</I>next
+&gt;<i> solution.
+</I>&gt;<i>
+</I>&gt;<i> Thanks and cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> On 27/08/2013 09:51, Christian Schulte wrote:
+</I>&gt;<i> &gt; Hi Kish,
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Here is a solution built on top of Gecode. It defines a type
+</I>&gt;<i> &gt; Kish::EngineBase that can be passed around irrespective of which
+</I>&gt;<i> &gt; engine it actual is. The other stuff is just for illustration and how
+</I>&gt;<i> &gt; to recast Gecode's engines as engines of type Kish::EngineBase.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Hope this helps.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Best
+</I>&gt;<i> &gt; Christian
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; namespace Kish {
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    class EngineBase {
+</I>&gt;<i> &gt;    public:
+</I>&gt;<i> &gt;      EngineBase(void) {}
+</I>&gt;<i> &gt;      virtual Gecode::Space* next(void) = 0;
+</I>&gt;<i> &gt;      virtual Gecode::Search::Statistics statistics(void) const = 0;
+</I>&gt;<i> &gt;      virtual bool stopped(void) const = 0;
+</I>&gt;<i> &gt;      virtual ~EngineBase(void) {}
+</I>&gt;<i> &gt;    };
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    class DFS : public EngineBase {
+</I>&gt;<i> &gt;    protected:
+</I>&gt;<i> &gt;      Gecode::DFS&lt;Gecode::Space&gt; e;
+</I>&gt;<i> &gt;    public:
+</I>&gt;<i> &gt;      DFS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i> &gt;        : e(s,o) {}
+</I>&gt;<i> &gt;      virtual Gecode::Space* next(void) {
+</I>&gt;<i> &gt;        return e.next();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i> &gt;        return e.statistics();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual bool stopped(void) const {
+</I>&gt;<i> &gt;        return e.stopped();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual ~DFS(void) {}
+</I>&gt;<i> &gt;    };
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    class BAB : public EngineBase {
+</I>&gt;<i> &gt;    protected:
+</I>&gt;<i> &gt;      Gecode::BAB&lt;Gecode::Space&gt; e;
+</I>&gt;<i> &gt;    public:
+</I>&gt;<i> &gt;      BAB(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i> &gt;        : e(s,o) {}
+</I>&gt;<i> &gt;      virtual Gecode::Space* next(void) {
+</I>&gt;<i> &gt;        return e.next();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i> &gt;        return e.statistics();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual bool stopped(void) const {
+</I>&gt;<i> &gt;        return e.stopped();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual ~BAB(void) {}
+</I>&gt;<i> &gt;    };
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    template&lt;template&lt;class&gt; class E&gt;
+</I>&gt;<i> &gt;    class RBS : public EngineBase {
+</I>&gt;<i> &gt;    protected:
+</I>&gt;<i> &gt;      Gecode::RBS&lt;E,Gecode::Space&gt; e;
+</I>&gt;<i> &gt;    public:
+</I>&gt;<i> &gt;      RBS(Gecode::Space* s, const Gecode::Search::Options&amp; o)
+</I>&gt;<i> &gt;        : e(s,o) {}
+</I>&gt;<i> &gt;      virtual Gecode::Space* next(void) {
+</I>&gt;<i> &gt;        return e.next();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual Gecode::Search::Statistics statistics(void) const {
+</I>&gt;<i> &gt;        return e.statistics();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual bool stopped(void) const {
+</I>&gt;<i> &gt;        return e.stopped();
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;      virtual ~RBS(void) {}
+</I>&gt;<i> &gt;    };
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    enum WhichEngine {
+</I>&gt;<i> &gt;      WE_DFS, WE_BAB,
+</I>&gt;<i> &gt;      WE_RBS_DFS, WE_RBS_BAB
+</I>&gt;<i> &gt;    };
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;    EngineBase* engine(WhichEngine we,
+</I>&gt;<i> &gt;                       Gecode::Space* s,
+</I>&gt;<i> &gt;                       const Gecode::Search::Options&amp; o) {
+</I>&gt;<i> &gt;      switch (we) {
+</I>&gt;<i> &gt;      case WE_DFS: return new DFS(s,o);
+</I>&gt;<i> &gt;      case WE_BAB: return new BAB(s,o);
+</I>&gt;<i> &gt;      case WE_RBS_DFS: return new RBS&lt;Gecode::DFS&gt;(s,o);
+</I>&gt;<i> &gt;      case WE_RBS_BAB: return new RBS&lt;Gecode::BAB&gt;(s,o);
+</I>&gt;<i> &gt;      }
+</I>&gt;<i> &gt;    }
+</I>&gt;<i> &gt; }
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; --
+</I>&gt;<i> &gt; Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> &gt; www.ict.kth.se/~cschulte/
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; -----Original Message-----
+</I>&gt;<i> &gt; From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> &gt; Behalf Of Christian Schulte
+</I>&gt;<i> &gt; Sent: Thursday, August 22, 2013 9:50 AM
+</I>&gt;<i> &gt; To: 'Kish Shen'
+</I>&gt;<i> &gt; Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> &gt; Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> &gt; interface to Gecode
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Hi Kish,
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; My bad... There is really no common basetype for search engines, the
+</I>&gt;<i> &gt; type I mentioned is actually for the implementations and not the
+</I>interfaces...
+&gt;<i> &gt;
+</I>&gt;<i> &gt; I think you will have to wait until I have added a common basetype
+</I>&gt;<i> &gt; (there is a basetype, but it is not powerful enough), I might be able
+</I>&gt;<i> &gt; to do it until the end of the week.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Sorry for the confusion!
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Cheers
+</I>&gt;<i> &gt; Christian
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; --
+</I>&gt;<i> &gt; Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> &gt; www.ict.kth.se/~cschulte/
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; -----Original Message-----
+</I>&gt;<i> &gt; From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> &gt; Sent: Thursday, August 22, 2013 9:45 AM
+</I>&gt;<i> &gt; To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> &gt; Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> &gt; Subject: Re: [gecode-users] Adding restart-based search to ECLiPSe's
+</I>&gt;<i> &gt; interface to Gecode
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Hi Christian,
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Thanks again!
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; On 21/08/2013 19:17, Christian Schulte wrote:
+</I>&gt;<i> &gt;&gt; Try to avoid the Gecode::Search::bab .... functions. Just create as
+</I>&gt;<i> &gt; follows:
+</I>&gt;<i> &gt;&gt; 	Gecode::Search::Engine* e = new Gecode::BAB(...) Then it also will
+</I>&gt;<i> &gt;&gt; work for RBS, and you do not have to create a second engine yourself,
+</I>&gt;<i> &gt;&gt; this will the RBS class do for you.
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;&gt; And do not forget to delete e eventually!
+</I>&gt;<i> &gt;&gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; This is the part that I don't know how to do correct -- probably
+</I>&gt;<i> &gt; because of my lack of C++ knowledge, but as far as I can tell,
+</I>&gt;<i> &gt; Gecode::DFS etc are not of class Engine*, according to the doc:
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; template&lt;class T&gt;
+</I>&gt;<i> &gt; class Gecode::DFS&lt;T&gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; for subclasses T of Space
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; T is GecodeSpace in my case, I assume. I am not sure what class DFS
+</I>&gt;<i> &gt; is, but I can't see how it could be Engine*.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Anway, I tried to do the assignment as you suggested:
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Search::Engine* segine;
+</I>&gt;<i> &gt; ...
+</I>&gt;<i> &gt; sengine = new DFS&lt;GecodeSpace&gt;(solver, o); and indeed I get the error
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; cannot convert 'Gecode::DFS&lt;GecodeSpace&gt;*' to 'Gecode::Search::Engine*'
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; (I first tried sengine = new DFS(solver, o) but got an error 'expected
+</I>&gt;<i> &gt; type-specifier')
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; So I am not sure what to do -- do I need to change the type of
+</I>&gt;<i> &gt; sengine, and/or the way I assign an engine to sengine?
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Cheers,
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Kish
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; _______________________________________________
+</I>&gt;<i> &gt; Gecode users mailing list
+</I>&gt;<i> &gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> &gt; <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i> &gt;
+</I>
+
+
+</PRE>
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

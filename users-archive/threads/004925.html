@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Using LocalHandles and LocalObjects with External	Resources — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Using LocalHandles and LocalObjects with External	Resources | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2017</p><h1 data-pagefind-meta="title">Using LocalHandles and LocalObjects with External	Resources</h1></header>
+      <p class="archive-thread-summary">2 messages · January 2017</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004925">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Peter Backeman</h2></div>
+          <p><time>Sat Jan 7 02:02:00 CET 2017</time><small>January 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I've implemented a custom propagator and brancher which are sharing a data-structure (a matrix of values), To share the structure in an efficient (and convenient) way I have looked at using LocalHandle and LocalObject. In MPG (Sec 31.4, page 391) this is described how to be implemented, however I am doing something wrong because I keep on getting some kind of memory error.
+
+My main problem is with the notice for disposal (since external resources are used). If I do not use home.notice(*this, AP_DISPOSE) (line 17 in attached file), my program does run without errors, but I suspect it might lead to memory leaks. I've tried figuring out how this should work, but I have yet to find a full example using LocalHandle/LocalObject (i.e. together with a model) and no previous issues around this.
+
+I'm attaching a minimum failing example (main.cpp), I'm compiling it on ubuntu using g++ version 5.4.0. and Gecode version 5.0.0 (I'm fairly sure, do not know how to exactly check this) using the following command:
+	g++ -g -o main src/main.cpp -lgecodedriver -lgecodegist -lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+and when running it I receive the following error (gdb output):
+-----------------------------------------------------------------------------
+Program received signal SIGSEGV, Segmentation fault.
+Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic pointer&gt;, home=...) at ./gecode/kernel/core.hpp:4438
+4438	./gecode/kernel/core.hpp: No such file or directory.
+(gdb) where
+#0  Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic pointer&gt;, home=...) at ./gecode/kernel/core.hpp:4438
+#1  Gecode::Space::update (sub=0x64e380, this=0x64e220) at ./gecode/kernel/var-imp.hpp:484
+#2  Gecode::Space::_clone (this=0x63c6a0, share_data=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_data at entry</A>=true, share_info=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_info at entry</A>=true) at gecode/kernel/core.cpp:584
+#3  0x00007ffff776b813 in Gecode::Space::clone (share_info=true, share_data=true, this=&lt;optimized out&gt;) at ./gecode/kernel/core.hpp:3262
+#4  Gecode::Search::Sequential::BAB::next (this=0x64db38) at ./gecode/search/sequential/bab.hh:149
+#5  Gecode::Search::WorkerToEngine&lt;Gecode::Search::Sequential::BAB&gt;::next (this=0x64db30) at ./gecode/search/support.hh:86
+#6  0x0000000000411ad9 in Gecode::Search::Base&lt;MyScript&gt;::next (this=&lt;optimized out&gt;) at /usr/local/include/gecode/search/base.hpp:51
+#7  Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinimizeSpace&gt; &gt;::runMeta&lt;MyScript, Gecode::BAB, Gecode::SizeOptions, Gecode::Driver::EngineToMeta&gt; (o=..., s=0x63c6a0)
+    at /usr/local/include/gecode/driver/script.hpp:360
+#8  0x0000000000408e15 in Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinimizeSpace&gt; &gt;::run&lt;MyScript, Gecode::BAB, Gecode::SizeOptions&gt; (o=..., s=0x0)
+    at /usr/local/include/gecode/driver/script.hpp:274
+#9  0x0000000000405536 in main (argc=1, argv=0x7fffffffe0d8) at src/main.cpp:63
+-----------------------------------------------------------------------------
+
+Any ideas on what might be the problem is greatly appreciated. My guess is that perhaps the destructor of the LocalHandle (LH) class have to make sure dispose is called on the LocalObject (LHO), however my skills in C++  and Gecode are not enough to know how I can try this. If someone just have an implementation using LocalHandles/LocalObjects which is working, just letting me have a look on that would be very helpful!
+
+Best regards,
+Peter Backeman
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: main.cpp
+Type: text/x-c++src
+Size: 1801 bytes
+Desc: main.cpp
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170107/450b1c4a/attachment.cpp">http://www.gecode.org/pipermail/users/attachments/20170107/450b1c4a/attachment.cpp</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004927">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Sun Jan 8 15:53:43 CET 2017</time><small>January 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+This is hard to debug remotely but here is the catch:
+ - you have a shared datastructure that you have put into a local object.
+ - you need to make sure that both propagator and brancher destruct the
+local handle but only if neither needs it any longer. If you make use of the
+local handle in both propagator as well as brancher then everything should
+be fine.
+ - for the propagator it means you have to use the AP_DISPOSE thing as you
+did. In its dispose method you have to add an explicit call to the
+destructor of the local handle, say that the local object is names lo and of
+type Foo. Then lo.~Foo() will do the trick.
+ - for the brancher you also have to call in its dispose method the
+destructor.
+
+My guess is that the error comes from the fact that the shared object has
+already been destroyed by either propagator or brancher and the other still
+tries to access it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.gecode.org/~schulte
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Expert Researcher, SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at sics.se</A>
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Peter Backeman
+Sent: Saturday, January 7, 2017 02:02
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Using LocalHandles and LocalObjects with External
+Resources
+
+Hello,
+
+I've implemented a custom propagator and brancher which are sharing a
+data-structure (a matrix of values), To share the structure in an efficient
+(and convenient) way I have looked at using LocalHandle and LocalObject. In
+MPG (Sec 31.4, page 391) this is described how to be implemented, however I
+am doing something wrong because I keep on getting some kind of memory
+error.
+
+My main problem is with the notice for disposal (since external resources
+are used). If I do not use home.notice(*this, AP_DISPOSE) (line 17 in
+attached file), my program does run without errors, but I suspect it might
+lead to memory leaks. I've tried figuring out how this should work, but I
+have yet to find a full example using LocalHandle/LocalObject (i.e. together
+with a model) and no previous issues around this.
+
+I'm attaching a minimum failing example (main.cpp), I'm compiling it on
+ubuntu using g++ version 5.4.0. and Gecode version 5.0.0 (I'm fairly sure,
+do not know how to exactly check this) using the following command:
+	g++ -g -o main src/main.cpp -lgecodedriver -lgecodegist
+-lgecodesearch -lgecodeminimodel -lgecodeint -lgecodekernel -lgecodesupport
+and when running it I receive the following error (gdb output):
+----------------------------------------------------------------------------
+-
+Program received signal SIGSEGV, Segmentation fault.
+Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic pointer&gt;,
+home=...) at ./gecode/kernel/core.hpp:4438
+4438	./gecode/kernel/core.hpp: No such file or directory.
+(gdb) where
+#0  Gecode::VarImp&lt;Gecode::Int::IntVarImpConf&gt;::update (sub=&lt;synthetic
+pointer&gt;, home=...) at ./gecode/kernel/core.hpp:4438
+#1  Gecode::Space::update (sub=0x64e380, this=0x64e220) at
+./gecode/kernel/var-imp.hpp:484
+#2  Gecode::Space::_clone (this=0x63c6a0, share_data=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_data at entry</A>=true,
+share_info=<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">share_info at entry</A>=true) at gecode/kernel/core.cpp:584
+#3  0x00007ffff776b813 in Gecode::Space::clone (share_info=true,
+share_data=true, this=&lt;optimized out&gt;) at ./gecode/kernel/core.hpp:3262
+#4  Gecode::Search::Sequential::BAB::next (this=0x64db38) at
+./gecode/search/sequential/bab.hh:149
+#5  Gecode::Search::WorkerToEngine&lt;Gecode::Search::Sequential::BAB&gt;::next
+(this=0x64db30) at ./gecode/search/support.hh:86
+#6  0x0000000000411ad9 in Gecode::Search::Base&lt;MyScript&gt;::next
+(this=&lt;optimized out&gt;) at /usr/local/include/gecode/search/base.hpp:51
+#7
+Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinim
+izeSpace&gt; &gt;::runMeta&lt;MyScript, Gecode::BAB, Gecode::SizeOptions,
+Gecode::Driver::EngineToMeta&gt; (o=..., s=0x63c6a0)
+    at /usr/local/include/gecode/driver/script.hpp:360
+#8  0x0000000000408e15 in
+Gecode::Driver::ScriptBase&lt;Gecode::Driver::IgnoreStepOption&lt;Gecode::IntMinim
+izeSpace&gt; &gt;::run&lt;MyScript, Gecode::BAB, Gecode::SizeOptions&gt; (o=..., s=0x0)
+    at /usr/local/include/gecode/driver/script.hpp:274
+#9  0x0000000000405536 in main (argc=1, argv=0x7fffffffe0d8) at
+src/main.cpp:63
+----------------------------------------------------------------------------
+-
+
+Any ideas on what might be the problem is greatly appreciated. My guess is
+that perhaps the destructor of the LocalHandle (LH) class have to make sure
+dispose is called on the LocalObject (LHO), however my skills in C++  and
+Gecode are not enough to know how I can try this. If someone just have an
+implementation using LocalHandles/LocalObjects which is working, just
+letting me have a look on that would be very helpful!
+
+Best regards,
+Peter Backeman
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 4599 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170108/17216c70/attachment.bin">http://www.gecode.org/pipermail/users/attachments/20170108/17216c70/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

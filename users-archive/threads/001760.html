@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Extending Actor for actions — 12 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Extending Actor for actions | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>12 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2008</p><h1 data-pagefind-meta="title">Extending Actor for actions</h1></header>
+      <p class="archive-thread-summary">12 messages · August 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001760">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>David Rijsman</h2></div>
+          <p><time>Wed Aug 6 14:34:36 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I am working on a search framework using Gecode and have a question concerning the following.
+
+My search generates a node containing actions to be executed where an action can be an arbitrary operation including generating a disjunction or conjunction of (sub-)actions. The execution of an action consisting out of a disjunction of actions will generate new nodes. Each node (approximately, skipping some optimization) will contain a copy of the Space instance and should contain a copy of the (stack of) actions to be executed. An action can have attributes such as variables and for this reason the clone of the action(stack)s should be included in the clone of the Space instance to make use of the forwarding of the pointers of the variable implementations.
+
+My question is if it is possible to introduce new classes which will be cloned (like the Branching extensions) when the Space::clone is invoked without having to change anything in the Space. I think extending the Actor class might do it but I thought I ask instead of trying to reverse engineer.
+
+hope this makes some sense,
+
+
+
+David J Rijsman
+Software Architect
+Quintiq
+
+T +31 (0)73 691 07 39
+F +31 (0)73 691 07 54
+M +31 (0)62 127 68 29
+E <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">david.rijsman at quintiq.nl</A>
+I www.quintiq.com
+
+
+
+This message contains information that may be privileged or confidential and is the property of Quintiq. It is only intended for the person to whom it is addressed. If you are not the intended recipient, you are not authorized to read, print, retain, copy, disseminate, distribute or use this message or any part thereof. If you have received this message in error, please notify the sender immediately and delete all copies of this message. Please note that e-mails are susceptible to change, therefore they are not binding.
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001761">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Aug 6 18:36:22 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+Just to make sure that I understand you correctly: you want to have a
+datastructure in a space that is automatically cloned whenever Space::clone
+is executed. The catch is that the datastructure can contain stuff (such as
+variables) that also must be cloned. Is that brief description accurate or
+oversimplified (or completely off)?
+
+If accurate one idea is to just create a subclass of space. This subclass
+implements a copy constructor called during cloning that will then do two
+things:
+ - call the copy constructor for cloning of space
+ - and after that, copy your own datastructure
+
+A guideline for you to do datastructures that can be cloned, check ViewArray
+or VarArray in gecode/kernel/array.icc. You would implement an update
+function that does the cloning. This update function then you would call in
+the above copy constructor for cloning.
+
+Then, for whatever you do, you do not inherit from Space but from this
+subclass. That will work automatically.
+
+Hope that makes some sense...
+
+All the best
+Christian
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of David Rijsman
+Sent: Wednesday, August 06, 2008 2:35 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Extending Actor for actions
+
+I am working on a search framework using Gecode and have a question
+concerning the following.
+
+My search generates a node containing actions to be executed where an action
+can be an arbitrary operation including generating a disjunction or
+conjunction of (sub-)actions. The execution of an action consisting out of a
+disjunction of actions will generate new nodes. Each node (approximately,
+skipping some optimization) will contain a copy of the Space instance and
+should contain a copy of the (stack of) actions to be executed. An action
+can have attributes such as variables and for this reason the clone of the
+action(stack)s should be included in the clone of the Space instance to make
+use of the forwarding of the pointers of the variable implementations.
+
+My question is if it is possible to introduce new classes which will be
+cloned (like the Branching extensions) when the Space::clone is invoked
+without having to change anything in the Space. I think extending the Actor
+class might do it but I thought I ask instead of trying to reverse engineer.
+
+hope this makes some sense,
+
+
+
+David J Rijsman
+Software Architect
+Quintiq
+
+T +31 (0)73 691 07 39
+F +31 (0)73 691 07 54
+M +31 (0)62 127 68 29
+E <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">david.rijsman at quintiq.nl</A>
+I www.quintiq.com
+
+
+
+This message contains information that may be privileged or confidential and
+is the property of Quintiq. It is only intended for the person to whom it is
+addressed. If you are not the intended recipient, you are not authorized to
+read, print, retain, copy, disseminate, distribute or use this message or
+any part thereof. If you have received this message in error, please notify
+the sender immediately and delete all copies of this message. Please note
+that e-mails are susceptible to change, therefore they are not binding.
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001762">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Sat Aug 9 18:30:22 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello all,
+
+we are currently trying to build a static checker system on top of
+Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+interesting case.
+
+In order to allow us greater flexibility we try to use the Expression
+API (it allows us to build constraints in a hierarchical manner).
+
+I was testing the implementation, and found an interesting final
+result: there were to IntVars, which were supposed to be the same, did
+not have the same final ranges: one of them had {2,4}, but the other
+had {2,3,4}. I tried to trace back the code to look whether the
+constraints were wrong or not, and found the following expression
+building term:
+
+BExpr expression = new BExpr(new Expr(variable1),relation, new
+Expr(variable2));
+
+Tracing the variables variable1 was a new variable, it hadn't been
+constrained yet, while variable2's domain had been limited to the
+values 2 and 4 (and they were the variables mentioned before in this
+letter), while the relation had the value IRT_EQ.
+
+I tried a post of the expression right after it's construction to see
+whether it helps or not:
+org.gecode.Gecode.post(space, expression);
+
+It did not solve the problem, but when I replaced the post method to
+the following rel call, the constraint handling was working as I
+expected it before.
+
+rel(space, variable1, IntRelType.IRT_EQ, variable2);
+
+I would like to know, whether this phenomenon is the intentional
+(maybe I do not understand something under the hood), or not. And if
+you could tell me a way to avoid it, I would be very glad.
+
+Thank you very much in advance for your help,
+Zolt&#225;n Ujhelyi
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001763">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Sun Aug 10 23:21:22 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello again,
+
+I have been experimenting with the questions raised in my previous mail.
+
+I created a small Gecode space to be able to test the problem in a
+smaller scale, where I did use two variables (variable1, variable2,
+both IntVars with the domain {0,5}) and three constraints: variable1
+equals variable2, and variable2 cannot have the values 2 and 4.
+
+In all of my tests the latter two constraints are described like that:
+
+post(space, new BExpr(space.variable1, IRT_NQ, 2));
+post(space, new BExpr(space.variable1, IRT_NQ, 4));
+
+For the third constraint I had several tries. When I was using the
+rel() clause to write the constraint, I got the expected result:
+
+Variable #1: {0..1,3,5}
+Variable #2: {0..1,3,5}
+
+But when using a similar construct I would like to use in the static
+verifier, I got no result for the second variable, it can has all
+values from it's domain.
+
+post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+
+Reading about different propagators, I have been able to get the
+expected result with the use of the ICL_DOM propagator, but only if I
+was posting the constraint directly, like that:
+
+post(space, new Expr(space.variable1), IRT_EQ, new
+Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+
+But if I tried to translate the a BExprs to that form, I did not
+succeed:
+
+	    Expr expression = new Expr(new
+Expr(space.variable2).minus(space.variable1));
+	    post(space, new Expr(expression), IRT_EQ, 0,
+org.gecode.GecodeEnumConstants.ICL_DOM);
+
+Can you tell me a way how to enable this strong ICL_DOM propagators
+meanwhile using the BExpr form, if it is possible? It would help our
+project a lot, it would simplify it's code.
+
+Thank you for your help,
+Zolt&#225;n Ujhelyi
+On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+
+&gt;<i> Hello all,
+</I>&gt;<i>
+</I>&gt;<i> we are currently trying to build a static checker system on top of
+</I>&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+</I>&gt;<i> interesting case.
+</I>&gt;<i>
+</I>&gt;<i> In order to allow us greater flexibility we try to use the Expression
+</I>&gt;<i> API (it allows us to build constraints in a hierarchical manner).
+</I>&gt;<i>
+</I>&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;<i> result: there were to IntVars, which were supposed to be the same, did
+</I>&gt;<i> not have the same final ranges: one of them had {2,4}, but the other
+</I>&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;<i> constraints were wrong or not, and found the following expression
+</I>&gt;<i> building term:
+</I>&gt;<i>
+</I>&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;<i> Expr(variable2));
+</I>&gt;<i>
+</I>&gt;<i> Tracing the variables variable1 was a new variable, it hadn't been
+</I>&gt;<i> constrained yet, while variable2's domain had been limited to the
+</I>&gt;<i> values 2 and 4 (and they were the variables mentioned before in this
+</I>&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;<i>
+</I>&gt;<i> I tried a post of the expression right after it's construction to see
+</I>&gt;<i> whether it helps or not:
+</I>&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;<i>
+</I>&gt;<i> It did not solve the problem, but when I replaced the post method to
+</I>&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;<i> expected it before.
+</I>&gt;<i>
+</I>&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;<i>
+</I>&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;<i> (maybe I do not understand something under the hood), or not. And if
+</I>&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;<i>
+</I>&gt;<i> Thank you very much in advance for your help,
+</I>&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001764">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Aug 11 09:03:06 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi.
+
+As you've already found out, you have to use domain consistent
+propagation (ICL_DOM) to get the result you want.  You should be able
+to use post(space, new Expr(space.variable1), IRT_EQ, new
+Expr(space.variable2), ICL_DOM) to get the desired result.  I'm not
+100% sure, but I think your solution that uses e=variable1-variable2,
+e=0 doesn't work because only the e=0 is propagated to domain
+consistency, while e=variable1-variable2 still only achieves bounds
+consistency.
+
+Cheers,
+	Guido
+
+Ujhelyi Zoltan wrote:
+
+&gt;<i> Hello again,
+</I>&gt;<i>
+</I>&gt;<i> I have been experimenting with the questions raised in my previous
+</I>&gt;<i> mail.
+</I>&gt;<i>
+</I>&gt;<i> I created a small Gecode space to be able to test the problem in a
+</I>&gt;<i> smaller scale, where I did use two variables (variable1, variable2,
+</I>&gt;<i> both IntVars with the domain {0,5}) and three constraints: variable1
+</I>&gt;<i> equals variable2, and variable2 cannot have the values 2 and 4.
+</I>&gt;<i>
+</I>&gt;<i> In all of my tests the latter two constraints are described like that:
+</I>&gt;<i>
+</I>&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 2));
+</I>&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 4));
+</I>&gt;<i>
+</I>&gt;<i> For the third constraint I had several tries. When I was using the
+</I>&gt;<i> rel() clause to write the constraint, I got the expected result:
+</I>&gt;<i>
+</I>&gt;<i> Variable #1: {0..1,3,5}
+</I>&gt;<i> Variable #2: {0..1,3,5}
+</I>&gt;<i>
+</I>&gt;<i> But when using a similar construct I would like to use in the static
+</I>&gt;<i> verifier, I got no result for the second variable, it can has all
+</I>&gt;<i> values from it's domain.
+</I>&gt;<i>
+</I>&gt;<i> post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+</I>&gt;<i>
+</I>&gt;<i> Reading about different propagators, I have been able to get the
+</I>&gt;<i> expected result with the use of the ICL_DOM propagator, but only if I
+</I>&gt;<i> was posting the constraint directly, like that:
+</I>&gt;<i>
+</I>&gt;<i> post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;<i> Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i> But if I tried to translate the a BExprs to that form, I did not
+</I>&gt;<i> succeed:
+</I>&gt;<i>
+</I>&gt;<i> 	    Expr expression = new Expr(new
+</I>&gt;<i> Expr(space.variable2).minus(space.variable1));
+</I>&gt;<i> 	    post(space, new Expr(expression), IRT_EQ, 0,
+</I>&gt;<i> org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i> Can you tell me a way how to enable this strong ICL_DOM propagators
+</I>&gt;<i> meanwhile using the BExpr form, if it is possible? It would help our
+</I>&gt;<i> project a lot, it would simplify it's code.
+</I>&gt;<i>
+</I>&gt;<i> Thank you for your help,
+</I>&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;<i> On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hello all,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> we are currently trying to build a static checker system on top of
+</I>&gt;&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+</I>&gt;&gt;<i> interesting case.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> In order to allow us greater flexibility we try to use the Expression
+</I>&gt;&gt;<i> API (it allows us to build constraints in a hierarchical manner).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;&gt;<i> result: there were to IntVars, which were supposed to be the same,
+</I>&gt;&gt;<i> did
+</I>&gt;&gt;<i> not have the same final ranges: one of them had {2,4}, but the other
+</I>&gt;&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;&gt;<i> constraints were wrong or not, and found the following expression
+</I>&gt;&gt;<i> building term:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;&gt;<i> Expr(variable2));
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Tracing the variables variable1 was a new variable, it hadn't been
+</I>&gt;&gt;<i> constrained yet, while variable2's domain had been limited to the
+</I>&gt;&gt;<i> values 2 and 4 (and they were the variables mentioned before in this
+</I>&gt;&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I tried a post of the expression right after it's construction to see
+</I>&gt;&gt;<i> whether it helps or not:
+</I>&gt;&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> It did not solve the problem, but when I replaced the post method to
+</I>&gt;&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;&gt;<i> expected it before.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;&gt;<i> (maybe I do not understand something under the hood), or not. And if
+</I>&gt;&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you very much in advance for your help,
+</I>&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001766">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Mon Aug 11 11:38:44 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+thank you for your reply.
+
+I understand the problem stated here, but I would like to ask whether
+there is a solution to add a constraint like that to a Boolean
+Expression with the domain consistent propagation (ICL_DOM).
+
+I did not found any possibilities for that looking in the Gecode/J
+API, but it would help a lot for our project.
+
+Thank you,
+Ujhelyi Zolt&#225;n
+On 2008.08.11., at 11:34, Guido Tack wrote:
+
+&gt;<i> Could you please post to the mailing list? Thanks. Guido
+</I>&gt;<i>
+</I>&gt;<i> Am 11.08.2008 um 11:22 schrieb Ujhelyi Zoltan:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hello,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I understand the problem stated here, but I would like to ask
+</I>&gt;&gt;<i> whether there is a solution to add a constraint like that to a
+</I>&gt;&gt;<i> Boolen Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;<i> Thank you,
+</I>&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;<i> On 2008.08.11., at 9:03, Guido Tack wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Hi.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> As you've already found out, you have to use domain consistent
+</I>&gt;&gt;&gt;<i> propagation (ICL_DOM) to get the result you want.  You should be
+</I>&gt;&gt;&gt;<i> able to use post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;<i> Expr(space.variable2), ICL_DOM) to get the desired result.  I'm
+</I>&gt;&gt;&gt;<i> not 100% sure, but I think your solution that uses e=variable1-
+</I>&gt;&gt;&gt;<i> variable2, e=0 doesn't work because only the e=0 is propagated to
+</I>&gt;&gt;&gt;<i> domain consistency, while e=variable1-variable2 still only
+</I>&gt;&gt;&gt;<i> achieves bounds consistency.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;<i> 	Guido
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hello again,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I have been experimenting with the questions raised in my
+</I>&gt;&gt;&gt;&gt;<i> previous mail.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I created a small Gecode space to be able to test the problem in a
+</I>&gt;&gt;&gt;&gt;<i> smaller scale, where I did use two variables (variable1, variable2,
+</I>&gt;&gt;&gt;&gt;<i> both IntVars with the domain {0,5}) and three constraints:
+</I>&gt;&gt;&gt;&gt;<i> variable1
+</I>&gt;&gt;&gt;&gt;<i> equals variable2, and variable2 cannot have the values 2 and 4.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> In all of my tests the latter two constraints are described like
+</I>&gt;&gt;&gt;&gt;<i> that:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 2));
+</I>&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 4));
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> For the third constraint I had several tries. When I was using the
+</I>&gt;&gt;&gt;&gt;<i> rel() clause to write the constraint, I got the expected result:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Variable #1: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;<i> Variable #2: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> But when using a similar construct I would like to use in the
+</I>&gt;&gt;&gt;&gt;<i> static
+</I>&gt;&gt;&gt;&gt;<i> verifier, I got no result for the second variable, it can has all
+</I>&gt;&gt;&gt;&gt;<i> values from it's domain.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Reading about different propagators, I have been able to get the
+</I>&gt;&gt;&gt;&gt;<i> expected result with the use of the ICL_DOM propagator, but only
+</I>&gt;&gt;&gt;&gt;<i> if I
+</I>&gt;&gt;&gt;&gt;<i> was posting the constraint directly, like that:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;<i> Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> But if I tried to translate the a BExprs to that form, I did not
+</I>&gt;&gt;&gt;&gt;<i> succeed:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> 	    Expr expression = new Expr(new
+</I>&gt;&gt;&gt;&gt;<i> Expr(space.variable2).minus(space.variable1));
+</I>&gt;&gt;&gt;&gt;<i> 	    post(space, new Expr(expression), IRT_EQ, 0,
+</I>&gt;&gt;&gt;&gt;<i> org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Can you tell me a way how to enable this strong ICL_DOM propagators
+</I>&gt;&gt;&gt;&gt;<i> meanwhile using the BExpr form, if it is possible? It would help
+</I>&gt;&gt;&gt;&gt;<i> our
+</I>&gt;&gt;&gt;&gt;<i> project a lot, it would simplify it's code.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Thank you for your help,
+</I>&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;<i> On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hello all,
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> we are currently trying to build a static checker system on top of
+</I>&gt;&gt;&gt;&gt;&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+</I>&gt;&gt;&gt;&gt;&gt;<i> interesting case.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> In order to allow us greater flexibility we try to use the
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expression
+</I>&gt;&gt;&gt;&gt;&gt;<i> API (it allows us to build constraints in a hierarchical manner).
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;&gt;&gt;&gt;&gt;<i> result: there were to IntVars, which were supposed to be the
+</I>&gt;&gt;&gt;&gt;&gt;<i> same, did
+</I>&gt;&gt;&gt;&gt;&gt;<i> not have the same final ranges: one of them had {2,4}, but the
+</I>&gt;&gt;&gt;&gt;&gt;<i> other
+</I>&gt;&gt;&gt;&gt;&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;&gt;&gt;&gt;&gt;<i> constraints were wrong or not, and found the following expression
+</I>&gt;&gt;&gt;&gt;&gt;<i> building term:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expr(variable2));
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Tracing the variables variable1 was a new variable, it hadn't been
+</I>&gt;&gt;&gt;&gt;&gt;<i> constrained yet, while variable2's domain had been limited to the
+</I>&gt;&gt;&gt;&gt;&gt;<i> values 2 and 4 (and they were the variables mentioned before in
+</I>&gt;&gt;&gt;&gt;&gt;<i> this
+</I>&gt;&gt;&gt;&gt;&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> I tried a post of the expression right after it's construction
+</I>&gt;&gt;&gt;&gt;&gt;<i> to see
+</I>&gt;&gt;&gt;&gt;&gt;<i> whether it helps or not:
+</I>&gt;&gt;&gt;&gt;&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> It did not solve the problem, but when I replaced the post
+</I>&gt;&gt;&gt;&gt;&gt;<i> method to
+</I>&gt;&gt;&gt;&gt;&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;&gt;&gt;&gt;&gt;<i> expected it before.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;&gt;&gt;&gt;&gt;<i> (maybe I do not understand something under the hood), or not.
+</I>&gt;&gt;&gt;&gt;&gt;<i> And if
+</I>&gt;&gt;&gt;&gt;&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Thank you very much in advance for your help,
+</I>&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001767">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Aug 11 11:53:36 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Ujhelyi Zoltan wrote:
+&gt;<i> I understand the problem stated here, but I would like to ask whether
+</I>&gt;<i> there is a solution to add a constraint like that to a Boolean
+</I>&gt;<i> Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;<i>
+</I>&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;<i> API, but it would help a lot for our project.
+</I>
+No, that is currently not possible.  I'm not sure right now how hard
+it would be to add, I'll have a look.  Maybe we can make it available
+in the next release.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001791">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Guido Tack</h2></div>
+          <p><time>Sat Aug 23 08:56:34 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+Please let me know if this is more or less what you wanted to use:
+
+BExpr be = new BExpr(new Expr(new Expr(space.var2).minus(space.var1)),
+IRT_EQ, 0, ICL_DOM);
+
+The ICL argument is now part of the BExpr, so it means that the linear
+constraint inside is propagated with ICL_DOM.  I hope that's what you
+need.  It will be available in Gecode/J 2.2.0 (very probably next week).
+
+Cheers,
+	Guido
+
+Ujhelyi Zoltan wrote:
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> thank you for your reply.
+</I>&gt;<i>
+</I>&gt;<i> I understand the problem stated here, but I would like to ask whether
+</I>&gt;<i> there is a solution to add a constraint like that to a Boolean
+</I>&gt;<i> Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;<i>
+</I>&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;<i> API, but it would help a lot for our project.
+</I>&gt;<i>
+</I>&gt;<i> Thank you,
+</I>&gt;<i> Ujhelyi Zolt&#225;n
+</I>&gt;<i> On 2008.08.11., at 11:34, Guido Tack wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Could you please post to the mailing list? Thanks. Guido
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Am 11.08.2008 um 11:22 schrieb Ujhelyi Zoltan:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I understand the problem stated here, but I would like to ask
+</I>&gt;&gt;&gt;<i> whether there is a solution to add a constraint like that to a
+</I>&gt;&gt;&gt;<i> Boolen Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;&gt;<i> Thank you,
+</I>&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;<i> On 2008.08.11., at 9:03, Guido Tack wrote:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hi.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> As you've already found out, you have to use domain consistent
+</I>&gt;&gt;&gt;&gt;<i> propagation (ICL_DOM) to get the result you want.  You should be
+</I>&gt;&gt;&gt;&gt;<i> able to use post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;<i> Expr(space.variable2), ICL_DOM) to get the desired result.  I'm
+</I>&gt;&gt;&gt;&gt;<i> not 100% sure, but I think your solution that uses e=variable1-
+</I>&gt;&gt;&gt;&gt;<i> variable2, e=0 doesn't work because only the e=0 is propagated to
+</I>&gt;&gt;&gt;&gt;<i> domain consistency, while e=variable1-variable2 still only
+</I>&gt;&gt;&gt;&gt;<i> achieves bounds consistency.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;&gt;<i> 	Guido
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hello again,
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> I have been experimenting with the questions raised in my
+</I>&gt;&gt;&gt;&gt;&gt;<i> previous mail.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> I created a small Gecode space to be able to test the problem in a
+</I>&gt;&gt;&gt;&gt;&gt;<i> smaller scale, where I did use two variables (variable1,
+</I>&gt;&gt;&gt;&gt;&gt;<i> variable2,
+</I>&gt;&gt;&gt;&gt;&gt;<i> both IntVars with the domain {0,5}) and three constraints:
+</I>&gt;&gt;&gt;&gt;&gt;<i> variable1
+</I>&gt;&gt;&gt;&gt;&gt;<i> equals variable2, and variable2 cannot have the values 2 and 4.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> In all of my tests the latter two constraints are described like
+</I>&gt;&gt;&gt;&gt;&gt;<i> that:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 2));
+</I>&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 4));
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> For the third constraint I had several tries. When I was using the
+</I>&gt;&gt;&gt;&gt;&gt;<i> rel() clause to write the constraint, I got the expected result:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Variable #1: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;<i> Variable #2: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> But when using a similar construct I would like to use in the
+</I>&gt;&gt;&gt;&gt;&gt;<i> static
+</I>&gt;&gt;&gt;&gt;&gt;<i> verifier, I got no result for the second variable, it can has all
+</I>&gt;&gt;&gt;&gt;&gt;<i> values from it's domain.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Reading about different propagators, I have been able to get the
+</I>&gt;&gt;&gt;&gt;&gt;<i> expected result with the use of the ICL_DOM propagator, but only
+</I>&gt;&gt;&gt;&gt;&gt;<i> if I
+</I>&gt;&gt;&gt;&gt;&gt;<i> was posting the constraint directly, like that:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> But if I tried to translate the a BExprs to that form, I did not
+</I>&gt;&gt;&gt;&gt;&gt;<i> succeed:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> 	    Expr expression = new Expr(new
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2).minus(space.variable1));
+</I>&gt;&gt;&gt;&gt;&gt;<i> 	    post(space, new Expr(expression), IRT_EQ, 0,
+</I>&gt;&gt;&gt;&gt;&gt;<i> org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Can you tell me a way how to enable this strong ICL_DOM
+</I>&gt;&gt;&gt;&gt;&gt;<i> propagators
+</I>&gt;&gt;&gt;&gt;&gt;<i> meanwhile using the BExpr form, if it is possible? It would help
+</I>&gt;&gt;&gt;&gt;&gt;<i> our
+</I>&gt;&gt;&gt;&gt;&gt;<i> project a lot, it would simplify it's code.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Thank you for your help,
+</I>&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;<i> On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Hello all,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> we are currently trying to build a static checker system on top
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> of
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found an
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> interesting case.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> In order to allow us greater flexibility we try to use the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> API (it allows us to build constraints in a hierarchical manner).
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> result: there were to IntVars, which were supposed to be the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> same, did
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> not have the same final ranges: one of them had {2,4}, but the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> other
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> constraints were wrong or not, and found the following expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> building term:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(variable2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Tracing the variables variable1 was a new variable, it hadn't
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> been
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> constrained yet, while variable2's domain had been limited to the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> values 2 and 4 (and they were the variables mentioned before in
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> this
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I tried a post of the expression right after it's construction
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> to see
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> whether it helps or not:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> It did not solve the problem, but when I replaced the post
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> method to
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> expected it before.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> (maybe I do not understand something under the hood), or not.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> And if
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Thank you very much in advance for your help,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001792">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Sat Aug 23 13:12:38 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello!
+
+Thank you very much, it is exactly what I needed.
+
+Thank you for your help again.
+
+Zolt&#225;n Ujhelyi
+On 2008.08.23., at 8:56, Guido Tack wrote:
+
+&gt;<i> Hi!
+</I>&gt;<i>
+</I>&gt;<i> Please let me know if this is more or less what you wanted to use:
+</I>&gt;<i>
+</I>&gt;<i> BExpr be = new BExpr(new Expr(new
+</I>&gt;<i> Expr(space.var2).minus(space.var1)), IRT_EQ, 0, ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i> The ICL argument is now part of the BExpr, so it means that the
+</I>&gt;<i> linear constraint inside is propagated with ICL_DOM.  I hope that's
+</I>&gt;<i> what you need.  It will be available in Gecode/J 2.2.0 (very
+</I>&gt;<i> probably next week).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>&gt;<i>
+</I>&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hello,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I understand the problem stated here, but I would like to ask whether
+</I>&gt;&gt;<i> there is a solution to add a constraint like that to a Boolean
+</I>&gt;&gt;<i> Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you,
+</I>&gt;&gt;<i> Ujhelyi Zolt&#225;n
+</I>&gt;&gt;<i> On 2008.08.11., at 11:34, Guido Tack wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Could you please post to the mailing list? Thanks. Guido
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Am 11.08.2008 um 11:22 schrieb Ujhelyi Zoltan:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I understand the problem stated here, but I would like to ask
+</I>&gt;&gt;&gt;&gt;<i> whether there is a solution to add a constraint like that to a
+</I>&gt;&gt;&gt;&gt;<i> Boolen Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;&gt;&gt;<i> Thank you,
+</I>&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;<i> On 2008.08.11., at 9:03, Guido Tack wrote:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hi.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> As you've already found out, you have to use domain consistent
+</I>&gt;&gt;&gt;&gt;&gt;<i> propagation (ICL_DOM) to get the result you want.  You should be
+</I>&gt;&gt;&gt;&gt;&gt;<i> able to use post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2), ICL_DOM) to get the desired result.  I'm
+</I>&gt;&gt;&gt;&gt;&gt;<i> not 100% sure, but I think your solution that uses e=variable1-
+</I>&gt;&gt;&gt;&gt;&gt;<i> variable2, e=0 doesn't work because only the e=0 is propagated to
+</I>&gt;&gt;&gt;&gt;&gt;<i> domain consistency, while e=variable1-variable2 still only
+</I>&gt;&gt;&gt;&gt;&gt;<i> achieves bounds consistency.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;&gt;&gt;<i> 	Guido
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Hello again,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I have been experimenting with the questions raised in my
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> previous mail.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I created a small Gecode space to be able to test the problem
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> in a
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> smaller scale, where I did use two variables (variable1,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> variable2,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> both IntVars with the domain {0,5}) and three constraints:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> variable1
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> equals variable2, and variable2 cannot have the values 2 and 4.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> In all of my tests the latter two constraints are described like
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> that:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 4));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> For the third constraint I had several tries. When I was using
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> rel() clause to write the constraint, I got the expected result:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Variable #1: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Variable #2: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> But when using a similar construct I would like to use in the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> static
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> verifier, I got no result for the second variable, it can has all
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> values from it's domain.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Reading about different propagators, I have been able to get the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> expected result with the use of the ICL_DOM propagator, but only
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> if I
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> was posting the constraint directly, like that:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> But if I tried to translate the a BExprs to that form, I did not
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> succeed:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> 	    Expr expression = new Expr(new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2).minus(space.variable1));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> 	    post(space, new Expr(expression), IRT_EQ, 0,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Can you tell me a way how to enable this strong ICL_DOM
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> propagators
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> meanwhile using the BExpr form, if it is possible? It would help
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> our
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> project a lot, it would simplify it's code.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Thank you for your help,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Hello all,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> we are currently trying to build a static checker system on
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> top of
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> an
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> interesting case.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> In order to allow us greater flexibility we try to use the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> API (it allows us to build constraints in a hierarchical
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> manner).
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> result: there were to IntVars, which were supposed to be the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> same, did
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> not have the same final ranges: one of them had {2,4}, but the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> other
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> constraints were wrong or not, and found the following
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> building term:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(variable2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Tracing the variables variable1 was a new variable, it hadn't
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> been
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> constrained yet, while variable2's domain had been limited to
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> values 2 and 4 (and they were the variables mentioned before in
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> this
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I tried a post of the expression right after it's construction
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> to see
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> whether it helps or not:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> It did not solve the problem, but when I replaced the post
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> method to
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> expected it before.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> (maybe I do not understand something under the hood), or not.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> And if
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Thank you very much in advance for your help,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001813">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Mon Aug 25 20:29:51 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I tested the new Gecode/J 2.2.0. I am very grateful for your work, but
+it did not work for me as I expected. I modified the constraints as
+you showed, but it did not prove the required equality.
+
+I copied your code into my sample program to test, but it did not help.
+
+I got the following result with the equality of the two variable:
+
+Variable #1: {0..1,3,5}
+Variable #2: [0..5]
+Summary:
+	runtime:      6
+	solutions:    1
+	propagations: 4
+	failures:     0
+	clones:       0
+	commits:      0
+	peak memory:  5KB
+SS_SOLVED
+
+I attached the my test code. If I changed to post method call (line
+58-59) with the rel constraint (line 60), the result become the
+expected: Gecode was able to prove the equality. I also tried with a
+Boolean Exp
+	    BExpr expression = new BExpr(new Expr(new
+Expr(space.variable2).minus(space.variable1)), IRT_EQ,
+0,IntConLevel.ICL_DOM);
+	    post(space, expression);
+	    //rel(space, space.variable1, IRT_EQ, space.variable2,
+IntConLevel.ICL_DOM);
+
+I used Java 1.6 in a Windows XP 32 bit system, in Eclipse environment.
+
+If you could give me a hint what may I have done wrong, I would be
+very glad. Thank you for your help,
+Zolt&#225;n Ujhelyi
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: ExprTest.java
+Type: application/octet-stream
+Size: 1789 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080825/f15aa733/attachment.obj">http://www.ps.uni-sb.de/pipermail/users/attachments/20080825/f15aa733/attachment.obj</A>&gt;
+-------------- next part --------------
+
+On 2008.08.23., at 8:56, Guido Tack wrote:
+
+&gt;<i> Hi!
+</I>&gt;<i>
+</I>&gt;<i> Please let me know if this is more or less what you wanted to use:
+</I>&gt;<i>
+</I>&gt;<i> BExpr be = new BExpr(new Expr(new
+</I>&gt;<i> Expr(space.var2).minus(space.var1)), IRT_EQ, 0, ICL_DOM);
+</I>&gt;<i>
+</I>&gt;<i> The ICL argument is now part of the BExpr, so it means that the
+</I>&gt;<i> linear constraint inside is propagated with ICL_DOM.  I hope that's
+</I>&gt;<i> what you need.  It will be available in Gecode/J 2.2.0 (very
+</I>&gt;<i> probably next week).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>&gt;<i>
+</I>&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hello,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I understand the problem stated here, but I would like to ask whether
+</I>&gt;&gt;<i> there is a solution to add a constraint like that to a Boolean
+</I>&gt;&gt;<i> Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thank you,
+</I>&gt;&gt;<i> Ujhelyi Zolt&#225;n
+</I>&gt;&gt;<i> On 2008.08.11., at 11:34, Guido Tack wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Could you please post to the mailing list? Thanks. Guido
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> Am 11.08.2008 um 11:22 schrieb Ujhelyi Zoltan:
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> Hello,
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> thank you for your reply.
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I understand the problem stated here, but I would like to ask
+</I>&gt;&gt;&gt;&gt;<i> whether there is a solution to add a constraint like that to a
+</I>&gt;&gt;&gt;&gt;<i> Boolen Expression with the domain consistent propagation (ICL_DOM).
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i> I did not found any possibilities for that looking in the Gecode/J
+</I>&gt;&gt;&gt;&gt;<i> API, but it would help a lot for our project.
+</I>&gt;&gt;&gt;&gt;<i> Thank you,
+</I>&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;<i> On 2008.08.11., at 9:03, Guido Tack wrote:
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Hi.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> As you've already found out, you have to use domain consistent
+</I>&gt;&gt;&gt;&gt;&gt;<i> propagation (ICL_DOM) to get the result you want.  You should be
+</I>&gt;&gt;&gt;&gt;&gt;<i> able to use post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2), ICL_DOM) to get the desired result.  I'm
+</I>&gt;&gt;&gt;&gt;&gt;<i> not 100% sure, but I think your solution that uses e=variable1-
+</I>&gt;&gt;&gt;&gt;&gt;<i> variable2, e=0 doesn't work because only the e=0 is propagated to
+</I>&gt;&gt;&gt;&gt;&gt;<i> domain consistency, while e=variable1-variable2 still only
+</I>&gt;&gt;&gt;&gt;&gt;<i> achieves bounds consistency.
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Cheers,
+</I>&gt;&gt;&gt;&gt;&gt;<i> 	Guido
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Hello again,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I have been experimenting with the questions raised in my
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> previous mail.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> I created a small Gecode space to be able to test the problem
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> in a
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> smaller scale, where I did use two variables (variable1,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> variable2,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> both IntVars with the domain {0,5}) and three constraints:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> variable1
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> equals variable2, and variable2 cannot have the values 2 and 4.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> In all of my tests the latter two constraints are described like
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> that:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_NQ, 4));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> For the third constraint I had several tries. When I was using
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> rel() clause to write the constraint, I got the expected result:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Variable #1: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Variable #2: {0..1,3,5}
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> But when using a similar construct I would like to use in the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> static
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> verifier, I got no result for the second variable, it can has all
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> values from it's domain.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new BExpr(space.variable1, IRT_EQ, space.variable2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Reading about different propagators, I have been able to get the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> expected result with the use of the ICL_DOM propagator, but only
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> if I
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> was posting the constraint directly, like that:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> post(space, new Expr(space.variable1), IRT_EQ, new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2),org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> But if I tried to translate the a BExprs to that form, I did not
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> succeed:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> 	    Expr expression = new Expr(new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(space.variable2).minus(space.variable1));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> 	    post(space, new Expr(expression), IRT_EQ, 0,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> org.gecode.GecodeEnumConstants.ICL_DOM);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Can you tell me a way how to enable this strong ICL_DOM
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> propagators
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> meanwhile using the BExpr form, if it is possible? It would help
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> our
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> project a lot, it would simplify it's code.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Thank you for your help,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> On 2008.08.09., at 18:30, Ujhelyi Zoltan wrote:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Hello all,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> we are currently trying to build a static checker system on
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> top of
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode/J 2.1.1. (in an Eclipse environment), and we have found
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> an
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> interesting case.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> In order to allow us greater flexibility we try to use the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> API (it allows us to build constraints in a hierarchical
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> manner).
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I was testing the implementation, and found an interesting final
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> result: there were to IntVars, which were supposed to be the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> same, did
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> not have the same final ranges: one of them had {2,4}, but the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> other
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> had {2,3,4}. I tried to trace back the code to look whether the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> constraints were wrong or not, and found the following
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> expression
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> building term:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> BExpr expression = new BExpr(new Expr(variable1),relation, new
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Expr(variable2));
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Tracing the variables variable1 was a new variable, it hadn't
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> been
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> constrained yet, while variable2's domain had been limited to
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> the
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> values 2 and 4 (and they were the variables mentioned before in
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> this
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> letter), while the relation had the value IRT_EQ.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I tried a post of the expression right after it's construction
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> to see
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> whether it helps or not:
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> org.gecode.Gecode.post(space, expression);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> It did not solve the problem, but when I replaced the post
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> method to
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> the following rel call, the constraint handling was working as I
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> expected it before.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> rel(space, variable1, IntRelType.IRT_EQ, variable2);
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> I would like to know, whether this phenomenon is the intentional
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> (maybe I do not understand something under the hood), or not.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> And if
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> you could tell me a way to avoid it, I would be very glad.
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Thank you very much in advance for your help,
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Zolt&#225;n Ujhelyi
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;&gt;&gt;&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001815">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Aug 25 21:48:11 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Ujhelyi Zoltan wrote:
+&gt;<i> I tested the new Gecode/J 2.2.0. I am very grateful for your work,
+</I>&gt;<i> but it did not work for me as I expected. I modified the constraints
+</I>&gt;<i> as you showed, but it did not prove the required equality.
+</I>
+I had another look, and unfortunately, we cannot provide stronger
+pruning for BExprs at the moment.  The technical explanation is that
+Exprs are translated to linear constraints, and there just is no
+ICL_DOM for reified linear constraints.  I just added the arguments,
+but didn't realize that the actual pruning wouldn't happen.
+
+The only workaround is currently to post the reified constraints
+directly, sorry.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001816">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Ujhelyi Zoltan</h2></div>
+          <p><time>Mon Aug 25 22:40:31 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Ok, I see.
+
+Thank you for looking into the problem,
+
+Zoli
+On 2008.08.25., at 21:48, Guido Tack wrote:
+
+&gt;<i> Ujhelyi Zoltan wrote:
+</I>&gt;&gt;<i> I tested the new Gecode/J 2.2.0. I am very grateful for your work,
+</I>&gt;&gt;<i> but it did not work for me as I expected. I modified the
+</I>&gt;&gt;<i> constraints as you showed, but it did not prove the required
+</I>&gt;&gt;<i> equality.
+</I>&gt;<i>
+</I>&gt;<i> I had another look, and unfortunately, we cannot provide stronger
+</I>&gt;<i> pruning for BExprs at the moment.  The technical explanation is that
+</I>&gt;<i> Exprs are translated to linear constraints, and there just is no
+</I>&gt;<i> ICL_DOM for reified linear constraints.  I just added the arguments,
+</I>&gt;<i> but didn't realize that the actual pruning wouldn't happen.
+</I>&gt;<i>
+</I>&gt;<i> The only workaround is currently to post the reified constraints
+</I>&gt;<i> directly, sorry.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

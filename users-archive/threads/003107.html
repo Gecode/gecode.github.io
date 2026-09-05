@@ -1,0 +1,2975 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Issue with a MiniZinc model — 20 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Issue with a MiniZinc model | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>20 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2011</p><h1 data-pagefind-meta="title">Issue with a MiniZinc model</h1></header>
+      <p class="archive-thread-summary">20 messages · January 2011</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003107">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Lucie Ku&amp;#269;erov&amp;#225;</h2></div>
+          <p><time>Thu Jan 13 14:49:54 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I've created a simple MiniZinc model describing a planning domain &amp;
+problem. The issue is that although MiniZinc itself solves it instantly,
+when I use Gecode's fz.exe on the generated FlatZinc model, the program
+computes for a while and then crashes.
+
+The MiniZinc model in question is attached below. The only problematic
+constraint is the last one from the succesor state constraints, without
+it all works OK. Any ideas what is causing the issue?
+
+Thank you in advance
+Lucie Kucerova
+
+
+
+% Constants
+int: t = 2;
+int: num_preds = 5;
+int: num_actions = 6;
+int: num_resc = 1;
+
+% Variables
+array[0..t, 0..num_preds - 1] of var bool: predicates;
+array[0..t - 1, 0..num_actions - 1] of var bool: actions;
+array[0..t, 0..num_resc - 1] of var int: resources;
+
+% Constraints
+
+% Init
+constraint predicates[0, 0];
+constraint not predicates[0, 1];
+constraint not predicates[0, 2];
+constraint not predicates[0, 3];
+constraint not predicates[0, 4];
+constraint resources[0, 0] = 0;
+
+% Goal
+constraint predicates[t, 3];
+constraint predicates[t, 4];
+constraint resources[t, 0] = 100;
+
+% Preconditions
+constraint forall (i in 0..t - 1) (actions[i, 0] -&gt; predicates[i, 0]);
+constraint forall (i in 0..t - 1) (actions[i, 1] -&gt; predicates[i, 1]);
+constraint forall (i in 0..t - 1) (actions[i, 2] -&gt; predicates[i, 0]);
+constraint forall (i in 0..t - 1) (actions[i, 3] -&gt; predicates[i, 2]);
+
+% Succesor state
+constraint forall (i in 1..t) (predicates[i, 0] &lt;-&gt; predicates[i - 1, 0]
+/\ not actions[i - 1, 0] /\ not actions[i - 1, 2]);
+constraint forall (i in 1..t) (predicates[i, 1] &lt;-&gt; actions[i - 1, 0] \/
+(predicates[i - 1, 1] /\ not actions[i - 1, 1]));
+constraint forall (i in 1..t) (predicates[i, 2] &lt;-&gt; actions[i - 1, 1] \/
+actions[i - 1, 2] \/ (predicates[i - 1, 2] /\ not actions[i - 1, 3]));
+constraint forall (i in 1..t) (predicates[i, 3] &lt;-&gt; actions[i - 1, 3] \/
+predicates[i - 1, 3]);
+constraint forall (i in 1..t) (predicates[i, 4] &lt;-&gt; actions[i - 1, 4] \/
+predicates[i - 1, 4]);
+constraint forall (i in 1..t) ((resources[i, 0] = resources[i - 1, 0])
+\/ ((resources[i, 0] = resources[i - 1, 0] + 100) /\ actions[i - 1, 5]));
+
+% Incompatible predicates
+constraint forall (i in 0..t) (bool2int(predicates[i, 0]) +
+bool2int(predicates[i, 1]) + bool2int(predicates[i, 2]) +
+bool2int(predicates[i, 3]) &lt; 2);
+
+% Solution
+solve satisfy;
+
+% Output
+output
+  [ show(predicates[i,j]) ++ &quot; &quot; ++ if j == num_preds - 1 then &quot;\n&quot; else
+&quot; &quot; endif | i in 0..t, j in 0..num_preds - 1] ++
+  [&quot;\n&quot;] ++
+  [ show(resources[i,j]) ++ &quot; &quot; ++ if j == num_resc - 1 then &quot;\n&quot; else &quot;
+&quot; endif | i in 0..t, j in 0..num_resc - 1] ++
+  [&quot;\n&quot;] ++
+  [ show(actions[i,j]) ++ if j == num_actions - 1 then &quot;\n&quot; else &quot; &quot;
+endif | i in 0..t - 1, j in 0..num_actions - 1];
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003108">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Thu Jan 13 15:16:44 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Your model specifies that the values for resources could be anything (in
+Gecode, that is approximately from -2 billion to +2 billion). Any negative
+value for resources leads to a failure, but that is not detected until it is
+tried since your model uses reified constraints. It is very important to
+always think about the size of your initial domain.
+
+The crash you see is simply when your computer has run out of memory for the
+search-tree you are generating. Try a few variants with the minimum value
+for resources being 0, -10, -100, -1000 and run it in Gist (fz - mode gist)
+to see the resulting search tree.
+
+Cheers,
+Mikael
+
+2011/1/13 Lucie Ku&#269;erov&#225; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">lucie.kucerova at mensa.cz</A>&gt;
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I've created a simple MiniZinc model describing a planning domain &amp;
+</I>&gt;<i> problem. The issue is that although MiniZinc itself solves it instantly,
+</I>&gt;<i> when I use Gecode's fz.exe on the generated FlatZinc model, the program
+</I>&gt;<i> computes for a while and then crashes.
+</I>&gt;<i>
+</I>&gt;<i> The MiniZinc model in question is attached below. The only problematic
+</I>&gt;<i> constraint is the last one from the succesor state constraints, without
+</I>&gt;<i> it all works OK. Any ideas what is causing the issue?
+</I>&gt;<i>
+</I>&gt;<i> Thank you in advance
+</I>&gt;<i> Lucie Kucerova
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> % Constants
+</I>&gt;<i> int: t = 2;
+</I>&gt;<i> int: num_preds = 5;
+</I>&gt;<i> int: num_actions = 6;
+</I>&gt;<i> int: num_resc = 1;
+</I>&gt;<i>
+</I>&gt;<i> % Variables
+</I>&gt;<i> array[0..t, 0..num_preds - 1] of var bool: predicates;
+</I>&gt;<i> array[0..t - 1, 0..num_actions - 1] of var bool: actions;
+</I>&gt;<i> array[0..t, 0..num_resc - 1] of var int: resources;
+</I>&gt;<i>
+</I>&gt;<i> % Constraints
+</I>&gt;<i>
+</I>&gt;<i> % Init
+</I>&gt;<i> constraint predicates[0, 0];
+</I>&gt;<i> constraint not predicates[0, 1];
+</I>&gt;<i> constraint not predicates[0, 2];
+</I>&gt;<i> constraint not predicates[0, 3];
+</I>&gt;<i> constraint not predicates[0, 4];
+</I>&gt;<i> constraint resources[0, 0] = 0;
+</I>&gt;<i>
+</I>&gt;<i> % Goal
+</I>&gt;<i> constraint predicates[t, 3];
+</I>&gt;<i> constraint predicates[t, 4];
+</I>&gt;<i> constraint resources[t, 0] = 100;
+</I>&gt;<i>
+</I>&gt;<i> % Preconditions
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 0] -&gt; predicates[i, 0]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 1] -&gt; predicates[i, 1]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 2] -&gt; predicates[i, 0]);
+</I>&gt;<i> constraint forall (i in 0..t - 1) (actions[i, 3] -&gt; predicates[i, 2]);
+</I>&gt;<i>
+</I>&gt;<i> % Succesor state
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 0] &lt;-&gt; predicates[i - 1, 0]
+</I>&gt;<i> /\ not actions[i - 1, 0] /\ not actions[i - 1, 2]);
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 1] &lt;-&gt; actions[i - 1, 0] \/
+</I>&gt;<i> (predicates[i - 1, 1] /\ not actions[i - 1, 1]));
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 2] &lt;-&gt; actions[i - 1, 1] \/
+</I>&gt;<i> actions[i - 1, 2] \/ (predicates[i - 1, 2] /\ not actions[i - 1, 3]));
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 3] &lt;-&gt; actions[i - 1, 3] \/
+</I>&gt;<i> predicates[i - 1, 3]);
+</I>&gt;<i> constraint forall (i in 1..t) (predicates[i, 4] &lt;-&gt; actions[i - 1, 4] \/
+</I>&gt;<i> predicates[i - 1, 4]);
+</I>&gt;<i> constraint forall (i in 1..t) ((resources[i, 0] = resources[i - 1, 0])
+</I>&gt;<i> \/ ((resources[i, 0] = resources[i - 1, 0] + 100) /\ actions[i - 1, 5]));
+</I>&gt;<i>
+</I>&gt;<i> % Incompatible predicates
+</I>&gt;<i> constraint forall (i in 0..t) (bool2int(predicates[i, 0]) +
+</I>&gt;<i> bool2int(predicates[i, 1]) + bool2int(predicates[i, 2]) +
+</I>&gt;<i> bool2int(predicates[i, 3]) &lt; 2);
+</I>&gt;<i>
+</I>&gt;<i> % Solution
+</I>&gt;<i> solve satisfy;
+</I>&gt;<i>
+</I>&gt;<i> % Output
+</I>&gt;<i> output
+</I>&gt;<i>  [ show(predicates[i,j]) ++ &quot; &quot; ++ if j == num_preds - 1 then &quot;\n&quot; else
+</I>&gt;<i> &quot; &quot; endif | i in 0..t, j in 0..num_preds - 1] ++
+</I>&gt;<i>  [&quot;\n&quot;] ++
+</I>&gt;<i>  [ show(resources[i,j]) ++ &quot; &quot; ++ if j == num_resc - 1 then &quot;\n&quot; else &quot;
+</I>&gt;<i> &quot; endif | i in 0..t, j in 0..num_resc - 1] ++
+</I>&gt;<i>  [&quot;\n&quot;] ++
+</I>&gt;<i>  [ show(actions[i,j]) ++ if j == num_actions - 1 then &quot;\n&quot; else &quot; &quot;
+</I>&gt;<i> endif | i in 0..t - 1, j in 0..num_actions - 1];
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110113/13e56eeb/attachment.html">http://www.gecode.org/pipermail/users/attachments/20110113/13e56eeb/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003109">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Lucie Ku&amp;#269;erov&amp;#225;</h2></div>
+          <p><time>Thu Jan 13 15:29:26 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I thought it would be this sort of a newbie problem... Thank you very
+much for the quick response!
+
+Lucie
+
+
+Dne 13.1.2011 15:16, Mikael Zayenz Lagerkvist napsal(a):
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> Your model specifies that the values for resources could be anything (in
+</I>&gt;<i> Gecode, that is approximately from -2 billion to +2 billion). Any
+</I>&gt;<i> negative value for resources leads to a failure, but that is not
+</I>&gt;<i> detected until it is tried since your model uses reified constraints. It
+</I>&gt;<i> is very important to always think about the size of your initial domain.
+</I>&gt;<i>
+</I>&gt;<i> The crash you see is simply when your computer has run out of memory for
+</I>&gt;<i> the search-tree you are generating. Try a few variants with the minimum
+</I>&gt;<i> value for resources being 0, -10, -100, -1000 and run it in Gist (fz -
+</I>&gt;<i> mode gist) to see the resulting search tree.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> Mikael
+</I>&gt;<i>
+</I>&gt;<i> 2011/1/13 Lucie Ku&#269;erov&#225; &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">lucie.kucerova at mensa.cz</A>
+</I>&gt;<i> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">lucie.kucerova at mensa.cz</A>&gt;&gt;
+</I>&gt;<i>
+</I>&gt;<i>     Hello,
+</I>&gt;<i>
+</I>&gt;<i>     I've created a simple MiniZinc model describing a planning domain &amp;
+</I>&gt;<i>     problem. The issue is that although MiniZinc itself solves it instantly,
+</I>&gt;<i>     when I use Gecode's fz.exe on the generated FlatZinc model, the program
+</I>&gt;<i>     computes for a while and then crashes.
+</I>&gt;<i>
+</I>&gt;<i>     The MiniZinc model in question is attached below. The only problematic
+</I>&gt;<i>     constraint is the last one from the succesor state constraints, without
+</I>&gt;<i>     it all works OK. Any ideas what is causing the issue?
+</I>&gt;<i>
+</I>&gt;<i>     Thank you in advance
+</I>&gt;<i>     Lucie Kucerova
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>     % Constants
+</I>&gt;<i>     int: t = 2;
+</I>&gt;<i>     int: num_preds = 5;
+</I>&gt;<i>     int: num_actions = 6;
+</I>&gt;<i>     int: num_resc = 1;
+</I>&gt;<i>
+</I>&gt;<i>     % Variables
+</I>&gt;<i>     array[0..t, 0..num_preds - 1] of var bool: predicates;
+</I>&gt;<i>     array[0..t - 1, 0..num_actions - 1] of var bool: actions;
+</I>&gt;<i>     array[0..t, 0..num_resc - 1] of var int: resources;
+</I>&gt;<i>
+</I>&gt;<i>     % Constraints
+</I>&gt;<i>
+</I>&gt;<i>     % Init
+</I>&gt;<i>     constraint predicates[0, 0];
+</I>&gt;<i>     constraint not predicates[0, 1];
+</I>&gt;<i>     constraint not predicates[0, 2];
+</I>&gt;<i>     constraint not predicates[0, 3];
+</I>&gt;<i>     constraint not predicates[0, 4];
+</I>&gt;<i>     constraint resources[0, 0] = 0;
+</I>&gt;<i>
+</I>&gt;<i>     % Goal
+</I>&gt;<i>     constraint predicates[t, 3];
+</I>&gt;<i>     constraint predicates[t, 4];
+</I>&gt;<i>     constraint resources[t, 0] = 100;
+</I>&gt;<i>
+</I>&gt;<i>     % Preconditions
+</I>&gt;<i>     constraint forall (i in 0..t - 1) (actions[i, 0] -&gt; predicates[i, 0]);
+</I>&gt;<i>     constraint forall (i in 0..t - 1) (actions[i, 1] -&gt; predicates[i, 1]);
+</I>&gt;<i>     constraint forall (i in 0..t - 1) (actions[i, 2] -&gt; predicates[i, 0]);
+</I>&gt;<i>     constraint forall (i in 0..t - 1) (actions[i, 3] -&gt; predicates[i, 2]);
+</I>&gt;<i>
+</I>&gt;<i>     % Succesor state
+</I>&gt;<i>     constraint forall (i in 1..t) (predicates[i, 0] &lt;-&gt; predicates[i - 1, 0]
+</I>&gt;<i>     /\ not actions[i - 1, 0] /\ not actions[i - 1, 2]);
+</I>&gt;<i>     constraint forall (i in 1..t) (predicates[i, 1] &lt;-&gt; actions[i - 1, 0] \/
+</I>&gt;<i>     (predicates[i - 1, 1] /\ not actions[i - 1, 1]));
+</I>&gt;<i>     constraint forall (i in 1..t) (predicates[i, 2] &lt;-&gt; actions[i - 1, 1] \/
+</I>&gt;<i>     actions[i - 1, 2] \/ (predicates[i - 1, 2] /\ not actions[i - 1, 3]));
+</I>&gt;<i>     constraint forall (i in 1..t) (predicates[i, 3] &lt;-&gt; actions[i - 1, 3] \/
+</I>&gt;<i>     predicates[i - 1, 3]);
+</I>&gt;<i>     constraint forall (i in 1..t) (predicates[i, 4] &lt;-&gt; actions[i - 1, 4] \/
+</I>&gt;<i>     predicates[i - 1, 4]);
+</I>&gt;<i>     constraint forall (i in 1..t) ((resources[i, 0] = resources[i - 1, 0])
+</I>&gt;<i>     \/ ((resources[i, 0] = resources[i - 1, 0] + 100) /\ actions[i - 1,
+</I>&gt;<i>     5]));
+</I>&gt;<i>
+</I>&gt;<i>     % Incompatible predicates
+</I>&gt;<i>     constraint forall (i in 0..t) (bool2int(predicates[i, 0]) +
+</I>&gt;<i>     bool2int(predicates[i, 1]) + bool2int(predicates[i, 2]) +
+</I>&gt;<i>     bool2int(predicates[i, 3]) &lt; 2);
+</I>&gt;<i>
+</I>&gt;<i>     % Solution
+</I>&gt;<i>     solve satisfy;
+</I>&gt;<i>
+</I>&gt;<i>     % Output
+</I>&gt;<i>     output
+</I>&gt;<i>      [ show(predicates[i,j]) ++ &quot; &quot; ++ if j == num_preds - 1 then &quot;\n&quot; else
+</I>&gt;<i>     &quot; &quot; endif | i in 0..t, j in 0..num_preds - 1] ++
+</I>&gt;<i>      [&quot;\n&quot;] ++
+</I>&gt;<i>      [ show(resources[i,j]) ++ &quot; &quot; ++ if j == num_resc - 1 then &quot;\n&quot; else &quot;
+</I>&gt;<i>     &quot; endif | i in 0..t, j in 0..num_resc - 1] ++
+</I>&gt;<i>      [&quot;\n&quot;] ++
+</I>&gt;<i>      [ show(actions[i,j]) ++ if j == num_actions - 1 then &quot;\n&quot; else &quot; &quot;
+</I>&gt;<i>     endif | i in 0..t - 1, j in 0..num_actions - 1];
+</I>&gt;<i>
+</I>&gt;<i>     _______________________________________________
+</I>&gt;<i>     Gecode users mailing list
+</I>&gt;<i>     <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A> &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;<i>     <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+</I>&gt;<i>
+</I>&gt;<i> ------------------------------------------------------------------------
+</I>&gt;<i> ------------------------------------------------------------------------
+</I>&gt;<i>
+</I>&gt;<i> Zpr&#225;va neobsahuje viry.
+</I>&gt;<i> Zkontrolov&#225;no AVG - www.avg.cz &lt;<A HREF="http://www.avg.cz">http://www.avg.cz</A>&gt;
+</I>&gt;<i> Verze: 10.0.1191 / Virov&#225; b&#225;ze: 1435/3376 - Datum vyd&#225;n&#237;: 12.1.2011
+</I>&gt;<i>
+</I>
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003110">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Alexander Kleff</h2></div>
+          <p><time>Fri Jan 14 15:52:17 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi everyone!
+According to the last sentence in the last mail under &quot;Linking to Gecode with Microsoft Visual C++&quot; you wait until somebody complains about the absence of a manifest.
+Well, I had some trouble loading Gecode libraries as I ran into the Microsoft runtime error R6034 which is &quot;An application has made an attempt to load the C runtime library without using a manifest.&quot; Since Gecode doesn't come with a manifest, I added a &lt;dependency&gt; statement for the needed runtime to the manifest of the calling application manually. So now it loads but it seems to me that it would be &quot;cleaner&quot; to have this in Gecode. Do you agree? Or am I mislead?
+For the sake of completeness, I'm currently migrating to Visual Studio 2010 under Win7. By the way, the calling application is written in C#.
+Best regards,
+Alexander
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110114/225d2ecd/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110114/225d2ecd/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003111">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Jan 14 16:00:57 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+
+
+Actually I have to admit that (as you found out) we have to tried to ignore
+this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and
+require different things regarding manifests.
+
+
+
+Okay, the first user has complained: we are going to look into it in one of
+the next (if not the next) releases. Could I get back to you as a possible
+tester of what we might do?
+
+
+
+Thanks for letting us know.
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi everyone!
+
+According to the last sentence in the last mail under &quot;Linking to Gecode
+with Microsoft Visual C++&quot; you wait until somebody complains about the
+absence of a manifest.
+
+Well, I had some trouble loading Gecode libraries as I ran into the
+Microsoft runtime error R6034 which is &quot;An application has made an attempt
+to load the C runtime library without using a manifest.&quot; Since Gecode
+doesn't come with a manifest, I added a &lt;dependency&gt; statement for the
+needed runtime to the manifest of the calling application manually. So now
+it loads but it seems to me that it would be &quot;cleaner&quot; to have this in
+Gecode. Do you agree? Or am I mislead?
+
+For the sake of completeness, I'm currently migrating to Visual Studio 2010
+under Win7. By the way, the calling application is written in C#.
+
+Best regards,
+
+Alexander
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110114/8d59ed72/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110114/8d59ed72/attachment.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003119">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jan 18 11:42:33 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Alexander,
+
+
+
+I just build dlls for Gecode 3.4.2 with manifests embedded. Could you please
+try whether this solves your problem?
+
+
+
+An archive with just the dlls, pdbs, and libs can be found here (they are
+actually build from the trunk but should work):
+
+                <A HREF="http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z">http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z</A>
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Friday, January 14, 2011 4:01 PM
+To: 'Alexander Kleff'; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+Actually I have to admit that (as you found out) we have to tried to ignore
+this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and
+require different things regarding manifests.
+
+
+
+Okay, the first user has complained: we are going to look into it in one of
+the next (if not the next) releases. Could I get back to you as a possible
+tester of what we might do?
+
+
+
+Thanks for letting us know.
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi everyone!
+
+According to the last sentence in the last mail under &quot;Linking to Gecode
+with Microsoft Visual C++&quot; you wait until somebody complains about the
+absence of a manifest.
+
+Well, I had some trouble loading Gecode libraries as I ran into the
+Microsoft runtime error R6034 which is &quot;An application has made an attempt
+to load the C runtime library without using a manifest.&quot; Since Gecode
+doesn't come with a manifest, I added a &lt;dependency&gt; statement for the
+needed runtime to the manifest of the calling application manually. So now
+it loads but it seems to me that it would be &quot;cleaner&quot; to have this in
+Gecode. Do you agree? Or am I mislead?
+
+For the sake of completeness, I'm currently migrating to Visual Studio 2010
+under Win7. By the way, the calling application is written in C#.
+
+Best regards,
+
+Alexander
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110118/917d4c88/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110118/917d4c88/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003120">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Alexander Kleff</h2></div>
+          <p><time>Tue Jan 18 14:19:53 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+indeed, with these dlls I do not need to change anything in my test application to make it run (didn't try it in the actual application). So for now, I'm fine. Thanks.
+Do you intend to provide x64 and debug binaries as well?
+Would be nice.
+
+Best regards,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&gt;
+Gesendet: Dienstag, 18. Januar 2011 11:43
+An: 'Christian Schulte'; Alexander Kleff; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Betreff: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi Alexander,
+
+I just build dlls for Gecode 3.4.2 with manifests embedded. Could you please try whether this solves your problem?
+
+An archive with just the dlls, pdbs, and libs can be found here (they are actually build from the trunk but should work):
+                <A HREF="http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z">http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z</A>
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/&lt;<A HREF="http://www.ict.kth.se/~cschulte/">http://www.ict.kth.se/~cschulte/</A>&gt;
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&gt;
+Sent: Friday, January 14, 2011 4:01 PM
+To: 'Alexander Kleff'; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi,
+
+Actually I have to admit that (as you found out) we have to tried to ignore this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and require different things regarding manifests.
+
+Okay, the first user has complained: we are going to look into it in one of the next (if not the next) releases. Could I get back to you as a possible tester of what we might do?
+
+Thanks for letting us know.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/&lt;<A HREF="http://www.ict.kth.se/~cschulte/">http://www.ict.kth.se/~cschulte/</A>&gt;
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]&gt; On Behalf Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi everyone!
+According to the last sentence in the last mail under &quot;Linking to Gecode with Microsoft Visual C++&quot; you wait until somebody complains about the absence of a manifest.
+Well, I had some trouble loading Gecode libraries as I ran into the Microsoft runtime error R6034 which is &quot;An application has made an attempt to load the C runtime library without using a manifest.&quot; Since Gecode doesn't come with a manifest, I added a &lt;dependency&gt; statement for the needed runtime to the manifest of the calling application manually. So now it loads but it seems to me that it would be &quot;cleaner&quot; to have this in Gecode. Do you agree? Or am I mislead?
+For the sake of completeness, I'm currently migrating to Visual Studio 2010 under Win7. By the way, the calling application is written in C#.
+Best regards,
+Alexander
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110118/d12bb635/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110118/d12bb635/attachment.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003121">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Joe Porter</h2></div>
+          <p><time>Tue Jan 18 14:20:53 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Let me be the second user to complain, then.  I built two very similar
+applications against Gecode 3.4.2 (VS 2010 and Win 7).  One worked fine, and
+the other couldn't find the C runtime.  We compared the project settings
+between the two, and found that the first was actually picking up the C
+runtime from another library in the project just by luck.  Stealing the
+manifest from the working binary and adding it to the second binary caused
+the second to work as well.  Obviously that's not the ideal solution long
+term, and really only worked because the dependencies were fairly simple in
+both cases.
+
+-Joe Porter
+ISIS, Vanderbilt University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110118/5e2ac662/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110118/5e2ac662/attachment.htm</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003122">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jan 18 14:24:40 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>If you really insist I could back port the fix to 3.4.2 and release new MSIs
+for windows. Or could you wait for the next release?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Tuesday, January 18, 2011 2:20 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+indeed, with these dlls I do not need to change anything in my test
+application to make it run (didn't try it in the actual application). So for
+now, I'm fine. Thanks.
+
+Do you intend to provide x64 and debug binaries as well?
+
+Would be nice.
+
+
+
+Best regards,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Dienstag, 18. Januar 2011 11:43
+An: 'Christian Schulte'; Alexander Kleff;  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi Alexander,
+
+
+
+I just build dlls for Gecode 3.4.2 with manifests embedded. Could you please
+try whether this solves your problem?
+
+
+
+An archive with just the dlls, pdbs, and libs can be found here (they are
+actually build from the trunk but should work):
+
+                <A HREF="http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z">http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z</A>
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Friday, January 14, 2011 4:01 PM
+To: 'Alexander Kleff'; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+Actually I have to admit that (as you found out) we have to tried to ignore
+this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and
+require different things regarding manifests.
+
+
+
+Okay, the first user has complained: we are going to look into it in one of
+the next (if not the next) releases. Could I get back to you as a possible
+tester of what we might do?
+
+
+
+Thanks for letting us know.
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi everyone!
+
+According to the last sentence in the last mail under &quot;Linking to Gecode
+with Microsoft Visual C++&quot; you wait until somebody complains about the
+absence of a manifest.
+
+Well, I had some trouble loading Gecode libraries as I ran into the
+Microsoft runtime error R6034 which is &quot;An application has made an attempt
+to load the C runtime library without using a manifest.&quot; Since Gecode
+doesn't come with a manifest, I added a &lt;dependency&gt; statement for the
+needed runtime to the manifest of the calling application manually. So now
+it loads but it seems to me that it would be &quot;cleaner&quot; to have this in
+Gecode. Do you agree? Or am I mislead?
+
+For the sake of completeness, I'm currently migrating to Visual Studio 2010
+under Win7. By the way, the calling application is written in C#.
+
+Best regards,
+
+Alexander
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110118/22741a1c/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110118/22741a1c/attachment-0001.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-003123">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jan 18 20:40:53 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>How about releasing a new version within a week. Would be in fact less work
+than backporting and some more bug fixes would get out.
+
+
+
+Deal?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Tuesday, January 18, 2011 7:02 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: AW: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+At least I need some fix now, so either your back port or my workaround. To
+back port would be very kind of you as the workaround is a bit involved
+because the manifest is created automatically and has to be edited by hand
+afterwards (or possibly by a script in the future).
+
+I don't know how much inconvenience it causes to you to back port but it
+would help me very much.
+
+
+
+Best regards,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Dienstag, 18. Januar 2011 14:25
+An: Alexander Kleff; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+If you really insist I could back port the fix to 3.4.2 and release new MSIs
+for windows. Or could you wait for the next release?
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Tuesday, January 18, 2011 2:20 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+indeed, with these dlls I do not need to change anything in my test
+application to make it run (didn't try it in the actual application). So for
+now, I'm fine. Thanks.
+
+Do you intend to provide x64 and debug binaries as well?
+
+Would be nice.
+
+
+
+Best regards,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Dienstag, 18. Januar 2011 11:43
+An: 'Christian Schulte'; Alexander Kleff;  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi Alexander,
+
+
+
+I just build dlls for Gecode 3.4.2 with manifests embedded. Could you please
+try whether this solves your problem?
+
+
+
+An archive with just the dlls, pdbs, and libs can be found here (they are
+actually build from the trunk but should work):
+
+                <A HREF="http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z">http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z</A>
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Sent: Friday, January 14, 2011 4:01 PM
+To: 'Alexander Kleff'; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi,
+
+
+
+Actually I have to admit that (as you found out) we have to tried to ignore
+this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and
+require different things regarding manifests.
+
+
+
+Okay, the first user has complained: we are going to look into it in one of
+the next (if not the next) releases. Could I get back to you as a possible
+tester of what we might do?
+
+
+
+Thanks for letting us know.
+
+
+
+Best
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Loading the C runtime library without using a
+manifest
+
+
+
+Hi everyone!
+
+According to the last sentence in the last mail under &quot;Linking to Gecode
+with Microsoft Visual C++&quot; you wait until somebody complains about the
+absence of a manifest.
+
+Well, I had some trouble loading Gecode libraries as I ran into the
+Microsoft runtime error R6034 which is &quot;An application has made an attempt
+to load the C runtime library without using a manifest.&quot; Since Gecode
+doesn't come with a manifest, I added a &lt;dependency&gt; statement for the
+needed runtime to the manifest of the calling application manually. So now
+it loads but it seems to me that it would be &quot;cleaner&quot; to have this in
+Gecode. Do you agree? Or am I mislead?
+
+For the sake of completeness, I'm currently migrating to Visual Studio 2010
+under Win7. By the way, the calling application is written in C#.
+
+Best regards,
+
+Alexander
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110118/2fe43f43/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110118/2fe43f43/attachment.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003124">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Alexander Kleff</h2></div>
+          <p><time>Wed Jan 19 08:38:36 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Yeah,
+
+that would be great, I didn't know a new release was coming so soon.
+Thanks a lot.
+
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Dienstag, 18. Januar 2011 20:41
+An: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+How about releasing a new version within a week. Would be in fact less work than backporting and some more bug fixes would get out.
+
+Deal?
+
+Christian
+
+--
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Tuesday, January 18, 2011 7:02 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Subject: AW: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi,
+
+At least I need some fix now, so either your back port or my workaround. To back port would be very kind of you as the workaround is a bit involved because the manifest is created automatically and has to be edited by hand afterwards (or possibly by a script in the future).
+I don't know how much inconvenience it causes to you to back port but it would help me very much.
+
+Best regards,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Dienstag, 18. Januar 2011 14:25
+An: Alexander Kleff; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+If you really insist I could back port the fix to 3.4.2 and release new MSIs for windows. Or could you wait for the next release?
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Tuesday, January 18, 2011 2:20 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi,
+
+indeed, with these dlls I do not need to change anything in my test application to make it run (didn't try it in the actual application). So for now, I'm fine. Thanks.
+Do you intend to provide x64 and debug binaries as well?
+Would be nice.
+
+Best regards,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&gt;
+Gesendet: Dienstag, 18. Januar 2011 11:43
+An: 'Christian Schulte'; Alexander Kleff; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Betreff: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi Alexander,
+
+I just build dlls for Gecode 3.4.2 with manifests embedded. Could you please try whether this solves your problem?
+
+An archive with just the dlls, pdbs, and libs can be found here (they are actually build from the trunk but should work):
+                <A HREF="http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z">http://dl.dropbox.com/u/5119459/Gecode-3.4.2-manifest-dll.7z</A>
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/&lt;<A HREF="http://www.ict.kth.se/~cschulte/">http://www.ict.kth.se/~cschulte/</A>&gt;
+
+From: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]&gt;
+Sent: Friday, January 14, 2011 4:01 PM
+To: 'Alexander Kleff'; '<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>'
+Subject: RE: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi,
+
+Actually I have to admit that (as you found out) we have to tried to ignore this as much as possible, in particular as MSVC 2008 and MSVC 2010 do and require different things regarding manifests.
+
+Okay, the first user has complained: we are going to look into it in one of the next (if not the next) releases. Could I get back to you as a possible tester of what we might do?
+
+Thanks for letting us know.
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/&lt;<A HREF="http://www.ict.kth.se/~cschulte/">http://www.ict.kth.se/~cschulte/</A>&gt;
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>&gt; [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]&lt;mailto:[mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>]&gt; On Behalf Of Alexander Kleff
+Sent: Friday, January 14, 2011 3:52 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+Subject: [gecode-users] Loading the C runtime library without using a manifest
+
+Hi everyone!
+According to the last sentence in the last mail under &quot;Linking to Gecode with Microsoft Visual C++&quot; you wait until somebody complains about the absence of a manifest.
+Well, I had some trouble loading Gecode libraries as I ran into the Microsoft runtime error R6034 which is &quot;An application has made an attempt to load the C runtime library without using a manifest.&quot; Since Gecode doesn't come with a manifest, I added a &lt;dependency&gt; statement for the needed runtime to the manifest of the calling application manually. So now it loads but it seems to me that it would be &quot;cleaner&quot; to have this in Gecode. Do you agree? Or am I mislead?
+For the sake of completeness, I'm currently migrating to Visual Studio 2010 under Win7. By the way, the calling application is written in C#.
+Best regards,
+Alexander
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110119/3761185c/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110119/3761185c/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003125">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Alexander Kleff</h2></div>
+          <p><time>Wed Jan 19 18:27:11 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi once again,
+
+the code below compiles and links in both versions (so I assume I did not make an all too obvious modeling mistake) but it crashes in VS2010 in contrast to VS2008(Express).
+The error seems to occur during the destruction of the linear expression. The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all three cases.
+Can you reproduce it?
+
+Thanks for help,
+Alexander
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class GecodeTest : public Space {
+public:
+  GecodeTest(void)
+  {
+   IntVar z(*this, 0, 1);
+
+   IntVar e1 = expr(*this, 1 * z);
+   IntVar e2 = expr(*this, z);      // error 1
+
+   IntArgs cost(2);
+   for (int v=0; v&lt;2; ++v)
+   {
+      cost[v] = v;
+   }
+
+   LinExpr xy = element(cost, z);
+   IntVar e3 = expr(*this, xy);
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+  } // error 3 (in destructor)
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+};
+
+
+// main function
+int main(array&lt;System::String ^&gt; ^args)
+{
+  GecodeTest* m = new GecodeTest;
+  delete m;
+  return 0;
+}
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110119/a97507da/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110119/a97507da/attachment.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003127">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Wed Jan 19 20:46:06 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+You seem to be using managed C++. Have you tried running your program with
+standard C++? The different memory policy might be a source of problems.
+
+I don't have a Windows machine to test on, so I haven't tried your program
+myself.
+
+Cheers,
+Mikael
+
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;
+
+&gt;<i> Hi once again,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> the code below compiles and links in both versions (so I assume I did not
+</I>&gt;<i> make an all too obvious modeling mistake) but it crashes in VS2010 in
+</I>&gt;<i> contrast to VS2008(Express).
+</I>&gt;<i>
+</I>&gt;<i> The error seems to occur during the destruction of the linear expression.
+</I>&gt;<i> The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all
+</I>&gt;<i> three cases.
+</I>&gt;<i>
+</I>&gt;<i> Can you reproduce it?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thanks for help,
+</I>&gt;<i>
+</I>&gt;<i> Alexander
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> #include &lt;gecode/minimodel.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> class GecodeTest : public Space {
+</I>&gt;<i>
+</I>&gt;<i> public:
+</I>&gt;<i>
+</I>&gt;<i>   GecodeTest(void)
+</I>&gt;<i>
+</I>&gt;<i>   {
+</I>&gt;<i>
+</I>&gt;<i>    IntVar z(*this, 0, 1);
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>    IntVar e1 = expr(*this, 1 * z);
+</I>&gt;<i>
+</I>&gt;<i>    IntVar e2 = expr(*this, z);      // error 1
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>    IntArgs cost(2);
+</I>&gt;<i>
+</I>&gt;<i>    for (int v=0; v&lt;2; ++v)
+</I>&gt;<i>
+</I>&gt;<i>    {
+</I>&gt;<i>
+</I>&gt;<i>       cost[v] = v;
+</I>&gt;<i>
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>    LinExpr xy = element(cost, z);
+</I>&gt;<i>
+</I>&gt;<i>    IntVar e3 = expr(*this, xy);
+</I>&gt;<i>
+</I>&gt;<i>    IntVar e4 = expr(*this, element(cost, z));   // error 2
+</I>&gt;<i>
+</I>&gt;<i>   } // error 3 (in destructor)
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>   GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+</I>&gt;<i>
+</I>&gt;<i>   virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+</I>&gt;<i>
+</I>&gt;<i> };
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> // main function
+</I>&gt;<i>
+</I>&gt;<i> int main(array&lt;System::String ^&gt; ^args)
+</I>&gt;<i>
+</I>&gt;<i> {
+</I>&gt;<i>
+</I>&gt;<i>   GecodeTest* m = new GecodeTest;
+</I>&gt;<i>
+</I>&gt;<i>   delete m;
+</I>&gt;<i>
+</I>&gt;<i>   return 0;
+</I>&gt;<i>
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110119/b296b198/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110119/b296b198/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003128">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jan 20 09:02:44 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Please,
+
+
+
+also let us know which platform (x86 versus x64) and whether you use the
+binaries we distribute or have build them yourselves (then we need to know
+whether you built with 2008 or 2010)
+
+
+
+Thanks
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+You seem to be using managed C++. Have you tried running your program with
+standard C++? The different memory policy might be a source of problems.
+
+
+
+I don't have a Windows machine to test on, so I haven't tried your program
+myself.
+
+
+
+Cheers,
+
+Mikael
+
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;
+
+Hi once again,
+
+
+
+the code below compiles and links in both versions (so I assume I did not
+make an all too obvious modeling mistake) but it crashes in VS2010 in
+contrast to VS2008(Express).
+
+The error seems to occur during the destruction of the linear expression.
+The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all
+three cases.
+
+Can you reproduce it?
+
+
+
+Thanks for help,
+
+Alexander
+
+
+
+
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+
+
+using namespace Gecode;
+
+
+
+class GecodeTest : public Space {
+
+public:
+
+  GecodeTest(void)
+
+  {
+
+   IntVar z(*this, 0, 1);
+
+
+
+   IntVar e1 = expr(*this, 1 * z);
+
+   IntVar e2 = expr(*this, z);      // error 1
+
+
+
+   IntArgs cost(2);
+
+   for (int v=0; v&lt;2; ++v)
+
+   {
+
+      cost[v] = v;
+
+   }
+
+
+
+   LinExpr xy = element(cost, z);
+
+   IntVar e3 = expr(*this, xy);
+
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+
+  } // error 3 (in destructor)
+
+
+
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+
+};
+
+
+
+
+
+// main function
+
+int main(array&lt;System::String ^&gt; ^args)
+
+{
+
+  GecodeTest* m = new GecodeTest;
+
+  delete m;
+
+  return 0;
+
+}
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/3c42dcb3/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110120/3c42dcb3/attachment.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003129">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Alexander Kleff</h2></div>
+          <p><time>Thu Jan 20 10:42:58 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I made another project (currently for x86 platform) to make sure it is unmanaged. Unfortunately, the problem still arises, although I cannot see anything suspicious. Any other idea?
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and msvcr100d.dll are currently loaded.
+
+Thanks for any suggestion,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Please,
+
+also let us know which platform (x86 versus x64) and whether you use the binaries we distribute or have build them yourselves (then we need to know whether you built with 2008 or 2010)
+
+Thanks
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+You seem to be using managed C++. Have you tried running your program with standard C++? The different memory policy might be a source of problems.
+
+I don't have a Windows machine to test on, so I haven't tried your program myself.
+
+Cheers,
+Mikael
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;&gt;
+Hi once again,
+
+the code below compiles and links in both versions (so I assume I did not make an all too obvious modeling mistake) but it crashes in VS2010 in contrast to VS2008(Express).
+The error seems to occur during the destruction of the linear expression. The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all three cases.
+Can you reproduce it?
+
+Thanks for help,
+Alexander
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class GecodeTest : public Space {
+public:
+  GecodeTest(void)
+  {
+   IntVar z(*this, 0, 1);
+
+   IntVar e1 = expr(*this, 1 * z);
+   IntVar e2 = expr(*this, z);      // error 1
+
+   IntArgs cost(2);
+   for (int v=0; v&lt;2; ++v)
+   {
+      cost[v] = v;
+   }
+
+   LinExpr xy = element(cost, z);
+   IntVar e3 = expr(*this, xy);
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+  } // error 3 (in destructor)
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+};
+
+
+// main function
+int main(array&lt;System::String ^&gt; ^args)
+{
+  GecodeTest* m = new GecodeTest;
+  delete m;
+  return 0;
+}
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/3b06b13a/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110120/3b06b13a/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003130">
+        <header class="archive-thread-message-heading">
+          <div><span>16</span><h2>Alexander Kleff</h2></div>
+          <p><time>Thu Jan 20 12:15:04 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+after some research I came to the following conclusion:
+Due to inlining, the memory of the node in LinExpr will be allocated by msvcr100d.dll, whilst at least the destructor of LinExpr is not inlined. The memory of the node will therefore be freed by msvcr90d.dll. This will not work.
+As I see it, there is no other way for me than to have Gecode bound to msvcr100d.dll. Can you help me out by making your VS2008 project files available? This way, it would be much easier to migrate to VS2010 than to start from scratch.
+
+Cheers,
+Alexander
+
+
+
+Von: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] Im Auftrag von Alexander Kleff
+Gesendet: Donnerstag, 20. Januar 2011 10:43
+An: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: Re: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+I made another project (currently for x86 platform) to make sure it is unmanaged. Unfortunately, the problem still arises, although I cannot see anything suspicious. Any other idea?
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and msvcr100d.dll are currently loaded.
+
+Thanks for any suggestion,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Please,
+
+also let us know which platform (x86 versus x64) and whether you use the binaries we distribute or have build them yourselves (then we need to know whether you built with 2008 or 2010)
+
+Thanks
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+You seem to be using managed C++. Have you tried running your program with standard C++? The different memory policy might be a source of problems.
+
+I don't have a Windows machine to test on, so I haven't tried your program myself.
+
+Cheers,
+Mikael
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;&gt;
+Hi once again,
+
+the code below compiles and links in both versions (so I assume I did not make an all too obvious modeling mistake) but it crashes in VS2010 in contrast to VS2008(Express).
+The error seems to occur during the destruction of the linear expression. The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all three cases.
+Can you reproduce it?
+
+Thanks for help,
+Alexander
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class GecodeTest : public Space {
+public:
+  GecodeTest(void)
+  {
+   IntVar z(*this, 0, 1);
+
+   IntVar e1 = expr(*this, 1 * z);
+   IntVar e2 = expr(*this, z);      // error 1
+
+   IntArgs cost(2);
+   for (int v=0; v&lt;2; ++v)
+   {
+      cost[v] = v;
+   }
+
+   LinExpr xy = element(cost, z);
+   IntVar e3 = expr(*this, xy);
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+  } // error 3 (in destructor)
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+};
+
+
+// main function
+int main(array&lt;System::String ^&gt; ^args)
+{
+  GecodeTest* m = new GecodeTest;
+  delete m;
+  return 0;
+}
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/1276ef01/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20110120/1276ef01/attachment.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003131">
+        <header class="archive-thread-message-heading">
+          <div><span>17</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jan 20 12:17:38 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I came to the same conclusion and this is already a problem if you do not
+mix versions: allocation and deallocation must always be done by the same
+DLL, this is a known bug in Windows. I'll fix that for 3.4.3.
+
+
+
+We do not use project files but Makefiles with Cygwin, check MPG for
+details.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Thursday, January 20, 2011 12:15 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+after some research I came to the following conclusion:
+
+Due to inlining, the memory of the node in LinExpr will be allocated by
+msvcr100d.dll, whilst at least the destructor of LinExpr is not inlined. The
+memory of the node will therefore be freed by msvcr90d.dll. This will not
+work.
+
+As I see it, there is no other way for me than to have Gecode bound to
+msvcr100d.dll. Can you help me out by making your VS2008 project files
+available? This way, it would be much easier to migrate to VS2010 than to
+start from scratch.
+
+
+
+Cheers,
+
+Alexander
+
+
+
+
+
+
+
+Von: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] Im Auftrag
+von Alexander Kleff
+Gesendet: Donnerstag, 20. Januar 2011 10:43
+An: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+I made another project (currently for x86 platform) to make sure it is
+unmanaged. Unfortunately, the problem still arises, although I cannot see
+anything suspicious. Any other idea?
+
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and
+msvcr100d.dll are currently loaded.
+
+
+
+Thanks for any suggestion,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Please,
+
+
+
+also let us know which platform (x86 versus x64) and whether you use the
+binaries we distribute or have build them yourselves (then we need to know
+whether you built with 2008 or 2010)
+
+
+
+Thanks
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+You seem to be using managed C++. Have you tried running your program with
+standard C++? The different memory policy might be a source of problems.
+
+
+
+I don't have a Windows machine to test on, so I haven't tried your program
+myself.
+
+
+
+Cheers,
+
+Mikael
+
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;
+
+Hi once again,
+
+
+
+the code below compiles and links in both versions (so I assume I did not
+make an all too obvious modeling mistake) but it crashes in VS2010 in
+contrast to VS2008(Express).
+
+The error seems to occur during the destruction of the linear expression.
+The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all
+three cases.
+
+Can you reproduce it?
+
+
+
+Thanks for help,
+
+Alexander
+
+
+
+
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+
+
+using namespace Gecode;
+
+
+
+class GecodeTest : public Space {
+
+public:
+
+  GecodeTest(void)
+
+  {
+
+   IntVar z(*this, 0, 1);
+
+
+
+   IntVar e1 = expr(*this, 1 * z);
+
+   IntVar e2 = expr(*this, z);      // error 1
+
+
+
+   IntArgs cost(2);
+
+   for (int v=0; v&lt;2; ++v)
+
+   {
+
+      cost[v] = v;
+
+   }
+
+
+
+   LinExpr xy = element(cost, z);
+
+   IntVar e3 = expr(*this, xy);
+
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+
+  } // error 3 (in destructor)
+
+
+
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+
+};
+
+
+
+
+
+// main function
+
+int main(array&lt;System::String ^&gt; ^args)
+
+{
+
+  GecodeTest* m = new GecodeTest;
+
+  delete m;
+
+  return 0;
+
+}
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/97162ccd/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110120/97162ccd/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003132">
+        <header class="archive-thread-message-heading">
+          <div><span>18</span><h2>Alexander Kleff</h2></div>
+          <p><time>Thu Jan 20 16:26:41 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+update: I built Gecode binaries myself with VS2010 and the test application works fine...
+What precisely are you going to fix for 3.4.3? I'm not sure if I got you right.
+
+Best,
+Alexander
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 12:18
+An: Alexander Kleff; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with VS2010
+
+I came to the same conclusion and this is already a problem if you do not mix versions: allocation and deallocation must always be done by the same DLL, this is a known bug in Windows. I'll fix that for 3.4.3.
+
+We do not use project files but Makefiles with Cygwin, check MPG for details.
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Thursday, January 20, 2011 12:15 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+after some research I came to the following conclusion:
+Due to inlining, the memory of the node in LinExpr will be allocated by msvcr100d.dll, whilst at least the destructor of LinExpr is not inlined. The memory of the node will therefore be freed by msvcr90d.dll. This will not work.
+As I see it, there is no other way for me than to have Gecode bound to msvcr100d.dll. Can you help me out by making your VS2008 project files available? This way, it would be much easier to migrate to VS2010 than to start from scratch.
+
+Cheers,
+Alexander
+
+
+
+Von: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] Im Auftrag von Alexander Kleff
+Gesendet: Donnerstag, 20. Januar 2011 10:43
+An: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: Re: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+I made another project (currently for x86 platform) to make sure it is unmanaged. Unfortunately, the problem still arises, although I cannot see anything suspicious. Any other idea?
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and msvcr100d.dll are currently loaded.
+
+Thanks for any suggestion,
+Alexander
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Please,
+
+also let us know which platform (x86 versus x64) and whether you use the binaries we distribute or have build them yourselves (then we need to know whether you built with 2008 or 2010)
+
+Thanks
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with VS2010
+
+Hi,
+
+You seem to be using managed C++. Have you tried running your program with standard C++? The different memory policy might be a source of problems.
+
+I don't have a Windows machine to test on, so I haven't tried your program myself.
+
+Cheers,
+Mikael
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;&gt;
+Hi once again,
+
+the code below compiles and links in both versions (so I assume I did not make an all too obvious modeling mistake) but it crashes in VS2010 in contrast to VS2008(Express).
+The error seems to occur during the destruction of the linear expression. The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all three cases.
+Can you reproduce it?
+
+Thanks for help,
+Alexander
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+using namespace Gecode;
+
+class GecodeTest : public Space {
+public:
+  GecodeTest(void)
+  {
+   IntVar z(*this, 0, 1);
+
+   IntVar e1 = expr(*this, 1 * z);
+   IntVar e2 = expr(*this, z);      // error 1
+
+   IntArgs cost(2);
+   for (int v=0; v&lt;2; ++v)
+   {
+      cost[v] = v;
+   }
+
+   LinExpr xy = element(cost, z);
+   IntVar e3 = expr(*this, xy);
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+  } // error 3 (in destructor)
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+};
+
+
+// main function
+int main(array&lt;System::String ^&gt; ^args)
+{
+  GecodeTest* m = new GecodeTest;
+  delete m;
+  return 0;
+}
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>&gt;
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/ee3d9caf/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110120/ee3d9caf/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003133">
+        <header class="archive-thread-message-heading">
+          <div><span>19</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Jan 20 16:43:52 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I'll fix that both allocation and deallocation of memory are never inlined
+and hence will always be executed by the minimodel DLL (this one must do on
+Windows). I thought this is already the case, but unfortunately it is not
+(actually, it happens if only for the case you had that you supply a
+variable as argument to expr(...)).
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Thursday, January 20, 2011 4:27 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+update: I built Gecode binaries myself with VS2010 and the test application
+works fine.
+
+What precisely are you going to fix for 3.4.3? I'm not sure if I got you
+right.
+
+
+
+Best,
+
+Alexander
+
+
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 12:18
+An: Alexander Kleff; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+I came to the same conclusion and this is already a problem if you do not
+mix versions: allocation and deallocation must always be done by the same
+DLL, this is a known bug in Windows. I'll fix that for 3.4.3.
+
+
+
+We do not use project files but Makefiles with Cygwin, check MPG for
+details.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Thursday, January 20, 2011 12:15 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+after some research I came to the following conclusion:
+
+Due to inlining, the memory of the node in LinExpr will be allocated by
+msvcr100d.dll, whilst at least the destructor of LinExpr is not inlined. The
+memory of the node will therefore be freed by msvcr90d.dll. This will not
+work.
+
+As I see it, there is no other way for me than to have Gecode bound to
+msvcr100d.dll. Can you help me out by making your VS2008 project files
+available? This way, it would be much easier to migrate to VS2010 than to
+start from scratch.
+
+
+
+Cheers,
+
+Alexander
+
+
+
+
+
+
+
+Von: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] Im Auftrag
+von Alexander Kleff
+Gesendet: Donnerstag, 20. Januar 2011 10:43
+An: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+I made another project (currently for x86 platform) to make sure it is
+unmanaged. Unfortunately, the problem still arises, although I cannot see
+anything suspicious. Any other idea?
+
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and
+msvcr100d.dll are currently loaded.
+
+
+
+Thanks for any suggestion,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Please,
+
+
+
+also let us know which platform (x86 versus x64) and whether you use the
+binaries we distribute or have build them yourselves (then we need to know
+whether you built with 2008 or 2010)
+
+
+
+Thanks
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+You seem to be using managed C++. Have you tried running your program with
+standard C++? The different memory policy might be a source of problems.
+
+
+
+I don't have a Windows machine to test on, so I haven't tried your program
+myself.
+
+
+
+Cheers,
+
+Mikael
+
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;
+
+Hi once again,
+
+
+
+the code below compiles and links in both versions (so I assume I did not
+make an all too obvious modeling mistake) but it crashes in VS2010 in
+contrast to VS2008(Express).
+
+The error seems to occur during the destruction of the linear expression.
+The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all
+three cases.
+
+Can you reproduce it?
+
+
+
+Thanks for help,
+
+Alexander
+
+
+
+
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+
+
+using namespace Gecode;
+
+
+
+class GecodeTest : public Space {
+
+public:
+
+  GecodeTest(void)
+
+  {
+
+   IntVar z(*this, 0, 1);
+
+
+
+   IntVar e1 = expr(*this, 1 * z);
+
+   IntVar e2 = expr(*this, z);      // error 1
+
+
+
+   IntArgs cost(2);
+
+   for (int v=0; v&lt;2; ++v)
+
+   {
+
+      cost[v] = v;
+
+   }
+
+
+
+   LinExpr xy = element(cost, z);
+
+   IntVar e3 = expr(*this, xy);
+
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+
+  } // error 3 (in destructor)
+
+
+
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+
+};
+
+
+
+
+
+// main function
+
+int main(array&lt;System::String ^&gt; ^args)
+
+{
+
+  GecodeTest* m = new GecodeTest;
+
+  delete m;
+
+  return 0;
+
+}
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110120/1e90e900/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110120/1e90e900/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003136">
+        <header class="archive-thread-message-heading">
+          <div><span>20</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Jan 21 16:11:19 CET 2011</time><small>January 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Fixed in the trunk.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, web.ict.kth.se/~cschulte/
+
+
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Christian Schulte
+Sent: Thursday, January 20, 2011 12:18 PM
+To: 'Alexander Kleff'; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+I came to the same conclusion and this is already a problem if you do not
+mix versions: allocation and deallocation must always be done by the same
+DLL, this is a known bug in Windows. I'll fix that for 3.4.3.
+
+
+
+We do not use project files but Makefiles with Cygwin, check MPG for
+details.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Alexander Kleff [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>]
+Sent: Thursday, January 20, 2011 12:15 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: AW: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+after some research I came to the following conclusion:
+
+Due to inlining, the memory of the node in LinExpr will be allocated by
+msvcr100d.dll, whilst at least the destructor of LinExpr is not inlined. The
+memory of the node will therefore be freed by msvcr90d.dll. This will not
+work.
+
+As I see it, there is no other way for me than to have Gecode bound to
+msvcr100d.dll. Can you help me out by making your VS2008 project files
+available? This way, it would be much easier to migrate to VS2010 than to
+start from scratch.
+
+
+
+Cheers,
+
+Alexander
+
+
+
+
+
+
+
+Von: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] Im Auftrag
+von Alexander Kleff
+Gesendet: Donnerstag, 20. Januar 2011 10:43
+An: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; 'Mikael Zayenz Lagerkvist'
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+I made another project (currently for x86 platform) to make sure it is
+unmanaged. Unfortunately, the problem still arises, although I cannot see
+anything suspicious. Any other idea?
+
+I'm using the 3.4.2 binaries from your site, so both msvcr90d.dll and
+msvcr100d.dll are currently loaded.
+
+
+
+Thanks for any suggestion,
+
+Alexander
+
+
+
+Von: Christian Schulte [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>]
+Gesendet: Donnerstag, 20. Januar 2011 09:03
+An: 'Mikael Zayenz Lagerkvist'; Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Betreff: RE: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Please,
+
+
+
+also let us know which platform (x86 versus x64) and whether you use the
+binaries we distribute or have build them yourselves (then we need to know
+whether you built with 2008 or 2010)
+
+
+
+Thanks
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael Zayenz Lagerkvist
+Sent: Wednesday, January 19, 2011 8:46 PM
+To: Alexander Kleff
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Crash while freeing memory in connection with
+VS2010
+
+
+
+Hi,
+
+
+
+You seem to be using managed C++. Have you tried running your program with
+standard C++? The different memory policy might be a source of problems.
+
+
+
+I don't have a Windows machine to test on, so I haven't tried your program
+myself.
+
+
+
+Cheers,
+
+Mikael
+
+2011/1/19 Alexander Kleff &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">alexander.kleff at ptv.de</A>&gt;
+
+Hi once again,
+
+
+
+the code below compiles and links in both versions (so I assume I did not
+make an all too obvious modeling mistake) but it crashes in VS2010 in
+contrast to VS2008(Express).
+
+The error seems to occur during the destruction of the linear expression.
+The debugger sets the break point to Heap::rfree(void* p) in heap.hpp in all
+three cases.
+
+Can you reproduce it?
+
+
+
+Thanks for help,
+
+Alexander
+
+
+
+
+
+
+
+#include &lt;gecode/minimodel.hh&gt;
+
+
+
+using namespace Gecode;
+
+
+
+class GecodeTest : public Space {
+
+public:
+
+  GecodeTest(void)
+
+  {
+
+   IntVar z(*this, 0, 1);
+
+
+
+   IntVar e1 = expr(*this, 1 * z);
+
+   IntVar e2 = expr(*this, z);      // error 1
+
+
+
+   IntArgs cost(2);
+
+   for (int v=0; v&lt;2; ++v)
+
+   {
+
+      cost[v] = v;
+
+   }
+
+
+
+   LinExpr xy = element(cost, z);
+
+   IntVar e3 = expr(*this, xy);
+
+   IntVar e4 = expr(*this, element(cost, z));   // error 2
+
+  } // error 3 (in destructor)
+
+
+
+
+
+  GecodeTest(bool share, GecodeTest&amp; s) : Space(share, s) {}
+
+  virtual Space* copy(bool share) { return new GecodeTest(share,*this); }
+
+};
+
+
+
+
+
+// main function
+
+int main(array&lt;System::String ^&gt; ^args)
+
+{
+
+  GecodeTest* m = new GecodeTest;
+
+  delete m;
+
+  return 0;
+
+}
+
+
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20110121/3b9bf7d0/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20110121/3b9bf7d0/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

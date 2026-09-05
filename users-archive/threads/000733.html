@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Critical bug. — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Critical bug. | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2006</p><h1 data-pagefind-meta="title">Critical bug.</h1></header>
+      <p class="archive-thread-summary">5 messages · October 2006</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000733">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Rafael Meneses</h2></div>
+          <p><time>Tue Oct 24 00:44:03 CEST 2006</time><small>October 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+The problem is in ViewValBranching:
+
+1.- The status method calculate the &quot;start&quot; variable.
+
+2.- The description method create the branch description, with the
+position and value of the variable to make the branch. _The position
+is absolute_.
+
+3.- The commit, impose the branch description, since the position is
+absolute, _position is position minus offset_ , but the offset depends
+of the start variable, but status method in the recomputation phase is
+not called, so the start variable is  zero. This produces that the
+offset is distinct between the original node and the recompute one,
+then the branch is made in other variables and not in the original
+one.
+
+Options to repair the problem are:
+* pass the start variable to the branching description
+* don't make processing in the status method
+* ...
+
+I think that the error is critical, because produce that the
+recomputation fix other variables, and we lost sector of the search
+space.
+
+I attach a patch that implement the first option.
+
+I detected the problem, when my code crashed extraneously... two days
+of hard work :(
+
+
+Saludos,
+
+--
+Rafael Meneses
+<A HREF="http://www.zeke.cl">http://www.zeke.cl</A>
+<A HREF="http://www.labsd.inf.utfsm.cl/~rmeneses">http://www.labsd.inf.utfsm.cl/~rmeneses</A>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: reparaBug.patch
+Type: text/x-patch
+Size: 3404 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20061023/e46990d7/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20061023/e46990d7/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000734">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Oct 24 08:54:30 CEST 2006</time><small>October 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi.
+
+&gt;<i> The problem is in ViewValBranching:
+</I>&gt;<i>
+</I>&gt;<i> 1.- The status method calculate the &quot;start&quot; variable.
+</I>&gt;<i>
+</I>&gt;<i> 2.- The description method create the branch description, with the
+</I>&gt;<i> position and value of the variable to make the branch. _The position
+</I>&gt;<i> is absolute_.
+</I>&gt;<i>
+</I>&gt;<i> 3.- The commit, impose the branch description, since the position is
+</I>&gt;<i> absolute, _position is position minus offset_ , but the offset depends
+</I>&gt;<i> of the start variable, but status method in the recomputation phase is
+</I>&gt;<i> not called, so the start variable is  zero. This produces that the
+</I>&gt;<i> offset is distinct between the original node and the recompute one,
+</I>
+This is exactly what is supposed to happen!
+The ViewValBranching contains the absolute position in the original array.
+The offset determines how many variables have been eliminated from the
+array. It does _not_ depend on the start variable, but on how many times
+x.drop_fst(start) was called. If never, then offset=0. If fewer times than
+when the branching was created, offset will be smaller than it was during
+creation.
+
+So the invariant is that the description contains the absolute index, and
+that offset determines how many variables have been removed from the
+beginning of the array. That should be enough to redo the decisions
+precisely.
+
+&gt;<i> I think that the error is critical, because produce that the
+</I>&gt;<i> recomputation fix other variables, and we lost sector of the search
+</I>&gt;<i> space.
+</I>
+That is really a little bizarre, because we have checked the search space
+for all our problems, and all the time recomputation works just fine. If
+you're still convinced that this is a bug, please convince us ;-) It would
+be great if you could send us a small example that behaves strange when
+doing recomputation.
+
+Cheers,
+   Guido
+
+--
+Guido Tack
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000735">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Oct 24 09:32:18 CEST 2006</time><small>October 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>This is not a bug! The invariant is that whatever branching decsription is
+created the position always refers to the same variable: In case some
+variables are removed from the branching, the offset is updated accordingly.
+
+Do you have an example where things go wrong?
+
+Christian
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Rafael Meneses
+Sent: Tuesday, October 24, 2006 12:44 AM
+To: users
+Subject: [gecode-users] Critical bug.
+
+
+Hi,
+
+The problem is in ViewValBranching:
+
+1.- The status method calculate the &quot;start&quot; variable.
+
+2.- The description method create the branch description, with the position
+and value of the variable to make the branch. _The position is absolute_.
+
+3.- The commit, impose the branch description, since the position is
+absolute, _position is position minus offset_ , but the offset depends of
+the start variable, but status method in the recomputation phase is not
+called, so the start variable is  zero. This produces that the offset is
+distinct between the original node and the recompute one, then the branch is
+made in other variables and not in the original one.
+
+Options to repair the problem are:
+* pass the start variable to the branching description
+* don't make processing in the status method
+* ...
+
+I think that the error is critical, because produce that the recomputation
+fix other variables, and we lost sector of the search space.
+
+I attach a patch that implement the first option.
+
+I detected the problem, when my code crashed extraneously... two days of
+hard work :(
+
+
+Saludos,
+
+--
+Rafael Meneses
+<A HREF="http://www.zeke.cl">http://www.zeke.cl</A>
+<A HREF="http://www.labsd.inf.utfsm.cl/~rmeneses">http://www.labsd.inf.utfsm.cl/~rmeneses</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000736">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Rafael Meneses</h2></div>
+          <p><time>Tue Oct 24 21:49:47 CEST 2006</time><small>October 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 10/24/06, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+&gt;<i> This is not a bug! The invariant is that whatever branching decsription is
+</I>&gt;<i> created the position always refers to the same variable: In case some
+</I>&gt;<i> variables are removed from the branching, the offset is updated accordingly.
+</I>&gt;<i>
+</I>&gt;<i> Do you have an example where things go wrong?
+</I>
+I attach an example.
+
+With recomputation there are a &quot;segmentation fault&quot;, without
+recomputation, all is just fine.
+
+Run the example five minutes, and there are a 100% of probability of
+crash, take away recomputation, and the code never crash.
+
+Saludos,
+
+
+--
+Rafael Meneses
+<A HREF="http://www.zeke.cl">http://www.zeke.cl</A>
+<A HREF="http://www.labsd.inf.utfsm.cl/~rmeneses">http://www.labsd.inf.utfsm.cl/~rmeneses</A>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: bug.cc
+Type: text/x-c++src
+Size: 2946 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20061024/eaa53710/attachment.cc">http://www.ps.uni-sb.de/pipermail/users/attachments/20061024/eaa53710/attachment.cc</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000739">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Oct 25 13:14:10 CEST 2006</time><small>October 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear Rafael,
+
+thanks for insisting and take our apologies for being stubborn: but as you
+did not hint at the fact that you actually observe the bug we were
+understandibly defensive (not to mention that it was not reported to the bug
+tracking system).
+
+The bug is fixed and Gecode 1.3.1 should show up today on the web.
+
+So that this was the first real bug in Gecode!
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Rafael Meneses [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">rafaparafernalia at gmail.com</A>]
+Sent: Tuesday, October 24, 2006 9:50 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: users
+Subject: Re: [gecode-users] Critical bug.
+
+
+On 10/24/06, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+&gt;<i> This is not a bug! The invariant is that whatever branching
+</I>&gt;<i> decsription is created the position always refers to the same
+</I>&gt;<i> variable: In case some variables are removed from the branching, the
+</I>&gt;<i> offset is updated accordingly.
+</I>&gt;<i>
+</I>&gt;<i> Do you have an example where things go wrong?
+</I>
+I attach an example.
+
+With recomputation there are a &quot;segmentation fault&quot;, without recomputation,
+all is just fine.
+
+Run the example five minutes, and there are a 100% of probability of crash,
+take away recomputation, and the code never crash.
+
+Saludos,
+
+
+--
+Rafael Meneses
+<A HREF="http://www.zeke.cl">http://www.zeke.cl</A>
+<A HREF="http://www.labsd.inf.utfsm.cl/~rmeneses">http://www.labsd.inf.utfsm.cl/~rmeneses</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

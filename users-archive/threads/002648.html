@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="VarArray&lt;Var&gt;::resize(Space&amp; home, int m) — 12 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>VarArray&lt;Var&gt;::resize(Space&amp; home, int m) | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>12 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2009</p><h1 data-pagefind-meta="title">VarArray&lt;Var&gt;::resize(Space&amp; home, int m)</h1></header>
+      <p class="archive-thread-summary">12 messages · October 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002648">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>David Rijsman</h2></div>
+          <p><time>Thu Oct 15 16:56:03 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear All,
+
+I have a question on the method &quot;void  VarArray&lt;Var&gt;::resize(Space&amp; home, int m)&quot;.
+
+ I am on version 2.1.1 and noticed the method has changed somewhere between version 2.1.1 and the 3.2.0. I can not find any reason in the change list for the change.
+
+I noticed this because I am, what I think, experiencing a memory leak. I am resizing my IntVarArray during execution which forces it to be allocated on the heap. In the destructor of the array there is a check to see if we need to free the heap, the check in (2.1.1) looks like &quot; if (used != n) &quot;. I think this check is failing in my case and therefor the heap does not get freed.
+
+The changes made to &quot;VarArray&lt;Var&gt;::resize(Space&amp; home, int m)&quot; seem to influence the values 'used' and 'n' (they have been named differently now). Has the change been made to prevent a memory leak?
+
+Being on the topic, what is the reason for resizing it on the heap instead of keeping it in the Space which is available?
+
+David
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002649">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Oct 15 17:07:34 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi David,
+
+David Rijsman wrote:
+&gt;<i> I have a question on the method &quot;void  VarArray&lt;Var&gt;::resize(Space&amp;
+</I>&gt;<i> home, int m)&quot;.
+</I>&gt;<i>
+</I>&gt;<i> I am on version 2.1.1 and noticed the method has changed somewhere
+</I>&gt;<i> between version 2.1.1 and the 3.2.0. I can not find any reason in
+</I>&gt;<i> the change list for the change.
+</I>&gt;<i>
+</I>&gt;<i> I noticed this because I am, what I think, experiencing a memory
+</I>&gt;<i> leak. I am resizing my IntVarArray during execution which forces it
+</I>&gt;<i> to be allocated on the heap. In the destructor of the array there is
+</I>&gt;<i> a check to see if we need to free the heap, the check in (2.1.1)
+</I>&gt;<i> looks like &quot; if (used != n) &quot;. I think this check is failing in my
+</I>&gt;<i> case and therefor the heap does not get freed.
+</I>&gt;<i>
+</I>&gt;<i> The changes made to &quot;VarArray&lt;Var&gt;::resize(Space&amp; home, int m)&quot; seem
+</I>&gt;<i> to influence the values 'used' and 'n' (they have been named
+</I>&gt;<i> differently now). Has the change been made to prevent a memory leak?
+</I>
+Yes, exactly.  The logic in 2.1.1 is completely flawed.
+
+&gt;<i> Being on the topic, what is the reason for resizing it on the heap
+</I>&gt;<i> instead of keeping it in the Space which is available?
+</I>
+That would possibly create a memory leak in the space, as the old
+array cannot easily be reused (it will be handed back to the space,
+but then it can only be used for freelist-allocated data).
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002650">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>David Rijsman</h2></div>
+          <p><time>Thu Oct 15 17:21:20 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido,
+
+what version has this been fixed, I checked the release notes but can not find anything?
+
+thanks,
+
+David
+
+&gt;&gt;&gt;<i>
+</I>From: 	Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt;
+To:	David Rijsman &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;
+CC:	&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>&gt;
+Date: 	10/15/2009 5:08 PM
+Subject: 	Re: [gecode-users] VarArray&lt;Var&gt;::resize(Space&amp; home, int m)
+
+Hi David,
+
+David Rijsman wrote:
+&gt;<i> I have a question on the method &quot;void  VarArray&lt;Var&gt;::resize(Space&amp;
+</I>&gt;<i> home, int m)&quot;.
+</I>&gt;<i>
+</I>&gt;<i> I am on version 2.1.1 and noticed the method has changed somewhere
+</I>&gt;<i> between version 2.1.1 and the 3.2.0. I can not find any reason in
+</I>&gt;<i> the change list for the change.
+</I>&gt;<i>
+</I>&gt;<i> I noticed this because I am, what I think, experiencing a memory
+</I>&gt;<i> leak. I am resizing my IntVarArray during execution which forces it
+</I>&gt;<i> to be allocated on the heap. In the destructor of the array there is
+</I>&gt;<i> a check to see if we need to free the heap, the check in (2.1.1)
+</I>&gt;<i> looks like &quot; if (used != n) &quot;. I think this check is failing in my
+</I>&gt;<i> case and therefor the heap does not get freed.
+</I>&gt;<i>
+</I>&gt;<i> The changes made to &quot;VarArray&lt;Var&gt;::resize(Space&amp; home, int m)&quot; seem
+</I>&gt;<i> to influence the values 'used' and 'n' (they have been named
+</I>&gt;<i> differently now). Has the change been made to prevent a memory leak?
+</I>
+Yes, exactly.  The logic in 2.1.1 is completely flawed.
+
+&gt;<i> Being on the topic, what is the reason for resizing it on the heap
+</I>&gt;<i> instead of keeping it in the Space which is available?
+</I>
+That would possibly create a memory leak in the space, as the old
+array cannot easily be reused (it will be handed back to the space,
+but then it can only be used for freelist-allocated data).
+
+Cheers,
+	Guido
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002651">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Oct 15 17:42:55 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>It was fixed in 2.2.0 and we forgot to mention it in the change log,
+sorry.
+
+Cheers,
+	Guido
+
+David Rijsman wrote:
+
+&gt;<i> Hi Guido,
+</I>&gt;<i>
+</I>&gt;<i> what version has this been fixed, I checked the release notes but
+</I>&gt;<i> can not find anything?
+</I>&gt;<i>
+</I>&gt;<i> thanks,
+</I>&gt;<i>
+</I>&gt;<i> David
+</I>&gt;<i>
+</I>&gt;&gt;&gt;&gt;<i>
+</I>&gt;<i> From: 	Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt;
+</I>&gt;<i> To:	David Rijsman &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">David.Rijsman at quintiq.com</A>&gt;
+</I>&gt;<i> CC:	&lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>&gt;
+</I>&gt;<i> Date: 	10/15/2009 5:08 PM
+</I>&gt;<i> Subject: 	Re: [gecode-users] VarArray&lt;Var&gt;::resize(Space&amp; home, int m)
+</I>&gt;<i>
+</I>&gt;<i> Hi David,
+</I>&gt;<i>
+</I>&gt;<i> David Rijsman wrote:
+</I>&gt;&gt;<i> I have a question on the method &quot;void  VarArray&lt;Var&gt;::resize(Space&amp;
+</I>&gt;&gt;<i> home, int m)&quot;.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I am on version 2.1.1 and noticed the method has changed somewhere
+</I>&gt;&gt;<i> between version 2.1.1 and the 3.2.0. I can not find any reason in
+</I>&gt;&gt;<i> the change list for the change.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I noticed this because I am, what I think, experiencing a memory
+</I>&gt;&gt;<i> leak. I am resizing my IntVarArray during execution which forces it
+</I>&gt;&gt;<i> to be allocated on the heap. In the destructor of the array there is
+</I>&gt;&gt;<i> a check to see if we need to free the heap, the check in (2.1.1)
+</I>&gt;&gt;<i> looks like &quot; if (used != n) &quot;. I think this check is failing in my
+</I>&gt;&gt;<i> case and therefor the heap does not get freed.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> The changes made to &quot;VarArray&lt;Var&gt;::resize(Space&amp; home, int m)&quot; seem
+</I>&gt;&gt;<i> to influence the values 'used' and 'n' (they have been named
+</I>&gt;&gt;<i> differently now). Has the change been made to prevent a memory leak?
+</I>&gt;<i>
+</I>&gt;<i> Yes, exactly.  The logic in 2.1.1 is completely flawed.
+</I>&gt;<i>
+</I>&gt;&gt;<i> Being on the topic, what is the reason for resizing it on the heap
+</I>&gt;&gt;<i> instead of keeping it in the Space which is available?
+</I>&gt;<i>
+</I>&gt;<i> That would possibly create a memory leak in the space, as the old
+</I>&gt;<i> array cannot easily be reused (it will be handed back to the space,
+</I>&gt;<i> but then it can only be used for freelist-allocated data).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i> 	Guido
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002652">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Denys Duchier</h2></div>
+          <p><time>Sat Oct 17 17:17:45 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>The following code does not compile:
+
+    IntArgs* v = new IntArgs(5);
+
+is that on purpose?
+
+Cheers,
+
+--Denys
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002653">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Oct 19 10:27:00 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Denys,
+
+Yep, it is! The reason is that argument arrays are much much bigger than one
+would expect: they always include a static area for a small number of
+elements (16) in order to avoid heap allocation for the most cases. So for
+that reason, new is disabled so that people don't shot themselves in the
+foot (we shoot them right away ;-) ). I think even MwG tries to stress that
+point!
+
+Argument arrays are really meant to just pass arguments, they are bad as
+general data structures. Why not use vector instead?
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Denys Duchier
+Sent: Saturday, October 17, 2009 5:18 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] new IntArgs fails
+
+The following code does not compile:
+
+    IntArgs* v = new IntArgs(5);
+
+is that on purpose?
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002654">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Yong</h2></div>
+          <p><time>Mon Oct 19 15:26:15 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/e2d22bf7/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/e2d22bf7/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002655">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Oct 19 15:41:58 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Write instead:
+
+
+
+BoolVar tmp =post(*this, ~(a[j]==(i+1)),ICL_DEF);
+
+
+
+What you did is posting the constraint that (a[j] == (i+1)) (and hence the
+return type of post is void as the compiler tells you). What you apparently
+wanted to do is to post a reified constraint which you get with ~ (and hence
+the return type is BoolVar).
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Yong
+Sent: Monday, October 19, 2009 3:26 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] About posting Boolean expression
+
+
+
+Hi group,
+A question about posting Boolean expression here. Any hint will be
+appreciated!
+
+My compiler will give &quot;cannot convert from 'void' to 'Gecode::BoolVar'&quot;
+error on below code:
+
+BoolVar tmp =post(*this,(a[j]==(i+1)),ICL_DEF);
+
+Yong
+
+ps: I'm using Gecode3.2.0 + VC++ 2008 Express Edition
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/813ce54a/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/813ce54a/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002656">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Yong</h2></div>
+          <p><time>Mon Oct 19 16:56:14 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/c086c21d/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/c086c21d/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002657">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Oct 19 17:10:21 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Nope, MwG is correct on that respect. &quot;x &amp;&amp; imp(y,z)&quot; is a Boolean
+expression, whereas &quot;a[j] == i+1&quot; is a relation (constraint). Posting a
+Boolean expression yields a Boolean variable, posting a relation does not.
+Please check the definition of expressions and relations in MwG.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Yong [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">yong.huang.2777 at student.uu.se</A>]
+Sent: Monday, October 19, 2009 4:56 PM
+To: Christian Schulte
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] About posting Boolean expression
+
+
+
+Hi Christian,
+Thanks for your prompt reply.
+
+The code I wrote was following the example from Section 6.2 Boolean
+expressions and relations of &lt;&lt;Modeling with Gecode&gt;&gt;(for Gecode3.1.0). The
+original example is:
+&quot;
+For example, the Boolean expression x &amp;&amp; imp(y,z) (to be read as x ? (y ?
+z)) for Boolean variables x, y, and z is posted by:
+    BoolVar b=post(home, x &amp;&amp; imp(y,z));
+&quot;
+So, is it my inaccurate understanding of this example or the example itself
+is not expressed in an accurate way?
+
+Yong
+
+Christian Schulte wrote:
+
+Write instead:
+
+
+
+BoolVar tmp =post(*this, ~(a[j]==(i+1)),ICL_DEF);
+
+
+
+What you did is posting the constraint that (a[j] == (i+1)) (and hence the
+return type of post is void as the compiler tells you). What you apparently
+wanted to do is to post a reified constraint which you get with ~ (and hence
+the return type is BoolVar).
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Yong
+Sent: Monday, October 19, 2009 3:26 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] About posting Boolean expression
+
+
+
+Hi group,
+A question about posting Boolean expression here. Any hint will be
+appreciated!
+
+My compiler will give &quot;cannot convert from 'void' to 'Gecode::BoolVar'&quot;
+error on below code:
+
+BoolVar tmp =post(*this,(a[j]==(i+1)),ICL_DEF);
+
+Yong
+
+ps: I'm using Gecode3.2.0 + VC++ 2008 Express Edition
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/63b7b627/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20091019/63b7b627/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002658">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Denys Duchier</h2></div>
+          <p><time>Mon Oct 19 18:21:36 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&quot;Christian Schulte&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; writes:
+
+&gt;<i> Argument arrays are really meant to just pass arguments, they are bad as
+</I>&gt;<i> general data structures. Why not use vector instead?
+</I>
+I was playing with generating gecode bindings for python (to better
+understand the issue, the options, and where the problems are) and
+e.g. the constructor IntSet(IntArgs&amp;) requires IntArgs; vector&lt;int&gt; is
+not an option.  The generated wrapper for IntArgs does a new and that
+didn't compile; I was simply curious if that was intended.
+
+I, of course, don't particularly want IntArgs in python.  That was just
+a quick try to see how some things worked out (or not).
+
+Cheers,
+
+--Denys
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002659">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Oct 19 20:41:32 CEST 2009</time><small>October 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>If you are interested in Python, you might want to check out Numberjack:
+	<A HREF="http://4c110.ucc.ie/numberjack/home">http://4c110.ucc.ie/numberjack/home</A>
+
+We are in the process of providing an interface to Numberjack (trying to,
+that is).
+
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Denys Duchier
+Sent: Monday, October 19, 2009 6:22 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] new IntArgs fails
+
+&quot;Christian Schulte&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; writes:
+
+&gt;<i> Argument arrays are really meant to just pass arguments, they are bad as
+</I>&gt;<i> general data structures. Why not use vector instead?
+</I>
+I was playing with generating gecode bindings for python (to better
+understand the issue, the options, and where the problems are) and
+e.g. the constructor IntSet(IntArgs&amp;) requires IntArgs; vector&lt;int&gt; is
+not an option.  The generated wrapper for IntArgs does a new and that
+didn't compile; I was simply curious if that was intended.
+
+I, of course, don't particularly want IntArgs in python.  That was just
+a quick try to see how some things worked out (or not).
+
+Cheers,
+
+--Denys
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

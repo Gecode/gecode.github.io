@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Nogoods limit — 8 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Nogoods limit | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>8 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2013</p><h1 data-pagefind-meta="title">Nogoods limit</h1></header>
+      <p class="archive-thread-summary">8 messages · November 2013</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004229">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Kish Shen</h2></div>
+          <p><time>Fri Nov 22 06:24:55 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I have now got restart search implemented, thanks to help from
+Christian. I finally decided to implement restart DFS as a separate
+search method in my interface, and only allow one solution in this case,
+because getting the previous solution posted as a no-goods looked quite
+difficult, and probably not a good idea for most search anyway.
+
+I ran some tests, and it seems that the restart with cutoff is working,
+but the no-goods limit is not:
+
+I tested the search with an N-Queens problem, using INT_VAR_NONE and
+INT_VAL_MIN for variable and value selection, and a constant cutoff.
+The idea here is that every single restart (without no-goods) should
+perform exactly the same search, so if the cutoff is set below the
+number of failures before the solution is found, then the search will
+not terminate. This is indeed the case, e.g. for N=8, with the cutoff
+set at 23, then the search does not terminate, but with cutoff=24, a
+solution is returned. Also, using a geometric cutoff, a solution is also
+found, even with a low initial cutoff. So this seems to show that the
+restart with cutoff is working as expected.
+
+However, it seems that I can't get the nogoods_limit to work -- using
+the same 8-Queens example, with a constant cutoff of 23, I expect that
+restarts with no-goods should be able to find the solution. However,
+even when I set the nogoods_limit very high (1000), the search does not
+terminate. So I assume this means my code for nogoods_limit is not
+working...
+
+I setup the restart DFS search engine as follows:
+
+sengine = new GecodeRBS&lt;DFS&gt;(solver, o);
+
+where o is a Search::Options, and has o.nogoods_limit set (I verified
+this by printing o.nogoods_limit just before calling the above).
+
+GecodeRBS is based on the code Chrisitan sent me:
+
+template&lt;template&lt;class&gt; class E&gt;
+class GecodeRBS : public GecodeEngineBase {
+protected:
+    RBS&lt;E,GecodeSpace&gt; e;
+
+public:
+    GecodeRBS(GecodeSpace* solver, const Search::Options&amp; o) :
+e(solver,o) {}
+.....
+}
+
+(there might be typos: I typed the above in by hand, as cutting and
+pasting the actual code (in an VNC window) and my mailer running under
+Windows is a pain)
+
+I have not defined master() in GecodeSpace, as I think the default does
+what I need -- nogoods will be posted, so if nogood_limits is set,  then
+nogoods should be collected and posted in the default master().
+
+So I expected that if o.nogoods_limit is set in my sengine setup code,
+then nogoods will be posted by master, and with the limit set to 1000,
+all nogoods in my 8-Queens examples should be collected and posted, so
+the search should terminate. So I don't know why the search is not
+terminating. Am I doing something wrong in my code, or is my
+understanding of the expected behaviour incorrect?
+
+I am using Gecode 4.2.0.
+
+Cheers,
+
+Kish
+
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004233">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Nov 22 15:04:54 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Let me guess: you are not using the pre-defined branchers from Gecode or do
+you? If you use your own branchers you have to add support that actually
+generates the no-goods.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Kish Shen
+Sent: Friday, November 22, 2013 6:25 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Nogoods limit
+
+Hi,
+
+I have now got restart search implemented, thanks to help from Christian. I
+finally decided to implement restart DFS as a separate search method in my
+interface, and only allow one solution in this case, because getting the
+previous solution posted as a no-goods looked quite difficult, and probably
+not a good idea for most search anyway.
+
+I ran some tests, and it seems that the restart with cutoff is working, but
+the no-goods limit is not:
+
+I tested the search with an N-Queens problem, using INT_VAR_NONE and
+INT_VAL_MIN for variable and value selection, and a constant cutoff.
+The idea here is that every single restart (without no-goods) should perform
+exactly the same search, so if the cutoff is set below the number of
+failures before the solution is found, then the search will not terminate.
+This is indeed the case, e.g. for N=8, with the cutoff set at 23, then the
+search does not terminate, but with cutoff=24, a solution is returned. Also,
+using a geometric cutoff, a solution is also found, even with a low initial
+cutoff. So this seems to show that the restart with cutoff is working as
+expected.
+
+However, it seems that I can't get the nogoods_limit to work -- using the
+same 8-Queens example, with a constant cutoff of 23, I expect that restarts
+with no-goods should be able to find the solution. However, even when I set
+the nogoods_limit very high (1000), the search does not terminate. So I
+assume this means my code for nogoods_limit is not working...
+
+I setup the restart DFS search engine as follows:
+
+sengine = new GecodeRBS&lt;DFS&gt;(solver, o);
+
+where o is a Search::Options, and has o.nogoods_limit set (I verified this
+by printing o.nogoods_limit just before calling the above).
+
+GecodeRBS is based on the code Chrisitan sent me:
+
+template&lt;template&lt;class&gt; class E&gt;
+class GecodeRBS : public GecodeEngineBase {
+protected:
+    RBS&lt;E,GecodeSpace&gt; e;
+
+public:
+    GecodeRBS(GecodeSpace* solver, const Search::Options&amp; o) :
+e(solver,o) {}
+.....
+}
+
+(there might be typos: I typed the above in by hand, as cutting and pasting
+the actual code (in an VNC window) and my mailer running under Windows is a
+pain)
+
+I have not defined master() in GecodeSpace, as I think the default does what
+I need -- nogoods will be posted, so if nogood_limits is set,  then nogoods
+should be collected and posted in the default master().
+
+So I expected that if o.nogoods_limit is set in my sengine setup code, then
+nogoods will be posted by master, and with the limit set to 1000, all
+nogoods in my 8-Queens examples should be collected and posted, so the
+search should terminate. So I don't know why the search is not terminating.
+Am I doing something wrong in my code, or is my understanding of the
+expected behaviour incorrect?
+
+I am using Gecode 4.2.0.
+
+Cheers,
+
+Kish
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004234">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Kish Shen</h2></div>
+          <p><time>Fri Nov 22 19:28:07 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+I think I am using the predefined branchers, i.e. I just do:
+
+branch(*solver, vars, varselect, valchoice);
+
+I think this is using the pre-defined branchers?
+
+and then I set up a search engine as I showed previously.
+
+Thanks and cheers,
+
+Kish
+
+On 22/11/2013 14:04, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Let me guess: you are not using the pre-defined branchers from Gecode or do
+</I>&gt;<i> you? If you use your own branchers you have to add support that actually
+</I>&gt;<i> generates the no-goods.
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+</I>&gt;<i> Of Kish Shen
+</I>&gt;<i> Sent: Friday, November 22, 2013 6:25 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Nogoods limit
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I have now got restart search implemented, thanks to help from Christian. I
+</I>&gt;<i> finally decided to implement restart DFS as a separate search method in my
+</I>&gt;<i> interface, and only allow one solution in this case, because getting the
+</I>&gt;<i> previous solution posted as a no-goods looked quite difficult, and probably
+</I>&gt;<i> not a good idea for most search anyway.
+</I>&gt;<i>
+</I>&gt;<i> I ran some tests, and it seems that the restart with cutoff is working, but
+</I>&gt;<i> the no-goods limit is not:
+</I>&gt;<i>
+</I>&gt;<i> I tested the search with an N-Queens problem, using INT_VAR_NONE and
+</I>&gt;<i> INT_VAL_MIN for variable and value selection, and a constant cutoff.
+</I>&gt;<i> The idea here is that every single restart (without no-goods) should perform
+</I>&gt;<i> exactly the same search, so if the cutoff is set below the number of
+</I>&gt;<i> failures before the solution is found, then the search will not terminate.
+</I>&gt;<i> This is indeed the case, e.g. for N=8, with the cutoff set at 23, then the
+</I>&gt;<i> search does not terminate, but with cutoff=24, a solution is returned. Also,
+</I>&gt;<i> using a geometric cutoff, a solution is also found, even with a low initial
+</I>&gt;<i> cutoff. So this seems to show that the restart with cutoff is working as
+</I>&gt;<i> expected.
+</I>&gt;<i>
+</I>&gt;<i> However, it seems that I can't get the nogoods_limit to work -- using the
+</I>&gt;<i> same 8-Queens example, with a constant cutoff of 23, I expect that restarts
+</I>&gt;<i> with no-goods should be able to find the solution. However, even when I set
+</I>&gt;<i> the nogoods_limit very high (1000), the search does not terminate. So I
+</I>&gt;<i> assume this means my code for nogoods_limit is not working...
+</I>&gt;<i>
+</I>&gt;<i> I setup the restart DFS search engine as follows:
+</I>&gt;<i>
+</I>&gt;<i> sengine = new GecodeRBS&lt;DFS&gt;(solver, o);
+</I>&gt;<i>
+</I>&gt;<i> where o is a Search::Options, and has o.nogoods_limit set (I verified this
+</I>&gt;<i> by printing o.nogoods_limit just before calling the above).
+</I>&gt;<i>
+</I>&gt;<i> GecodeRBS is based on the code Chrisitan sent me:
+</I>&gt;<i>
+</I>&gt;<i> template&lt;template&lt;class&gt; class E&gt;
+</I>&gt;<i> class GecodeRBS : public GecodeEngineBase {
+</I>&gt;<i> protected:
+</I>&gt;<i>      RBS&lt;E,GecodeSpace&gt; e;
+</I>&gt;<i>
+</I>&gt;<i> public:
+</I>&gt;<i>      GecodeRBS(GecodeSpace* solver, const Search::Options&amp; o) :
+</I>&gt;<i> e(solver,o) {}
+</I>&gt;<i> .....
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> (there might be typos: I typed the above in by hand, as cutting and pasting
+</I>&gt;<i> the actual code (in an VNC window) and my mailer running under Windows is a
+</I>&gt;<i> pain)
+</I>&gt;<i>
+</I>&gt;<i> I have not defined master() in GecodeSpace, as I think the default does what
+</I>&gt;<i> I need -- nogoods will be posted, so if nogood_limits is set,  then nogoods
+</I>&gt;<i> should be collected and posted in the default master().
+</I>&gt;<i>
+</I>&gt;<i> So I expected that if o.nogoods_limit is set in my sengine setup code, then
+</I>&gt;<i> nogoods will be posted by master, and with the limit set to 1000, all
+</I>&gt;<i> nogoods in my 8-Queens examples should be collected and posted, so the
+</I>&gt;<i> search should terminate. So I don't know why the search is not terminating.
+</I>&gt;<i> Am I doing something wrong in my code, or is my understanding of the
+</I>&gt;<i> expected behaviour incorrect?
+</I>&gt;<i>
+</I>&gt;<i> I am using Gecode 4.2.0.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004235">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Nov 26 16:59:55 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Oh, I see.
+
+How do you know that the no-goods do not work? MPG tries to explain that
+even with using no-goods you might not get the guarantee that a solution is
+only found once. So, it might not terminate when restarting (where I am
+guessing that you search for _all_ solutions, right?).
+
+Best
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+Sent: Friday, November 22, 2013 7:28 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Nogoods limit
+
+Hi Christian,
+
+I think I am using the predefined branchers, i.e. I just do:
+
+branch(*solver, vars, varselect, valchoice);
+
+I think this is using the pre-defined branchers?
+
+and then I set up a search engine as I showed previously.
+
+Thanks and cheers,
+
+Kish
+
+On 22/11/2013 14:04, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Let me guess: you are not using the pre-defined branchers from Gecode
+</I>&gt;<i> or do you? If you use your own branchers you have to add support that
+</I>&gt;<i> actually generates the no-goods.
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Kish Shen
+</I>&gt;<i> Sent: Friday, November 22, 2013 6:25 AM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: [gecode-users] Nogoods limit
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I have now got restart search implemented, thanks to help from
+</I>&gt;<i> Christian. I finally decided to implement restart DFS as a separate
+</I>&gt;<i> search method in my interface, and only allow one solution in this
+</I>&gt;<i> case, because getting the previous solution posted as a no-goods
+</I>&gt;<i> looked quite difficult, and probably not a good idea for most search
+</I>anyway.
+&gt;<i>
+</I>&gt;<i> I ran some tests, and it seems that the restart with cutoff is
+</I>&gt;<i> working, but the no-goods limit is not:
+</I>&gt;<i>
+</I>&gt;<i> I tested the search with an N-Queens problem, using INT_VAR_NONE and
+</I>&gt;<i> INT_VAL_MIN for variable and value selection, and a constant cutoff.
+</I>&gt;<i> The idea here is that every single restart (without no-goods) should
+</I>&gt;<i> perform exactly the same search, so if the cutoff is set below the
+</I>&gt;<i> number of failures before the solution is found, then the search will not
+</I>terminate.
+&gt;<i> This is indeed the case, e.g. for N=8, with the cutoff set at 23, then
+</I>&gt;<i> the search does not terminate, but with cutoff=24, a solution is
+</I>&gt;<i> returned. Also, using a geometric cutoff, a solution is also found,
+</I>&gt;<i> even with a low initial cutoff. So this seems to show that the restart
+</I>&gt;<i> with cutoff is working as expected.
+</I>&gt;<i>
+</I>&gt;<i> However, it seems that I can't get the nogoods_limit to work -- using
+</I>&gt;<i> the same 8-Queens example, with a constant cutoff of 23, I expect that
+</I>&gt;<i> restarts with no-goods should be able to find the solution. However,
+</I>&gt;<i> even when I set the nogoods_limit very high (1000), the search does
+</I>&gt;<i> not terminate. So I assume this means my code for nogoods_limit is not
+</I>working...
+&gt;<i>
+</I>&gt;<i> I setup the restart DFS search engine as follows:
+</I>&gt;<i>
+</I>&gt;<i> sengine = new GecodeRBS&lt;DFS&gt;(solver, o);
+</I>&gt;<i>
+</I>&gt;<i> where o is a Search::Options, and has o.nogoods_limit set (I verified
+</I>&gt;<i> this by printing o.nogoods_limit just before calling the above).
+</I>&gt;<i>
+</I>&gt;<i> GecodeRBS is based on the code Chrisitan sent me:
+</I>&gt;<i>
+</I>&gt;<i> template&lt;template&lt;class&gt; class E&gt;
+</I>&gt;<i> class GecodeRBS : public GecodeEngineBase {
+</I>&gt;<i> protected:
+</I>&gt;<i>      RBS&lt;E,GecodeSpace&gt; e;
+</I>&gt;<i>
+</I>&gt;<i> public:
+</I>&gt;<i>      GecodeRBS(GecodeSpace* solver, const Search::Options&amp; o) :
+</I>&gt;<i> e(solver,o) {}
+</I>&gt;<i> .....
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> (there might be typos: I typed the above in by hand, as cutting and
+</I>&gt;<i> pasting the actual code (in an VNC window) and my mailer running under
+</I>&gt;<i> Windows is a
+</I>&gt;<i> pain)
+</I>&gt;<i>
+</I>&gt;<i> I have not defined master() in GecodeSpace, as I think the default
+</I>&gt;<i> does what I need -- nogoods will be posted, so if nogood_limits is
+</I>&gt;<i> set,  then nogoods should be collected and posted in the default master().
+</I>&gt;<i>
+</I>&gt;<i> So I expected that if o.nogoods_limit is set in my sengine setup code,
+</I>&gt;<i> then nogoods will be posted by master, and with the limit set to 1000,
+</I>&gt;<i> all nogoods in my 8-Queens examples should be collected and posted, so
+</I>&gt;<i> the search should terminate. So I don't know why the search is not
+</I>terminating.
+&gt;<i> Am I doing something wrong in my code, or is my understanding of the
+</I>&gt;<i> expected behaviour incorrect?
+</I>&gt;<i>
+</I>&gt;<i> I am using Gecode 4.2.0.
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004236">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Nov 26 20:16:36 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+
+On 26/11/2013 15:59, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Oh, I see.
+</I>&gt;<i>
+</I>&gt;<i> How do you know that the no-goods do not work? MPG tries to explain that
+</I>&gt;<i> even with using no-goods you might not get the guarantee that a solution is
+</I>&gt;<i> only found once. So, it might not terminate when restarting (where I am
+</I>&gt;<i> guessing that you search for _all_ solutions, right?).
+</I>&gt;<i>
+</I>
+No, I am searching for a single solution. The only difference with using
+restart DFS without nogoods is that a positive nogoods_limit is set (in
+fact for the restart DFS without nogoods, I set the limit to 0, even
+though this is the default, because I use the same call to Gecode in
+both cases).
+
+The tests I was running were designed to show if my code for restart DFS
+is working or not. The reason I am using INT_VAR_NONE and INT_VAL_MIN is
+because I expect to get the same search on restart without nogoods, and
+even with nogoods, I expect the search to be similar, as INT_VAR_NONE
+choice is not affected by posting of constraints.
+
+Without nogoods, the behaviour I see is as I expect -- with the cutoff
+below a certain value (24 in the case of the 8-Queens example I tried),
+the search does not terminate. I assume this is because there were 23
+failures in this search before the solution was found.
+
+To test the restart DFS with nogoods, I set the nogoods_limit in the
+option to 23, reasoning that if any nogoods are posted, the restarted
+search will find a solution, because the cutoff is just below the
+threshold where I do get a solution, and I expect the search on restart
+to be very similar, so even 1 nogoods should be sufficient for getting
+aa solution. In any case, with the limit set to 1000, there should be
+many nogoods that are collected, so the search not terminating was
+unexpected.
+
+Cheers,
+
+Kish
+
+
+
+&gt;<i> Best
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: Kish Shen [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">kisshen at cisco.com</A>]
+</I>&gt;<i> Sent: Friday, November 22, 2013 7:28 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Nogoods limit
+</I>&gt;<i>
+</I>&gt;<i> Hi Christian,
+</I>&gt;<i>
+</I>&gt;<i> I think I am using the predefined branchers, i.e. I just do:
+</I>&gt;<i>
+</I>&gt;<i> branch(*solver, vars, varselect, valchoice);
+</I>&gt;<i>
+</I>&gt;<i> I think this is using the pre-defined branchers?
+</I>&gt;<i>
+</I>&gt;<i> and then I set up a search engine as I showed previously.
+</I>&gt;<i>
+</I>&gt;<i> Thanks and cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i> On 22/11/2013 14:04, Christian Schulte wrote:
+</I>&gt;&gt;<i> Hi Kish,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Let me guess: you are not using the pre-defined branchers from Gecode
+</I>&gt;&gt;<i> or do you? If you use your own branchers you have to add support that
+</I>&gt;&gt;<i> actually generates the no-goods.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers
+</I>&gt;&gt;<i> Christian
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> --
+</I>&gt;&gt;<i> Christian Schulte, Professor of Computer Science, KTH,
+</I>&gt;&gt;<i> www.ict.kth.se/~cschulte/
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;&gt;<i> Behalf Of Kish Shen
+</I>&gt;&gt;<i> Sent: Friday, November 22, 2013 6:25 AM
+</I>&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: [gecode-users] Nogoods limit
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have now got restart search implemented, thanks to help from
+</I>&gt;&gt;<i> Christian. I finally decided to implement restart DFS as a separate
+</I>&gt;&gt;<i> search method in my interface, and only allow one solution in this
+</I>&gt;&gt;<i> case, because getting the previous solution posted as a no-goods
+</I>&gt;&gt;<i> looked quite difficult, and probably not a good idea for most search
+</I>&gt;<i> anyway.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I ran some tests, and it seems that the restart with cutoff is
+</I>&gt;&gt;<i> working, but the no-goods limit is not:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I tested the search with an N-Queens problem, using INT_VAR_NONE and
+</I>&gt;&gt;<i> INT_VAL_MIN for variable and value selection, and a constant cutoff.
+</I>&gt;&gt;<i> The idea here is that every single restart (without no-goods) should
+</I>&gt;&gt;<i> perform exactly the same search, so if the cutoff is set below the
+</I>&gt;&gt;<i> number of failures before the solution is found, then the search will not
+</I>&gt;<i> terminate.
+</I>&gt;&gt;<i> This is indeed the case, e.g. for N=8, with the cutoff set at 23, then
+</I>&gt;&gt;<i> the search does not terminate, but with cutoff=24, a solution is
+</I>&gt;&gt;<i> returned. Also, using a geometric cutoff, a solution is also found,
+</I>&gt;&gt;<i> even with a low initial cutoff. So this seems to show that the restart
+</I>&gt;&gt;<i> with cutoff is working as expected.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> However, it seems that I can't get the nogoods_limit to work -- using
+</I>&gt;&gt;<i> the same 8-Queens example, with a constant cutoff of 23, I expect that
+</I>&gt;&gt;<i> restarts with no-goods should be able to find the solution. However,
+</I>&gt;&gt;<i> even when I set the nogoods_limit very high (1000), the search does
+</I>&gt;&gt;<i> not terminate. So I assume this means my code for nogoods_limit is not
+</I>&gt;<i> working...
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I setup the restart DFS search engine as follows:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> sengine = new GecodeRBS&lt;DFS&gt;(solver, o);
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> where o is a Search::Options, and has o.nogoods_limit set (I verified
+</I>&gt;&gt;<i> this by printing o.nogoods_limit just before calling the above).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> GecodeRBS is based on the code Chrisitan sent me:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> template&lt;template&lt;class&gt; class E&gt;
+</I>&gt;&gt;<i> class GecodeRBS : public GecodeEngineBase {
+</I>&gt;&gt;<i> protected:
+</I>&gt;&gt;<i>       RBS&lt;E,GecodeSpace&gt; e;
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> public:
+</I>&gt;&gt;<i>       GecodeRBS(GecodeSpace* solver, const Search::Options&amp; o) :
+</I>&gt;&gt;<i> e(solver,o) {}
+</I>&gt;&gt;<i> .....
+</I>&gt;&gt;<i> }
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> (there might be typos: I typed the above in by hand, as cutting and
+</I>&gt;&gt;<i> pasting the actual code (in an VNC window) and my mailer running under
+</I>&gt;&gt;<i> Windows is a
+</I>&gt;&gt;<i> pain)
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I have not defined master() in GecodeSpace, as I think the default
+</I>&gt;&gt;<i> does what I need -- nogoods will be posted, so if nogood_limits is
+</I>&gt;&gt;<i> set,  then nogoods should be collected and posted in the default master().
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> So I expected that if o.nogoods_limit is set in my sengine setup code,
+</I>&gt;&gt;<i> then nogoods will be posted by master, and with the limit set to 1000,
+</I>&gt;&gt;<i> all nogoods in my 8-Queens examples should be collected and posted, so
+</I>&gt;&gt;<i> the search should terminate. So I don't know why the search is not
+</I>&gt;<i> terminating.
+</I>&gt;&gt;<i> Am I doing something wrong in my code, or is my understanding of the
+</I>&gt;&gt;<i> expected behaviour incorrect?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I am using Gecode 4.2.0.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Kish
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004237">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Kish Shen</h2></div>
+          <p><time>Tue Nov 26 20:22:15 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 26/11/2013 19:16, Kish Shen wrote:
+
+&gt;<i> To test the restart DFS with nogoods, I set the nogoods_limit in the
+</I>&gt;<i> option to 23,
+</I>
+Sorry, I mean I set the cutoff to 23, with the nogoods_limit set to
+1000. The cutoff of 23 is just one below the cutoff threshold where the
+search is able to find a solution -- I assume without restart (because
+restarting the search will perform exactly the same search).
+
+Cheers,
+
+Kish
+
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004238">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Nov 26 21:17:08 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Kish,
+
+Which version do you use: there was a bug before 4.2.1 in the restart search
+that could lead to a behavior as you describe it. 4.2.1 fixes this.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;<i> Behalf Of Kish Shen
+</I>&gt;<i> Sent: Tuesday, November 26, 2013 8:22 PM
+</I>&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> Subject: Re: [gecode-users] Nogoods limit
+</I>&gt;<i>
+</I>&gt;<i> On 26/11/2013 19:16, Kish Shen wrote:
+</I>&gt;<i>
+</I>&gt;<i> &gt; To test the restart DFS with nogoods, I set the nogoods_limit in the
+</I>&gt;<i> &gt; option to 23,
+</I>&gt;<i>
+</I>&gt;<i> Sorry, I mean I set the cutoff to 23, with the nogoods_limit set to 1000.
+</I>The
+&gt;<i> cutoff of 23 is just one below the cutoff threshold where the search is
+</I>able to
+&gt;<i> find a solution -- I assume without restart (because restarting the search
+</I>will
+&gt;<i> perform exactly the same search).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Kish
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004239">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Kish Shen</h2></div>
+          <p><time>Wed Nov 27 21:39:43 CET 2013</time><small>November 2013</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+Thanks. That does appear to be the problem -- I was using 4.2.0, as I
+mentioned in the first message in this thread. I just installed 4.2.1,
+and the test with the nogoods succeeded.
+
+Cheers,
+
+Kish
+
+On 26/11/2013 20:17, Christian Schulte wrote:
+&gt;<i> Hi Kish,
+</I>&gt;<i>
+</I>&gt;<i> Which version do you use: there was a bug before 4.2.1 in the restart search
+</I>&gt;<i> that could lead to a behavior as you describe it. 4.2.1 fixes this.
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, www.ict.kth.se/~cschulte/
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;&gt;<i> -----Original Message-----
+</I>&gt;&gt;<i> From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On
+</I>&gt;&gt;<i> Behalf Of Kish Shen
+</I>&gt;&gt;<i> Sent: Tuesday, November 26, 2013 8:22 PM
+</I>&gt;&gt;<i> To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> Subject: Re: [gecode-users] Nogoods limit
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> On 26/11/2013 19:16, Kish Shen wrote:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;&gt;<i> To test the restart DFS with nogoods, I set the nogoods_limit in the
+</I>&gt;&gt;&gt;<i> option to 23,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Sorry, I mean I set the cutoff to 23, with the nogoods_limit set to 1000.
+</I>&gt;<i> The
+</I>&gt;&gt;<i> cutoff of 23 is just one below the cutoff threshold where the search is
+</I>&gt;<i> able to
+</I>&gt;&gt;<i> find a solution -- I assume without restart (because restarting the search
+</I>&gt;<i> will
+</I>&gt;&gt;<i> perform exactly the same search).
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Cheers,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Kish
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________
+</I>&gt;&gt;<i> Gecode users mailing list
+</I>&gt;&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] Major design flaw and solution — 1 message in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] Major design flaw and solution | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>1 message</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · May 2004</p><h1 data-pagefind-meta="title">[Gecode] Major design flaw and solution</h1></header>
+      <p class="archive-thread-summary">1 message · May 2004</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000069">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed May 5 22:26:39 CEST 2004</time><small>May 2004</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear all,
+
+we have been thinking (triggered by Gabor) for a while about what is the
+right way to post a propagator. Here I stumbled about a major design flaw
+but I think I have a solution and also have a sensible design guideline.
+
+To get my message across clearly, first some notation (Wow!). By a propagate
+method I mean the propagate member function every propagator needs to
+implement. By a propagator post function I refer to the static member
+function every propagator should provide for posting a propagator of that
+class. By a post-function I refer to the functions which are used by clients
+of Gecode to create propagators (they are implemented in terms of propagator
+post functions).
+
+Let me tell what the prupose of the two different post functions are:
+
+POST_FUNCTION
+
+	As said, serves as interface to the clients of Gecode. Here, typical
+tasks are preprocessing of arguments and dispatch on the level of
+consistency.
+
+PROPAGATOR POST FUNCTION
+
+	They are propagator specific (static). Their purpose is to create a
+propagator, if needed. Also, take care of special cases such as creating a
+special variant of the propagator, enforcing some invariants on variables
+required by the propagator or avoiding propagator creation at all (just do a
+tell, for example).
+
+	Propagator post functions are used for two purposes: one is to
+provide the means to implements post-functions. Secondly, they are used for
+posting propagator inside the propagation functions of other propagators
+(think of a refied propagator).
+
+	A propagator post function is the ONLY way to create a propagator
+(so I actually declared all constructors protected!), as they are the guys
+to ensure the right invariants PRIOR to propagator creation proper.
+
+	HERE IS THE FLAW: A PROPAGATOR POST FUNCTION CAN FAIL (AND IT DOES).
+If you invoke a propagator post function in a propagation function you are
+fucked: failure goes unnoticed. And I don't want to hack that, it is
+important that failure in posting also is transferred the same way as
+failure in tells.
+
+So what needs to be done is to have propagator post functions return a
+status. That is what I did (and what I will check in):
+
+Introduce a new enumeration type PostStatus with values POS_NONE and
+POS_FAILED (that is instead of having static void post(...) we get static
+PostStatus post(...)).
+
+To disambiguate from PropStatus values I renamed them from PS_* to PRS_*.
+
+The macro FAILCHECK is gone. For replacement the following macros are used
+(all macros need to start with GECODE_ anyway ;-( )
+
+GECODE_CME_PROP(me): That is the former FAILCHECK: check whether tell has
+failed and forward status. During propagation.
+
+The other then are straightforward (check for kernel/macros.hh):
+GECODE_CME_POST(me): Tell inside propagator post function.
+
+GECODE_CME_SPACE(me): Tell inside post-function.
+
+The latter two guys should make life much easier (hi Gabor!).
+
+The same set exists now also for propagator post functions:
+GECODE_CPOS_PROP, GECODE_CPOS_POST, GECODE_CPOS_SPACE
+
+
+
+The names may suck, but that we can fix later.
+
+What still needs to be done, is to convert everything into using the above
+discipline.
+
+Not that clear the Email, I am tired. Does it make sense?
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

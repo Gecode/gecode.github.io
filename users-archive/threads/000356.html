@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Unexpected propagation/search behaviour — 15 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Unexpected propagation/search behaviour | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>15 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2006–February 2006</p><h1 data-pagefind-meta="title">Unexpected propagation/search behaviour</h1></header>
+      <p class="archive-thread-summary">15 messages · January 2006–February 2006</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000356">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 23 00:02:30 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello again,
+
+I've completed the propagator implementation mentioned in my previous mails,
+thank you for your help. To recall, the propagator, called 'tunneling',
+relates three arrays of variables and upon propagation posts several new
+constraints like equality, inequality and element restrictions.
+
+With regard to the latter I've made some (for me) strange observations. What
+my propagator does is basically check which of the variables in the arrays
+have been fixed/assigned, posting a collection of the above mentioned
+propagators for each of these variables respectively.
+
+Now, if I keep track of the variables that have been 'treated' this way
+(i.e. that had the respective collection of propagators posted on it) I can
+make sure that this posting only happens once for each variable, thus
+avoiding unnecessary redundancy (or so I think).
+
+If, however, I do not keep track of this and just post the collection of new
+propagators for each assigned variable (these propagators are always the
+same for one variable) each time my tunneling propagator's propagate method
+is called, I would expect identical search behaviour (maybe a little longer
+running time due to duplicate propagators).
+
+What happens, though, is quite the opposite: the latter version (potentially
+posting the same propagators over and over again) yields a solution after a
+few seconds. The first version, however, posting the propagators (at most)
+once for each variable, ran for several minutes without finding a solution
+until I aborted.
+
+Here's a mixture of C++ and pseudo-code describing the stripped-down
+critical part, assuming the three ViewArray&lt;intView&gt; instances are called x,
+y, and z, all of length n:
+
+propagate(Space* home) {
+  for (int i=0; i&lt;n; ++i) {
+    //... do stuff for x and y
+    if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+      //... some preparations, like creating IdxView instances
+      Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i]);
+      Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i]);
+    }
+  }
+  //...
+}
+
+[in the 'real' call of the post methods, z would have to be replaced by
+IdxView instances]
+
+A few words about the overall setting: I'm employing DFS search (DFS-copy,
+to be exact) and apart from my tunneling propagator some other constraints
+(e.g. distinct on several subsets of variables) are involved -- but those
+are the same for both scenarios described above. The only difference is
+really one line of code, enabling or disabling the above-mentioned
+track-keeping mechanism (by removing the &lt;z[i] not yet treated&gt; part).
+
+I've narrowed it down to the element constraints posted wrt. assigned
+variables withing the 'tunneling' propagator (see the code above). Hence I
+wonder: Why is there a difference between posting the same element
+constraints once and posting them several times throughout the search
+process? Is it possible to give a conceptual explanation for this, without
+requiring more of the actual code?
+
+Thank you very much in advance (once more),
+
+/Lars Otten
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000357">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael &#x27;Zayenz&#x27; Lagerkvist</h2></div>
+          <p><time>Mon Jan 23 07:35:13 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+On 1/23/06, Lars Otten &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ottenl at student.chalmers.se</A>&gt; wrote:
+&gt;<i> propagate(Space* home) {
+</I>&gt;<i>   for (int i=0; i&lt;n; ++i) {
+</I>&gt;<i>     //... do stuff for x and y
+</I>&gt;<i>     if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+</I>&gt;<i>       //... some preparations, like creating IdxView instances
+</I>&gt;<i>       Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i]);
+</I>&gt;<i>       Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i]);
+</I>&gt;<i>     }
+</I>&gt;<i>   }
+</I>&gt;<i>   //...
+</I>&gt;<i> }
+</I>
+I have one comment on the above code. When calling the post-methods,
+it is very important to always check the return-value for possible
+failure. The code should look something like the following.
+
+   if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+     //... some preparations, like creating IdxView instances
+     if(Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+     if(Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+   }
+
+When a failure is detected, the space may no longer be in a consistent
+state. Therefore it is important to stop computing with it.
+
+Cheers,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, <A HREF="http://www.imit.kth.se/~zayenz/">http://www.imit.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000358">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Jan 23 10:40:57 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>This will actually be most likely the cause for ypur problems. Not only is
+it dangerous to not check for the status but actually in your case the very
+fact that failure has been dected gets lost!
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mikael 'Zayenz' Lagerkvist
+Sent: Monday, January 23, 2006 7:35 AM
+To: Lars Otten
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Hi,
+
+On 1/23/06, Lars Otten &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ottenl at student.chalmers.se</A>&gt; wrote:
+&gt;<i> propagate(Space* home) {
+</I>&gt;<i>   for (int i=0; i&lt;n; ++i) {
+</I>&gt;<i>     //... do stuff for x and y
+</I>&gt;<i>     if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+</I>&gt;<i>       //... some preparations, like creating IdxView instances
+</I>&gt;<i>       Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i]);
+</I>&gt;<i>       Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i]);
+</I>&gt;<i>     }
+</I>&gt;<i>   }
+</I>&gt;<i>   //...
+</I>&gt;<i> }
+</I>
+I have one comment on the above code. When calling the post-methods, it is
+very important to always check the return-value for possible failure. The
+code should look something like the following.
+
+   if (z[i].assigned() &amp;&amp; &lt;z[i] not yet treated&gt; ) {
+     //... some preparations, like creating IdxView instances
+     if(Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),x[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+     if(Element::ViewDom&lt;IntView,IntView&gt;::post(home,z,z.size(),y[i],z[i])
+== ES_FAILED)
+       return ES_FAILED;
+   }
+
+When a failure is detected, the space may no longer be in a consistent
+state. Therefore it is important to stop computing with it.
+
+Cheers,
+Mikael
+
+--
+Mikael 'Zayenz' Lagerkvist, <A HREF="http://www.imit.kth.se/~zayenz/">http://www.imit.kth.se/~zayenz/</A>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000359">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 23 14:48:11 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello and thanks for the answers,
+
+in fact I do perform that check in my propagator, I just cut it from my
+pseudo code in the mail. My bad, sorry.
+
+Anyway, the problem can't be due to that then, any other ideas?
+
+/Lars
+
+On 01/23/06 09:40, Christian Schulte wrote:
+&gt;<i> This will actually be most likely the cause for ypur problems. Not only is
+</I>&gt;<i> it dangerous to not check for the status but actually in your case the very
+</I>&gt;<i> fact that failure has been dected gets lost!
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000360">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Jan 23 14:21:54 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hmmm, another thing: how do you store the info that a variable is already
+done? Do you copy that properly?
+
+Otherwise, no real idea yet. Maybe send the real code.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Lars Otten
+Sent: Monday, January 23, 2006 2:48 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Hello and thanks for the answers,
+
+in fact I do perform that check in my propagator, I just cut it from my
+pseudo code in the mail. My bad, sorry.
+
+Anyway, the problem can't be due to that then, any other ideas?
+
+/Lars
+
+On 01/23/06 09:40, Christian Schulte wrote:
+&gt;<i> This will actually be most likely the cause for ypur problems. Not
+</I>&gt;<i> only is it dangerous to not check for the status but actually in your
+</I>&gt;<i> case the very fact that failure has been dected gets lost!
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000361">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 23 15:46:44 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>The propagator has three fields, one for each array, of type set&lt;int&gt; (from
+the STL), where I store the indices of the variables that have been
+processed already. When the propagator is cloned copies of these fields are
+made for the new propagagor instance, so that should be OK?
+
+I'll see if I can send some code later...
+
+/Lars
+
+On 01/23/06 13:21, Christian Schulte wrote:
+&gt;<i> Hmmm, another thing: how do you store the info that a variable is already
+</I>&gt;<i> done? Do you copy that properly?
+</I>&gt;<i>
+</I>&gt;<i> Otherwise, no real idea yet. Maybe send the real code.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000362">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Jan 23 15:07:01 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hmm, sounds reasonable. No other idea so far...
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Lars Otten [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ottenl at student.chalmers.se</A>]
+Sent: Monday, January 23, 2006 3:47 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+The propagator has three fields, one for each array, of type set&lt;int&gt; (from
+the STL), where I store the indices of the variables that have been
+processed already. When the propagator is cloned copies of these fields are
+made for the new propagagor instance, so that should be OK?
+
+I'll see if I can send some code later...
+
+/Lars
+
+On 01/23/06 13:21, Christian Schulte wrote:
+&gt;<i> Hmmm, another thing: how do you store the info that a variable is
+</I>&gt;<i> already done? Do you copy that properly?
+</I>&gt;<i>
+</I>&gt;<i> Otherwise, no real idea yet. Maybe send the real code.
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000363">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Lars Otten</h2></div>
+          <p><time>Mon Jan 23 17:07:21 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Attached you find all code related to my propagator, below are the essential
+parts of the main program. I hope that is sufficient...
+
+Any ideas will be greatly appreciated!
+
+/Lars
+
+
+/*
+ * tailassi.cc (excerpts)
+ */
+
+using namespace std;
+
+class Activity;
+vector&lt;Activity&gt; activities;
+
+class Tail : public Example {
+protected:
+  // predecessor, successor and vehicle variables
+  IntVarArray suc, pre, veh;
+public:
+
+  using Space::nextRand; // int (*nextRand) (const int&amp;)
+
+  /// Actual model
+  Tail(const Options&amp; opt);
+
+  /// Constructor for cloning \a s
+  Tail(bool share, Tail&amp; s) : Example(share,s) {
+    nextRand = s.nextRand;
+    pre.update(this, share, s.pre);
+    suc.update(this, share, s.suc);
+    veh.update(this, share, s.veh);
+  }
+
+  /// Print solution
+  virtual void print(void);
+
+  /// Copy during cloning
+  virtual Space* copy(bool share) {
+    return new Tail(share,*this);
+  }
+};
+
+int nextRandom(const int&amp; max);
+
+int main(int argc, char** argv) {
+  Options opt(&quot;Tail assignment&quot;);
+  opt.iterations = 20000;
+  opt.parse(argc,argv);
+  parseData(opt.file); // parses the datafile
+
+  opt.fptr = &amp;nextRandom;
+  srand(opt.seed);
+
+  Example::run&lt;Tail,DFS&gt;(opt);
+
+  return 0;
+}
+
+
+Tail::Tail(const Options&amp; opt) :
+  suc(this,noOfAct),
+  pre(this,noOfAct),
+  veh(this,noOfAct)
+{
+
+//... Variable initialisation
+
+  distinct(this,suc);
+
+  // check for overlaps in case of restricted acitivities
+  for (int i=0; i&lt;noOfAct; ++i) {
+    if (activities[i].restricted) {
+      const set&lt;int&gt;&amp; s = activities[i].overlappingActs;
+      if (s.size() != 0) {
+        IntVarArray arr(this,s.size() + 1);
+        int j=0;
+        for (set&lt;int&gt;::iterator it = s.begin(); it != s.end(); ++it) {
+          arr[j++] = veh[*it];
+        }
+        arr[j] = veh[i]; // add current act. no to set
+        distinct(this,arr);
+      }
+    }
+  }
+
+  inverse(this,suc,pre);
+  tunneling(this,suc,pre,veh, &amp;fwOverlap);
+
+  branch(this, suc, BVAR_DEGREE_MIN, BVAL_MAX);
+
+}
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 425 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.cc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.cc</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.hh
+Type: text/x-c++hdr
+Size: 1419 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.hh">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.hh</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: tunneling.cc
+Type: text/x-c++src
+Size: 1755 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment-0001.cc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment-0001.cc</A>&gt;
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: tunneling.icc
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.asc">http://www.ps.uni-sb.de/pipermail/users/attachments/20060123/22cdfe70/attachment.asc</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000364">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Jan 25 11:59:15 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Lars,
+
+even after looking more carefully to your code I can't see the reason.
+Please try to simplify. I would assume that Gecode is not guilty ;-)
+
+Also, which version of Gecode do you use? (I saw that you hacked it somehow
+with a rand function?)
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Lars Otten
+Sent: Monday, January 23, 2006 5:07 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Attached you find all code related to my propagator, below are the essential
+parts of the main program. I hope that is sufficient...
+
+Any ideas will be greatly appreciated!
+
+/Lars
+
+
+/*
+ * tailassi.cc (excerpts)
+ */
+
+using namespace std;
+
+class Activity;
+vector&lt;Activity&gt; activities;
+
+class Tail : public Example {
+protected:
+  // predecessor, successor and vehicle variables
+  IntVarArray suc, pre, veh;
+public:
+
+  using Space::nextRand; // int (*nextRand) (const int&amp;)
+
+  /// Actual model
+  Tail(const Options&amp; opt);
+
+  /// Constructor for cloning \a s
+  Tail(bool share, Tail&amp; s) : Example(share,s) {
+    nextRand = s.nextRand;
+    pre.update(this, share, s.pre);
+    suc.update(this, share, s.suc);
+    veh.update(this, share, s.veh);
+  }
+
+  /// Print solution
+  virtual void print(void);
+
+  /// Copy during cloning
+  virtual Space* copy(bool share) {
+    return new Tail(share,*this);
+  }
+};
+
+int nextRandom(const int&amp; max);
+
+int main(int argc, char** argv) {
+  Options opt(&quot;Tail assignment&quot;);
+  opt.iterations = 20000;
+  opt.parse(argc,argv);
+  parseData(opt.file); // parses the datafile
+
+  opt.fptr = &amp;nextRandom;
+  srand(opt.seed);
+
+  Example::run&lt;Tail,DFS&gt;(opt);
+
+  return 0;
+}
+
+
+Tail::Tail(const Options&amp; opt) :
+  suc(this,noOfAct),
+  pre(this,noOfAct),
+  veh(this,noOfAct)
+{
+
+//... Variable initialisation
+
+  distinct(this,suc);
+
+  // check for overlaps in case of restricted acitivities
+  for (int i=0; i&lt;noOfAct; ++i) {
+    if (activities[i].restricted) {
+      const set&lt;int&gt;&amp; s = activities[i].overlappingActs;
+      if (s.size() != 0) {
+        IntVarArray arr(this,s.size() + 1);
+        int j=0;
+        for (set&lt;int&gt;::iterator it = s.begin(); it != s.end(); ++it) {
+          arr[j++] = veh[*it];
+        }
+        arr[j] = veh[i]; // add current act. no to set
+        distinct(this,arr);
+      }
+    }
+  }
+
+  inverse(this,suc,pre);
+  tunneling(this,suc,pre,veh, &amp;fwOverlap);
+
+  branch(this, suc, BVAR_DEGREE_MIN, BVAL_MAX);
+
+}
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000365">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Jan 25 14:36:52 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I meant to simplify your program to find the fault. Maybe try to
+incrementally go for the solution you want to obtain in the end (just
+remebering for some propagators but not for all, maybe exclude element?).
+
+Christian
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000366">
+        <header class="archive-thread-message-heading">
+          <div><span>11</span><h2>Lars Otten</h2></div>
+          <p><time>Wed Jan 25 15:35:06 CET 2006</time><small>January 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+thank you very much for your efforts!
+
+On 01/25/06 10:59, Christian Schulte wrote:
+&gt;<i> even after looking more carefully to your code I can't see the reason.
+</I>&gt;<i> Please try to simplify.
+</I>
+Do you mean simplifying the propagator algorithm? Or simplifying the code
+and descriptions I sent to the mailing list?
+
+&gt;<i> I would assume that Gecode is not guilty ;-)
+</I>
+That is of course my assumption as well, still the observed behaviour is
+somewhat peculiar...
+
+&gt;<i> Also, which version of Gecode do you use? (I saw that you hacked it somehow
+</I>&gt;<i> with a rand function?)
+</I>
+I'm using version 1.0.0.
+
+And as my final goal is to add randomization to the search algorithm, I will
+need to 'hack' it with such elements -- in fact, as you noticed, I have
+already commenced some things in this respect.
+
+But so far none of these are really used anywhere; what you are probably
+refering to is just a field I added to the Space class pointing to a
+'centralized' function for random numbers (which I have removed again
+meanwhile).
+
+I am going on an extended weekend trip tomorrow, so I will probably look
+into the whole issue some more next week.
+
+Thank you so far,
+
+/Lars
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000367">
+        <header class="archive-thread-message-heading">
+          <div><span>12</span><h2>Lars Otten</h2></div>
+          <p><time>Fri Feb 3 01:39:07 CET 2006</time><small>February 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+On 01/25/06 13:36, Christian Schulte wrote:
+&gt;<i> I meant to simplify your program to find the fault. Maybe try to
+</I>&gt;<i> incrementally go for the solution you want to obtain in the end (just
+</I>&gt;<i> remebering for some propagators but not for all, maybe exclude element?).
+</I>
+I did as you suggested and was thereby able to determine the 'critical'
+part. As soon as I do not perform the 'remembering' for the first of the two
+element propagators posted in each run of Tunneling::propagate(Space*) I get
+the different behaviour mentioned before.
+
+In other words, reposting the element propagators for the IntVarArray suc
+makes the program find a solution rather quickly, not reposting those makes
+the program run 'forever' (i.e. more than a few minutes, at which point I
+aborted).
+
+I also added some diagnostic output to the constructors and destructors of
+the element propagator and as expected the two versions start out the same.
+Just after the first few element propagators being posted the
+non-remembering version posts the constraints for some indices over and over
+again whereas the remembering version doesn't...
+
+Any more ideas about this? I am really at a loss here...
+
+/Lars
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000368">
+        <header class="archive-thread-message-heading">
+          <div><span>13</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Feb 3 14:17:01 CET 2006</time><small>February 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>How do you remember. Globally? That you can't do. You have to remember for
+each space (like: does this space already have the propagators posted). Do
+you do that?
+
+Otherwise your logic appears to be flawed somehow. It looks as if you
+continue with spaces that lack the propagators!
+
+Sorry that's all what comes to mind
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Lars Otten [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ottenl at student.chalmers.se</A>]
+Sent: Friday, February 03, 2006 1:39 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Unexpected propagation/search behaviour
+
+
+Hi,
+
+On 01/25/06 13:36, Christian Schulte wrote:
+&gt;<i> I meant to simplify your program to find the fault. Maybe try to
+</I>&gt;<i> incrementally go for the solution you want to obtain in the end (just
+</I>&gt;<i> remebering for some propagators but not for all, maybe exclude
+</I>&gt;<i> element?).
+</I>
+I did as you suggested and was thereby able to determine the 'critical'
+part. As soon as I do not perform the 'remembering' for the first of the two
+element propagators posted in each run of Tunneling::propagate(Space*) I get
+the different behaviour mentioned before.
+
+In other words, reposting the element propagators for the IntVarArray suc
+makes the program find a solution rather quickly, not reposting those makes
+the program run 'forever' (i.e. more than a few minutes, at which point I
+aborted).
+
+I also added some diagnostic output to the constructors and destructors of
+the element propagator and as expected the two versions start out the same.
+Just after the first few element propagators being posted the
+non-remembering version posts the constraints for some indices over and over
+again whereas the remembering version doesn't...
+
+Any more ideas about this? I am really at a loss here...
+
+/Lars
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000369">
+        <header class="archive-thread-message-heading">
+          <div><span>14</span><h2>Lars Otten</h2></div>
+          <p><time>Fri Feb 3 15:44:14 CET 2006</time><small>February 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 02/03/06 13:17, Christian Schulte wrote:
+&gt;<i> How do you remember. Globally? That you can't do. You have to remember for
+</I>&gt;<i> each space (like: does this space already have the propagators posted). Do
+</I>&gt;<i> you do that?
+</I>
+Sort of, yes: I don't remember for the individual spaces but for each
+instance of my tunneling propagator (which in turn each space has exactly
+one instance of).
+
+Each of these tunneling instances has fields of type set&lt;int&gt; that
+'remember' if the respective element propagator has been posted.
+
+And clones of these fields are made upon cloning of the tunneling propagator
+-- also clones of the existing element propagators should be made upon space
+cloning, so the overall state should remain consistent.
+
+&gt;<i> Otherwise your logic appears to be flawed somehow. It looks as if you
+</I>&gt;<i> continue with spaces that lack the propagators!
+</I>
+Yes, that was my thought as well -- but, apart from when a space fails,
+propagators should only 'disappear' if they return ES_SUBSUMED, i.e. the
+resp. variables have been fixed and the implied constraint is satisfied. And
+then reposting the propagator shouldn't make a difference.
+
+Is it possible for a propagator to vanish although it is not subsumed yet?
+
+/Lars
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000377">
+        <header class="archive-thread-message-heading">
+          <div><span>15</span><h2>Lars Otten</h2></div>
+          <p><time>Wed Feb 8 19:03:46 CET 2006</time><small>February 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Ok, I have spent some more time on this issue and came up with the following:
+
+Instead of posting one 'global' propagator which repeatedly checks all array
+entries, I have implemented the equivalent individual propagators for each
+of the individual variables. These constraints are derived from
+UnaryPropagator&lt;IntView,PC_INT_VAL&gt; and, for their respective variable, post
+the appropriate new 'child constraints' upon value assignment (due to
+PC_INT_VAL).
+
+(I have thus traded a constant number of propagators with linear running
+time against a linear number of propagators with constant running time, so
+performance-wise that should be OK)
+
+Furthermore I can now rule out potential flaws in my logic about remembering
+which variables have been processed before, since this logic is gone and
+Gecode logic is used instead.
+
+Unfortunately this didn't help: in contrast to the previous version, where I
+keep reposting the said child constraints, no solution is found for several
+minutes (where I cancel the program as my computer is out of memory), just
+as in the old version with 'memory' to avoid reposting.
+
+So I'm again running out of ideas... :-P I guess I will leave it at that for
+now.
+
+/Lars
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] IntVarProcessor question. — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] IntVarProcessor question. | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2005</p><h1 data-pagefind-meta="title">[Gecode] IntVarProcessor question.</h1></header>
+      <p class="archive-thread-summary">2 messages · January 2005</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000205">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Thu Jan 20 17:56:09 CET 2005</time><small>January 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi all,
+
+
+I am trying to set up a constraint system over real numbers in gecode.  I need
+to implement a method like IntVarProcessor::process but according with the
+events of the new constraint system. Unfortunately i don't understand what is
+this method intended for. This method is closely related to
+Space::process_modified which takes the variable, two propagation conditions
+and a modification event as arguments, but a relationship between the event
+which caused variable modification and the two propagation conditions is not
+much clear to me.
+
+Would it be possible for any of you to provide a short description of this?.
+In the following i list the propagation events declared for the new system:
+
+ME_RI_VAL -&gt; when a variable gets instantiated.
+ME_RI_BND -&gt; both, lower and upper bounds where modified.
+ME_RI_MIN -&gt; the lower bound was modified.
+ME_RI_MAX -&gt; the upper bound was modified.
+
+I have also defined the corresponding PC_RI_* propagation conditions!.
+
+Thanks in advance.
+
+Gustavo Gutierrez
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000206">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Sun Jan 23 15:40:00 CET 2005</time><small>January 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi.
+
+The VarProcessors are responsible for translating from Modification
+Events (MEs) to Propagation Conditions (PCs) and putting all
+propagators registered for certain PCs into the propagation queue.
+The Processor iterates over all variables of its VarTypeID and,
+depending on a variable's ME, all propagators that are registered for
+the corresponding PC are &quot;processed&quot;. The propagators are organized in
+an array that is sorted by the PCs they respond to. So for example, if
+you have ME_INT_MAX, all propagators registered for PC_INT_BND,
+PC_INT_MAX, and PC_INT_DOM have to be processed. The order of PCs for
+Int is VAL, BND, MIN, MAX, DOM. process_modified takes two PCs as its
+arguments. These are used as pointers into the propagator array:
+process_modified(x,PC_INT_MAX,PC_INT_DOM,ME_INT_MAX) means to process
+all propagators &quot;between&quot; DOM and MAX (incl.).
+So basically, for implementing process, you just have to know the order
+of your PCs and which MEs should trigger which PCs. The rest can be
+copied from the IntVarProcessor.
+
+Guido
+
+&gt;<i> Hi all,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I am trying to set up a constraint system over real numbers in gecode.
+</I>&gt;<i>  I need
+</I>&gt;<i> to implement a method like IntVarProcessor::process but according with
+</I>&gt;<i> the
+</I>&gt;<i> events of the new constraint system. Unfortunately i don't understand
+</I>&gt;<i> what is
+</I>&gt;<i> this method intended for. This method is closely related to
+</I>&gt;<i> Space::process_modified which takes the variable, two propagation
+</I>&gt;<i> conditions
+</I>&gt;<i> and a modification event as arguments, but a relationship between the
+</I>&gt;<i> event
+</I>&gt;<i> which caused variable modification and the two propagation conditions
+</I>&gt;<i> is not
+</I>&gt;<i> much clear to me.
+</I>&gt;<i>
+</I>&gt;<i> Would it be possible for any of you to provide a short description of
+</I>&gt;<i> this?.
+</I>&gt;<i> In the following i list the propagation events declared for the new
+</I>&gt;<i> system:
+</I>&gt;<i>
+</I>&gt;<i> ME_RI_VAL -&gt; when a variable gets instantiated.
+</I>&gt;<i> ME_RI_BND -&gt; both, lower and upper bounds where modified.
+</I>&gt;<i> ME_RI_MIN -&gt; the lower bound was modified.
+</I>&gt;<i> ME_RI_MAX -&gt; the upper bound was modified.
+</I>&gt;<i>
+</I>&gt;<i> I have also defined the corresponding PC_RI_* propagation conditions!.
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance.
+</I>&gt;<i>
+</I>&gt;<i> Gustavo Gutierrez
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A>
+</I>&gt;<i> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+</I>
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

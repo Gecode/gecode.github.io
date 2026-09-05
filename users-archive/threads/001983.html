@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FlatZinc parser — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>FlatZinc parser | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2008</p><h1 data-pagefind-meta="title">FlatZinc parser</h1></header>
+      <p class="archive-thread-summary">4 messages · November 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001983">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Morten Boysen</h2></div>
+          <p><time>Wed Nov 5 22:24:33 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi
+
+As part of my thesis work, I have to build a configurator on top of
+Gecode (A configurator simply finds the valid domains of all variables
+in a CSP and allows assignment to variables). Since I need to read and
+parse FlatZinc models, I have looked at the FlatZinc interface to Gecode
+  to see if there is any code I can reuse.
+
+I found the FlatZincGecode class, which looks like it suits my needs
+perfectly: I can access the different variable and do valid domain
+computations on them. However, I have run into some problems with the
+source, as I am struggling to find out how the following problems can
+solved. Is there already functionality for it, or do I have to modify
+the source:
+
+1) How do I as simple as possible create a FlatZincGecode instance from
+a FlatZinc file? No propagation should occur or anything. The variables
+should just simply be added to the FlatZincGecode instance along with
+the constraints. This FlatZincGecode instance will then work as the
+initial model.
+
+2) Is there a way to get the original name of a variable in the
+FlatZincGecode instance and vice versa (I took a look at the Registry
+class and it looked like it might have something to do with it, but I am
+not sure).
+
+3) What is the easiest way to read the entire domain of an integer
+variable (not just the currently valid values, but also all the invalid
+ones). This includes cases where the domain is not a range?
+
+4) Is there a way to read only the values of variables that has support,
+and the values that have no support?
+
+Kind regards,
+Morten Boysen
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001984">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Nov 6 08:03:07 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+Morten Boysen wrote:
+&gt;<i> 1) How do I as simple as possible create a FlatZincGecode instance
+</I>&gt;<i> from
+</I>&gt;<i> a FlatZinc file? No propagation should occur or anything. The
+</I>&gt;<i> variables
+</I>&gt;<i> should just simply be added to the FlatZincGecode instance along with
+</I>&gt;<i> the constraints. This FlatZincGecode instance will then work as the
+</I>&gt;<i> initial model.
+</I>
+Look at main.cc.  It uses the (probably not very intuitively named)
+function solve from the flatzinc.hh header:
+
+FZPrinter p;
+FlatZincGecode* fg = FlatZinc::solve(filename, p);
+
+&gt;<i> 2) Is there a way to get the original name of a variable in the
+</I>&gt;<i> FlatZincGecode instance and vice versa (I took a look at the Registry
+</I>&gt;<i> class and it looked like it might have something to do with it, but
+</I>&gt;<i> I am
+</I>&gt;<i> not sure).
+</I>
+The names are currently only represented indirectly as strings in the
+FZPrinter, since they are only needed for output.  If you need the
+names more explicitly, you'll have to transfer the intvarTable,
+boolvarTable, and setvarTable from the FParseParm object (usually
+called pp in the parser) to the FlatZincGecode object.  The tables map
+names to the indices in the *VarArrays in FlatZincGecode.  In
+flazinc.yxx, there's a function initfg that creates all the
+variables.  In that function, you could create additional mappings in
+FlatZincGecode for the names.
+
+&gt;<i> 3) What is the easiest way to read the entire domain of an integer
+</I>&gt;<i> variable (not just the currently valid values, but also all the
+</I>&gt;<i> invalid
+</I>&gt;<i> ones). This includes cases where the domain is not a range?
+</I>
+That information is not maintained (as the solver never needs it
+anywhere).  The closest you can get is the domain specification from
+the FlatZinc, which might already be smaller than the domain in the
+original MiniZinc.  Again, you'd have to memorize that somewhere in
+FlatZincGecode, this should be possible in the newIntVar, newBoolVar,
+newSetVar functions.
+
+&gt;<i> 4) Is there a way to read only the values of variables that has
+</I>&gt;<i> support,
+</I>&gt;<i> and the values that have no support?
+</I>
+Inconsistent values are removed from the domains.  The only way to do
+this would be to store the original domain, and compute the difference
+(which you can do using our iterators).
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20081106/854f326c/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20081106/854f326c/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001985">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Morten Boysen</h2></div>
+          <p><time>Thu Nov 6 21:37:28 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Guido
+
+Thank you very much for the reply and the hints on where to look. I do
+have another question to you and the other developers of Gecode: What is
+the best environment to develop for Gecode in?
+
+I have so far tried to use Visual Studio with the binary installation.
+This works well if I am simply using the interface as provided by the
+headers and dlls in the code.
+
+However, I believe that what I am trying now with the FlatZinc parser is
+a bit unstandard and working with the FlatZinc parser code from within
+Visual Studio (this includes building the code) has proven to be quite a
+hassle. I have looked at the mailing list archive and I can see that
+Christian Schulte uses Windows to develop, but the build is performed
+using the GNU toolchain. What editors do you use, and how do you debug
+when you build using the GNU toolchain?
+
+Do you have any recommendations on what is easiest if we are planning to
+modify the FlatZinc to Gecode program?
+
+I apologize if this question has been answered before.
+
+Kind regards
+Morten Boysen
+
+Guido Tack skrev:
+&gt;<i> Hi!
+</I>&gt;<i>
+</I>&gt;<i> Morten Boysen wrote:
+</I>&gt;&gt;<i> 1) How do I as simple as possible create a FlatZincGecode instance from
+</I>&gt;&gt;<i> a FlatZinc file? No propagation should occur or anything. The variables
+</I>&gt;&gt;<i> should just simply be added to the FlatZincGecode instance along with
+</I>&gt;&gt;<i> the constraints. This FlatZincGecode instance will then work as the
+</I>&gt;&gt;<i> initial model.
+</I>&gt;<i>
+</I>&gt;<i> Look at main.cc.  It uses the (probably not very intuitively named)
+</I>&gt;<i> function solve from the flatzinc.hh header:
+</I>&gt;<i>
+</I>&gt;<i> FZPrinter p;
+</I>&gt;<i> FlatZincGecode* fg = FlatZinc::solve(filename, p);
+</I>&gt;<i>
+</I>&gt;&gt;<i> 2) Is there a way to get the original name of a variable in the
+</I>&gt;&gt;<i> FlatZincGecode instance and vice versa (I took a look at the Registry
+</I>&gt;&gt;<i> class and it looked like it might have something to do with it, but I am
+</I>&gt;&gt;<i> not sure).
+</I>&gt;<i>
+</I>&gt;<i> The names are currently only represented indirectly as strings in the
+</I>&gt;<i> FZPrinter, since they are only needed for output.  If you need the names
+</I>&gt;<i> more explicitly, you'll have to transfer the intvarTable, boolvarTable,
+</I>&gt;<i> and setvarTable from the FParseParm object (usually called pp in the
+</I>&gt;<i> parser) to the FlatZincGecode object.  The tables map names to the
+</I>&gt;<i> indices in the *VarArrays in FlatZincGecode.  In flazinc.yxx, there's a
+</I>&gt;<i> function initfg that creates all the variables.  In that function, you
+</I>&gt;<i> could create additional mappings in FlatZincGecode for the names.
+</I>&gt;<i>
+</I>&gt;&gt;<i> 3) What is the easiest way to read the entire domain of an integer
+</I>&gt;&gt;<i> variable (not just the currently valid values, but also all the invalid
+</I>&gt;&gt;<i> ones). This includes cases where the domain is not a range?
+</I>&gt;<i>
+</I>&gt;<i> That information is not maintained (as the solver never needs it
+</I>&gt;<i> anywhere).  The closest you can get is the domain specification from the
+</I>&gt;<i> FlatZinc, which might already be smaller than the domain in the original
+</I>&gt;<i> MiniZinc.  Again, you'd have to memorize that somewhere in
+</I>&gt;<i> FlatZincGecode, this should be possible in the newIntVar, newBoolVar,
+</I>&gt;<i> newSetVar functions.
+</I>&gt;<i>
+</I>&gt;&gt;<i> 4) Is there a way to read only the values of variables that has support,
+</I>&gt;&gt;<i> and the values that have no support?
+</I>&gt;<i>
+</I>&gt;<i> Inconsistent values are removed from the domains.  The only way to do
+</I>&gt;<i> this would be to store the original domain, and compute the difference
+</I>&gt;<i> (which you can do using our iterators).
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>     Guido
+</I>&gt;<i>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001986">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Nov 6 22:28:06 CET 2008</time><small>November 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Morten Boysen wrote:
+&gt;<i> Thank you very much for the reply and the hints on where to look. I do
+</I>&gt;<i> have another question to you and the other developers of Gecode:
+</I>&gt;<i> What is
+</I>&gt;<i> the best environment to develop for Gecode in?
+</I>
+We actually use quite different setups, but none of us uses any IDE
+(neither Eclipse, nor VS, nor XCode).  We're somehow used to working
+with just an editor and a shell.
+
+&gt;<i> I have so far tried to use Visual Studio with the binary installation.
+</I>&gt;<i> This works well if I am simply using the interface as provided by the
+</I>&gt;<i> headers and dlls in the code.
+</I>&gt;<i>
+</I>&gt;<i> However, I believe that what I am trying now with the FlatZinc
+</I>&gt;<i> parser is
+</I>&gt;<i> a bit unstandard and working with the FlatZinc parser code from within
+</I>&gt;<i> Visual Studio (this includes building the code) has proven to be
+</I>&gt;<i> quite a
+</I>&gt;<i> hassle.
+</I>
+I think it should be possible (see below).
+
+&gt;<i> I have looked at the mailing list archive and I can see that
+</I>&gt;<i> Christian Schulte uses Windows to develop, but the build is performed
+</I>&gt;<i> using the GNU toolchain. What editors do you use, and how do you debug
+</I>&gt;<i> when you build using the GNU toolchain?
+</I>
+We don't actually use the GNU compiler toolchain on Windows, just the
+Unix tools (make, perl, bash, grep, sed etc).  We compile using cl,
+and debug using the VS debugger.
+
+&gt;<i> Do you have any recommendations on what is easiest if we are
+</I>&gt;<i> planning to
+</I>&gt;<i> modify the FlatZinc to Gecode program?
+</I>
+You will need at least some of the GNU tools, because the FlatZinc
+parser is generated using flex/bison.  Compiling the generated stuff
+shouldn't be too hard, actually, even directly from Visual Studio.
+It's not a lot of files, you could just create a Visual Studio project
+with all the files, and then compile and link against the binary
+version of Gecode.
+
+Alternatively, just use Visual Studio as an editor if you're used to
+it, and then compile the stuff using make on the command line.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

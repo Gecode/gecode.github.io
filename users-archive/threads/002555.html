@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Segmentation fault in a very simple model — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Segmentation fault in a very simple model | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2009</p><h1 data-pagefind-meta="title">Segmentation fault in a very simple model</h1></header>
+      <p class="archive-thread-summary">2 messages · August 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002555">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Alfredo Esteban</h2></div>
+          <p><time>Tue Aug 4 15:42:16 CEST 2009</time><small>August 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I'm getting started with Gecode reading &quot;Modeling with Gecode&quot;. I have
+experience in Constraint Programming using iLog software.
+
+I installed Gecode and I created a project to test it. I used SendMoreMoney
+example. Everything is ok and I can compile and execute this example.
+
+However, when I tried to build my own simple model, compilation is ok but I
+get a segmentation fault when posting a linear constraint. It is very
+strange because I imitated SendMoreMoney example. I searched in mailing list
+but I didn't find anything.
+
+I show you the code. In main.cpp we have:
+
+int main(int argc, char* argv[]) {
+  SchoolTimeTable* problem = new SchoolTimeTable();
+[...]
+  return 0;
+}
+
+In schoolTimeTable.h we have:
+
+#include &lt;gecode/int.hh&gt;
+
+using namespace Gecode;
+
+class SchoolTimeTable : public Space {
+protected:
+  BoolVarArray m_vars;
+public:
+  SchoolTimeTable(void);
+  SchoolTimeTable(bool share, SchoolTimeTable&amp; s);
+  virtual Space* copy(bool share);
+  void print(void) const;
+};
+
+In schoolTimeTable.cpp we have:
+
+#include &quot;schoolTimeTable.h&quot;
+#include &lt;gecode/search.hh&gt;
+
+SchoolTimeTable::SchoolTimeTable(void){
+  m_vars = BoolVarArray(*this,900);
+
+  BoolVarArgs borrame(3);
+  for (int i=0; i&lt;3; i++) borrame[i]=m_vars[i];
+  linear(*this,borrame,IRT_EQ,2); // SIGSEGV IS HERE
+}
+
+SchoolTimeTable::SchoolTimeTable(bool share, SchoolTimeTable&amp; s)
+  : Space(share, s) {
+  m_vars.update(*this, share, s.m_vars);
+}
+
+Space* SchoolTimeTable::copy(bool share) {
+  return new SchoolTimeTable(share,*this);
+}
+
+Technical data:
+
+OS: Debian GNU/Linux Squeeze
+Gecode version: 3.1.0
+gcc version: 4.3.3
+gdb version: 6.8
+
+Thank you very much,
+
+Alfredo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20090804/1833cbe3/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20090804/1833cbe3/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002556">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Aug 4 16:08:25 CEST 2009</time><small>August 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear Alfredo,
+
+I think the problem lies in the initialization of the BoolVarArray.
+Even for BoolVars, you have to give an initial domain, so you should
+change the code to
+   m_vars = BoolVarArray(*this,900, 0,1);
+
+The way you wrote it, you just allocated an array of size 900 with
+uninitialized variables, that's probably why it crashed.
+
+Hope this helps,
+	Guido
+
+Alfredo Esteban wrote:
+
+&gt;<i> Hello,
+</I>&gt;<i>
+</I>&gt;<i> I'm getting started with Gecode reading &quot;Modeling with Gecode&quot;. I
+</I>&gt;<i> have experience in Constraint Programming using iLog software.
+</I>&gt;<i>
+</I>&gt;<i> I installed Gecode and I created a project to test it. I used
+</I>&gt;<i> SendMoreMoney example. Everything is ok and I can compile and
+</I>&gt;<i> execute this example.
+</I>&gt;<i>
+</I>&gt;<i> However, when I tried to build my own simple model, compilation is
+</I>&gt;<i> ok but I get a segmentation fault when posting a linear constraint.
+</I>&gt;<i> It is very strange because I imitated SendMoreMoney example. I
+</I>&gt;<i> searched in mailing list but I didn't find anything.
+</I>&gt;<i>
+</I>&gt;<i> I show you the code. In main.cpp we have:
+</I>&gt;<i>
+</I>&gt;<i> int main(int argc, char* argv[]) {
+</I>&gt;<i>   SchoolTimeTable* problem = new SchoolTimeTable();
+</I>&gt;<i> [...]
+</I>&gt;<i>   return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> In schoolTimeTable.h we have:
+</I>&gt;<i>
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i> class SchoolTimeTable : public Space {
+</I>&gt;<i> protected:
+</I>&gt;<i>   BoolVarArray m_vars;
+</I>&gt;<i> public:
+</I>&gt;<i>   SchoolTimeTable(void);
+</I>&gt;<i>   SchoolTimeTable(bool share, SchoolTimeTable&amp; s);
+</I>&gt;<i>   virtual Space* copy(bool share);
+</I>&gt;<i>   void print(void) const;
+</I>&gt;<i> };
+</I>&gt;<i>
+</I>&gt;<i> In schoolTimeTable.cpp we have:
+</I>&gt;<i>
+</I>&gt;<i> #include &quot;schoolTimeTable.h&quot;
+</I>&gt;<i> #include &lt;gecode/search.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i> SchoolTimeTable::SchoolTimeTable(void){
+</I>&gt;<i>   m_vars = BoolVarArray(*this,900);
+</I>&gt;<i>
+</I>&gt;<i>   BoolVarArgs borrame(3);
+</I>&gt;<i>   for (int i=0; i&lt;3; i++) borrame[i]=m_vars[i];
+</I>&gt;<i>   linear(*this,borrame,IRT_EQ,2); // SIGSEGV IS HERE
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> SchoolTimeTable::SchoolTimeTable(bool share, SchoolTimeTable&amp; s)
+</I>&gt;<i>   : Space(share, s) {
+</I>&gt;<i>   m_vars.update(*this, share, s.m_vars);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Space* SchoolTimeTable::copy(bool share) {
+</I>&gt;<i>   return new SchoolTimeTable(share,*this);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Technical data:
+</I>&gt;<i>
+</I>&gt;<i> OS: Debian GNU/Linux Squeeze
+</I>&gt;<i> Gecode version: 3.1.0
+</I>&gt;<i> gcc version: 4.3.3
+</I>&gt;<i> gdb version: 6.8
+</I>&gt;<i>
+</I>&gt;<i> Thank you very much,
+</I>&gt;<i>
+</I>&gt;<i> Alfredo
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

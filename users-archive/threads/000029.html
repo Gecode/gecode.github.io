@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] Announcement: FS constraints prototype — 8 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] Announcement: FS constraints prototype | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>8 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · December 2003</p><h1 data-pagefind-meta="title">[Gecode] Announcement: FS constraints prototype</h1></header>
+      <p class="archive-thread-summary">8 messages · December 2003</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000029">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Dec 5 11:06:14 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi everyone.
+
+As you may have guessed from the CVS logs, Gabor and I have started working on
+an implementation of finite integer set constraints for Gecode. Development
+will take place on the CVS branch &quot;gecode-fs&quot;, as we expect some changes to
+be intrusive and don't want to break the rest of the system.
+
+Here's what we have so far:
+* FS variables
+   - implemented as bitsets of fixed size
+   - only upper and lower bound of the set (no cardinality yet)
+   - basic tells: include and exclude
+* &quot;Non-basic propagators&quot; from Tobias M&#252;ller's thesis
+   - S_1\supseteq S_2\cap S_3
+   - S_1\subseteq S_2\cup S_3
+   - Other set constraints expressed in terms of the two above
+
+We are now working on cardinality constraints and a simple distributor.
+
+The model that we think of for cardinality at the moment is the following: We
+want to introduce an FD variable together with every FS variable and post a
+propagator that is subscribed to both and implements the cardinality
+constraints. The reason for separating the cardinality and the set variable
+is the limited number of modification events: We just could not signal a
+change of cardinality in addition to the MEs for lower and upper bound.
+Christian: Is it possible/feasible to post a propagator directly upon variable
+creation?
+
+Guido
+
+--
+Guido Tack
+Programming Systems Lab
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000030">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>duchier at ps.uni-sb.de</h2></div>
+          <p><time>Fri Dec 5 12:03:20 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; writes:
+
+&gt;<i>    - S_1\supseteq S_2\cap S_3
+</I>&gt;<i>    - S_1\subseteq S_2\cup S_3
+</I>
+er... isn't that backwards? it should be:
+
+      S_1\subseteq S_2\cap S_3
+      S_1\supseteq S_2\cup S_3
+
+&gt;<i> The model that we think of for cardinality at the moment is the following: We
+</I>&gt;<i> want to introduce an FD variable together with every FS variable and post a
+</I>&gt;<i> propagator that is subscribed to both and implements the cardinality
+</I>&gt;<i> constraints.
+</I>
+That's essentially the way it is done in Mozart: each FS variable
+keeps track of min/max for cardinality. FS.card simply posts a
+propagator between the FS variable and a FD variable that propagates
+these bounds both ways.
+
+Please, keep a similar design.  We certainly don't want to introduce
+cardinality variables and propagators for _all_ sets.
+
+&gt;<i> The reason for separating the cardinality and the set variable
+</I>&gt;<i> is the limited number of modification events: We just could not signal a
+</I>&gt;<i> change of cardinality in addition to the MEs for lower and upper
+</I>&gt;<i> bound.
+</I>
+Could you elaborate on this paragraph?  I am not as familiar with
+gecode internals as you are :-(
+
+Cheers,
+
+--
+Denys Duchier - &#201;quipe Calligramme - LORIA, Nancy, France
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000031">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Fri Dec 5 13:13:12 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Denys!
+
+On Friday 05 December 2003 12:03, <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">duchier at ps.uni-sb.de</A> wrote:
+&gt;<i> er... isn't that backwards? it should be:
+</I>&gt;<i>
+</I>&gt;<i>       S_1\subseteq S_2\cap S_3
+</I>&gt;<i>       S_1\supseteq S_2\cup S_3
+</I>
+Hm, according to Tobias' thesis it's &quot;subset of union&quot; and &quot;superset of
+intersection&quot; ?!? ;-)
+
+&gt;<i> That's essentially the way it is done in Mozart: each FS variable
+</I>&gt;<i> keeps track of min/max for cardinality. FS.card simply posts a
+</I>&gt;<i> propagator between the FS variable and a FD variable that propagates
+</I>&gt;<i> these bounds both ways.
+</I>&gt;<i>
+</I>&gt;<i> Please, keep a similar design.  We certainly don't want to introduce
+</I>&gt;<i> cardinality variables and propagators for _all_ sets.
+</I>
+Hm, maybe I should try to explain this in a bit more detailed way:
+
+A propagator subscribes to certain modification events (MEs) of a variable, so
+that it is only invoked if that event has occured. All finite set MEs have to
+be represented using 3 bits, we chose &quot;nothing happened&quot;, &quot;failure&quot;,
+&quot;assigned&quot;, &quot;lower bound changed&quot;, &quot;upper bound changed&quot;, &quot;both bounds
+changed&quot;. So there are only two more MEs, which is not enough to encode
+combinations of the above with,e.g., &quot;cardinality changed&quot;. This is our main
+technical argument against representing cardinality in a core set variable.
+
+Of course this makes the cardinality propagators a bit less efficient than
+possible: Everytime the bounds change, they have to be invoked and test
+whether the cardinality changed as well - this cannot be done by the tell
+operations of the core fs variable.
+
+Is it true that in Mozart, no cardinality information is propagated at all
+unless you explicitly create a cardinality variable? We could easily follow
+that model (and you gave a good reason to do so).
+
+Guido
+
+--
+Guido Tack
+Programming Systems Lab
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000032">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>duchier at ps.uni-sb.de</h2></div>
+          <p><time>Fri Dec 5 15:14:27 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; writes:
+
+&gt;<i> Hm, according to Tobias' thesis it's &quot;subset of union&quot; and &quot;superset of
+</I>&gt;<i> intersection&quot; ?!? ;-)
+</I>
+ah well, then according to me too :-) I must have tripped over my
+latex (this happens when you've been debugging assembler too long)
+
+&gt;<i> Is it true that in Mozart, no cardinality information is propagated at all
+</I>&gt;<i> unless you explicitly create a cardinality variable?
+</I>
+propagated to where? :-)
+
+As I said, a mozart FS var keeps track of min/max of the cardinality
+using two integer data members.  These maybe modified in 3 ways:
+
+- when the upper/lower bounds of the set change dur to propagation
+- when there is a cardinality FD variable connected to the FS variable
+  by the cardinality propagator
+- when FS.cardRange is invoked
+
+The Mozart FS.card propagator listens to the modification events as
+described by these statements:
+
+  OZ_EXPECT_SUSPEND(pe, 0, expectFSetVarAny, dummy);
+  OZ_EXPECT_SUSPEND(pe, 1, expectIntVarMinMax, dummy);
+
+Cheers,
+
+--
+Denys Duchier - &#201;quipe Calligramme - LORIA, Nancy, France
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000033">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Dec 5 15:24:14 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Failure and nothing does not need a bit? So it should eaxctly as with finite
+domains!
+	Assigned
+	GLB changed
+	LUB changed
+	GLB+LUB changed
+	CARD changed
+And the point to note is that all other events also change the cardinality,
+right?
+
+Otherwise, congratulations!
+
+Christian
+
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A>
+</I>&gt;<i> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A>] On Behalf Of Guido Tack
+</I>&gt;<i> Sent: Friday, December 05, 2003 13:13
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at ps.uni-sb.de</A>
+</I>&gt;<i> Subject: Re: [Gecode] Announcement: FS constraints prototype
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi Denys!
+</I>&gt;<i>
+</I>&gt;<i> On Friday 05 December 2003 12:03, <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">duchier at ps.uni-sb.de</A> wrote:
+</I>&gt;<i> &gt; er... isn't that backwards? it should be:
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt;       S_1\subseteq S_2\cap S_3
+</I>&gt;<i> &gt;       S_1\supseteq S_2\cup S_3
+</I>&gt;<i>
+</I>&gt;<i> Hm, according to Tobias' thesis it's &quot;subset of union&quot; and
+</I>&gt;<i> &quot;superset of
+</I>&gt;<i> intersection&quot; ?!? ;-)
+</I>&gt;<i>
+</I>&gt;<i> &gt; That's essentially the way it is done in Mozart: each FS variable
+</I>&gt;<i> &gt; keeps track of min/max for cardinality. FS.card simply posts a
+</I>&gt;<i> &gt; propagator between the FS variable and a FD variable that
+</I>&gt;<i> propagates
+</I>&gt;<i> &gt; these bounds both ways.
+</I>&gt;<i> &gt;
+</I>&gt;<i> &gt; Please, keep a similar design.  We certainly don't want to
+</I>&gt;<i> introduce
+</I>&gt;<i> &gt; cardinality variables and propagators for _all_ sets.
+</I>&gt;<i>
+</I>&gt;<i> Hm, maybe I should try to explain this in a bit more detailed way:
+</I>&gt;<i>
+</I>&gt;<i> A propagator subscribes to certain modification events (MEs)
+</I>&gt;<i> of a variable, so
+</I>&gt;<i> that it is only invoked if that event has occured. All finite
+</I>&gt;<i> set MEs have to
+</I>&gt;<i> be represented using 3 bits, we chose &quot;nothing happened&quot;, &quot;failure&quot;,
+</I>&gt;<i> &quot;assigned&quot;, &quot;lower bound changed&quot;, &quot;upper bound changed&quot;,
+</I>&gt;<i> &quot;both bounds
+</I>&gt;<i> changed&quot;. So there are only two more MEs, which is not enough
+</I>&gt;<i> to encode
+</I>&gt;<i> combinations of the above with,e.g., &quot;cardinality changed&quot;.
+</I>&gt;<i> This is our main
+</I>&gt;<i> technical argument against representing cardinality in a core
+</I>&gt;<i> set variable.
+</I>&gt;<i>
+</I>&gt;<i> Of course this makes the cardinality propagators a bit less
+</I>&gt;<i> efficient than
+</I>&gt;<i> possible: Everytime the bounds change, they have to be
+</I>&gt;<i> invoked and test
+</I>&gt;<i> whether the cardinality changed as well - this cannot be done
+</I>&gt;<i> by the tell
+</I>&gt;<i> operations of the core fs variable.
+</I>&gt;<i>
+</I>&gt;<i> Is it true that in Mozart, no cardinality information is
+</I>&gt;<i> propagated at all
+</I>&gt;<i> unless you explicitly create a cardinality variable? We could
+</I>&gt;<i> easily follow
+</I>&gt;<i> that model (and you gave a good reason to do so).
+</I>&gt;<i>
+</I>&gt;<i> Guido
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guido Tack
+</I>&gt;<i> Programming Systems Lab
+</I>&gt;<i> <A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000034">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Fri Dec 5 15:31:03 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Currently I have no time until I'm back from travelling in ten days.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A>
+</I>&gt;<i> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A>] On Behalf Of <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">duchier at ps.uni-sb.de</A>
+</I>&gt;<i> Sent: Friday, December 05, 2003 12:03
+</I>&gt;<i> To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at ps.uni-sb.de</A>
+</I>&gt;<i> Subject: Re: [Gecode] Announcement: FS constraints prototype
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; writes:
+</I>&gt;<i>
+</I>&gt;<i> &gt;    - S_1\supseteq S_2\cap S_3
+</I>&gt;<i> &gt;    - S_1\subseteq S_2\cup S_3
+</I>&gt;<i>
+</I>&gt;<i> er... isn't that backwards? it should be:
+</I>&gt;<i>
+</I>&gt;<i>       S_1\subseteq S_2\cap S_3
+</I>&gt;<i>       S_1\supseteq S_2\cup S_3
+</I>&gt;<i>
+</I>&gt;<i> &gt; The model that we think of for cardinality at the moment is the
+</I>&gt;<i> &gt; following: We
+</I>&gt;<i> &gt; want to introduce an FD variable together with every FS
+</I>&gt;<i> variable and post a
+</I>&gt;<i> &gt; propagator that is subscribed to both and implements the
+</I>&gt;<i> cardinality
+</I>&gt;<i> &gt; constraints.
+</I>&gt;<i>
+</I>&gt;<i> That's essentially the way it is done in Mozart: each FS
+</I>&gt;<i> variable keeps track of min/max for cardinality. FS.card
+</I>&gt;<i> simply posts a propagator between the FS variable and a FD
+</I>&gt;<i> variable that propagates these bounds both ways.
+</I>&gt;<i>
+</I>&gt;<i> Please, keep a similar design.  We certainly don't want to
+</I>&gt;<i> introduce cardinality variables and propagators for _all_ sets.
+</I>&gt;<i>
+</I>&gt;<i> &gt; The reason for separating the cardinality and the set variable
+</I>&gt;<i> &gt; is the limited number of modification events: We just could
+</I>&gt;<i> not signal a
+</I>&gt;<i> &gt; change of cardinality in addition to the MEs for lower and upper
+</I>&gt;<i> &gt; bound.
+</I>&gt;<i>
+</I>&gt;<i> Could you elaborate on this paragraph?  I am not as familiar
+</I>&gt;<i> with gecode internals as you are :-(
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Denys Duchier - &#201;quipe Calligramme - LORIA, Nancy, France
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+</I>&gt;<i>
+</I>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000035">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Gabor Szokoli</h2></div>
+          <p><time>Fri Dec 5 16:50:41 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian Schulte wrote:
+
+&gt;<i>Failure and nothing does not need a bit?
+</I>&gt;<i>
+</I>I would expect &quot;nothing&quot; to be one of the 8 possible combinations, in
+general/kernel.hh you say
+ME_GEN_NONE = 0
+
+I agree that failure does not have to be stored on the variable if it is
+taken care of immediately anyway without further regard to the
+consistency of the space, but we thought it was stored as 7.
+
+&gt;<i> So it should eaxctly as with finite
+</I>&gt;<i>domains!
+</I>&gt;<i>	Assigned
+</I>&gt;<i>	GLB changed
+</I>&gt;<i>	LUB changed
+</I>&gt;<i>	GLB+LUB changed
+</I>&gt;<i>
+</I>&gt;<i>
+</I>This is what we have so far, w/o cardinality support...
+
+&gt;<i>	CARD changed
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>And the point to note is that all other events also change the cardinality,
+</I>&gt;<i>right?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>Theoretically, the cardinality bounds may contain stronger information
+than the sizes of the (U&amp;L) bounds, then (U&amp;L) bounds changes may happen
+without cardinality changes.
+Say there's a free set, you first tell &quot;it has 1 element&quot; and then after
+stability &quot;It's not 42&quot;:
+there's an UpperBound change, with no cardinality change.
+But this could be so rare in real life that you might practically be right.
+
+One other thing to note is that cardinality information is only used to
+detect failure and assignment, but it triggers no other bounds changes.
+The primitive propagators maintain this property (only FAIL, VAL or CARD
+changes infered from CARD events). You'd have to have something twisted
+like &quot;This set contains its cardinality&quot; to break this rule.
+Not that I can derive anything useful from this observation, but it
+suggests that a propagator based aproach would not result in spinning
+propagator loops.
+
+&gt;<i>Otherwise, congratulations!
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>Guido did the real work while I made smartass comments over his
+shoulder, but you should see my whiteboard!
+(&quot;Oh my God! It's full of UML, with stars in it!&quot;)
+
+&gt;<i>Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>Gabor, pair-non-programmer
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000036">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>duchier at ps.uni-sb.de</h2></div>
+          <p><time>Fri Dec 5 16:47:22 CET 2003</time><small>December 2003</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>&quot;Christian Schulte&quot; &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>&gt; writes:
+
+&gt;<i> And the point to note is that all other events also change the cardinality,
+</I>&gt;<i> right?
+</I>
+Not necessarily.  It is possible that the cardinality is more
+constrained than follows only from the lower/upper bounds of the set
+(e.g. because you have explicitly restricted it using FS.cardRange or
+because the cardinality variable has become independently more
+constrained and propagated this info into the set var).
+
+&gt;<i> Otherwise, congratulations!
+</I>
+indeed! :-)
+
+Cheers,
+
+--
+Denys Duchier - &#201;quipe Calligramme - LORIA, Nancy, France
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Memory problem — 10 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Memory problem | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>10 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2008</p><h1 data-pagefind-meta="title">Memory problem</h1></header>
+      <p class="archive-thread-summary">10 messages · August 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001828">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Wed Aug 27 10:56:12 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi All,
+
+Some time ago someone reported an strange memory behavior in mac os x on the
+gecode list. I do not know whether it was fixed but i think it still remains
+in the current implementation. The problem apparently happens only in mac os
+x. You can get it by replacing the main function of the queens example to
+this one:
+
+int
+main(int argc, char* argv[]) {
+
+  SizeOptions opt(&quot;Queens&quot;);
+  opt.iterations(500);
+  opt.size(100);
+  opt.propagation(Queens::PROP_DISTINCT);
+  opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+                      &quot;only binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+                      &quot;single distinct and binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+                      &quot;three distinct constraints&quot;);
+  opt.parse(argc,argv);
+  /*
+  Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+  */
+  std::vector&lt;Queens*&gt; q;
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    q.push_back(new Queens(opt));
+  }
+  std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    Queens *tmp = q[i];
+    delete tmp;
+    q.pop_back();
+  }
+  std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+
+  int a;
+  std::cin &gt;&gt; a;
+  return 0;
+}
+
+The idea is to create a lot of spaces and to keep pointer to them in an
+array. After the creation all spaces are deleted. The expected behavior is
+to release all the memory allocated in the first loop and to have it
+available by the operating system. I tried in a mac os x running leopard and
+the memory seems to be still used by the process (according to Activity
+Monitor). In a linux machine the memory seems to be released according to
+top.
+
+Another thing is that when using the gecode trunk to try the same problem,
+the de-allocation behaves better, that is, half of the memory is released
+but still some memory is kept by the process.
+
+Do you have any suggestion on how to work around this?
+
+Regards,
+--
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080827/bd1ac949/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080827/bd1ac949/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001829">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Aug 27 11:10:37 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>That is really beyond our control: apparently the memory management is Mac OS is not very sophisticated (which does not come as a surprise to me).
+
+
+
+While I fail to see the practical relevance of your example there is an experiment what you could do: you allocate the spaces in the same order as you deallocate them. Try and see what happens if you deallocate the spaces in inverse order. That is, run the deallocation loop backwards so that the space allocated last gets deleted first.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Gustavo Gutierrez
+Sent: Wednesday, August 27, 2008 10:56 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+Subject: [gecode-users] Memory problem
+
+
+
+Hi All,
+
+Some time ago someone reported an strange memory behavior in mac os x on the gecode list. I do not know whether it was fixed but i think it still remains in the current implementation. The problem apparently happens only in mac os x. You can get it by replacing the main function of the queens example to this one:
+
+int
+main(int argc, char* argv[]) {
+
+  SizeOptions opt(&quot;Queens&quot;);
+  opt.iterations(500);
+  opt.size(100);
+  opt.propagation(Queens::PROP_
+
+DISTINCT);
+  opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+                      &quot;only binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+                      &quot;single distinct and binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+                      &quot;three distinct constraints&quot;);
+  opt.parse(argc,argv);
+  /*
+  Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+  */
+  std::vector&lt;Queens*&gt; q;
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    q.push_back(new Queens(opt));
+  }
+  std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    Queens *tmp = q[i];
+    delete tmp;
+    q.pop_back();
+  }
+  std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+
+  int a;
+  std::cin &gt;&gt; a;
+  return 0;
+}
+
+The idea is to create a lot of spaces and to keep pointer to them in an array. After the creation all spaces are deleted. The expected behavior is to release all the memory allocated in the first loop and to have it available by the operating system. I tried in a mac os x running leopard and the memory seems to be still used by the process (according to Activity Monitor). In a linux machine the memory seems to be released according to top.
+
+Another thing is that when using the gecode trunk to try the same problem, the de-allocation behaves better, that is, half of the memory is released but still some memory is kept by the process.
+
+Do you have any suggestion on how to work around this?
+
+
+Regards,
+--
+Gustavo Gutierrez
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080827/8642ae34/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080827/8642ae34/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001831">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Thu Aug 28 07:43:47 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Wed, Aug 27, 2008 at 11:10 AM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> While I fail to see the practical relevance of your example
+</I>&gt;<i>
+</I>It is not relevant as that, but it shows a problem that happens in our
+development of the next mozart release. As you may know we are interested in
+having a mozart gecode integration. Well, by doing some benchmarks we
+realize that memory consumption is to high for medium size problems. The
+idea is simple: we have a linked list of gecode spaces and the garbage
+collector needs to traverse it  to see which of them needs to be removed.
+Also, after space propagation we check whether the gecode space has resulted
+failed to remove it in eagerly (i.e., do not wait for a grabage collector
+run).
+
+
+&gt;<i> there is an experiment what you could do: you allocate the spaces in the
+</I>&gt;<i> same order as you deallocate them. Try and see what happens if you
+</I>&gt;<i> deallocate the spaces in inverse order. That is, run the deallocation loop
+</I>&gt;<i> backwards so that the space allocated last gets deleted first.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+After trying the same problem occurs. Is there a way to instrument gecode to
+use a different allocator for memory?, i mean, something similar to STL in
+which many of the data structures provided take an optional allocator
+template parameter.
+
+Regards,
+Gustavo
+
+*From:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+&gt;<i> Behalf Of *Gustavo Gutierrez
+</I>&gt;<i> *Sent:* Wednesday, August 27, 2008 10:56 AM
+</I>&gt;<i> *To:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Memory problem
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi All,
+</I>&gt;<i>
+</I>&gt;<i> Some time ago someone reported an strange memory behavior in mac os x on
+</I>&gt;<i> the gecode list. I do not know whether it was fixed but i think it still
+</I>&gt;<i> remains in the current implementation. The problem apparently happens only
+</I>&gt;<i> in mac os x. You can get it by replacing the main function of the queens
+</I>&gt;<i> example to this one:
+</I>&gt;<i>
+</I>&gt;<i> int
+</I>&gt;<i> main(int argc, char* argv[]) {
+</I>&gt;<i>
+</I>&gt;<i>   SizeOptions opt(&quot;Queens&quot;);
+</I>&gt;<i>   opt.iterations(500);
+</I>&gt;<i>   opt.size(100);
+</I>&gt;<i>   opt.propagation(Queens::PROP_
+</I>&gt;<i>
+</I>&gt;<i> DISTINCT);
+</I>&gt;<i>   opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+</I>&gt;<i>                       &quot;only binary disequality constraints&quot;);
+</I>&gt;<i>   opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+</I>&gt;<i>                       &quot;single distinct and binary disequality
+</I>&gt;<i> constraints&quot;);
+</I>&gt;<i>   opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+</I>&gt;<i>                       &quot;three distinct constraints&quot;);
+</I>&gt;<i>   opt.parse(argc,argv);
+</I>&gt;<i>   /*
+</I>&gt;<i>   Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+</I>&gt;<i>   */
+</I>&gt;<i>   std::vector&lt;Queens*&gt; q;
+</I>&gt;<i>   for (unsigned int i=0; i &lt; 100000; i++) {
+</I>&gt;<i>     q.push_back(new Queens(opt));
+</I>&gt;<i>   }
+</I>&gt;<i>   std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>   for (unsigned int i=0; i &lt; 100000; i++) {
+</I>&gt;<i>     Queens *tmp = q[i];
+</I>&gt;<i>     delete tmp;
+</I>&gt;<i>     q.pop_back();
+</I>&gt;<i>   }
+</I>&gt;<i>   std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>   int a;
+</I>&gt;<i>   std::cin &gt;&gt; a;
+</I>&gt;<i>   return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> The idea is to create a lot of spaces and to keep pointer to them in an
+</I>&gt;<i> array. After the creation all spaces are deleted. The expected behavior is
+</I>&gt;<i> to release all the memory allocated in the first loop and to have it
+</I>&gt;<i> available by the operating system. I tried in a mac os x running leopard and
+</I>&gt;<i> the memory seems to be still used by the process (according to Activity
+</I>&gt;<i> Monitor). In a linux machine the memory seems to be released according to
+</I>&gt;<i> top.
+</I>&gt;<i>
+</I>&gt;<i> Another thing is that when using the gecode trunk to try the same problem,
+</I>&gt;<i> the de-allocation behaves better, that is, half of the memory is released
+</I>&gt;<i> but still some memory is kept by the process.
+</I>&gt;<i>
+</I>&gt;<i> Do you have any suggestion on how to work around this?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i> --
+</I>&gt;<i> Gustavo Gutierrez
+</I>&gt;<i>
+</I>
+
+
+--
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/4f505391/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/4f505391/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001832">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Aug 28 08:20:36 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+&gt;<i> After trying the same problem occurs. Is there a way to instrument
+</I>&gt;<i> gecode to use a different allocator for memory?, i mean, something
+</I>&gt;<i> similar to STL in which many of the data structures provided take an
+</I>&gt;<i> optional allocator template parameter.
+</I>
+All allocation in Gecode happens through the functions in gecode/
+support/memory.icc.  You could try replacing the calls
+to ::malloc, ::realloc, and ::free there.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001833">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Aug 28 08:35:49 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>What is Mozart using these days (yes, ignorance is bliss)? Is it still using mmap? Maybe that could be the interaction. But as Guido said, we just use malloc and free and by replacing three lines all of Gecode will be using a different allocator. Maybe you could try to use Mozart&#8217;s allocator for Gecode as well.
+
+
+
+Cheers
+
+Christian
+
+
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Gustavo Gutierrez
+Sent: Thursday, August 28, 2008 7:44 AM
+To: Christian Schulte
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+Subject: Re: [gecode-users] Memory problem
+
+
+
+
+
+On Wed, Aug 27, 2008 at 11:10 AM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+
+
+
+
+While I fail to see the practical relevance of your example
+
+It is not relevant as that, but it shows a problem that happens in our development of the next mozart release. As you may know we are interested in having a mozart gecode integration. Well, by doing some benchmarks we realize that memory consumption is to high for medium size problems. The idea is simple: we have a linked list of gecode spaces and the garbage collector needs to traverse it  to see which of them needs to be removed. Also, after space propagation we check whether the gecode space has resulted failed to remove it in eagerly (i.e., do not wait for a grabage collector run).
+
+
+there is an experiment what you could do: you allocate the spaces in the same order as you deallocate them. Try and see what happens if you deallocate the spaces in inverse order. That is, run the deallocation loop backwards so that the space allocated last gets deleted first.
+
+
+
+
+After trying the same problem occurs. Is there a way to instrument gecode to use a different allocator for memory?, i mean, something similar to STL in which many of the data structures provided take an optional allocator template parameter.
+
+Regards,
+Gustavo
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Gustavo Gutierrez
+Sent: Wednesday, August 27, 2008 10:56 AM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+Subject: [gecode-users] Memory problem
+
+
+
+Hi All,
+
+Some time ago someone reported an strange memory behavior in mac os x on the gecode list. I do not know whether it was fixed but i think it still remains in the current implementation. The problem apparently happens only in mac os x. You can get it by replacing the main function of the queens example to this one:
+
+int
+main(int argc, char* argv[]) {
+
+  SizeOptions opt(&quot;Queens&quot;);
+  opt.iterations(500);
+  opt.size(100);
+  opt.propagation(Queens::PROP_
+
+DISTINCT);
+  opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+                      &quot;only binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+                      &quot;single distinct and binary disequality constraints&quot;);
+  opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+                      &quot;three distinct constraints&quot;);
+  opt.parse(argc,argv);
+  /*
+  Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+  */
+  std::vector&lt;Queens*&gt; q;
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    q.push_back(new Queens(opt));
+  }
+  std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+
+  for (unsigned int i=0; i &lt; 100000; i++) {
+    Queens *tmp = q[i];
+    delete tmp;
+    q.pop_back();
+  }
+  std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+
+  int a;
+  std::cin &gt;&gt; a;
+  return 0;
+}
+
+The idea is to create a lot of spaces and to keep pointer to them in an array. After the creation all spaces are deleted. The expected behavior is to release all the memory allocated in the first loop and to have it available by the operating system. I tried in a mac os x running leopard and the memory seems to be still used by the process (according to Activity Monitor). In a linux machine the memory seems to be released according to top.
+
+Another thing is that when using the gecode trunk to try the same problem, the de-allocation behaves better, that is, half of the memory is released but still some memory is kept by the process.
+
+Do you have any suggestion on how to work around this?
+
+
+Regards,
+--
+Gustavo Gutierrez
+
+
+
+
+--
+Gustavo Gutierrez
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/7d4e7edb/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/7d4e7edb/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001834">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Aug 28 09:20:23 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I tried to find out more about the Mac OS malloc.
+
+Apparently, Mac OS never frees blocks that are smaller than 15359
+bytes, but rather tries to reuse them for further mallocs in the same
+process.
+<A HREF="http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/">http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/</A>
+
+I tried replacing malloc with ptmalloc3 (as suggested in that
+article), and it completely solves the problem.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001838">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Thu Aug 28 12:53:24 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Thu, Aug 28, 2008 at 9:20 AM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+&gt;<i> I tried to find out more about the Mac OS malloc.
+</I>&gt;<i>
+</I>&gt;<i> Apparently, Mac OS never frees blocks that are smaller than 15359 bytes,
+</I>&gt;<i> but rather tries to reuse them for further mallocs in the same process.
+</I>&gt;<i> <A HREF="http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/">http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/</A>
+</I>&gt;<i>
+</I>&gt;<i> I tried replacing malloc with ptmalloc3 (as suggested in that article), and
+</I>&gt;<i> it completely solves the problem.
+</I>&gt;<i>
+</I>
+Now I am wondering if the same problem can occur when using gecode in the
+*normal* way, i mean, with gecode search engines as in the examples. Any
+comment?
+
+Regards,
+Gustavo
+
+
+&gt;<i> Cheers,
+</I>&gt;<i>        Guido
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+--
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/2b8cdc22/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/2b8cdc22/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001839">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Aug 28 13:06:08 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Gustavo Gutierrez wrote:
+&gt;<i> On Thu, Aug 28, 2008 at 9:20 AM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+</I>&gt;<i> I tried to find out more about the Mac OS malloc.
+</I>&gt;<i>
+</I>&gt;<i> Apparently, Mac OS never frees blocks that are smaller than 15359
+</I>&gt;<i> bytes, but rather tries to reuse them for further mallocs in the
+</I>&gt;<i> same process.
+</I>&gt;<i> <A HREF="http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/">http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/</A>
+</I>&gt;<i>
+</I>&gt;<i> I tried replacing malloc with ptmalloc3 (as suggested in that
+</I>&gt;<i> article), and it completely solves the problem.
+</I>&gt;<i>
+</I>&gt;<i> Now I am wondering if the same problem can occur when using gecode
+</I>&gt;<i> in the *normal* way, i mean, with gecode search engines as in the
+</I>&gt;<i> examples. Any comment?
+</I>
+That's unlikely.  The problem is that the memory footprint is going to
+be the maximum memory used by spaces that are alive at the same time.
+In your example, that's tens of thousands of spaces.  During search,
+it's never more than a few spaces (search tree depth / recomputation
+depth).  If the tree depth is very big, you're lost anyway as the
+search is not going to find a solution.
+
+Cheers,
+	Guido
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/f7f0196b/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/f7f0196b/attachment.htm</A>&gt;
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: smime.p7s
+Type: application/pkcs7-signature
+Size: 2436 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/f7f0196b/attachment.bin">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/f7f0196b/attachment.bin</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001840">
+        <header class="archive-thread-message-heading">
+          <div><span>09</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Aug 28 13:13:12 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Well, not so sure. There could be another workaround: look to the file
+gecode/kernel/memory-mananger.icc. There you will find something like:
+
+
+
+    /**
+
+     * \brief Parameters defining memory management policy for spaces
+
+     * \ingroup FuncMemSpace
+
+     */
+
+    namespace Config {
+
+      /**
+
+       * \brief Minimal size of a heap chunk requested from the OS
+
+       */
+
+      const size_t hcsz_min =  2 * 1024;
+
+
+
+If you increase hcsz_min to 16 * 1024 that would avoid part of the problem.
+One part are the spaces which are very small and few. But per space you will
+typically allocate a number of heap chunks. Initially these chunks will be
+small and will only dynamically grow when demand justifies it. So, if you
+increase, you'll have more slack but more blocks will be returned to the OS.
+
+
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+
+From: Guido Tack [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>]
+Sent: Thursday, August 28, 2008 1:06 PM
+To: Gustavo Gutierrez
+Cc: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>; Christian Schulte
+Subject: Re: [gecode-users] Memory problem
+
+
+
+Gustavo Gutierrez wrote:
+
+On Thu, Aug 28, 2008 at 9:20 AM, Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; wrote:
+
+I tried to find out more about the Mac OS malloc.
+
+Apparently, Mac OS never frees blocks that are smaller than 15359 bytes, but
+rather tries to reuse them for further mallocs in the same process.
+<A HREF="http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/">http://kevin.sb.org/2007/07/05/malloc-free-space-not-reclaimed/</A>
+
+I tried replacing malloc with ptmalloc3 (as suggested in that article), and
+it completely solves the problem.
+
+
+Now I am wondering if the same problem can occur when using gecode in the
+*normal* way, i mean, with gecode search engines as in the examples. Any
+comment?
+
+
+
+That's unlikely.  The problem is that the memory footprint is going to be
+the maximum memory used by spaces that are alive at the same time.  In your
+example, that's tens of thousands of spaces.  During search, it's never more
+than a few spaces (search tree depth / recomputation depth).  If the tree
+depth is very big, you're lost anyway as the search is not going to find a
+solution.
+
+
+
+Cheers,
+
+            Guido
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/4fabe34f/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/4fabe34f/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001841">
+        <header class="archive-thread-message-heading">
+          <div><span>10</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Thu Aug 28 14:13:07 CEST 2008</time><small>August 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Thu, Aug 28, 2008 at 8:35 AM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i>  What is Mozart using these days (yes, ignorance is bliss)? Is it still
+</I>&gt;<i> using mmap?
+</I>&gt;<i>
+</I>As far as i can see in the configure log it tries to allocate with three
+different tools: malloc, sbrk and mmap. On Mac OS X it fails to use all but
+mmap.
+
+
+&gt;<i> Maybe that could be the interaction.
+</I>&gt;<i>
+</I>Gecode spaces are stored out of the mozart heap. I tried to see whether it
+was a mozart problem by running a program that created a big list of numbers
+and then let the garbage collector to remove it. Looking at process
+statistics the heap shrinks so the behavior is the expected.
+
+
+&gt;<i> But as Guido said, we just use malloc and free and by replacing three lines
+</I>&gt;<i> all of Gecode will be using a different allocator. Maybe you could try to
+</I>&gt;<i> use Mozart's allocator for Gecode as well.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>
+
+
+
+&gt;<i> Cheers
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Gustavo Gutierrez
+</I>&gt;<i> *Sent:* Thursday, August 28, 2008 7:44 AM
+</I>&gt;<i> *To:* Christian Schulte
+</I>&gt;<i> *Cc:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+</I>&gt;<i> *Subject:* Re: [gecode-users] Memory problem
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On Wed, Aug 27, 2008 at 11:10 AM, Christian Schulte &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+</I>&gt;<i> wrote:
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> While I fail to see the practical relevance of your example
+</I>&gt;<i>
+</I>&gt;<i> It is not relevant as that, but it shows a problem that happens in our
+</I>&gt;<i> development of the next mozart release. As you may know we are interested in
+</I>&gt;<i> having a mozart gecode integration. Well, by doing some benchmarks we
+</I>&gt;<i> realize that memory consumption is to high for medium size problems. The
+</I>&gt;<i> idea is simple: we have a linked list of gecode spaces and the garbage
+</I>&gt;<i> collector needs to traverse it  to see which of them needs to be removed.
+</I>&gt;<i> Also, after space propagation we check whether the gecode space has resulted
+</I>&gt;<i> failed to remove it in eagerly (i.e., do not wait for a grabage collector
+</I>&gt;<i> run).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>  there is an experiment what you could do: you allocate the spaces in the
+</I>&gt;<i> same order as you deallocate them. Try and see what happens if you
+</I>&gt;<i> deallocate the spaces in inverse order. That is, run the deallocation loop
+</I>&gt;<i> backwards so that the space allocated last gets deleted first.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> After trying the same problem occurs. Is there a way to instrument gecode
+</I>&gt;<i> to use a different allocator for memory?, i mean, something similar to STL
+</I>&gt;<i> in which many of the data structures provided take an optional allocator
+</I>&gt;<i> template parameter.
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i> Gustavo
+</I>&gt;<i>
+</I>&gt;<i>   *From:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Gustavo Gutierrez
+</I>&gt;<i> *Sent:* Wednesday, August 27, 2008 10:56 AM
+</I>&gt;<i> *To:* <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Memory problem
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi All,
+</I>&gt;<i>
+</I>&gt;<i> Some time ago someone reported an strange memory behavior in mac os x on
+</I>&gt;<i> the gecode list. I do not know whether it was fixed but i think it still
+</I>&gt;<i> remains in the current implementation. The problem apparently happens only
+</I>&gt;<i> in mac os x. You can get it by replacing the main function of the queens
+</I>&gt;<i> example to this one:
+</I>&gt;<i>
+</I>&gt;<i> int
+</I>&gt;<i> main(int argc, char* argv[]) {
+</I>&gt;<i>
+</I>&gt;<i>   SizeOptions opt(&quot;Queens&quot;);
+</I>&gt;<i>   opt.iterations(500);
+</I>&gt;<i>   opt.size(100);
+</I>&gt;<i>   opt.propagation(Queens::PROP_
+</I>&gt;<i>
+</I>&gt;<i> DISTINCT);
+</I>&gt;<i>   opt.propagation(Queens::PROP_BINARY, &quot;binary&quot;,
+</I>&gt;<i>                       &quot;only binary disequality constraints&quot;);
+</I>&gt;<i>   opt.propagation(Queens::PROP_MIXED, &quot;mixed&quot;,
+</I>&gt;<i>                       &quot;single distinct and binary disequality
+</I>&gt;<i> constraints&quot;);
+</I>&gt;<i>   opt.propagation(Queens::PROP_DISTINCT, &quot;distinct&quot;,
+</I>&gt;<i>                       &quot;three distinct constraints&quot;);
+</I>&gt;<i>   opt.parse(argc,argv);
+</I>&gt;<i>   /*
+</I>&gt;<i>   Example::run&lt;Queens,DFS,SizeOptions&gt;(opt);
+</I>&gt;<i>   */
+</I>&gt;<i>   std::vector&lt;Queens*&gt; q;
+</I>&gt;<i>   for (unsigned int i=0; i &lt; 100000; i++) {
+</I>&gt;<i>     q.push_back(new Queens(opt));
+</I>&gt;<i>   }
+</I>&gt;<i>   std::cout &lt;&lt; &quot;finished insertion&quot; &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>   for (unsigned int i=0; i &lt; 100000; i++) {
+</I>&gt;<i>     Queens *tmp = q[i];
+</I>&gt;<i>     delete tmp;
+</I>&gt;<i>     q.pop_back();
+</I>&gt;<i>   }
+</I>&gt;<i>   std::cout &lt;&lt; &quot;finished delete&quot; &lt;&lt; std::endl;
+</I>&gt;<i>
+</I>&gt;<i>   int a;
+</I>&gt;<i>   std::cin &gt;&gt; a;
+</I>&gt;<i>   return 0;
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> The idea is to create a lot of spaces and to keep pointer to them in an
+</I>&gt;<i> array. After the creation all spaces are deleted. The expected behavior is
+</I>&gt;<i> to release all the memory allocated in the first loop and to have it
+</I>&gt;<i> available by the operating system. I tried in a mac os x running leopard and
+</I>&gt;<i> the memory seems to be still used by the process (according to Activity
+</I>&gt;<i> Monitor). In a linux machine the memory seems to be released according to
+</I>&gt;<i> top.
+</I>&gt;<i>
+</I>&gt;<i> Another thing is that when using the gecode trunk to try the same problem,
+</I>&gt;<i> the de-allocation behaves better, that is, half of the memory is released
+</I>&gt;<i> but still some memory is kept by the process.
+</I>&gt;<i>
+</I>&gt;<i> Do you have any suggestion on how to work around this?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i> --
+</I>&gt;<i> Gustavo Gutierrez
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Gustavo Gutierrez
+</I>&gt;<i>
+</I>
+
+
+--
+Gustavo Gutierrez
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/bcb4bdd7/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20080828/bcb4bdd7/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

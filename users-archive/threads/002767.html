@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Help: Howto combine sets and value constraints? — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Help: Howto combine sets and value constraints? | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · December 2009</p><h1 data-pagefind-meta="title">Help: Howto combine sets and value constraints?</h1></header>
+      <p class="archive-thread-summary">2 messages · December 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002767">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Holger Winnemoeller</h2></div>
+          <p><time>Tue Dec 15 02:01:19 CET 2009</time><small>December 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I am trying to create a solver that (as a toy explanation) can create sets
+with
+certain properties, such as:
+
+1) The resulting set size is specified
+2) The resulting set contains a certain number of items that belong to a
+  &quot;special&quot; group
+3) The total &quot;weight&quot; of items is below a certain threshold
+
+I can easily enough create constraints for 1) and 2), but I would love to
+get
+some help in how I integrate constraint 3) into the mix. Supposedly I would
+create a set of variables for the weights and specify a constraint on the
+sum of
+these weights. But I have no idea about how to express in Gecode that I want
+to
+sum up the weights of exactly the ids that are in the currently selected
+set.
+
+My approach to doing 1)&amp;2) is attached below. The question is: How do I
+specify
+that the total weight of selected items should be less than, say
+&quot;maxWeight&quot;.
+
+(Note: This is not a homework problem :-) It's an abstraction of a set
+selector
+that I want to include in a user interface for suggesting available sets to
+users)
+
+Thanks for your time,
+Holger.
+========================&lt; main.cpp &gt;===========================
+#include &lt;gecode/set.hh&gt;
+#include &lt;gecode/support.hh&gt;
+#include &lt;gecode/kernel.hh&gt;
+#include &lt;gecode/search.hh&gt;
+
+using namespace Gecode;
+
+// Some data to play with
+int numItems = 10;                    // total number of items in inventory
+int numSpecialItems = 4;            // number of items in inventory with
+&quot;special&quot; attribute
+int numRequestedSize = 6;            // requested size of result set
+int numRequestedSpecialSize = 2;    // requested size of &quot;special&quot; items in
+result set
+float maxWeight = 1.8f;                // requested maximum weight of all
+items in result set (NOT IMPLEMENTED!)
+
+int allItems[] = {0,1,2,3,4,5,6,7,8,9}; // 10 items (their id's)
+float itemWeights[] = {0.1f, 0.5f, 0.2f, 0.2f, 0.6f, 0.8f, 1.0f, 0.3f, 0.7f,
+0.6f}; // their associated weights
+int specialItems[] = {2,5,8,9}; // a subset of items having the attribute
+&quot;special&quot;
+
+// Little helper function
+bool isInSet(int id, int set[], int setSize)
+{
+    for(int i=0; i&lt;setSize; ++i)
+        if(id == set[i]) return true;
+    return false;
+}
+
+// A &quot;Minimal&quot; space definition for the problem
+class MiniSpace: public Space
+{
+        SetVarArray mSetStore;
+public:
+    MiniSpace(){
+        // Create a SetVariable array (only need one element really, but
+this allows me to define the domain in one step)
+        mSetStore = SetVarArray(*this, 1, IntSet::empty, 0, numItems);
+        SetVar resultSet = mSetStore[0]; // get the one variable that was
+defined in the above line
+
+        // impose the constraint that we only want &quot;numRequestedSize&quot; items
+in the result set
+        cardinality(*this, resultSet, numRequestedSize, numRequestedSize);
+
+        // now impose the fact that we want exactly
+&quot;numRequestedSpecialSize&quot; items coming from the special set
+        // 1.) Create a new set domain that represents the &quot;special&quot; items
+        IntSet specialSet(specialItems, numSpecialItems);
+        // 2.) Create a set variable that we'll associate with that set
+later on
+        SetVar specialSelected(*this);
+        // 3.) Set &quot;specialSelected&quot; to the intersection of whatever a
+possible solution is, and
+        //     the &quot;specialSet&quot;. This ensures that we can talk about items
+that are included
+        //     in the solution, but also belong to the special set
+        rel(*this, resultSet, SOT_INTER, specialSet, SRT_EQ,
+specialSelected);
+        // 4.) Now ensure that we only have &quot;numRequestedSpecialSize&quot; of
+these overlapping items
+        cardinality(*this, specialSelected, numRequestedSpecialSize,
+numRequestedSpecialSize);
+
+        // Given these constraints, branch
+        branch(*this, mSetStore, SET_VAR_NONE, SET_VAL_MIN_INC);
+    }
+    MiniSpace(bool share, MiniSpace&amp; s) : Space(share, s)
+{mSetStore.update(*this, share, s.mSetStore);}
+    virtual Space* copy(bool share) {return new MiniSpace(share, *this);}
+    void print() const
+    {
+        int countAsSpecial = 0;
+        for(SetVarGlbValues d(mSetStore[0]);d();++d)
+        {
+            int id = d.val();
+            if(isInSet(id, specialItems, numSpecialItems)) countAsSpecial++;
+            std::cout &lt;&lt; id &lt;&lt; &quot; &quot;;
+        } // for
+        std::cout &lt;&lt; &quot;. Nr. of specials: &quot; &lt;&lt; countAsSpecial;
+    }
+};
+
+int main(int argc, char* argv[])
+{
+    // Run the problem
+    MiniSpace problem; // space instance
+    //Search::Options options
+    DFS&lt;MiniSpace&gt; solver (&amp;problem);
+    int count=0;
+    while(true){
+        MiniSpace* solution = solver.next();
+        if(!solution) break;
+        std::cout &lt;&lt; &quot;Solution Nr.&quot; &lt;&lt; count++ &lt;&lt; std::endl;
+        solution-&gt;print();
+        std::cout &lt;&lt; std::endl;
+        delete solution;
+    }
+    std::cout &lt;&lt; &quot;Done...&quot; &lt;&lt; std::endl;
+    return 0;
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20091214/4c6293a9/attachment-0001.htm">http://www.gecode.org/pipermail/users/attachments/20091214/4c6293a9/attachment-0001.htm</A>&gt;
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-002768">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Dec 15 10:25:08 CET 2009</time><small>December 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Holger Winnemoeller wrote:
+
+&gt;<i> I am trying to create a solver that (as a toy explanation) can create sets with
+</I>&gt;<i> certain properties, such as:
+</I>&gt;<i>
+</I>&gt;<i> 1) The resulting set size is specified
+</I>&gt;<i> 2) The resulting set contains a certain number of items that belong to a
+</I>&gt;<i>   &quot;special&quot; group
+</I>&gt;<i> 3) The total &quot;weight&quot; of items is below a certain threshold
+</I>&gt;<i>
+</I>&gt;<i> I can easily enough create constraints for 1) and 2), but I would love to get
+</I>&gt;<i> some help in how I integrate constraint 3) into the mix. Supposedly I would
+</I>&gt;<i> create a set of variables for the weights and specify a constraint on the sum of
+</I>&gt;<i> these weights. But I have no idea about how to express in Gecode that I want to
+</I>&gt;<i> sum up the weights of exactly the ids that are in the currently selected set.
+</I>
+
+have a look at the weights constraint:
+<A HREF="http://www.gecode.org/doc-latest/reference/group__TaskModelSetConnect.html#g7c739a2d3c830174ad5e58b77292f6d1">http://www.gecode.org/doc-latest/reference/group__TaskModelSetConnect.html#g7c739a2d3c830174ad5e58b77292f6d1</A>
+
+It should do exactly what you describe.
+
+Cheers,
+	Guido
+
+
+</PRE>
+
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

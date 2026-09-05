@@ -1,0 +1,105 @@
+---
+import Sidebar from "../components/Sidebar.astro";
+import MobileNavigation from "../components/MobileNavigation.astro";
+import { canonicalSitePath, site } from "../data/site";
+import type { NewsItem } from "../lib/legacy-content";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  headline?: string;
+  home?: boolean;
+  latestNews?: NewsItem[];
+  article?: {
+    authors: string[];
+    publishedTime: string;
+  };
+  errorPage?: boolean;
+}
+
+const {
+  title = site.title,
+  description = site.description,
+  headline,
+  home = false,
+  latestNews = [],
+  article,
+  errorPage = false,
+} = Astro.props;
+const currentPath = canonicalSitePath(Astro.url.pathname);
+const canonical = new URL(currentPath, site.url);
+const documentTitle = title === site.title ? title : `${title} | ${site.name}`;
+const structuredData = article
+  ? {
+      "@context": "https://schema.org",
+      "@type": "ScholarlyArticle",
+      headline: title,
+      description,
+      datePublished: article.publishedTime,
+      author: article.authors.map((name) => ({ "@type": "Person", name })),
+      mainEntityOfPage: canonical.href,
+    }
+  : {
+      "@context": "https://schema.org",
+      "@type": home ? "WebSite" : "WebPage",
+      name: title,
+      description,
+      url: canonical.href,
+    };
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="keywords" content="gecode, constraint programming, constraint solver, constraint toolkit" />
+    <meta name="generator" content={Astro.generator} />
+    {errorPage && <meta name="robots" content="noindex" />}
+    {!errorPage && <link rel="canonical" href={canonical} />}
+    <link rel="icon" href="/images/gecode-logo.ico" sizes="any" />
+    <meta property="og:type" content={article ? "article" : "website"} />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {!errorPage && <meta property="og:url" content={canonical} />}
+    {article && <meta property="article:published_time" content={article.publishedTime} />}
+    {article?.authors.map((author) => <meta property="article:author" content={author} />)}
+    <meta name="twitter:card" content="summary" />
+    {!errorPage && <script type="application/ld+json" set:html={JSON.stringify(structuredData)}></script>}
+    <title>{documentTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <MobileNavigation currentPath={currentPath} />
+    <div class="page-frame">
+      <main id="main-content" class:list={["site-main", { "is-home": home }]}>
+        {home ? (
+          <header class="hero-lockup">
+            <h1 class="visually-hidden">Gecode</h1>
+            <img src="/images/gecode-logo-120.png" alt="Gecode" width="196" height="126" fetchpriority="high" />
+            <div class="hero-lockup-text">
+              <p>generic</p>
+              <p>constraint</p>
+              <p>development</p>
+              <p>environment</p>
+            </div>
+          </header>
+        ) : (
+          <header class="page-header">
+            <h1>{headline ? `Gecode: ${headline}` : "Gecode"}</h1>
+          </header>
+        )}
+        <article class="prose-content">
+          <slot />
+        </article>
+      </main>
+      <Sidebar currentPath={currentPath} home={home} latestNews={latestNews} />
+    </div>
+    <footer class="site-footer">
+      <a href="/disclaimer/">(disclaimer)</a>
+    </footer>
+  </body>
+</html>

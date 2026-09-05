@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Immediate search failure — 2 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Immediate search failure | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>2 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2009</p><h1 data-pagefind-meta="title">Immediate search failure</h1></header>
+      <p class="archive-thread-summary">2 messages · April 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002377">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Joe Porter</h2></div>
+          <p><time>Tue Apr 28 23:02:59 CEST 2009</time><small>April 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>What are the possible reasons for an immediate search failure?  I've changed
+something in my model, but I'm not sure what could be causing immediate
+failures (using Gecode 2.2.0).  Setup code is below, and the output is at
+the bottom.  This is solving a simple scheduling problem with a simple model
+instance that I can solve by hand.  According to the debug statements, the
+model should be feasible.  Or - maybe I've been looking at it for too
+long...
+
+Thanks,
+-Joe
+
+// CP Solver Engine
+CPEngine::CPEngine( InstanceKeeper * pIK, unsigned long long min, unsigned
+long long max ) :
+    vars( this, pIK-&gt;NumVars(), (int) min, (int) max ),  // instantiate
+constraint vars
+    latencies( this, pIK-&gt;NumLatencies()+1, 0, (int) 2 * max ),
+    lin_cstr(this,
+1,0,1),                                                        /* not used
+in this model */
+    sat_cstr(this, 1, 0, (int) pIK-&gt;GetNumLinearRelations() ),   /* not used
+in this model */
+    _pIK( pIK )
+{
+    // All equality constraints
+    LinearRelation lrel;
+    bool loop = pIK-&gt;GetNextEqualityPair( lrel, true );
+    while (loop)
+    {
+        IntVarArgs v(2);
+        v[0] = vars[lrel.xvar];
+        v[1] = vars[lrel.yvar];
+        IntArgs a(2);
+        a[0] = 1; // 'x' of x = y + o
+        a[1] = -1; // 'y' of x = y + o
+        linear( this, a, v, IRT_EQ, lrel.offset );
+        cout &lt;&lt; &quot;Posted equality relation (x,y) = (&quot; &lt;&lt; lrel.xvar &lt;&lt; &quot;,&quot; &lt;&lt;
+lrel.yvar &lt;&lt; &quot;) w/ offset &quot; &lt;&lt; lrel.offset &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextEqualityPair( lrel );
+    }
+
+    // All inequality constraints
+    loop = pIK-&gt;GetNextInequalityPair( lrel, true );
+    while (loop)
+    {
+        IntVarArgs v(2);
+        v[0] = vars[lrel.xvar];
+        v[1] = vars[lrel.yvar];
+        IntArgs a(2);
+        a[0] = 1; // 'x' of x &lt;= y + o
+        a[1] = -1; // 'y' of x &lt;= y + o
+        linear( this, a, v, IRT_LQ, lrel.offset );
+        cout &lt;&lt; &quot;Posted inequality relation (x,y) = (&quot; &lt;&lt; lrel.xvar &lt;&lt; &quot;,&quot;
+&lt;&lt; lrel.yvar &lt;&lt; &quot;) w/ offset &quot; &lt;&lt; lrel.offset &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextInequalityPair( lrel );
+    }
+
+    // All duration constraints
+    DurativeVariable dv;
+    loop = pIK-&gt;GetNextDuration( dv, true );
+    while ( loop )
+    {
+        IntVarArgs v(1);
+        v[0] = vars[dv.xvar];
+        IntArgs a(1);
+        a[0] = 1;
+        linear( this, a, v, IRT_LQ, ((int)max) - dv.duration ); // don't run
+over the end
+        cout &lt;&lt; &quot;Posted duration relation (x) = (&quot; &lt;&lt; dv.xvar &lt;&lt; &quot;) w/
+length &quot; &lt;&lt; dv.duration &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextDuration( dv );
+    }
+
+    // All serialization constraints
+    int ser_count = 0;
+    std::vector&lt; DurativeVariable &gt; vdv;
+    loop = pIK-&gt;GetNextSerialization( vdv, true );
+    while (loop) // &amp;&amp; false)
+    {
+        IntVarArgs v( (int) vdv.size() );
+        IntVarArgs e( (int) vdv.size() );
+        IntArgs d( (int) vdv.size() );
+
+        cout &lt;&lt; &quot;Serializing (x,d): &quot;;
+        for (unsigned int idx = 0; idx &lt; vdv.size(); idx++ )
+        {
+            v[idx] = vars[vdv[idx].xvar];
+            d[idx] = (int) vdv[idx].duration;
+            e[idx].init(this,min,max);
+            cout &lt;&lt; &quot;(&quot; &lt;&lt; vdv[idx].xvar &lt;&lt; &quot;,&quot; &lt;&lt; vdv[idx].duration &lt;&lt; &quot;),
+&quot;;
+        }
+        cout &lt;&lt; endl;
+
+        IntArgs height(v.size()), m(v.size());
+        for ( int idx = v.size(); idx--; ) { height[idx] = 1; m[idx] = 0
+/*ser_count*/; }
+        cumulatives(this, m, v, d, e, height, 1, true );
+        loop = pIK-&gt;GetNextSerialization( vdv );
+        ser_count++;
+    }
+
+    // Instantiate latency variables here
+    std::vector&lt; LatencyBound &gt; vlb;
+    loop = pIK-&gt;GetNextLatencyBound( vlb, true );
+    while ( loop )
+    {
+
+        std::vector&lt; LatencyBound &gt;::iterator pLB = vlb.begin();
+        // First set up the range for the latency variables
+        rel( this, latencies[pLB-&gt;latvar], IRT_GQ, 1 );
+        rel( this, latencies[pLB-&gt;latvar], IRT_LQ, pLB-&gt;maxdist );
+
+        cout &lt;&lt; &quot;Latency (l) = (&quot; &lt;&lt; pLB-&gt;latvar &lt;&lt; &quot;) alternatives: &quot;;
+
+        // Then define the relationship between the instances
+        // and the latencies
+        int k = 0;
+        BoolVarArgs bs(vlb.size());
+        for ( pLB = vlb.begin(); pLB != vlb.end(); pLB++ )
+        {
+            BoolVar b(this,0,1);
+            IntVarArgs v(2);
+            v[0] = vars[pLB-&gt;rcvrvar];
+            v[1] = vars[pLB-&gt;sendervar];
+            IntArgs a(2);
+            a[0] = 1; // 'x' of x = y + o
+            a[1] = -1; // 'y' of x = y + o
+            cout &lt;&lt; &quot;(s,r) = (&quot; &lt;&lt; pLB-&gt;sendervar &lt;&lt; &quot;,&quot; &lt;&lt; pLB-&gt;rcvrvar &lt;&lt;
+&quot;) &quot;;
+            linear( this, a, v, IRT_EQ, latencies[pLB-&gt;latvar], b );
+            bs[k++] = b;
+        }
+        cout &lt;&lt; endl;
+        linear( this, bs, IRT_GR, 0 ); // Force at least one of the
+constraints in this collection to be true
+
+        loop = pIK-&gt;GetNextLatencyBound( vlb );
+    }
+
+    // Dummy latency in case there are no latencies in the spec!
+    // We have to branch on something!
+    rel( this, latencies[pIK-&gt;NumLatencies()], IRT_GQ, 1 );
+    rel( this, latencies[pIK-&gt;NumLatencies()], IRT_LQ, 1 );
+    cout &lt;&lt; &quot;Dummy latency (==1)&quot; &lt;&lt; endl;
+
+    // Do branching
+    branch(this, vars, INT_VAR_REGRET_MAX_MAX, INT_VAL_MED);
+    branch(this, latencies, INT_VAR_SIZE_MIN, INT_VAL_MAX ); // start with
+max latency and work down
+}
+
+Domain size: 100000
+Posted equality relation (x,y) = (0,1) w/ offset -20000
+Posted equality relation (x,y) = (1,2) w/ offset -20000
+Posted equality relation (x,y) = (2,3) w/ offset -20000
+Posted equality relation (x,y) = (3,4) w/ offset -20000
+Posted duration relation (x) = (4) w/ length 19 (0,max-19)
+Posted duration relation (x) = (5) w/ length 57 (0, max-57)
+Serializing (x,d): (0,19), (1,19), (2,19), (3,19), (4,19),
+Dummy latency (==1)
+Stats: Search Stats
+
+Initial
+        propagators:   4294967295
+        branchings:    4294967295
+
+Summary
+        propagations:  0
+        failures:      1
+        clones:        0
+        commits:       0
+        peak memory:   5 KB
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20090428/71e8ffd0/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20090428/71e8ffd0/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002378">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Apr 29 00:33:42 CEST 2009</time><small>April 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Joe,
+
+
+
+There are two things you can do:
+
+1)      Try to remove some constraints and see whether this gives you a
+solution. Try to isolate the culprit.
+
+2)      Upgrade to 3.0 and read Modeling with Gecode: you are torturing
+yourself for example with linear constraints, the document says how it's
+done much easier (and hence, less bugs potentially)!
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.it.kth.se/~cschulte/
+
+
+
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Joe Porter
+Sent: Tuesday, April 28, 2009 11:03 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Immediate search failure
+
+
+
+What are the possible reasons for an immediate search failure?  I've changed
+something in my model, but I'm not sure what could be causing immediate
+failures (using Gecode 2.2.0).  Setup code is below, and the output is at
+the bottom.  This is solving a simple scheduling problem with a simple model
+instance that I can solve by hand.  According to the debug statements, the
+model should be feasible.  Or - maybe I've been looking at it for too
+long...
+
+Thanks,
+-Joe
+
+// CP Solver Engine
+CPEngine::CPEngine( InstanceKeeper * pIK, unsigned long long min, unsigned
+long long max ) :
+    vars( this, pIK-&gt;NumVars(), (int) min, (int) max ),  // instantiate
+constraint vars
+    latencies( this, pIK-&gt;NumLatencies()+1, 0, (int) 2 * max ),
+    lin_cstr(this, 1,0,1),
+/* not used in this model */
+    sat_cstr(this, 1, 0, (int) pIK-&gt;GetNumLinearRelations() ),   /* not used
+in this model */
+    _pIK( pIK )
+{
+    // All equality constraints
+    LinearRelation lrel;
+    bool loop = pIK-&gt;GetNextEqualityPair( lrel, true );
+    while (loop)
+    {
+        IntVarArgs v(2);
+        v[0] = vars[lrel.xvar];
+        v[1] = vars[lrel.yvar];
+        IntArgs a(2);
+        a[0] = 1; // 'x' of x = y + o
+        a[1] = -1; // 'y' of x = y + o
+        linear( this, a, v, IRT_EQ, lrel.offset );
+        cout &lt;&lt; &quot;Posted equality relation (x,y) = (&quot; &lt;&lt; lrel.xvar &lt;&lt; &quot;,&quot; &lt;&lt;
+lrel.yvar &lt;&lt; &quot;) w/ offset &quot; &lt;&lt; lrel.offset &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextEqualityPair( lrel );
+    }
+
+    // All inequality constraints
+    loop = pIK-&gt;GetNextInequalityPair( lrel, true );
+    while (loop)
+    {
+        IntVarArgs v(2);
+        v[0] = vars[lrel.xvar];
+        v[1] = vars[lrel.yvar];
+        IntArgs a(2);
+        a[0] = 1; // 'x' of x &lt;= y + o
+        a[1] = -1; // 'y' of x &lt;= y + o
+        linear( this, a, v, IRT_LQ, lrel.offset );
+        cout &lt;&lt; &quot;Posted inequality relation (x,y) = (&quot; &lt;&lt; lrel.xvar &lt;&lt; &quot;,&quot;
+&lt;&lt; lrel.yvar &lt;&lt; &quot;) w/ offset &quot; &lt;&lt; lrel.offset &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextInequalityPair( lrel );
+    }
+
+    // All duration constraints
+    DurativeVariable dv;
+    loop = pIK-&gt;GetNextDuration( dv, true );
+    while ( loop )
+    {
+        IntVarArgs v(1);
+        v[0] = vars[dv.xvar];
+        IntArgs a(1);
+        a[0] = 1;
+        linear( this, a, v, IRT_LQ, ((int)max) - dv.duration ); // don't run
+over the end
+        cout &lt;&lt; &quot;Posted duration relation (x) = (&quot; &lt;&lt; dv.xvar &lt;&lt; &quot;) w/
+length &quot; &lt;&lt; dv.duration &lt;&lt; std::endl;
+        loop = pIK-&gt;GetNextDuration( dv );
+    }
+
+    // All serialization constraints
+    int ser_count = 0;
+    std::vector&lt; DurativeVariable &gt; vdv;
+    loop = pIK-&gt;GetNextSerialization( vdv, true );
+    while (loop) // &amp;&amp; false)
+    {
+        IntVarArgs v( (int) vdv.size() );
+        IntVarArgs e( (int) vdv.size() );
+        IntArgs d( (int) vdv.size() );
+
+        cout &lt;&lt; &quot;Serializing (x,d): &quot;;
+        for (unsigned int idx = 0; idx &lt; vdv.size(); idx++ )
+        {
+            v[idx] = vars[vdv[idx].xvar];
+            d[idx] = (int) vdv[idx].duration;
+            e[idx].init(this,min,max);
+            cout &lt;&lt; &quot;(&quot; &lt;&lt; vdv[idx].xvar &lt;&lt; &quot;,&quot; &lt;&lt; vdv[idx].duration &lt;&lt; &quot;),
+&quot;;
+        }
+        cout &lt;&lt; endl;
+
+        IntArgs height(v.size()), m(v.size());
+        for ( int idx = v.size(); idx--; ) { height[idx] = 1; m[idx] = 0
+/*ser_count*/; }
+        cumulatives(this, m, v, d, e, height, 1, true );
+        loop = pIK-&gt;GetNextSerialization( vdv );
+        ser_count++;
+    }
+
+    // Instantiate latency variables here
+    std::vector&lt; LatencyBound &gt; vlb;
+    loop = pIK-&gt;GetNextLatencyBound( vlb, true );
+    while ( loop )
+    {
+
+        std::vector&lt; LatencyBound &gt;::iterator pLB = vlb.begin();
+        // First set up the range for the latency variables
+        rel( this, latencies[pLB-&gt;latvar], IRT_GQ, 1 );
+        rel( this, latencies[pLB-&gt;latvar], IRT_LQ, pLB-&gt;maxdist );
+
+        cout &lt;&lt; &quot;Latency (l) = (&quot; &lt;&lt; pLB-&gt;latvar &lt;&lt; &quot;) alternatives: &quot;;
+
+        // Then define the relationship between the instances
+        // and the latencies
+        int k = 0;
+        BoolVarArgs bs(vlb.size());
+        for ( pLB = vlb.begin(); pLB != vlb.end(); pLB++ )
+        {
+            BoolVar b(this,0,1);
+            IntVarArgs v(2);
+            v[0] = vars[pLB-&gt;rcvrvar];
+            v[1] = vars[pLB-&gt;sendervar];
+            IntArgs a(2);
+            a[0] = 1; // 'x' of x = y + o
+            a[1] = -1; // 'y' of x = y + o
+            cout &lt;&lt; &quot;(s,r) = (&quot; &lt;&lt; pLB-&gt;sendervar &lt;&lt; &quot;,&quot; &lt;&lt; pLB-&gt;rcvrvar &lt;&lt;
+&quot;) &quot;;
+            linear( this, a, v, IRT_EQ, latencies[pLB-&gt;latvar], b );
+            bs[k++] = b;
+        }
+        cout &lt;&lt; endl;
+        linear( this, bs, IRT_GR, 0 ); // Force at least one of the
+constraints in this collection to be true
+
+        loop = pIK-&gt;GetNextLatencyBound( vlb );
+    }
+
+    // Dummy latency in case there are no latencies in the spec!
+    // We have to branch on something!
+    rel( this, latencies[pIK-&gt;NumLatencies()], IRT_GQ, 1 );
+    rel( this, latencies[pIK-&gt;NumLatencies()], IRT_LQ, 1 );
+    cout &lt;&lt; &quot;Dummy latency (==1)&quot; &lt;&lt; endl;
+
+    // Do branching
+    branch(this, vars, INT_VAR_REGRET_MAX_MAX, INT_VAL_MED);
+    branch(this, latencies, INT_VAR_SIZE_MIN, INT_VAL_MAX ); // start with
+max latency and work down
+}
+
+Domain size: 100000
+Posted equality relation (x,y) = (0,1) w/ offset -20000
+Posted equality relation (x,y) = (1,2) w/ offset -20000
+Posted equality relation (x,y) = (2,3) w/ offset -20000
+Posted equality relation (x,y) = (3,4) w/ offset -20000
+Posted duration relation (x) = (4) w/ length 19 (0,max-19)
+Posted duration relation (x) = (5) w/ length 57 (0, max-57)
+Serializing (x,d): (0,19), (1,19), (2,19), (3,19), (4,19),
+Dummy latency (==1)
+Stats: Search Stats
+
+Initial
+        propagators:   4294967295
+        branchings:    4294967295
+
+Summary
+        propagations:  0
+        failures:      1
+        clones:        0
+        commits:       0
+        peak memory:   5 KB
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20090429/70c94ee1/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20090429/70c94ee1/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

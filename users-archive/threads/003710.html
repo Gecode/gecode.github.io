@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Add constraints to Flatzinc sharing parameters	between them — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Add constraints to Flatzinc sharing parameters	between them | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · September 2012</p><h1 data-pagefind-meta="title">Add constraints to Flatzinc sharing parameters	between them</h1></header>
+      <p class="archive-thread-summary">4 messages · September 2012</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003710">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Andrea Pretto</h2></div>
+          <p><time>Tue Sep 25 12:09:26 CEST 2012</time><small>September 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I'm trying to add a custom constraint in Flatizinc/Gecode. A simple version
+is already working. (Yes, I figured out how to modify registry.cpp etc...
+and yes, I know this is more hacking than extending cause there's no an
+official way to do that)
+
+I have the problem of sharing data (parameters) between constraints.
+This is the constraint signature:
+
+predicate my_con(var int: x, var int: y, array[int] of int: params1,
+array[int] of int: params2);
+
+my_con is a constraint between X and Y, parametrized by params1 and params2.
+params1 and params2 are (possibly) large arrays, so I want to share them
+between different my_con instances:
+
+There's a clean way to do that ??
+
+
+The simplest solution I found was using flatzinc parameters, but I have
+some problems.
+
+% flatzinc file
+array [1..many many] of int: p1;
+array [1..many many] of int: p2;
+
+...
+
+my_con(x, y, p1, p2)
+...
+my_con(z, w, p1, p2)
+%
+
+The flatzinc file above should resolve the problem alone, because the
+parameter arrays should be shared.
+This is a snippet of the function in registry.cpp that receives the
+constraint declaration.
+
+void p_my_con(FlatZincSpace&amp; s, const ConExpr&amp; ce, AST::Node* ann) {
+      ...
+      AST::Array* s_array = ce[2]-&gt;getArray();
+      AST::Array* e_array = ce[3]-&gt;getArray();
+
+      std::cout &lt;&lt; &quot;SA &quot; &lt;&lt; s_array &lt;&lt; std::endl;
+      std::cout &lt;&lt; &quot;SE &quot; &lt;&lt; e_array &lt;&lt; std::endl;
+      ...
+}
+
+Now the output shows me that s_array pointer is the same between
+invocation, but e_array is not, so it's like the second parameter array is
+copied every time.
+
+I don't know if this is a bug or not.
+However the main question is how to share data between multiple constraints.
+
+Any help is appreciated.
+
+Cheers.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120925/31462faa/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120925/31462faa/attachment.html</A>&gt;
+</PRE>
+
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003713">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Sep 26 01:34:06 CEST 2012</time><small>September 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Andrea,
+
+there's currently no sharing between arrays (i.e., a new AST::Array object is created for each invocation), and it's probably coincidental that s_array is the same between invocations.  The reason for this is the very simple memory management model for AST objects.
+Do you already have a problem just posting the constraints because FlatZinc/Gecode creates the duplicate arrays, or are you mainly worried about solver performance?  If it's the latter, you could create a global hash table mapping AST::Arrays to IntSharedArrays in your registry post function.
+
+Cheers,
+Guido
+
+On 25/09/2012, at 8:09 PM, Andrea Pretto &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">a.pretto at miriade.it</A>&gt; wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I'm trying to add a custom constraint in Flatizinc/Gecode. A simple version is already working. (Yes, I figured out how to modify registry.cpp etc... and yes, I know this is more hacking than extending cause there's no an official way to do that)
+</I>&gt;<i>
+</I>&gt;<i> I have the problem of sharing data (parameters) between constraints.
+</I>&gt;<i> This is the constraint signature:
+</I>&gt;<i>
+</I>&gt;<i> predicate my_con(var int: x, var int: y, array[int] of int: params1, array[int] of int: params2);
+</I>&gt;<i>
+</I>&gt;<i> my_con is a constraint between X and Y, parametrized by params1 and params2.
+</I>&gt;<i> params1 and params2 are (possibly) large arrays, so I want to share them between different my_con instances:
+</I>&gt;<i>
+</I>&gt;<i> There's a clean way to do that ??
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> The simplest solution I found was using flatzinc parameters, but I have some problems.
+</I>&gt;<i>
+</I>&gt;<i> % flatzinc file
+</I>&gt;<i> array [1..many many] of int: p1;
+</I>&gt;<i> array [1..many many] of int: p2;
+</I>&gt;<i>
+</I>&gt;<i> ...
+</I>&gt;<i>
+</I>&gt;<i> my_con(x, y, p1, p2)
+</I>&gt;<i> ...
+</I>&gt;<i> my_con(z, w, p1, p2)
+</I>&gt;<i> %
+</I>&gt;<i>
+</I>&gt;<i> The flatzinc file above should resolve the problem alone, because the parameter arrays should be shared.
+</I>&gt;<i> This is a snippet of the function in registry.cpp that receives the constraint declaration.
+</I>&gt;<i>
+</I>&gt;<i> void p_my_con(FlatZincSpace&amp; s, const ConExpr&amp; ce, AST::Node* ann) {
+</I>&gt;<i>       ...
+</I>&gt;<i>       AST::Array* s_array = ce[2]-&gt;getArray();
+</I>&gt;<i>       AST::Array* e_array = ce[3]-&gt;getArray();
+</I>&gt;<i>
+</I>&gt;<i>       std::cout &lt;&lt; &quot;SA &quot; &lt;&lt; s_array &lt;&lt; std::endl;
+</I>&gt;<i>       std::cout &lt;&lt; &quot;SE &quot; &lt;&lt; e_array &lt;&lt; std::endl;
+</I>&gt;<i>       ...
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> Now the output shows me that s_array pointer is the same between invocation, but e_array is not, so it's like the second parameter array is copied every time.
+</I>&gt;<i>
+</I>&gt;<i> I don't know if this is a bug or not.
+</I>&gt;<i> However the main question is how to share data between multiple constraints.
+</I>&gt;<i>
+</I>&gt;<i> Any help is appreciated.
+</I>&gt;<i>
+</I>&gt;<i> Cheers.
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003716">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Andrea Pretto</h2></div>
+          <p><time>Wed Sep 26 09:41:30 CEST 2012</time><small>September 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks.
+Yes, I'm worried about performance (memory consumption). The arrays are
+very large, and there are many constraint invocation.
+
+For the &quot;global hash table&quot; approach, I thought something like this:
+
+% flatzinc
+predicate my_declare_param(int: param_id, array[int] of int:
+params1, array[int] of int: params2);
+
+predicate my_con(var int: x, var int: y, var int: param_id);
+
+...
+
+my_declare_param(3, [1,2,3,4,..], [1,2,3,4..])
+my_con(a, b, 3)
+
+% end flatzinc
+
+I add a predicate my_declare_param for registering params, wich &quot;register&quot;
+(in a global map) the parameters giving them and ID wich is PARAM_ID as
+argument.
+Then in the constraint (instead of arrays) I give the ID (PARAM_ID above)
+to specify which parameters declared before I want to use.
+
+Is that did you mean  ??
+
+Thanks in advance.
+Cheers.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20120926/8f2fd1d8/attachment.html">http://www.gecode.org/pipermail/users/attachments/20120926/8f2fd1d8/attachment.html</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003717">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Sep 27 00:44:34 CEST 2012</time><small>September 2012</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+that's not what I meant, but it's even better (my idea was to just look at the incoming AST::Array and check if you've seen the same array before, but with your idea you save that check).
+
+Cheers,
+Guido
+
+On 26/09/2012, at 5:41 PM, Andrea Pretto &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">a.pretto at miriade.it</A>&gt; wrote:
+
+&gt;<i> Thanks.
+</I>&gt;<i> Yes, I'm worried about performance (memory consumption). The arrays are very large, and there are many constraint invocation.
+</I>&gt;<i>
+</I>&gt;<i> For the &quot;global hash table&quot; approach, I thought something like this:
+</I>&gt;<i>
+</I>&gt;<i> % flatzinc
+</I>&gt;<i> predicate my_declare_param(int: param_id, array[int] of int: params1, array[int] of int: params2);
+</I>&gt;<i>
+</I>&gt;<i> predicate my_con(var int: x, var int: y, var int: param_id);
+</I>&gt;<i>
+</I>&gt;<i> ...
+</I>&gt;<i>
+</I>&gt;<i> my_declare_param(3, [1,2,3,4,..], [1,2,3,4..])
+</I>&gt;<i> my_con(a, b, 3)
+</I>&gt;<i>
+</I>&gt;<i> % end flatzinc
+</I>&gt;<i>
+</I>&gt;<i> I add a predicate my_declare_param for registering params, wich &quot;register&quot; (in a global map) the parameters giving them and ID wich is PARAM_ID as argument.
+</I>&gt;<i> Then in the constraint (instead of arrays) I give the ID (PARAM_ID above) to specify which parameters declared before I want to use.
+</I>&gt;<i>
+</I>&gt;<i> Is that did you mean  ??
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance.
+</I>&gt;<i> Cheers.
+</I>
+
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

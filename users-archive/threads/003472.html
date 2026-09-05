@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Memory problem using Gecode for local search — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Memory problem using Gecode for local search | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2011</p><h1 data-pagefind-meta="title">Memory problem using Gecode for local search</h1></header>
+      <p class="archive-thread-summary">4 messages · November 2011</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003472">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>TeXitoi</h2></div>
+          <p><time>Sun Nov 6 12:58:28 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi!
+
+I'm trying to use Gecode 3.7.1 to do local search.  My decision
+variables are in a IntVarArray machine_m.
+
+I do about that :
+
+  /* constraints... */
+  IntArgs sol_l(machine_m.size());
+  /* creating sol_l with sol_l[i] = ...; */
+  count(*this, machine_m, sol_l, IRT_EQ, machine_m.size() - 1);
+  branch(*this, machine_m, INT_VAR_RND, INT_VAL_MIN);
+
+if I am correct, the tree will be totally balanced on the right,
+e.g. choice(0) will always be a solution, and choice(1) will be the
+rest of the solutions. I use INT_VAL_MIN to limit the fragmentation of
+my decision variables.
+
+I enumerate the different solutions about like that:
+
+  Search::Options options_l;
+  options_l.c_d = 1;
+  options_l.clone = false;
+  DFS&lt;GecodeSpace&gt; search_l(pSpace_l, options_l);
+  GecodeSpace *pSpace_l = 0;
+  while ((pSol_l = search_l.next()) != 0) {
+      /* working with pSol_l */
+      delete pSol_l;
+  }
+
+I use c_d = 1 because my tree have this special shape that make
+choice(0) always be a solution.  I thought that the search tree will
+be memory efficient because only 2 Gecode::Space must be stored at the
+same time because of the shape of the search tree, but I can see that
+it takes a lot of memory on big instances (even if I comment
+c_d=...).  I can see on &quot;top&quot; the memory growing about linearly with
+time.
+
+It seems that I do not have any memory problem in my program because
+if I use Search::MemoryStop(256 * 1024 * 1024) and let my local search
+running all the night, my program is only growing between about 30MB
+and 270MB.
+
+Why do I have this behavior? What did I do wrong? How to solve my
+problem (enumerating every solutions that have only 1 variable
+different from a given solution in constant memory)?
+
+Thanks in advance.
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003473">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Sun Nov 6 16:17:46 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+have you verified (e.g. using Gist) that your search tree actually has that shape?  If yes, could you post a short self-contained example code that shows this behavior?
+
+Cheers,
+Guido
+
+
+On 6 Nov 2011, at 12:58, TeXitoi wrote:
+
+&gt;<i> Hi!
+</I>&gt;<i>
+</I>&gt;<i> I'm trying to use Gecode 3.7.1 to do local search.  My decision
+</I>&gt;<i> variables are in a IntVarArray machine_m.
+</I>&gt;<i>
+</I>&gt;<i> I do about that :
+</I>&gt;<i>
+</I>&gt;<i>  /* constraints... */
+</I>&gt;<i>  IntArgs sol_l(machine_m.size());
+</I>&gt;<i>  /* creating sol_l with sol_l[i] = ...; */
+</I>&gt;<i>  count(*this, machine_m, sol_l, IRT_EQ, machine_m.size() - 1);
+</I>&gt;<i>  branch(*this, machine_m, INT_VAR_RND, INT_VAL_MIN);
+</I>&gt;<i>
+</I>&gt;<i> if I am correct, the tree will be totally balanced on the right,
+</I>&gt;<i> e.g. choice(0) will always be a solution, and choice(1) will be the
+</I>&gt;<i> rest of the solutions. I use INT_VAL_MIN to limit the fragmentation of
+</I>&gt;<i> my decision variables.
+</I>&gt;<i>
+</I>&gt;<i> I enumerate the different solutions about like that:
+</I>&gt;<i>
+</I>&gt;<i>  Search::Options options_l;
+</I>&gt;<i>  options_l.c_d = 1;
+</I>&gt;<i>  options_l.clone = false;
+</I>&gt;<i>  DFS&lt;GecodeSpace&gt; search_l(pSpace_l, options_l);
+</I>&gt;<i>  GecodeSpace *pSpace_l = 0;
+</I>&gt;<i>  while ((pSol_l = search_l.next()) != 0) {
+</I>&gt;<i>      /* working with pSol_l */
+</I>&gt;<i>      delete pSol_l;
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i> I use c_d = 1 because my tree have this special shape that make
+</I>&gt;<i> choice(0) always be a solution.  I thought that the search tree will
+</I>&gt;<i> be memory efficient because only 2 Gecode::Space must be stored at the
+</I>&gt;<i> same time because of the shape of the search tree, but I can see that
+</I>&gt;<i> it takes a lot of memory on big instances (even if I comment
+</I>&gt;<i> c_d=...).  I can see on &quot;top&quot; the memory growing about linearly with
+</I>&gt;<i> time.
+</I>&gt;<i>
+</I>&gt;<i> It seems that I do not have any memory problem in my program because
+</I>&gt;<i> if I use Search::MemoryStop(256 * 1024 * 1024) and let my local search
+</I>&gt;<i> running all the night, my program is only growing between about 30MB
+</I>&gt;<i> and 270MB.
+</I>&gt;<i>
+</I>&gt;<i> Why do I have this behavior? What did I do wrong? How to solve my
+</I>&gt;<i> problem (enumerating every solutions that have only 1 variable
+</I>&gt;<i> different from a given solution in constant memory)?
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance.
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+</I>&gt;<i>
+</I>&gt;<i> &#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+</I>&gt;<i> rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+</I>&gt;<i>                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+</I>&gt;<i>
+</I>&gt;<i> ()  ASCII ribbon campaign      -- Against HTML e-mail
+</I>&gt;<i> /\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003474">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>TeXitoi</h2></div>
+          <p><time>Sun Nov 6 17:46:04 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; writes:
+
+&gt;<i> Hi,
+</I>&gt;<i> have you verified (e.g. using Gist) that your search tree actually
+</I>&gt;<i> has that shape?
+</I>
+I cannot make gecode with gist compile here (OpenBSD).  But writing a
+minimal example, I think I understood why the tree do not have the
+shape I was thinking.
+
+So, the question is: How can I branch to values different from sol_l
+(sol_l can be any solution, of course)? Ideally, a random value not
+the one of sol_l[i].
+
+Here is the example:
+
+====8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;====
+#include &lt;gecode/int.hh&gt;
+#include &lt;gecode/search.hh&gt;
+
+using namespace Gecode;
+
+class MySpace: public Space
+{
+public:
+    MySpace(int size_p, int nb_p):
+        machine_m(*this, size_p, 0, nb_p - 1)
+    {
+        IntArgs sol_l(machine_m.size());
+        for (int i_l = 0; i_l &lt; machine_m.size(); ++i_l)
+            sol_l[i_l] = 0;
+        count(*this, machine_m, sol_l, IRT_EQ, machine_m.size() - 1);
+        // if using that, we will affect first according to sol_l, so
+        // we will need to go deep to find a solution
+        branch(*this, machine_m, INT_VAR_NONE, INT_VAL_MIN);
+        // using that, we will directly choose a value different from
+        // sol_l, and so we will have a right balanced tree
+        //branch(*this, machine_m, INT_VAR_NONE, INT_VAL_MAX);
+    }
+
+    MySpace(bool share_p, MySpace &amp;that): Space(share_p, that)
+    { machine_m.update(*this, share_p, that.machine_m); }
+
+    virtual Gecode::Space *copy(bool share_p)
+    { return new MySpace(share_p, *this); }
+
+    void print()
+    { std::cout &lt;&lt; machine_m &lt;&lt; std::endl; }
+
+protected:
+    Gecode::IntVarArray machine_m;
+};
+
+int main(void)
+{
+    MySpace *pSpace_l = new MySpace(10, 2);
+    Search::Options options_l;
+    options_l.c_d = 1;
+    options_l.clone = false;
+    DFS&lt;MySpace&gt; search_l(pSpace_l, options_l);
+    MySpace *pSol_l = 0;
+    while ((pSol_l = search_l.next()) != 0) {
+        pSol_l-&gt;print();
+        delete pSol_l;
+    }
+
+    return 0;
+}
+====8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;====
+
+--
+Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+
+&#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+
+()  ASCII ribbon campaign      -- Against HTML e-mail
+/\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+
+
+</PRE>
+
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003475">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Guido Tack</h2></div>
+          <p><time>Sun Nov 6 19:50:44 CET 2011</time><small>November 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 6 Nov 2011, at 17:46, TeXitoi wrote:
+
+&gt;<i> Guido Tack &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>&gt; writes:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i> have you verified (e.g. using Gist) that your search tree actually
+</I>&gt;&gt;<i> has that shape?
+</I>&gt;<i>
+</I>&gt;<i> I cannot make gecode with gist compile here (OpenBSD).  But writing a
+</I>&gt;<i> minimal example, I think I understood why the tree do not have the
+</I>&gt;<i> shape I was thinking.
+</I>&gt;<i>
+</I>&gt;<i> So, the question is: How can I branch to values different from sol_l
+</I>&gt;<i> (sol_l can be any solution, of course)? Ideally, a random value not
+</I>&gt;<i> the one of sol_l[i].
+</I>
+Ah, that makes sense.  With the second branch enabled (and using 10000 as the size), memory increases only very little over time.
+
+You'll have to implement a brancher, see the relevant sections in the documentation. The brancher will have to store the sol_I array and use it to determine the value to branch on.
+
+Cheers,
+Guido
+
+&gt;<i>
+</I>&gt;<i> Here is the example:
+</I>&gt;<i>
+</I>&gt;<i> ====8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;====
+</I>&gt;<i> #include &lt;gecode/int.hh&gt;
+</I>&gt;<i> #include &lt;gecode/search.hh&gt;
+</I>&gt;<i>
+</I>&gt;<i> using namespace Gecode;
+</I>&gt;<i>
+</I>&gt;<i> class MySpace: public Space
+</I>&gt;<i> {
+</I>&gt;<i> public:
+</I>&gt;<i>    MySpace(int size_p, int nb_p):
+</I>&gt;<i>        machine_m(*this, size_p, 0, nb_p - 1)
+</I>&gt;<i>    {
+</I>&gt;<i>        IntArgs sol_l(machine_m.size());
+</I>&gt;<i>        for (int i_l = 0; i_l &lt; machine_m.size(); ++i_l)
+</I>&gt;<i>            sol_l[i_l] = 0;
+</I>&gt;<i>        count(*this, machine_m, sol_l, IRT_EQ, machine_m.size() - 1);
+</I>&gt;<i>        // if using that, we will affect first according to sol_l, so
+</I>&gt;<i>        // we will need to go deep to find a solution
+</I>&gt;<i>        branch(*this, machine_m, INT_VAR_NONE, INT_VAL_MIN);
+</I>&gt;<i>        // using that, we will directly choose a value different from
+</I>&gt;<i>        // sol_l, and so we will have a right balanced tree
+</I>&gt;<i>        //branch(*this, machine_m, INT_VAR_NONE, INT_VAL_MAX);
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    MySpace(bool share_p, MySpace &amp;that): Space(share_p, that)
+</I>&gt;<i>    { machine_m.update(*this, share_p, that.machine_m); }
+</I>&gt;<i>
+</I>&gt;<i>    virtual Gecode::Space *copy(bool share_p)
+</I>&gt;<i>    { return new MySpace(share_p, *this); }
+</I>&gt;<i>
+</I>&gt;<i>    void print()
+</I>&gt;<i>    { std::cout &lt;&lt; machine_m &lt;&lt; std::endl; }
+</I>&gt;<i>
+</I>&gt;<i> protected:
+</I>&gt;<i>    Gecode::IntVarArray machine_m;
+</I>&gt;<i> };
+</I>&gt;<i>
+</I>&gt;<i> int main(void)
+</I>&gt;<i> {
+</I>&gt;<i>    MySpace *pSpace_l = new MySpace(10, 2);
+</I>&gt;<i>    Search::Options options_l;
+</I>&gt;<i>    options_l.c_d = 1;
+</I>&gt;<i>    options_l.clone = false;
+</I>&gt;<i>    DFS&lt;MySpace&gt; search_l(pSpace_l, options_l);
+</I>&gt;<i>    MySpace *pSol_l = 0;
+</I>&gt;<i>    while ((pSol_l = search_l.next()) != 0) {
+</I>&gt;<i>        pSol_l-&gt;print();
+</I>&gt;<i>        delete pSol_l;
+</I>&gt;<i>    }
+</I>&gt;<i>
+</I>&gt;<i>    return 0;
+</I>&gt;<i> }
+</I>&gt;<i> ====8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;========8&lt;====
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Guillaume Pinot                               <A HREF="http://www.texitoi.eu">http://www.texitoi.eu</A>
+</I>&gt;<i>
+</I>&gt;<i> &#171; Il semble que la perfection soit atteinte non quand il n'y a plus
+</I>&gt;<i> rien &#224; ajouter, mais quand il n'y a plus rien &#224; retrancher. &#187;
+</I>&gt;<i>                      -- Antoine de Saint-Exup&#233;ry, Terre des hommes
+</I>&gt;<i>
+</I>&gt;<i> ()  ASCII ribbon campaign      -- Against HTML e-mail
+</I>&gt;<i> /\  <A HREF="http://www.asciiribbon.org">http://www.asciiribbon.org</A> -- Against proprietary attachments
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+
+</PRE>
+
+
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

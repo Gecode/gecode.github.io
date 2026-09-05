@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Adding constraints to model in &lt;RBS&gt;: is there any	example code? — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Adding constraints to model in &lt;RBS&gt;: is there any	example code? | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · April 2017–May 2017</p><h1 data-pagefind-meta="title">Adding constraints to model in &lt;RBS&gt;: is there any	example code?</h1></header>
+      <p class="archive-thread-summary">6 messages · April 2017–May 2017</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004967">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Dirk Obermann</h2></div>
+          <p><time>Tue Apr 11 13:34:00 CEST 2017</time><small>April 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello -
+
+
+I am trying to do program up a search engine that performs sequential
+refinement by adding more and more constraints to a model. In the first
+run, I am happy with a solution at all, but then I want to add increasingly
+complex constraints until there is no more solution (or the search engine
+times out).
+
+
+Now, I first run a model with a single constraint. If DFS can find a
+solution, then I run a completely new model with two constraints and from
+scratch. If this model is feasible, then I run the model with three
+constraints, etc.
+
+
+In principle, this solution works, but it is a very inefficient: a lot of
+time is spent generating the first feasible solution when restarting the
+search (especially as the problem becomes more constrained).
+
+
+It seems to me that this should be doable with RBS or a variation of the
+LDS engine, as described in the MPG. But there are very few examples to
+follow (the closest I found was this question posted on stack overflow
+<A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A>
+but unfortunately it does not contain any answer). I simply cannot
+understand how to do it right. In particular, where do I post additional
+constraint on the model (in the master space, the slave space or
+elsewhere)?
+
+
+Any leads on how to do it, or links to code that adds constraints or
+changes branching order in RBS would be appreciated!
+
+
+Cheers,
+
+
+Dirk
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170411/20ea486d/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170411/20ea486d/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004968">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Apr 11 13:49:00 CEST 2017</time><small>April 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+
+
+First, I am not so sure that your idea works in principle: you say that the problem is that you spend a lot of time to find a first feasible solution, especially after adding additional constraints. However, that would not change with restarts: after all, you would restart the search and would have to do the same search in order to find the first feasible solution. The only benefit I could see is adding no-goods from restarts.
+
+
+
+Anyway, what you want to do (I guess) is that you accumulate additional constraints which each restart. This you can only do by adding constraints to the master (remember, the slave will always be initialized fresh from the master for each restart). LNS is different as you want try different constraints each time you restart, hence you have to do it on the slave.
+
+
+
+Hence, you will have to reimplement the master function, there you just add the additional constraints.
+
+
+
+Have you thought about using BAB? There, each time you find a solution you can add new constraints based on that solution _without_ restarting search. Sounds more like it to me.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Dirk Obermann
+Sent: Tuesday, April 11, 2017 13:34
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Hello -
+
+
+
+I am trying to do program up a search engine that performs sequential refinement by adding more and more constraints to a model. In the first run, I am happy with a solution at all, but then I want to add increasingly complex constraints until there is no more solution (or the search engine times out).
+
+
+
+Now, I first run a model with a single constraint. If DFS can find a solution, then I run a completely new model with two constraints and from scratch. If this model is feasible, then I run the model with three constraints, etc.
+
+
+
+In principle, this solution works, but it is a very inefficient: a lot of time is spent generating the first feasible solution when restarting the search (especially as the problem becomes more constrained).
+
+
+
+It seems to me that this should be doable with RBS or a variation of the LDS engine, as described in the MPG. But there are very few examples to follow (the closest I found was this question posted on stack overflow  &lt;<A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A>&gt; <A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A> but unfortunately it does not contain any answer). I simply cannot understand how to do it right. In particular, where do I post additional constraint on the model (in the master space, the slave space or elsewhere)?
+
+
+
+Any leads on how to do it, or links to code that adds constraints or changes branching order in RBS would be appreciated!
+
+
+
+Cheers,
+
+
+
+Dirk
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170411/08b9e3c0/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170411/08b9e3c0/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004969">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Dirk Obermann</h2></div>
+          <p><time>Wed Apr 12 22:27:31 CEST 2017</time><small>April 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Thanks, Christian.
+
+You were, of course, correct. BAB does the job and my code is now much more
+elegant than before. It also works well to combine with RBS.
+
+However, my earlier code was sometimes faster. The reason is that I could
+take &quot;large steps&quot;, adding constraints in chunks until the search failed. I
+ could then go back to the last feasible model and add constraints one by
+one instead of in chunks.
+
+Is something similar possible in the gecode search engines? What I would
+like do is  the following: I run BAB until fail, and then &quot;reset the state
+of the engine&quot; to where it was when it produced the last feasible solution
+(&quot;before my last call to the constrain function&quot;, so to speak). I would
+then re-run the search from there (with another behavior of the constrain
+function).
+
+Thanks,
+Dirk
+
+On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> First, I am not so sure that your idea works in principle: you say that
+</I>&gt;<i> the problem is that you spend a lot of time to find a first feasible
+</I>&gt;<i> solution, especially after adding additional constraints. However, that
+</I>&gt;<i> would not change with restarts: after all, you would restart the search and
+</I>&gt;<i> would have to do the same search in order to find the first feasible
+</I>&gt;<i> solution. The only benefit I could see is adding no-goods from restarts.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Anyway, what you want to do (I guess) is that you accumulate additional
+</I>&gt;<i> constraints which each restart. This you can only do by adding constraints
+</I>&gt;<i> to the master (remember, the slave will always be initialized fresh from
+</I>&gt;<i> the master for each restart). LNS is different as you want try different
+</I>&gt;<i> constraints each time you restart, hence you have to do it on the slave.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hence, you will have to reimplement the master function, there you just
+</I>&gt;<i> add the additional constraints.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Have you thought about using BAB? There, each time you find a solution you
+</I>&gt;<i> can add new constraints based on that solution _*without*_ restarting
+</I>&gt;<i> search. Sounds more like it to me.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.gecode.org/~schulte
+</I>&gt;<i>
+</I>&gt;<i> Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i>
+</I>&gt;<i> Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Dirk Obermann
+</I>&gt;<i> *Sent:* Tuesday, April 11, 2017 13:34
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there
+</I>&gt;<i> any example code?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hello -
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I am trying to do program up a search engine that performs sequential
+</I>&gt;<i> refinement by adding more and more constraints to a model. In the first
+</I>&gt;<i> run, I am happy with a solution at all, but then I want to add increasingly
+</I>&gt;<i> complex constraints until there is no more solution (or the search engine
+</I>&gt;<i> times out).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Now, I first run a model with a single constraint. If DFS can find a
+</I>&gt;<i> solution, then I run a completely new model with two constraints and from
+</I>&gt;<i> scratch. If this model is feasible, then I run the model with three
+</I>&gt;<i> constraints, etc.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> In principle, this solution works, but it is a very inefficient: a lot of
+</I>&gt;<i> time is spent generating the first feasible solution when restarting the
+</I>&gt;<i> search (especially as the problem becomes more constrained).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> It seems to me that this should be doable with RBS or a variation of the
+</I>&gt;<i> LDS engine, as described in the MPG. But there are very few examples to
+</I>&gt;<i> follow (the closest I found was this question posted on stack overflow
+</I>&gt;<i> <A HREF="http://stackoverflow.com/questions/34182681/how-to-">http://stackoverflow.com/questions/34182681/how-to-</A>
+</I>&gt;<i> change-the-variable-value-ordering-in-gecodes-restart-based-search but
+</I>&gt;<i> unfortunately it does not contain any answer). I simply cannot understand
+</I>&gt;<i> how to do it right. In particular, where do I post additional constraint on
+</I>&gt;<i> the model (in the master space, the slave space or elsewhere)?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Any leads on how to do it, or links to code that adds constraints or
+</I>&gt;<i> changes branching order in RBS would be appreciated!
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Dirk
+</I>&gt;<i>
+</I>-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170412/b031a4a0/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170412/b031a4a0/attachment.html</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004972">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Apr 18 13:52:17 CEST 2017</time><small>April 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Dirk,
+
+
+
+Yes, I see your motivation but the Gecode engines cannot do that. Have you ever had a look at the part in MPG about search? Building a BAB engine with this additional feature might be not that hard&#8230;
+
+
+
+Good luck
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: Dirk Obermann [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">dirk.obermann67 at gmail.com</A>]
+Sent: Wednesday, April 12, 2017 22:28
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Thanks, Christian.
+
+
+
+You were, of course, correct. BAB does the job and my code is now much more elegant than before. It also works well to combine with RBS.
+
+
+
+However, my earlier code was sometimes faster. The reason is that I could take &quot;large steps&quot;, adding constraints in chunks until the search failed. I  could then go back to the last feasible model and add constraints one by one instead of in chunks.
+
+Is something similar possible in the gecode search engines? What I would like do is  the following: I run BAB until fail, and then &quot;reset the state of the engine&quot; to where it was when it produced the last feasible solution (&quot;before my last call to the constrain function&quot;, so to speak). I would then re-run the search from there (with another behavior of the constrain function).
+
+Thanks,
+
+Dirk
+
+
+
+On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+Hi,
+
+
+
+First, I am not so sure that your idea works in principle: you say that the problem is that you spend a lot of time to find a first feasible solution, especially after adding additional constraints. However, that would not change with restarts: after all, you would restart the search and would have to do the same search in order to find the first feasible solution. The only benefit I could see is adding no-goods from restarts.
+
+
+
+Anyway, what you want to do (I guess) is that you accumulate additional constraints which each restart. This you can only do by adding constraints to the master (remember, the slave will always be initialized fresh from the master for each restart). LNS is different as you want try different constraints each time you restart, hence you have to do it on the slave.
+
+
+
+Hence, you will have to reimplement the master function, there you just add the additional constraints.
+
+
+
+Have you thought about using BAB? There, each time you find a solution you can add new constraints based on that solution _without_ restarting search. Sounds more like it to me.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Dirk Obermann
+Sent: Tuesday, April 11, 2017 13:34
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Hello -
+
+
+
+I am trying to do program up a search engine that performs sequential refinement by adding more and more constraints to a model. In the first run, I am happy with a solution at all, but then I want to add increasingly complex constraints until there is no more solution (or the search engine times out).
+
+
+
+Now, I first run a model with a single constraint. If DFS can find a solution, then I run a completely new model with two constraints and from scratch. If this model is feasible, then I run the model with three constraints, etc.
+
+
+
+In principle, this solution works, but it is a very inefficient: a lot of time is spent generating the first feasible solution when restarting the search (especially as the problem becomes more constrained).
+
+
+
+It seems to me that this should be doable with RBS or a variation of the LDS engine, as described in the MPG. But there are very few examples to follow (the closest I found was this question posted on stack overflow  &lt;<A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A>&gt; <A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A> but unfortunately it does not contain any answer). I simply cannot understand how to do it right. In particular, where do I post additional constraint on the model (in the master space, the slave space or elsewhere)?
+
+
+
+Any leads on how to do it, or links to code that adds constraints or changes branching order in RBS would be appreciated!
+
+
+
+Cheers,
+
+
+
+Dirk
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170418/0243b12b/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170418/0243b12b/attachment.html</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-004973">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Dirk Obermann</h2></div>
+          <p><time>Tue May 9 20:43:04 CEST 2017</time><small>May 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Christian,
+
+sorry for taking long to respond. I read the manual and tried to modify the
+engines to do what I wanted. Unfortunately, I was not succesfull...
+
+My first attempt was to run BAB until completion with the long steps
+(adding chunks of constraints in the constrain() function). I was then
+hoping that I should be able to modify the last solution returned by BAB
+(by setting a parameter in the corresponding object,
+lastSolution-&gt;setLargeChunks(false), to influence the behavior of the
+constrain function in the future), and create and run a new BAB with this
+solution object as initial object. (something like BAB&lt;...&gt; e(lastSolution,
+options) ). Although it does run, I get the feeling that it starts the
+search from the beginning and does not benefit from the search done so far.
+
+I then tried to understand how to modify the parallel engine code, but it
+was beyond my capabilities...
+
+Thanks,
+Dirk
+
+On Tue, Apr 18, 2017 at 1:52 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+&gt;<i> Hi Dirk,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Yes, I see your motivation but the Gecode engines cannot do that. Have you
+</I>&gt;<i> ever had a look at the part in MPG about search? Building a BAB engine with
+</I>&gt;<i> this additional feature might be not that hard&#8230;
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Good luck
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.gecode.org/~schulte
+</I>&gt;<i>
+</I>&gt;<i> Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i>
+</I>&gt;<i> Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* Dirk Obermann [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">dirk.obermann67 at gmail.com</A>]
+</I>&gt;<i> *Sent:* Wednesday, April 12, 2017 22:28
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i> *Cc:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* Re: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is
+</I>&gt;<i> there any example code?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Thanks, Christian.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> You were, of course, correct. BAB does the job and my code is now much
+</I>&gt;<i> more elegant than before. It also works well to combine with RBS.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> However, my earlier code was sometimes faster. The reason is that I could
+</I>&gt;<i> take &quot;large steps&quot;, adding constraints in chunks until the search failed. I
+</I>&gt;<i>  could then go back to the last feasible model and add constraints one by
+</I>&gt;<i> one instead of in chunks.
+</I>&gt;<i>
+</I>&gt;<i> Is something similar possible in the gecode search engines? What I would
+</I>&gt;<i> like do is  the following: I run BAB until fail, and then &quot;reset the state
+</I>&gt;<i> of the engine&quot; to where it was when it produced the last feasible solution
+</I>&gt;<i> (&quot;before my last call to the constrain function&quot;, so to speak). I would
+</I>&gt;<i> then re-run the search from there (with another behavior of the constrain
+</I>&gt;<i> function).
+</I>&gt;<i>
+</I>&gt;<i> Thanks,
+</I>&gt;<i>
+</I>&gt;<i> Dirk
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+</I>&gt;<i> wrote:
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> First, I am not so sure that your idea works in principle: you say that
+</I>&gt;<i> the problem is that you spend a lot of time to find a first feasible
+</I>&gt;<i> solution, especially after adding additional constraints. However, that
+</I>&gt;<i> would not change with restarts: after all, you would restart the search and
+</I>&gt;<i> would have to do the same search in order to find the first feasible
+</I>&gt;<i> solution. The only benefit I could see is adding no-goods from restarts.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Anyway, what you want to do (I guess) is that you accumulate additional
+</I>&gt;<i> constraints which each restart. This you can only do by adding constraints
+</I>&gt;<i> to the master (remember, the slave will always be initialized fresh from
+</I>&gt;<i> the master for each restart). LNS is different as you want try different
+</I>&gt;<i> constraints each time you restart, hence you have to do it on the slave.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hence, you will have to reimplement the master function, there you just
+</I>&gt;<i> add the additional constraints.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Have you thought about using BAB? There, each time you find a solution you
+</I>&gt;<i> can add new constraints based on that solution _*without*_ restarting
+</I>&gt;<i> search. Sounds more like it to me.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers
+</I>&gt;<i>
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i>
+</I>&gt;<i> Christian Schulte, www.gecode.org/~schulte
+</I>&gt;<i>
+</I>&gt;<i> Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+</I>&gt;<i>
+</I>&gt;<i> Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> *From:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] *On
+</I>&gt;<i> Behalf Of *Dirk Obermann
+</I>&gt;<i> *Sent:* Tuesday, April 11, 2017 13:34
+</I>&gt;<i> *To:* <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> *Subject:* [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there
+</I>&gt;<i> any example code?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hello -
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> I am trying to do program up a search engine that performs sequential
+</I>&gt;<i> refinement by adding more and more constraints to a model. In the first
+</I>&gt;<i> run, I am happy with a solution at all, but then I want to add increasingly
+</I>&gt;<i> complex constraints until there is no more solution (or the search engine
+</I>&gt;<i> times out).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Now, I first run a model with a single constraint. If DFS can find a
+</I>&gt;<i> solution, then I run a completely new model with two constraints and from
+</I>&gt;<i> scratch. If this model is feasible, then I run the model with three
+</I>&gt;<i> constraints, etc.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> In principle, this solution works, but it is a very inefficient: a lot of
+</I>&gt;<i> time is spent generating the first feasible solution when restarting the
+</I>&gt;<i> search (especially as the problem becomes more constrained).
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> It seems to me that this should be doable with RBS or a variation of the
+</I>&gt;<i> LDS engine, as described in the MPG. But there are very few examples to
+</I>&gt;<i> follow (the closest I found was this question posted on stack overflow
+</I>&gt;<i> <A HREF="http://stackoverflow.com/questions/34182681/how-to-">http://stackoverflow.com/questions/34182681/how-to-</A>
+</I>&gt;<i> change-the-variable-value-ordering-in-gecodes-restart-based-search but
+</I>&gt;<i> unfortunately it does not contain any answer). I simply cannot understand
+</I>&gt;<i> how to do it right. In particular, where do I post additional constraint on
+</I>&gt;<i> the model (in the master space, the slave space or elsewhere)?
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Any leads on how to do it, or links to code that adds constraints or
+</I>&gt;<i> changes branching order in RBS would be appreciated!
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Cheers,
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Dirk
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170509/84637704/attachment.html">http://www.gecode.org/pipermail/users/attachments/20170509/84637704/attachment.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004974">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu May 11 16:41:05 CEST 2017</time><small>May 2017</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Dirk,
+
+
+
+Hmm, if it is as you say that&#8217;s surprising: you say that you create a new BAB engine. That engine would restart from whatever you give it as space, so it will start from the last solution. So that should in fact work&#8230; Why do you think it starts from scratch? &gt;From what I understand you do not even have to modify the engine, changing the constrain() function is enough, right?
+
+
+
+Don&#8217;t look at the parallel stuff that&#8217;s awful ;-)
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS,  &lt;mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>&gt; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: Dirk Obermann [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">dirk.obermann67 at gmail.com</A>]
+Sent: Tuesday, May 9, 2017 20:43
+To: Christian Schulte
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Hi Christian,
+
+
+
+sorry for taking long to respond. I read the manual and tried to modify the engines to do what I wanted. Unfortunately, I was not succesfull...
+
+
+
+My first attempt was to run BAB until completion with the long steps (adding chunks of constraints in the constrain() function). I was then hoping that I should be able to modify the last solution returned by BAB (by setting a parameter in the corresponding object, lastSolution-&gt;setLargeChunks(false), to influence the behavior of the constrain function in the future), and create and run a new BAB with this solution object as initial object. (something like BAB&lt;...&gt; e(lastSolution, options) ). Although it does run, I get the feeling that it starts the search from the beginning and does not benefit from the search done so far.
+
+
+
+I then tried to understand how to modify the parallel engine code, but it was beyond my capabilities...
+
+
+
+Thanks,
+
+Dirk
+
+
+
+On Tue, Apr 18, 2017 at 1:52 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+Hi Dirk,
+
+
+
+Yes, I see your motivation but the Gecode engines cannot do that. Have you ever had a look at the part in MPG about search? Building a BAB engine with this additional feature might be not that hard&#8230;
+
+
+
+Good luck
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: Dirk Obermann [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">dirk.obermann67 at gmail.com</A>]
+Sent: Wednesday, April 12, 2017 22:28
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Thanks, Christian.
+
+
+
+You were, of course, correct. BAB does the job and my code is now much more elegant than before. It also works well to combine with RBS.
+
+
+
+However, my earlier code was sometimes faster. The reason is that I could take &quot;large steps&quot;, adding constraints in chunks until the search failed. I  could then go back to the last feasible model and add constraints one by one instead of in chunks.
+
+Is something similar possible in the gecode search engines? What I would like do is  the following: I run BAB until fail, and then &quot;reset the state of the engine&quot; to where it was when it produced the last feasible solution (&quot;before my last call to the constrain function&quot;, so to speak). I would then re-run the search from there (with another behavior of the constrain function).
+
+Thanks,
+
+Dirk
+
+
+
+On Tue, Apr 11, 2017 at 1:49 PM, Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt; wrote:
+
+Hi,
+
+
+
+First, I am not so sure that your idea works in principle: you say that the problem is that you spend a lot of time to find a first feasible solution, especially after adding additional constraints. However, that would not change with restarts: after all, you would restart the search and would have to do the same search in order to find the first feasible solution. The only benefit I could see is adding no-goods from restarts.
+
+
+
+Anyway, what you want to do (I guess) is that you accumulate additional constraints which each restart. This you can only do by adding constraints to the master (remember, the slave will always be initialized fresh from the master for each restart). LNS is different as you want try different constraints each time you restart, hence you have to do it on the slave.
+
+
+
+Hence, you will have to reimplement the master function, there you just add the additional constraints.
+
+
+
+Have you thought about using BAB? There, each time you find a solution you can add new constraints based on that solution _without_ restarting search. Sounds more like it to me.
+
+
+
+Cheers
+
+Christian
+
+
+
+--
+
+Christian Schulte, www.gecode.org/~schulte
+
+Professor of Computer Science, KTH, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+
+Expert Researcher, RISE SICS, <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">christian.schulte at ri.se</A>
+
+
+
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf Of Dirk Obermann
+Sent: Tuesday, April 11, 2017 13:34
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Adding constraints to model in &lt;RBS&gt;: is there any example code?
+
+
+
+Hello -
+
+
+
+I am trying to do program up a search engine that performs sequential refinement by adding more and more constraints to a model. In the first run, I am happy with a solution at all, but then I want to add increasingly complex constraints until there is no more solution (or the search engine times out).
+
+
+
+Now, I first run a model with a single constraint. If DFS can find a solution, then I run a completely new model with two constraints and from scratch. If this model is feasible, then I run the model with three constraints, etc.
+
+
+
+In principle, this solution works, but it is a very inefficient: a lot of time is spent generating the first feasible solution when restarting the search (especially as the problem becomes more constrained).
+
+
+
+It seems to me that this should be doable with RBS or a variation of the LDS engine, as described in the MPG. But there are very few examples to follow (the closest I found was this question posted on stack overflow  &lt;<A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A>&gt; <A HREF="http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search">http://stackoverflow.com/questions/34182681/how-to-change-the-variable-value-ordering-in-gecodes-restart-based-search</A> but unfortunately it does not contain any answer). I simply cannot understand how to do it right. In particular, where do I post additional constraint on the model (in the master space, the slave space or elsewhere)?
+
+
+
+Any leads on how to do it, or links to code that adds constraints or changes branching order in RBS would be appreciated!
+
+
+
+Cheers,
+
+
+
+Dirk
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20170511/a235acf9/attachment-0001.html">http://www.gecode.org/pipermail/users/attachments/20170511/a235acf9/attachment-0001.html</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sum of IntVarArrays with changing array positions — 8 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Sum of IntVarArrays with changing array positions | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>8 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2011</p><h1 data-pagefind-meta="title">Sum of IntVarArrays with changing array positions</h1></header>
+      <p class="archive-thread-summary">8 messages · October 2011</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003415">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Mathias Dalheimer</h2></div>
+          <p><time>Wed Oct 12 10:57:24 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I'm having trouble expressing the following constraints: I have two
+IntVarArrays which contain short timeseries (i.e. consumption values for
+one hour, while the remaining hours of one day are empty/not
+constrained). The *position* of the constraints of the consumption can
+move within the day, this is governed by two IntVars (m, n) (which are
+my optimization goal, so the cost function is calculated depending on
+the position variables). The underlying question is where to place the
+consumption in order to optimize some cost function.
+
+Now I have some other constraints that depend on the position m and n of
+the consumption. I need to sum the timeseries. So, as an example, I have
+something like this (. denotes no constraint):
+
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+
+Now my question: How do I encode a constraint that depends on the sum of
+these two IntVarArrays while m and n (the position) can change?
+
+So, in the previous example, this would be:
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+. . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+
+In another example with different m and n:
+
+1 2 1 2 3 . . . . . . . . . . . .  // m=0
+. . . . . . . 2 4 5 6 5 . . . . .  // n=8
+1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+
+Different m's and n's are being evaluated and an optimal set of m and n
+is the result of the optimization.
+
+Thanks for any pointers,
+-Mathias
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003416">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Oct 12 11:21:57 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+How about the following idea (just a sketch) based on the fact that the
+timeseries is short (hopefully that's right).
+
+Let me call the two arrays for the timeseries a and b and sum for the sum of
+a and b,
+
+1) Create variable arrays for a and b of the same length.
+
+2) Post for each element in a and b something like:
+	sum[i] = expr(home, a[i] + b[i])
+
+3) Post the resource patterns by using a regular expression together with an
+extensional constraint. Let's take as example the pattern for a (in a real
+application you might want to compute the regular expression
+programmatically, see for example the Kakuro case study in MPG):
+	REG ra = *REG(0) + REG(1) + REG(2) + REG(1) + REG(2) + REG(3) +
+*REG(0);
+ The regular expression says: the timeseries can appear somewhere in a,
+preceeded and succeeded by an arbitrary number of zeros. Create a DFA for it
+	DFA da(ra);
+  And post the extensional constraint on a
+	extensional(home, a, da);
+
+4) Now the constraints that enforce the relation between a and m (assuming m
+starts counting from zero):
+	for (int i=0; i&lt;a.size(); i++)
+		rel(home, (i &lt; m) == (a[i] == 0));
+  This does nothing but saying that for all positions less than m, the
+element in a must be zero.
+
+Of course, 3) and 4) must also be done for b.
+
+Not that great as it uses lots of reified constraints but maybe worth a shot
+(hopefully, I understood the problem allright). 4) Might be more efficient
+if you pre-compute lower and upper bounds for m based on the length of the
+pattern.
+
+Cheers
+Christian
+
+--
+Christian Schulte, KTH, web.it.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Mathias Dalheimer
+Sent: Wednesday, October 12, 2011 10:57 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Sum of IntVarArrays with changing array positions
+
+Hi,
+
+I'm having trouble expressing the following constraints: I have two
+IntVarArrays which contain short timeseries (i.e. consumption values for one
+hour, while the remaining hours of one day are empty/not constrained). The
+*position* of the constraints of the consumption can move within the day,
+this is governed by two IntVars (m, n) (which are my optimization goal, so
+the cost function is calculated depending on the position variables). The
+underlying question is where to place the consumption in order to optimize
+some cost function.
+
+Now I have some other constraints that depend on the position m and n of the
+consumption. I need to sum the timeseries. So, as an example, I have
+something like this (. denotes no constraint):
+
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+
+Now my question: How do I encode a constraint that depends on the sum of
+these two IntVarArrays while m and n (the position) can change?
+
+So, in the previous example, this would be:
+
+. . . 1 2 1 2 3 . . . . . . . . .   // m=3
+. . . . . . . 2 4 5 6 5 . . . . .   // n=8
+. . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+
+In another example with different m and n:
+
+1 2 1 2 3 . . . . . . . . . . . .  // m=0 . . . . . . . 2 4 5 6 5 . . . . .
+// n=8
+1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+
+Different m's and n's are being evaluated and an optimal set of m and n is
+the result of the optimization.
+
+Thanks for any pointers,
+-Mathias
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003417">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Oct 12 11:26:05 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Mathias,
+
+you can express the constraint using element constraints.  Say the two sequences are x and y, you create two new sequences xx and yy (with appropriate length) and then post the following constraints:
+
+for (int i=0; i&lt;x.size(); i++) post(home, x[i] == element(xx,m+i))
+for (int i=0; i&lt;y.size(); i++) post(home, y[i] == element(yy,n+i))
+
+for (int i=0; i&lt;xx.size(); i++) post(home, xy[i] = x[i]+y[i]);
+
+If you need to constrain the &quot;empty&quot; positions to 0 (e.g. because your optimization function doesn't do that automatically), you can do that in addition:
+
+for (int i=0; i&lt;xx.size(); i++) post(home, (i &lt; m || i &gt; m+x.size()) &gt;&gt; xx[i]==0));
+for (int i=0; i&lt;yy.size(); i++) post(home, (i &lt; n || i &gt; n+y.size()) &gt;&gt; yy[i]==0));
+
+I didn't test the code, but I hope you get the idea.
+
+Christian's email just arrived - I think my solution is different in that the time series can be variables, which means you can't use regular.  I understand that correctly from your description?
+
+Cheers,
+Guido
+
+On 12 Oct 2011, at 10:57, Mathias Dalheimer wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> I'm having trouble expressing the following constraints: I have two
+</I>&gt;<i> IntVarArrays which contain short timeseries (i.e. consumption values for
+</I>&gt;<i> one hour, while the remaining hours of one day are empty/not
+</I>&gt;<i> constrained). The *position* of the constraints of the consumption can
+</I>&gt;<i> move within the day, this is governed by two IntVars (m, n) (which are
+</I>&gt;<i> my optimization goal, so the cost function is calculated depending on
+</I>&gt;<i> the position variables). The underlying question is where to place the
+</I>&gt;<i> consumption in order to optimize some cost function.
+</I>&gt;<i>
+</I>&gt;<i> Now I have some other constraints that depend on the position m and n of
+</I>&gt;<i> the consumption. I need to sum the timeseries. So, as an example, I have
+</I>&gt;<i> something like this (. denotes no constraint):
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .   // n=8
+</I>&gt;<i>
+</I>&gt;<i> Now my question: How do I encode a constraint that depends on the sum of
+</I>&gt;<i> these two IntVarArrays while m and n (the position) can change?
+</I>&gt;<i>
+</I>&gt;<i> So, in the previous example, this would be:
+</I>&gt;<i>
+</I>&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .   // n=8
+</I>&gt;<i> . . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+</I>&gt;<i>
+</I>&gt;<i> In another example with different m and n:
+</I>&gt;<i>
+</I>&gt;<i> 1 2 1 2 3 . . . . . . . . . . . .  // m=0
+</I>&gt;<i> . . . . . . . 2 4 5 6 5 . . . . .  // n=8
+</I>&gt;<i> 1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+</I>&gt;<i>
+</I>&gt;<i> Different m's and n's are being evaluated and an optimal set of m and n
+</I>&gt;<i> is the result of the optimization.
+</I>&gt;<i>
+</I>&gt;<i> Thanks for any pointers,
+</I>&gt;<i> -Mathias
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+
+
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003418">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Mathias Dalheimer</h2></div>
+          <p><time>Wed Oct 12 16:27:04 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+Dear Guido, dear Christian, list,
+
+wow, I'm impressed - usually not even paid support does answer so fast
+and so accurate. Thank you very much!
+
+I've implemented Guidos idea, but I still have a problem. My code looks
+like this:
+
+I have some member variables (all IntVarArrays), here's the
+initialization list:
+
+  :_start_times(*this, devices.size(), 0, MINS_PER_DAY)
+  _movable_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev0_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev1_load(*this, MINS_PER_DAY, 0, 15000)
+  _dev0(*this, devices[0].size(), 0, 15000)
+  _dev1(*this, devices[1].size(), 0, 15000)
+
+devices is of type std::vector&lt; std::vector &gt;, I copy the
+initial device data to _dev0 (and _dev1):
+
+  for (size_t i=0; i &lt; devices[0].size(); ++i) {
+    rel(*this, _dev0[i] == devices[0][i]);
+  }
+
+Then, I use Guido's recommendation:
+
+ for (int j=0; j &lt; _dev0.size(); ++j) {
+    rel(*this, _dev0_load[j] == element(_dev0, _start_times[0] + j));
+ }
+
+Please note that I was not able to use the post function - the compiler
+complains that the function is not defined, although minimodel.hh is
+included. After this step (again the same code for _dev1), I can sum up
+the _devX_load IntVarArrays:
+
+  for (int i=0; i&lt;_movable_load.size(); ++i) {
+    rel(*this, _movable_load[i] == _dev0_load[i] + _dev1_load[i]);
+  }
+
+This works in principle (The _movable_load series is calculated
+correctly), but only if the device positions (_start_times) are 0. These
+are also the solutions found by Gecode. If I restrict the start times to
+something different, i.e.
+
+  rel(*this, _start_times[0] == 1);
+
+Gecode will not find any solutions. I'm sure I'm only missing something
+simple - any ideas? Thanks again for your time!
+
+Cheers,
+- -Mathias
+
+
+Guido Tack wrote:
+&gt;<i> Hi Mathias,
+</I>&gt;<i>
+</I>&gt;<i> you can express the constraint using element constraints.  Say the
+</I>&gt;<i> two sequences are x and y, you create two new sequences xx and yy
+</I>&gt;<i> (with appropriate length) and then post the following constraints:
+</I>&gt;<i>
+</I>&gt;<i> for (int i=0; i&lt; m || i &gt; m+x.size())
+</I>&gt;&gt;&gt;<i> xx[i]==0)); for (int i=0; i&lt; n || i
+</I>&gt;&gt;<i> n+y.size()) &gt;&gt; yy[i]==0));
+</I>&gt;<i> I didn't test the code, but I hope you get the idea.
+</I>&gt;<i>
+</I>&gt;<i> Christian's email just arrived - I think my solution is different in
+</I>&gt;<i> that the time series can be variables, which means you can't use
+</I>&gt;<i> regular.  I understand that correctly from your description?
+</I>&gt;<i>
+</I>&gt;<i> Cheers, Guido
+</I>&gt;<i>
+</I>&gt;<i> On 12 Oct 2011, at 10:57, Mathias Dalheimer wrote:
+</I>&gt;<i>
+</I>&gt;&gt;<i> Hi,
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> I'm having trouble expressing the following constraints: I have two
+</I>&gt;&gt;<i> IntVarArrays which contain short timeseries (i.e. consumption
+</I>&gt;&gt;<i> values for one hour, while the remaining hours of one day are
+</I>&gt;&gt;<i> empty/not constrained). The *position* of the constraints of the
+</I>&gt;&gt;<i> consumption can move within the day, this is governed by two
+</I>&gt;&gt;<i> IntVars (m, n) (which are my optimization goal, so the cost
+</I>&gt;&gt;<i> function is calculated depending on the position variables). The
+</I>&gt;&gt;<i> underlying question is where to place the consumption in order to
+</I>&gt;&gt;<i> optimize some cost function.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Now I have some other constraints that depend on the position m
+</I>&gt;&gt;<i> and n of the consumption. I need to sum the timeseries. So, as an
+</I>&gt;&gt;<i> example, I have something like this (. denotes no constraint):
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3 . . . . . . . 2 4 5 6 5
+</I>&gt;&gt;<i> . . . . .   // n=8
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Now my question: How do I encode a constraint that depends on the
+</I>&gt;&gt;<i> sum of these two IntVarArrays while m and n (the position) can
+</I>&gt;&gt;<i> change?
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> So, in the previous example, this would be:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> . . . 1 2 1 2 3 . . . . . . . . .   // m=3 . . . . . . . 2 4 5 6 5
+</I>&gt;&gt;<i> . . . . .   // n=8 . . . 1 2 1 2 5 4 5 6 5 . . . . .   // sum
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> In another example with different m and n:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> 1 2 1 2 3 . . . . . . . . . . . .  // m=0 . . . . . . . 2 4 5 6 5
+</I>&gt;&gt;<i> . . . . .  // n=8 1 2 1 2 3 . . 2 4 5 6 5 . . . . .  // sum
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Different m's and n's are being evaluated and an optimal set of m
+</I>&gt;&gt;<i> and n is the result of the optimization.
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> Thanks for any pointers, -Mathias
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> _______________________________________________ Gecode users
+</I>&gt;&gt;<i> mailing list <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (Darwin)
+Comment: Using GnuPG with Mozilla - <A HREF="http://enigmail.mozdev.org/">http://enigmail.mozdev.org/</A>
+
+iEYEARECAAYFAk6VtB8ACgkQ/Rbs3OTm+ySf6wCg0c/kkj/TI98JdoP2jpKc6bSr
+a/MAnjWOkQrhcJxmgdltGcpA5v+xYS+y
+=Wboo
+-----END PGP SIGNATURE-----
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003419">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Oct 13 10:33:58 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On 12 Oct 2011, at 16:27, Mathias Dalheimer wrote:
+&gt;<i> Dear Guido, dear Christian, list,
+</I>&gt;<i>
+</I>&gt;<i> wow, I'm impressed - usually not even paid support does answer so fast
+</I>&gt;<i> and so accurate. Thank you very much!
+</I>&gt;<i>
+</I>&gt;<i> I've implemented Guidos idea, but I still have a problem. My code looks
+</I>&gt;<i> like this:
+</I>&gt;<i>
+</I>&gt;<i> I have some member variables (all IntVarArrays), here's the
+</I>&gt;<i> initialization list:
+</I>&gt;<i>
+</I>&gt;<i>  :_start_times(*this, devices.size(), 0, MINS_PER_DAY)
+</I>&gt;<i>  _movable_load(*this, MINS_PER_DAY, 0, 15000)
+</I>&gt;<i>  _dev0_load(*this, MINS_PER_DAY, 0, 15000)
+</I>&gt;<i>  _dev1_load(*this, MINS_PER_DAY, 0, 15000)
+</I>&gt;<i>  _dev0(*this, devices[0].size(), 0, 15000)
+</I>&gt;<i>  _dev1(*this, devices[1].size(), 0, 15000)
+</I>&gt;<i>
+</I>&gt;<i> devices is of type std::vector&lt; std::vector &gt;, I copy the
+</I>&gt;<i> initial device data to _dev0 (and _dev1):
+</I>&gt;<i>
+</I>&gt;<i>  for (size_t i=0; i &lt; devices[0].size(); ++i) {
+</I>&gt;<i>    rel(*this, _dev0[i] == devices[0][i]);
+</I>&gt;<i>  }
+</I>&gt;<i>
+</I>&gt;<i> Then, I use Guido's recommendation:
+</I>&gt;<i>
+</I>&gt;<i> for (int j=0; j &lt; _dev0.size(); ++j) {
+</I>&gt;<i>    rel(*this, _dev0_load[j] == element(_dev0, _start_times[0] + j));
+</I>&gt;<i> }
+</I>
+Shouldn't this be the other way around:
+
+for (int j=0; j &lt; _dev0.size(); ++j) {
+   rel(*this, _dev0[j] == element(_dev0_load, _start_times[0] + j));
+}
+
+
+&gt;<i> Please note that I was not able to use the post function - the compiler
+</I>&gt;<i> complains that the function is not defined, although minimodel.hh is
+</I>&gt;<i> included.
+</I>
+Right, sorry, rel was called post in an earlier version of Gecode and I still get that mixed up sometimes.
+
+Cheers,
+Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003423">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Mathias Dalheimer</h2></div>
+          <p><time>Thu Oct 13 14:42:16 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+Guido Tack wrote:
+&gt;<i> On 12 Oct 2011, at 16:27, Mathias Dalheimer wrote:
+</I>
+&gt;&gt;<i> Then, I use Guido's recommendation:
+</I>&gt;&gt;<i>
+</I>&gt;&gt;<i> for (int j=0; j &lt; _dev0.size(); ++j) { rel(*this, _dev0_load[j] ==
+</I>&gt;&gt;<i> element(_dev0, _start_times[0] + j)); }
+</I>&gt;<i>
+</I>&gt;<i> Shouldn't this be the other way around:
+</I>&gt;<i>
+</I>&gt;<i> for (int j=0; j &lt; _dev0.size(); ++j) { rel(*this, _dev0[j] ==
+</I>&gt;<i> element(_dev0_load, _start_times[0] + j)); }
+</I>
+OK, this did the trick. My model is working, although pretty slow, but
+this should be a matter of tweaking the domain sizes and so on.
+
+If you don't mind, I have another question: Why does the oder matter? My
+interpretation of MPG p.87, &quot;Figure 6.1: Integer expressions and
+relations&quot; is that the order is not relevant. What am I missing?
+
+&gt;&gt;<i> Please note that I was not able to use the post function - the
+</I>&gt;&gt;<i> compiler complains that the function is not defined, although
+</I>&gt;&gt;<i> minimodel.hh is included.
+</I>&gt;<i>
+</I>&gt;<i> Right, sorry, rel was called post in an earlier version of Gecode and
+</I>&gt;<i> I still get that mixed up sometimes.
+</I>
+No problem - thanks for your help!
+
+Cheers,
+-Mathias
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003425">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Guido Tack</h2></div>
+          <p><time>Thu Oct 13 15:36:41 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Thu, Oct 13, 2011 at 2:42 PM, Mathias Dalheimer
+&lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">dalheimer at itwm.fhg.de</A>&gt; wrote:
+&gt;&gt;<i> for (int j=0; j &lt; _dev0.size(); ++j) { rel(*this, _dev0[j] ==
+</I>&gt;&gt;<i> element(_dev0_load, _start_times[0] + j)); }
+</I>&gt;<i>
+</I>&gt;<i> If you don't mind, I have another question: Why does the oder matter? My
+</I>&gt;<i> interpretation of MPG p.87, &quot;Figure 6.1: Integer expressions and
+</I>&gt;<i> relations&quot; is that the order is not relevant. What am I missing?
+</I>
+It's not the order, it's the difference between x[j]==y[m+j] versus
+y[j]==x[m+j].
+
+Guido
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003426">
+        <header class="archive-thread-message-heading">
+          <div><span>08</span><h2>Mathias Dalheimer</h2></div>
+          <p><time>Thu Oct 13 16:28:22 CEST 2011</time><small>October 2011</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Guido Tack wrote:
+&gt;<i> It's not the order, it's the difference between x[j]==y[m+j] versus
+</I>&gt;<i> y[j]==x[m+j].
+</I>
+Oh my, not my day today. Sorry.
+
+Cheers,
+-Mathias
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

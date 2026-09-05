@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Newbie: space/solution copying &amp; dynamically added	constraints — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Newbie: space/solution copying &amp; dynamically added	constraints | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · September 2006</p><h1 data-pagefind-meta="title">Newbie: space/solution copying &amp; dynamically added	constraints</h1></header>
+      <p class="archive-thread-summary">5 messages · September 2006</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000690">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Pieter Thysebaert</h2></div>
+          <p><time>Tue Sep 19 15:20:18 CEST 2006</time><small>September 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello,
+
+I'm currently running Gecode 1.2.2 on debian Sarge and am using its
+built-in BAB engine to solve a constraint optimization problem.
+
+As I want to parallelize the search procedure (by using concurrent
+distributed components) but haven't discovered such a solution in gecode
+(does it exist already?), I have been entertaining myself by
+implementing a prototype of such a concurrent distributed search
+procedure using MPICH2, in which the concurrent components perform load
+distribution by dynamically splitting up their assigned search space.
+
+As it's just a prototype, I don't mind it being slightly naive.
+Therefore, I use the Gecode-provided BAB search engine in each of the
+components. When some component has finished its search, it will request
+work from a busy component. Work consists of a description of variables
+to be bound, so the querying component will start a new search in the
+problem space constrained by these bound variables. These variable
+bindings can easily be passed on using MPI messages.
+
+My main problem, however, lies with controlling the BAB search engine
+dynamically. Consider this (naive) approach:
+
+BAB&lt;solution&gt; engine(...);
+do {
+   solution* currentSolution =  engine.next()
+
+   currentSolution-&gt;getWorkToDistribute();
+} while ...
+
+The goal of the getWorkToDistribute call is to split the remaining
+search space to be explored by engine.next() in two parts by a binary
+split on some variable: one part will be assigned to a worker process
+asking for work (and thus, the description of this part of the search
+space will be distributed using MPI calls), and the  remainder will be
+explored by this process's engine.next().
+
+My problem lies with the latter.  Assuming that we have split the search
+space on variable X, and that X=1 will be explored by the remote
+process, I now want to &quot;dynamically&quot; constrain this process's search
+space by adding &quot;X &lt;&gt; 1&quot;.
+
+Is there a way to achieve this without recreating the whole problem,
+adding the extra constraint &quot;X &lt;&gt; 1&quot; and starting a new search engine
+(probably revisiting lots of nodes)?
+
+I'm asking because I'm really not sure how and when the search engine
+copies solution objects.  It seems that naively  &quot;adding&quot; a constraint
+to the currentSolution object does not have the effect I want.
+
+Then I thought of the &quot;constrain&quot; function called by the BAB engine,
+used to dynamically constrain the cost function. However, I'm not sure
+when it is called, nor what the relationship is between the argument
+passed to this function and previous values of currentSolution in the loop.
+That is, I tried currentSolution-&gt;setSomeMemberData hoping that
+currentSolution would be passed as argument to the constrain() function
+of another node, but upon examination in the constrain() function the
+envisioned member data does not have said member data. (My idea was to
+read this member data - representing the constraint to be added &quot;X &lt;&gt; 1&quot;
+- from the argument to constrain() : Space *s  - and add this constraint
+to &quot;this&quot; just like reading the value of the cost function from Space s
+and then adding a constraint requiring the cost to be less)
+
+Can anyone enlighten me and tell me where my ideas are just plain wrong
+or what I should try instead?
+
+As an additional question: in the above code snippet, useful things
+(aside from searching, that is) can only be performed when engine.next()
+returns. Are there Pause/Resume objects or operators that will interrupt
+the search procedure more timely but still allow the search engine to
+continue afterwards?
+
+Thanks
+Pieter
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000691">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Sep 19 20:18:29 CEST 2006</time><small>September 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>We would like to announce the release of
+
+                 Gecode 1.3.0
+            <A HREF="http://www.gecode.org/">http://www.gecode.org/</A>
+
+This release adds a compiler for finite set projectors and provides
+new infrastructure making it easier to add new variable domains. In
+addition, it contains recent bug fixes and minor improvements.
+
+For a complete changelog, see
+<A HREF="http://www.gecode.org/gecode-doc-latest/PageChanges_1_3_0.html">http://www.gecode.org/gecode-doc-latest/PageChanges_1_3_0.html</A>
+
+Cheers,
+	The Gecode Team
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20060919/0ebf85a9/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20060919/0ebf85a9/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000692">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Sep 20 14:07:12 CEST 2006</time><small>September 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Peter,
+
+looks interesting ;-) The basic insight that all search engines use is that
+they do not manipulate the variables directly: instead they use the
+branchings together with branching descriptions as a problem-independent
+device to do so. A branching description contains space-independent
+information about which variable and about how that variable is to be
+constrained when used with a commit operation on a space: the commit
+operation finds the appropriate branching and the branching then uses the
+branching description to constraint the right variable accordingly.
+
+What you could do to make the search distributed is to cook up an operation
+for a branching description that turns it into something that can be send
+over the wire: should not be to hard, the typical description contains just
+two integers. Then in order to hand out a node, you just start from the same
+basic space and add all branching descriptions corresponding to the path
+leading to the node you want to explore (this is recomputation and looking
+how recomputation is done in the search engines should give you an idea).
+
+Much of the way search is done has been inherited from Mozart (apart from
+batch recomputation). If you want to see an architecture for distributed
+parallel search based on spaces, you might want to check:
+	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000">http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000</A>
+or, if you prefer the full story:
+	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002">http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002</A>
+
+As it comes to pause resume, check
+
+<A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html</A>
+
+Cheers
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Pieter Thysebaert
+Sent: Tuesday, September 19, 2006 3:20 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Newbie: space/solution copying &amp; dynamically
+addedconstraints
+
+
+Hello,
+
+I'm currently running Gecode 1.2.2 on debian Sarge and am using its built-in
+BAB engine to solve a constraint optimization problem.
+
+As I want to parallelize the search procedure (by using concurrent
+distributed components) but haven't discovered such a solution in gecode
+(does it exist already?), I have been entertaining myself by implementing a
+prototype of such a concurrent distributed search procedure using MPICH2, in
+which the concurrent components perform load distribution by dynamically
+splitting up their assigned search space.
+
+As it's just a prototype, I don't mind it being slightly naive. Therefore, I
+use the Gecode-provided BAB search engine in each of the components. When
+some component has finished its search, it will request work from a busy
+component. Work consists of a description of variables to be bound, so the
+querying component will start a new search in the problem space constrained
+by these bound variables. These variable bindings can easily be passed on
+using MPI messages.
+
+My main problem, however, lies with controlling the BAB search engine
+dynamically. Consider this (naive) approach:
+
+BAB&lt;solution&gt; engine(...);
+do {
+   solution* currentSolution =  engine.next()
+
+   currentSolution-&gt;getWorkToDistribute();
+} while ...
+
+The goal of the getWorkToDistribute call is to split the remaining search
+space to be explored by engine.next() in two parts by a binary split on some
+variable: one part will be assigned to a worker process asking for work (and
+thus, the description of this part of the search space will be distributed
+using MPI calls), and the  remainder will be explored by this process's
+engine.next().
+
+My problem lies with the latter.  Assuming that we have split the search
+space on variable X, and that X=1 will be explored by the remote process, I
+now want to &quot;dynamically&quot; constrain this process's search space by adding &quot;X
+&lt;&gt; 1&quot;.
+
+Is there a way to achieve this without recreating the whole problem, adding
+the extra constraint &quot;X &lt;&gt; 1&quot; and starting a new search engine (probably
+revisiting lots of nodes)?
+
+I'm asking because I'm really not sure how and when the search engine copies
+solution objects.  It seems that naively  &quot;adding&quot; a constraint to the
+currentSolution object does not have the effect I want.
+
+Then I thought of the &quot;constrain&quot; function called by the BAB engine, used to
+dynamically constrain the cost function. However, I'm not sure when it is
+called, nor what the relationship is between the argument passed to this
+function and previous values of currentSolution in the loop. That is, I
+tried currentSolution-&gt;setSomeMemberData hoping that currentSolution would
+be passed as argument to the constrain() function of another node, but upon
+examination in the constrain() function the envisioned member data does not
+have said member data. (My idea was to read this member data - representing
+the constraint to be added &quot;X &lt;&gt; 1&quot;
+- from the argument to constrain() : Space *s  - and add this constraint to
+&quot;this&quot; just like reading the value of the cost function from Space s and
+then adding a constraint requiring the cost to be less)
+
+Can anyone enlighten me and tell me where my ideas are just plain wrong or
+what I should try instead?
+
+As an additional question: in the above code snippet, useful things (aside
+from searching, that is) can only be performed when engine.next() returns.
+Are there Pause/Resume objects or operators that will interrupt the search
+procedure more timely but still allow the search engine to continue
+afterwards?
+
+Thanks
+Pieter
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000697">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Sep 21 11:40:23 CEST 2006</time><small>September 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Peter,
+
+could you rephrase your issue with stop objects? I kind of miss the
+problem... Sorry for that.
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Pieter Thysebaert [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">pthyseba at intec.ugent.be</A>]
+Sent: Thursday, September 21, 2006 11:03 AM
+To: Christian Schulte
+Cc: 'Pieter Thysebaert'; <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+Subject: RE: [gecode-users] Newbie: space/solution copying &amp; dynamically
+addedconstraints
+
+
+
+Hi,
+
+On Wed, 20 Sep 2006, Christian Schulte wrote:
+
+&gt;<i> Hi Peter,
+</I>&gt;<i>
+</I>&gt;<i> looks interesting ;-)
+</I>
+....
+
+&gt;<i> What you could do to make the search distributed is to cook up an
+</I>&gt;<i> operation for a branching description that turns it into something
+</I>&gt;<i> that can be send over the wire: should not be to hard, the typical
+</I>&gt;<i> description contains just two integers. Then in order to hand out a
+</I>&gt;<i> node, you just start from the same basic space and add all branching
+</I>&gt;<i> descriptions corresponding to the path leading to the node you want to
+</I>&gt;<i> explore (this is recomputation and looking how recomputation is done
+</I>&gt;<i> in the search engines should give you an idea).
+</I>
+Well, for the time being, I'm distributing variable-range restrictions to
+remote nodes as branching descriptions. I then construct a new problem
+instance with these extra variable-range restrictions and start a new search
+engine. The problem I had been bitten by previously (having difficulties in
+passing dynamic information to the search) which presumably had to do with
+copying spaces etc. has been &quot;solved&quot; by observing that I'm only running one
+search engine per MPI process, so I can do with global variables (ugh).
+
+&gt;<i> Much of the way search is done has been inherited from Mozart (apart
+</I>&gt;<i> from batch recomputation). If you want to see an architecture for
+</I>&gt;<i> distributed parallel search based on spaces, you might want to check:
+</I>&gt;<i> 	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000">http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000</A>
+</I>&gt;<i> or, if you prefer the full story:
+</I>&gt;<i> 	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002">http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002</A>
+</I>
+I might fall back to the worker/manager paradigm described there, as I
+started out with a set of worker-peers (no central manager) but that might
+be more difficult - less efficient.
+
+&gt;<i> As it comes to pause resume, check
+</I>&gt;<i> <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html</A>
+</I>
+Can you enlighten me: I've only used stop objects to, well, stop (i.e.
+terminate) searches.
+
+Suppose I'm in a loop like
+
+do {
+  solution* currentSolution = engine.next();
+  statement;
+}
+
+For testing purposes, I have initialized the search engine with a custom
+Stop object whose stop() function always returns true, and it turns out that
+upon termination currentSolution becomes NULL.
+
+I thought about implementing pause/restart by creating a new engine using
+the last value of currentSolution as root node, but as currentSolution is
+NULL upon termination of the search this seems impossible or is it not?
+
+Pieter
+
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000698">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Pieter Thysebaert</h2></div>
+          <p><time>Thu Sep 21 11:03:01 CEST 2006</time><small>September 2006</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hi,
+
+On Wed, 20 Sep 2006, Christian Schulte wrote:
+
+&gt;<i> Hi Peter,
+</I>&gt;<i>
+</I>&gt;<i> looks interesting ;-)
+</I>
+....
+
+&gt;<i> What you could do to make the search distributed is to cook up an operation
+</I>&gt;<i> for a branching description that turns it into something that can be send
+</I>&gt;<i> over the wire: should not be to hard, the typical description contains just
+</I>&gt;<i> two integers. Then in order to hand out a node, you just start from the same
+</I>&gt;<i> basic space and add all branching descriptions corresponding to the path
+</I>&gt;<i> leading to the node you want to explore (this is recomputation and looking
+</I>&gt;<i> how recomputation is done in the search engines should give you an idea).
+</I>
+Well, for the time being, I'm distributing variable-range restrictions to
+remote nodes as branching descriptions. I then construct a new problem
+instance with these extra variable-range restrictions and start a new
+search engine. The problem I had been bitten by previously
+(having difficulties in passing dynamic information to the search)
+which presumably had to do with copying spaces etc. has been &quot;solved&quot; by
+observing that I'm only running one search engine per MPI process, so I
+can do with global variables (ugh).
+
+&gt;<i> Much of the way search is done has been inherited from Mozart (apart from
+</I>&gt;<i> batch recomputation). If you want to see an architecture for distributed
+</I>&gt;<i> parallel search based on spaces, you might want to check:
+</I>&gt;<i> 	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000">http://web.it.kth.se/~schulte/paper.html?id=Schulte:TRICS:2000</A>
+</I>&gt;<i> or, if you prefer the full story:
+</I>&gt;<i> 	<A HREF="http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002">http://web.it.kth.se/~schulte/paper.html?id=Schulte:LNAI:2002</A>
+</I>
+I might fall back to the worker/manager paradigm described there, as I
+started out with a set of worker-peers (no central manager) but that might be more
+difficult - less efficient.
+
+&gt;<i> As it comes to pause resume, check
+</I>&gt;<i> <A HREF="http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html">http://www.gecode.org/gecode-doc-latest/group__TaskIntSearchStop.html</A>
+</I>
+Can you enlighten me: I've only used stop objects to, well, stop (i.e.
+terminate) searches.
+
+Suppose I'm in a loop like
+
+do {
+  solution* currentSolution = engine.next();
+  statement;
+}
+
+For testing purposes, I have initialized the search engine with a custom Stop object
+whose stop() function always returns true, and it turns out
+that upon termination currentSolution becomes NULL.
+
+I thought about implementing pause/restart by creating a new engine using
+the last value of currentSolution as root node, but as currentSolution
+is NULL upon termination of the search this seems impossible
+or is it not?
+
+Pieter
+
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

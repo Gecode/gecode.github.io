@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="advice on building interface (with Haskell) — 3 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>advice on building interface (with Haskell) | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>3 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · January 2007</p><h1 data-pagefind-meta="title">advice on building interface (with Haskell)</h1></header>
+      <p class="archive-thread-summary">3 messages · January 2007</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000783">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Jorge Marques Pelizzoni</h2></div>
+          <p><time>Fri Jan 12 21:17:09 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+
+Hi, all! I am considering interfacing Haskell with gecode, although I'm
+totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+background and can see the strong resemblance between the two systems, but
+there are some points that are not quite clear to me. First of all, do you
+think using a simple, fixed subclass of Space instantiating the copy
+methods with something like this:
+
+SimpleSpace(bool share, SimpleSpace &amp;other): Space(share, other) { }
+
+virtual Space* copy(bool share) {
+   return new SimpleSpace(share,*this);
+}
+
+would do the job? I mean: my idea would be to create such objects and
+(indirectly, from Haskell) apply propagator-imposing functions (post,
+etc.) on them. Have you done anything much different for Alice?
+
+My real doubt is: how far one can go with such a na&#239;ve copy semantics? I
+often noticed specialized versions of copy in the examples...
+
+Thanks in advance. Cheers,
+
+Jorge M. Pelizzoni
+ICMC - Universidade de S&#227;o Paulo
+
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000784">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Jan 12 22:43:22 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>HI,
+
+The purpose of the copy function is to allow construction of a copy, a
+sort of virtual constructor.
+
+The copy constructor for a Space needs to update it's references to
+interesting variables, and construct copies of any other specific data
+structures. Without updating the variables, one can not access them in
+the copy.
+
+In the Alice bindings to Gecode, all the constructed variables are
+collected in variable arrays in a Space akin to your proposed
+SimpleSpace, one array per variable type. The AliceML interface can
+then reference variables in a specific Space (for example, a solution)
+using the index into these arrays. The GeOz project (which aims to
+interface Gecode with Mozart) does something similar for managing
+variables.
+
+This is probably the best way to manage variables in a simple
+interface to Gecode.
+
+The Gecode/J Java wrapper, as a contrast, uses a more complicated
+scheme which allows Java Spaces to implement their own copy-method and
+copy-constructor. This is probably overkill for a simple interface to
+Gecode
+
+Cheers,
+Mikael
+
+On 1/12/07, Jorge Marques Pelizzoni &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">jpeliz at icmc.usp.br</A>&gt; wrote:
+&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Hi, all! I am considering interfacing Haskell with gecode, although I'm
+</I>&gt;<i> totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+</I>&gt;<i> background and can see the strong resemblance between the two systems, but
+</I>&gt;<i> there are some points that are not quite clear to me. First of all, do you
+</I>&gt;<i> think using a simple, fixed subclass of Space instantiating the copy
+</I>&gt;<i> methods with something like this:
+</I>&gt;<i>
+</I>&gt;<i> SimpleSpace(bool share, SimpleSpace &amp;other): Space(share, other) { }
+</I>&gt;<i>
+</I>&gt;<i> virtual Space* copy(bool share) {
+</I>&gt;<i>   return new SimpleSpace(share,*this);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> would do the job? I mean: my idea would be to create such objects and
+</I>&gt;<i> (indirectly, from Haskell) apply propagator-imposing functions (post,
+</I>&gt;<i> etc.) on them. Have you done anything much different for Alice?
+</I>&gt;<i>
+</I>&gt;<i> My real doubt is: how far one can go with such a na&#239;ve copy semantics? I
+</I>&gt;<i> often noticed specialized versions of copy in the examples...
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance. Cheers,
+</I>&gt;<i>
+</I>&gt;<i> Jorge M. Pelizzoni
+</I>&gt;<i> ICMC - Universidade de S&#227;o Paulo
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000785">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Jan 15 09:45:36 CET 2007</time><small>January 2007</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi.
+
+&gt;<i> Hi, all! I am considering interfacing Haskell with gecode, although
+</I>&gt;<i> I'm
+</I>&gt;<i> totally unexperiened with the latter (!). Actually, I have a Mozart/Oz
+</I>&gt;<i> background and can see the strong resemblance between the two
+</I>&gt;<i> systems, but
+</I>&gt;<i> there are some points that are not quite clear to me. First of all,
+</I>&gt;<i> do you
+</I>&gt;<i> think using a simple, fixed subclass of Space instantiating the copy
+</I>&gt;<i> methods with something like this:
+</I>&gt;<i>
+</I>&gt;<i> SimpleSpace(bool share, SimpleSpace &amp;other): Space(share, other) { }
+</I>&gt;<i>
+</I>&gt;<i> virtual Space* copy(bool share) {
+</I>&gt;<i>    return new SimpleSpace(share,*this);
+</I>&gt;<i> }
+</I>&gt;<i>
+</I>&gt;<i> would do the job? I mean: my idea would be to create such objects and
+</I>&gt;<i> (indirectly, from Haskell) apply propagator-imposing functions (post,
+</I>&gt;<i> etc.) on them. Have you done anything much different for Alice?
+</I>
+As Mikael already pointed out, the Alice interface uses exactly this
+approach.
+
+For a Haskell interface, I'd suggest a slightly different approach,
+though. Instead of actually calling the propagator posting functions
+directly from Haskell, just create a value of some data type that
+represents the problem. Without having thought this fully through, a
+model would be a list of constraints, which in turn would be defined
+in terms of constraint variables. Of course monads might come in
+handy for creation of models.
+
+The advantage of this setup would be that the creation of a model is
+purely functional.
+
+The C/C++ part would then just take that abstract representation,
+create the real Gecode model, solve it, and return the solution as a
+Haskell term. I don't know how exactly the Haskell foreign function
+interface works, but I think something along these lines should be
+doable. In fact, even this operation then is purely functional.
+
+One thing I am not so sure about is how exactly to return the
+solutions. One could make a model a pair of a list of constraints and
+a list of variables, and then make the solver return a list of
+&quot;solution variables&quot; that correspond to the variables of the model.
+
+Cheers,
+	Guido
+
+--
+Guido Tack
+Programming Systems Lab, Saarland University, Germany
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

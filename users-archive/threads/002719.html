@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="braking symmetries in backtracking — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>braking symmetries in backtracking | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · November 2009</p><h1 data-pagefind-meta="title">braking symmetries in backtracking</h1></header>
+      <p class="archive-thread-summary">4 messages · November 2009</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-002719">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Alberto Delgado</h2></div>
+          <p><time>Tue Nov 10 12:05:29 CET 2009</time><small>November 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all,
+
+I have a modeling/implementation question that maybe somebody  has
+faced before,  or that gecode developers could help me answer.  I'm
+trying to implement a symmetry-breaking strategy that works when the
+search engine backtracks.  I have a set of items that need to be
+allocated in a set of bins (bin-packing problem) and I branch over the
+items to find for each item a possible bin where it can be allocated.
+
+When it is no possible to allocate an item in a selected bin (the
+search engine backtracks), i'd like to avoid trying  to allocate the
+item in bins with the same available capacity as the bin that has just
+been discarded,  since i already know it won't be possible.  This
+should be as simple as identifying the bins with the same available
+capacity as the bin selected by the branching,  and posting rel
+constraints to remove these bins from the domain of the item. I
+thought about doing this in the commit method,  and instead of just
+posting one constraint to remove the bin that couldn't allocate the
+item being considered,  also remove the bins with the same available
+capacity.
+The problem is that if i follow this approach i think i'll screw up
+recomputation ,  and that's just if i'm able to get the information i
+need to the commit method.
+
+Do you guys have any suggestions on how to implement this in gecode?
+any hints are welcome.
+
+
+Best,
+
+Alberto
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002720">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Tue Nov 10 12:31:54 CET 2009</time><small>November 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+This sounds like the situation in Steel Mill Slab design. There, any slab
+that has not had anything allocated to it yet is considered symmetrical.
+That is, there is an interchangeable values symmetry on the identities of
+the slabs. There are several ways to handle this kind of symmetry. Which
+approach is the best depends on your problem, and on the heuristic you use
+for search.
+
+The example in Gecode for Steel Mill uses the technique from &quot;The Steel Mill
+Slab Design Problem Revisited&quot;, Van Hentenryck and Michel, CPAIOR 2008 to
+break the symmetry in the Brancher. Another possibility is to add
+constraints that break the symmetry explicitly. For an example on how to do
+this, see for example &quot;Breaking Value Symmetry&quot;, Walsh, AAAI-2008.
+
+With regards to your proposed solution, you would need to record all the
+information that you need to redo the decision in the Choice object (e.g.,
+the set of symmetrical bins). When executing the commit-operation, you are
+not guaranteed to have an equivalent state every time.
+
+Hope this helps,
+Mikael
+
+On Tue, Nov 10, 2009 at 12:05 PM, Alberto Delgado &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">trosky99 at gmail.com</A>&gt;wrote:
+
+&gt;<i> Hi all,
+</I>&gt;<i>
+</I>&gt;<i> I have a modeling/implementation question that maybe somebody  has
+</I>&gt;<i> faced before,  or that gecode developers could help me answer.  I'm
+</I>&gt;<i> trying to implement a symmetry-breaking strategy that works when the
+</I>&gt;<i> search engine backtracks.  I have a set of items that need to be
+</I>&gt;<i> allocated in a set of bins (bin-packing problem) and I branch over the
+</I>&gt;<i> items to find for each item a possible bin where it can be allocated.
+</I>&gt;<i>
+</I>&gt;<i> When it is no possible to allocate an item in a selected bin (the
+</I>&gt;<i> search engine backtracks), i'd like to avoid trying  to allocate the
+</I>&gt;<i> item in bins with the same available capacity as the bin that has just
+</I>&gt;<i> been discarded,  since i already know it won't be possible.  This
+</I>&gt;<i> should be as simple as identifying the bins with the same available
+</I>&gt;<i> capacity as the bin selected by the branching,  and posting rel
+</I>&gt;<i> constraints to remove these bins from the domain of the item. I
+</I>&gt;<i> thought about doing this in the commit method,  and instead of just
+</I>&gt;<i> posting one constraint to remove the bin that couldn't allocate the
+</I>&gt;<i> item being considered,  also remove the bins with the same available
+</I>&gt;<i> capacity.
+</I>&gt;<i> The problem is that if i follow this approach i think i'll screw up
+</I>&gt;<i> recomputation ,  and that's just if i'm able to get the information i
+</I>&gt;<i> need to the commit method.
+</I>&gt;<i>
+</I>&gt;<i> Do you guys have any suggestions on how to implement this in gecode?
+</I>&gt;<i> any hints are welcome.
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> Best,
+</I>&gt;<i>
+</I>&gt;<i> Alberto
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>&gt;<i>
+</I>
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.ps.uni-sb.de/pipermail/users/attachments/20091110/82e911a5/attachment.htm">http://www.ps.uni-sb.de/pipermail/users/attachments/20091110/82e911a5/attachment.htm</A>&gt;
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002721">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Alberto Delgado</h2></div>
+          <p><time>Wed Nov 11 09:08:39 CET 2009</time><small>November 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Mikael,
+
+Thanks for your answer.
+
+&gt;<i> This sounds like the situation in Steel Mill Slab design. There, any slab
+</I>&gt;<i> that has not had anything allocated to it yet is considered symmetrical.
+</I>&gt;<i> That is, there is an interchangeable values symmetry on the identities of
+</I>&gt;<i> the slabs.
+</I>
+it is kind similar indeed.  I skimmed  the source code of the example
+and if i understood correctly,  when the slab selected as val for an
+order is empty then a choice point with a single alternative is
+created,  avoiding the consideration of the remaining empty slabs as
+possible values for the order. But this is possible to do because the
+slabs are sorted by capacity (I assume),  and the empty slabs are
+always at the end (higher indexes).  Also, since the min value of the
+domain of the variables is the one selected by the heuristic, when an
+empty slab is reached all other slabs have been previously triedfor
+the order.
+
+My case is a little bit more complicated,  i think,  since i can't
+guarantee that all possible bins have been tried before for a item,
+and that just the ones with the same available capacity as the one the
+heuristic is currently considering are the ones left.
+
+
+&gt;<i> Another possibility is to add
+</I>&gt;<i> constraints that break the symmetry explicitly. For an example on how to do
+</I>&gt;<i> this, see for example &quot;Breaking Value Symmetry&quot;, Walsh, AAAI-2008.
+</I>
+The symmetry i described is dynamic since the available capacity of the bins
+change all the time.  I don't think a PRECEDENCE constraint can be applied
+here and I want to see if i can do something else first without
+starting to consider
+GE-trees.
+
+&gt;<i>
+</I>&gt;<i> With regards to your proposed solution, you would need to record all the
+</I>&gt;<i> information that you need to redo the decision in the Choice object (e.g.,
+</I>&gt;<i> the set of symmetrical bins).
+</I>
+That's what I'm doing,  i declared a new attribute in the Choice class
+that i extended in the brancher to keep the bins with the same
+available capacity. In the commit method i constrain the item to be
+different to all the bins  with same available capacity.
+I'm using an std vector to keep the bins,  do i need to have any
+considerations here about memory and where to allocate the vector?
+
+&gt;<i>When executing the commit-operation, you are
+</I>&gt;<i> not guaranteed to have an equivalent state every time.
+</I>
+Does this happen even if i keep the set of equivalent bins in the Choice object?
+
+Best,
+
+Alberto
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-002731">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Fri Nov 13 13:52:05 CET 2009</time><small>November 2009</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Wed, Nov 11, 2009 at 9:08 AM, Alberto Delgado &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">trosky99 at gmail.com</A>&gt; wrote:
+&gt;<i> &gt; This sounds like the situation in Steel Mill Slab design. There, any slab
+</I>&gt;<i> &gt; that has not had anything allocated to it yet is considered symmetrical.
+</I>&gt;<i> &gt; That is, there is an interchangeable values symmetry on the identities of
+</I>&gt;<i> &gt; the slabs.
+</I>&gt;<i>
+</I>&gt;<i> it is kind similar indeed. &#160;I skimmed &#160;the source code of the example
+</I>&gt;<i> and if i understood correctly, &#160;when the slab selected as val for an
+</I>&gt;<i> order is empty then a choice point with a single alternative is
+</I>&gt;<i> created, &#160;avoiding the consideration of the remaining empty slabs as
+</I>&gt;<i> possible values for the order. But this is possible to do because the
+</I>&gt;<i> slabs are sorted by capacity (I assume), &#160;and the empty slabs are
+</I>&gt;<i> always at the end (higher indexes). &#160;Also, since the min value of the
+</I>&gt;<i> domain of the variables is the one selected by the heuristic, when an
+</I>&gt;<i> empty slab is reached all other slabs have been previously triedfor
+</I>&gt;<i> the order.
+</I>
+Just to clear up, the slabs in steel mill can be of different sizes,
+but the size is not decided until all things have been packed into it.
+Then for every packed size, the loss-array gives how much empty space
+is available. This assumes that there is a free choice of the
+slab-sizes to use, which I guess is not the case for you.
+
+
+&gt;<i> That's what I'm doing, &#160;i declared a new attribute in the Choice class
+</I>&gt;<i> that i extended in the brancher to keep the bins with the same
+</I>&gt;<i> available capacity. In the commit method i constrain the item to be
+</I>&gt;<i> different to all the bins &#160;with same available capacity.
+</I>&gt;<i> I'm using an std vector to keep the bins, &#160;do i need to have any
+</I>&gt;<i> considerations here about memory and where to allocate the vector?
+</I>
+This seems like it should work. All data in a Choice class should be
+allocated from the normal heap, it needs to be able to outlive the
+space it comes from.
+
+
+&gt;<i> &gt;When executing the commit-operation, you are
+</I>&gt;<i> &gt; not guaranteed to have an equivalent state every time.
+</I>&gt;<i>
+</I>&gt;<i> Does this happen even if i keep the set of equivalent bins in the Choice object?
+</I>
+The current values of the variables can be different (either because
+it is not at fix-point, or because there are non-monotonic
+propagators), but it still represents the same subtree. I just meant
+to warn you that you can''t compute any information from the variables
+during commit.
+
+Cheers,
+Mikael
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

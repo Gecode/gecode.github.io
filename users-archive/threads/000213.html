@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] Propgator copy — 5 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] Propgator copy | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>5 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · February 2005</p><h1 data-pagefind-meta="title">[Gecode] Propgator copy</h1></header>
+      <p class="archive-thread-summary">5 messages · February 2005</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000213">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Christian Schulte</h2></div>
+          <p><time>Thu Feb 10 15:30:58 CET 2005</time><small>February 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Please have a look to the DFA implementation (or to sharedArray) in
+int/regular/dfa.*. There you will see that also reference counting is used.
+This is done in the proper C++ way with overloading the copy
+constructor/assignment operators.
+
+However, you should also provide a real copy operation for reference
+counting: the clone operation of a space can be given an additional argument
+telling whether to share data or to completely copy it.
+
+The reasoning behind this is to allow for thread-safety (I have a master
+student doing a parallel thread-based search engine): if you want to have
+spaces to be run in parallel, you have to copy rather than share. Otherwise
+reference counting will introduce race conditions.
+
+All the best
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: Gustavo Gutierrez [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">ggutierrez at atlas.puj.edu.co</A>]
+Sent: Thursday, February 10, 2005 3:18 PM
+To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">schulte at imit.kth.se</A>
+Subject: RE: [Gecode] Propgator copy
+
+
+Hi all,
+
+Thanks for the answer.
+
+Looking at int/distinct/dom.icc gave me some implementations hints. My case
+is a little distinct since it is better (i.e. time) to maintain a reference
+to the tree than to build the tree at every propagate method invocation.
+
+What i am doing is not to copy the tree in the copy method. Instead i am
+passing a reference to the tree. Additionally each copy has a counter to the
+number of references to the tree structure. This allows to free the memory
+allocated by the tree when there are only one reference to it.
+
+This is my code. I hope any of you can give me your opinion.
+
+template &lt;class Var&gt;
+class HC4 : public NaryPropagator&lt;Var,PC_RI_LAST&gt; {
+	private:
+		/*An object to store the constraint in user form (A TREE)*/
+		Constraint* _cst;
+		/*An integer to count how many rerefences are to _cst*/
+		int _copies;
+	protected:
+		HC4(Space*,Constraint*,VarArray&lt;Var&gt;);
+		HC4(Space*,HC4&lt;Var&gt;&amp;);
+	public:
+		virtual Actor* copy(Space*,bool);
+		virtual PropCost   cost(void) const;
+		virtual ExecStatus propagate(Space*);
+		static  ExecStatus post(Space*,Constraint*,VarArray&lt;Var&gt;);
+		~HC4(void);
+};
+
+template &lt;class Var&gt;
+HC4&lt;Var&gt;::HC4(Space* home, Constraint* c, VarArray&lt;Var&gt; vars)
+	: NaryPropagator&lt;Var,PC_RI_LAST&gt;(home,vars), _cst(c), _copies(1) {}
+
+template &lt;class Var&gt;
+HC4&lt;Var&gt;::HC4(Space* home, HC4&lt;Var&gt;&amp; p)
+	: NaryPropagator&lt;Var,PC_RI_LAST&gt;(home,*this), _cst(p._cst),
+_copies(p._copies+1) {}
+
+emplate &lt;class Var&gt;
+HC4&lt;Var&gt;::~HC4(void) {
+	if (copies == 1)
+		delete _cst;
+	copies--;
+	NaryPropagator&lt;Var,PC_RI_LAST&gt;::~NaryPropagator();
+}
+
+template &lt;class Var&gt;
+Actor*
+HC4&lt;Var&gt;::copy(Space* hom,bool){
+	return new (home) HC4&lt;Var&gt;(home, *this);
+}
+
+
+Regards,
+Gustavo Gutierrez
+On Thu, 10 Feb 2005 09:22:27 +0100, Christian Schulte wrote
+&gt;<i> The first issue is that of course your propagator is in charge of
+</I>&gt;<i> copying, if needed.
+</I>&gt;<i>
+</I>&gt;<i> Secondly, consider whether you really want to always copy! Have a
+</I>&gt;<i> look to int/distinct/dom.icc. There the propagator also needs a
+</I>&gt;<i> graph only during propagation. It maintains this graph as follows:
+</I>&gt;<i> when the propagator is created or copied set the graph to empty. If
+</I>&gt;<i> the propagate function is invoked, check whether the graph exists.
+</I>&gt;<i> If not, create it. If yes, update it accordingly. Upon destruction
+</I>&gt;<i> delete it, if it exists. Make sure that the destructor is called!
+</I>&gt;<i> This you have to do by giving a special flag to the propagator.
+</I>&gt;<i> Again see the above mentioned example.
+</I>&gt;<i>
+</I>&gt;<i> All the best
+</I>&gt;<i> Christian
+</I>&gt;<i>
+</I>&gt;<i> --
+</I>&gt;<i> Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+</I>&gt;<i>
+</I>&gt;<i> -----Original Message-----
+</I>&gt;<i> From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-</A>
+</I>&gt;<i> sb.de] On Behalf Of Gustavo Gutierrez Sent: Wednesday, February 09,
+</I>&gt;<i> 2005 6:01 PM To: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode at ps.uni-sb.de</A> Subject: [Gecode] Propgator copy
+</I>&gt;<i>
+</I>&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> First of all congratulations, GECODE is a really good piece of
+</I>&gt;<i> software! it is very useful and really *easily* extensible. Source
+</I>&gt;<i> code is very clear, at least the parts i've read.
+</I>&gt;<i>
+</I>&gt;<i> I have a question about propagators. I am writing a propagator, for
+</I>&gt;<i> instance Prop, which needs to maintain a binary tree with some
+</I>&gt;<i> information and a variable vector (VarArray). This propagator inherits
+</I>&gt;<i> from NaryPropagator. Is there any special issue with this tree
+</I>&gt;<i> structure i need to take into account?
+</I>&gt;<i>
+</I>&gt;<i> The tree is used only by the propagate method and  it doesn't change
+</I>&gt;<i> its structure along propagation. I have some doubts implementing two
+</I>&gt;<i> methods:
+</I>&gt;<i>
+</I>&gt;<i> Prop(Space* home, Prop&lt;Var&gt;&amp; p);
+</I>&gt;<i>
+</I>&gt;<i> Call the super class NaryPropagator method to do this is not enough,
+</I>&gt;<i> what would happened with the tree?
+</I>&gt;<i>
+</I>&gt;<i> Actor* copy(Space* home, bool);
+</I>&gt;<i> This method call the constructor i mentioned before, so i think all
+</I>&gt;<i> depends on that implementation.
+</I>&gt;<i>
+</I>&gt;<i> Finally, i think the memory allocated by the tree must be freed only
+</I>&gt;<i> at propagator destructor method.
+</I>&gt;<i>
+</I>&gt;<i> Thanks in advance and hope to be clear. Feel free to ask for more
+</I>&gt;<i> details.
+</I>&gt;<i>
+</I>&gt;<i> Gustavo Gutierrez _______________________________________________
+</I>&gt;<i> Gecode mailing list
+</I>&gt;<i> <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+</I>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000215">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Feb 22 18:27:54 CET 2005</time><small>February 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all!
+
+I've just installed gcc 3.4 on my machine, because Didier reported some
+problems he had using it to compile gecode. And indeed, it's just completely
+screwed :-(
+It seems that they made some fundamental changes in the way they treat name
+lookup in inherited template classes. As a quick example, the following code
+doesn't work any more:
+
+template &lt;class T&gt;
+class Foo {
+protected:
+  int e;
+};
+
+template &lt;class T&gt;
+class Bar : public Foo&lt;T&gt;
+{
+ public:
+  void test() { e = e+1; }
+};
+
+&gt;&gt;<i> error: `e' undeclared (first use this function)
+</I>
+You can fix it by prefixing every occurrence of e with Foo&lt;T&gt;. Now you can
+imagine that this is simply not feasible for Gecode, we're using this pattern
+in nearly every propagator that inherits from one of the generic templates.
+
+I'm not sure if this is a bug or a feature, to me it definitely seems like a
+bug. If anyone has any suggestions, please let me know; otherwise I would
+suggest marking gcc 3.4 as not supported and hoping that this won't stay an
+issue in 4.0.
+
+Btw: 3.4 did find some weird bugs that 3.3 overlooked, however ;-)
+
+Guido
+
+--
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000216">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>pape5004</h2></div>
+          <p><time>Tue Feb 22 22:27:22 CET 2005</time><small>February 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi all!
+
+&gt;&gt;&gt;&gt;<i>I'm not sure if this is a bug or a feature, to me it definitely
+</I>seems like a bug.
+
+Don't know whether anyone has already found a solution, but my good old
+friend &quot;google&quot; said
+that it's a feature of gcc 3.4. See:
+<A HREF="http://gcc.gnu.org/gcc-3.4/changes.html">http://gcc.gnu.org/gcc-3.4/changes.html</A>
+
+If I understood the problem right here's what they say:
+
+
+In a template definition, unqualified names will no longer find members
+of a dependent base (as specified by [temp.dep]/3 in the C++ standard).
+For example,
+
+	template &lt;typename T&gt; struct B {
+	  int m;
+	  int n;
+	  int f ();
+	  int g ();
+	};
+	int n;
+	int g ();
+	template &lt;typename T&gt; struct C : B&lt;T&gt; {
+	  void h ()
+	  {
+		m = 0; // error
+		f ();  // error
+		n = 0; // ::n is modified
+		g ();  // ::g is called
+	  }
+	};
+
+You must make the names dependent, e.g. by prefixing them with this-&gt;.
+Here is the corrected definition of C&lt;T&gt;::h,
+
+	template &lt;typename T&gt; void C&lt;T&gt;::h ()
+	{
+	  this-&gt;m = 0;
+	  this-&gt;f ();
+	  this-&gt;n = 0
+	  this-&gt;g ();
+	}
+
+As an alternative solution, you may use using declarations instead of
+this-&gt;:
+
+	template &lt;typename T&gt; struct C : B&lt;T&gt; {
+	  using B&lt;T&gt;::m;
+	  using B&lt;T&gt;::f;
+	  using B&lt;T&gt;::n;
+	  using B&lt;T&gt;::g;
+	  void h ()
+	  {
+		m = 0;
+		f ();
+		n = 0;
+		g ();
+	  }
+	};
+
+Hope this helps....
+Since I haven't gcc 3.4 installed on my machine yet I can't tell whether
+this is ok, but to me it seems
+that the compiler just insists on a more detailed qualification, i.e. 3
+or 4 signs more to write :-D
+
+Greetz
+
+
+Patrick Pekczynski
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000217">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Feb 23 10:04:04 CET 2005</time><small>February 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Looks like Patrick is absolutely right :-( So eventually we need to
+rewrite...
+
+This stinks (but hey, C++ always stinks)
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+-----Original Message-----
+From: <A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A> [mailto:<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">gecode-bounces at ps.uni-sb.de</A>] On
+Behalf Of pape5004
+Sent: Tuesday, February 22, 2005 10:27 PM
+To: 'Technical discussions about Gecode'
+Subject: AW: [Gecode] gcc 3.4 build problems
+
+
+Hi all!
+
+&gt;&gt;&gt;&gt;<i>I'm not sure if this is a bug or a feature, to me it definitely
+</I>seems like a bug.
+
+Don't know whether anyone has already found a solution, but my good old
+friend &quot;google&quot; said that it's a feature of gcc 3.4. See:
+<A HREF="http://gcc.gnu.org/gcc-3.4/changes.html">http://gcc.gnu.org/gcc-3.4/changes.html</A>
+
+If I understood the problem right here's what they say:
+
+
+In a template definition, unqualified names will no longer find members of a
+dependent base (as specified by [temp.dep]/3 in the C++ standard). For
+example,
+
+	template &lt;typename T&gt; struct B {
+	  int m;
+	  int n;
+	  int f ();
+	  int g ();
+	};
+	int n;
+	int g ();
+	template &lt;typename T&gt; struct C : B&lt;T&gt; {
+	  void h ()
+	  {
+		m = 0; // error
+		f ();  // error
+		n = 0; // ::n is modified
+		g ();  // ::g is called
+	  }
+	};
+
+You must make the names dependent, e.g. by prefixing them with this-&gt;. Here
+is the corrected definition of C&lt;T&gt;::h,
+
+	template &lt;typename T&gt; void C&lt;T&gt;::h ()
+	{
+	  this-&gt;m = 0;
+	  this-&gt;f ();
+	  this-&gt;n = 0
+	  this-&gt;g ();
+	}
+
+As an alternative solution, you may use using declarations instead of
+this-&gt;:
+
+	template &lt;typename T&gt; struct C : B&lt;T&gt; {
+	  using B&lt;T&gt;::m;
+	  using B&lt;T&gt;::f;
+	  using B&lt;T&gt;::n;
+	  using B&lt;T&gt;::g;
+	  void h ()
+	  {
+		m = 0;
+		f ();
+		n = 0;
+		g ();
+	  }
+	};
+
+Hope this helps....
+Since I haven't gcc 3.4 installed on my machine yet I can't tell whether
+this is ok, but to me it seems that the compiler just insists on a more
+detailed qualification, i.e. 3 or 4 signs more to write :-D
+
+Greetz
+
+
+Patrick Pekczynski
+
+
+_______________________________________________
+Gecode mailing list
+<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">Gecode at ps.uni-sb.de</A> <A HREF="http://www.ps.uni-sb.de/mailman/listinfo/gecode">http://www.ps.uni-sb.de/mailman/listinfo/gecode</A>
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-000218">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Wed Feb 23 11:06:59 CET 2005</time><small>February 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+
+On Wednesday 23 February 2005 10:04, Christian Schulte wrote:
+&gt;<i> Looks like Patrick is absolutely right :-( So eventually we need to
+</I>&gt;<i> rewrite...
+</I>&gt;<i>
+</I>&gt;<i> This stinks (but hey, C++ always stinks)
+</I>&gt;<i> Christian
+</I>
+Right. I've already started, I think I'll have it running again this evening.
+
+Guido
+
+--
+<A HREF="http://www.ps.uni-sb.de/~tack">http://www.ps.uni-sb.de/~tack</A>
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

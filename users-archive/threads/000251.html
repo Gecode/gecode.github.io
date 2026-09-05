@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="[Gecode] Interaction between shared variables and idempotency — 1 message in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>[Gecode] Interaction between shared variables and idempotency | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>1 message</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · June 2005</p><h1 data-pagefind-meta="title">[Gecode] Interaction between shared variables and idempotency</h1></header>
+      <p class="archive-thread-summary">1 message · June 2005</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-000251">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Jun 7 16:29:35 CEST 2005</time><small>June 2005</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Dear all,
+
+initially, the tests for sharing and equality on views was meant to address
+issues with shared variables for idempotent propagators.
+
+As a reminder, a propagator returns ES_FIX if it is at a fixpoint and
+ES_NOFIX if it is not at a fixpoint. For efficiency, the propagator should
+try hard to tell ES_FIX most of the times when it is actually at fixpoint.
+However, this is difficult for propagators computing on shared views:
+performing an operation on a view also narrows the domain of the shared
+view.
+
+Here are three strategies for finding out whether a propagator is at
+fixpoint with shared views.
+
+1. Suppose a propagator that only performs at most one write operation to a
+view. Typical examples are &quot;smart&quot; propagators such as distinct, regular,
+etc. They work by first computing new domain information for each view and
+then writing or posting this information back to the views. Here one can use
+a trick to find out whether one has computed a fixpoint or not: a view x
+provides an operation x.modified(). When a propagator starts execution
+modified() is false for all views. Only after a modification has taken
+place, it becomes true. So the following works: before the propagator posts
+to the view x, it checks whether x is already modified. If yes, the
+propagator might not be at a fixpoint. Otherwise, it is.
+
+2. The propagator computes in a loop until a fixpoint is reached. The
+propagator must make sure that this loop really computes a fixpoint! For
+example, when the loop is based until no view changes this also must
+consider that no shared view has been changed. Here the trick with modified
+is not available.
+
+3. Check for sharing once and for all. If none of the above works, just
+check whether the propagator has shared views or not. If it has, ALWAYS
+report ES_NOFIX! This can be achieved most efficiently by making the
+propagator generic with respect to whether to return ES_FIX and ES_NOFIX
+through a template.
+
+Here comes also an example why this matters. Assume domain consistent
+distinct and variables x with domain {1,2} and y both with domain {2,3} and
+the following three views v1 := x+0, v2 := x+1, v3 := y. Propagation should
+yield x=1 and y=3 directly! However, if the propagator does not detect that
+v1 and v2 are shared it will only propagate that x=1 and y in {2,3}!
+
+And yes, sharing sucks. And yes, almost all propagators are faulty (but
+linear and bool!)...
+
+Christian
+
+--
+Christian Schulte, <A HREF="http://www.imit.kth.se/~schulte/">http://www.imit.kth.se/~schulte/</A>
+
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Idea for extending ViewBrancher — 6 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>Idea for extending ViewBrancher | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>6 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · August 2010–September 2010</p><h1 data-pagefind-meta="title">Idea for extending ViewBrancher</h1></header>
+      <p class="archive-thread-summary">6 messages · August 2010–September 2010</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-003028">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Felix Brandt</h2></div>
+          <p><time>Sat Aug 28 09:52:11 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+for a recent project I wrote a custom brancher (similar to the
+ViewBrancher) that only branches variables within a certain interval.
+The variables, which do not intersect the interval, are considered as if
+they are already assigned.
+
+In my case I wasn't interested in the values if they did not match the
+given interval, but also did not want to add auxiliary variables and
+constraints to be able to use standard branchers. Furthermore, I could
+not just assign border values without breaking constraints. I assume
+that such a brancher can also be advantageous in other setups, where one
+wants to apply varying branching strategies to different parts of the
+variable domains.
+
+If this idea is of interest for the project, I could try to extend the
+current ViewValueBrancher. Right now, I'm not sure where to start.
+Probably adapting ViewBrancher&lt;ViewSel&gt;::status(const Space&amp;) is a good
+starting point, but it's quite deep in the object hierarchy so I assume
+it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+to produce a lot of duplicated code (for brancher assembly and strategy
+selection). Any suggestions?
+
+Regards,
+Felix
+
+PS: If I miss something obvious or this feature is already present, I
+would appreciate any hint :-)
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003029">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Guido Tack</h2></div>
+          <p><time>Mon Aug 30 16:20:16 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Felix,
+
+I think your special branchers could be implemented quite easily by instantiating the existing branchers with new views.  The views would store the interval you're interested in and reimplement the assigned() function, so that it returns true if the domain does not intersect the given interval.  That way, the brancher will ignore all views that are assigned in this sense.
+
+You will still have to duplicate some code, but half of it is generated anyway.  Have a look at post-view-int.bs, which is used to generate post-view-int.cpp.  I think you would only need to replace IntView by your &quot;IgnoreIntervalView&quot;.  Then duplicate post-val-int.hpp, where you'll also have to replace the views accordingly (you will need something like a &quot;MinusIgnoreIntervalView&quot;).
+
+Cheers,
+	Guido
+
+Felix Brandt wrote:
+
+&gt;<i> Hi,
+</I>&gt;<i>
+</I>&gt;<i> for a recent project I wrote a custom brancher (similar to the
+</I>&gt;<i> ViewBrancher) that only branches variables within a certain interval.
+</I>&gt;<i> The variables, which do not intersect the interval, are considered as if
+</I>&gt;<i> they are already assigned.
+</I>&gt;<i>
+</I>&gt;<i> In my case I wasn't interested in the values if they did not match the
+</I>&gt;<i> given interval, but also did not want to add auxiliary variables and
+</I>&gt;<i> constraints to be able to use standard branchers. Furthermore, I could
+</I>&gt;<i> not just assign border values without breaking constraints. I assume
+</I>&gt;<i> that such a brancher can also be advantageous in other setups, where one
+</I>&gt;<i> wants to apply varying branching strategies to different parts of the
+</I>&gt;<i> variable domains.
+</I>&gt;<i>
+</I>&gt;<i> If this idea is of interest for the project, I could try to extend the
+</I>&gt;<i> current ViewValueBrancher. Right now, I'm not sure where to start.
+</I>&gt;<i> Probably adapting ViewBrancher&lt;ViewSel&gt;::status(const Space&amp;) is a good
+</I>&gt;<i> starting point, but it's quite deep in the object hierarchy so I assume
+</I>&gt;<i> it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+</I>&gt;<i> to produce a lot of duplicated code (for brancher assembly and strategy
+</I>&gt;<i> selection). Any suggestions?
+</I>&gt;<i>
+</I>&gt;<i> Regards,
+</I>&gt;<i> Felix
+</I>&gt;<i>
+</I>&gt;<i> PS: If I miss something obvious or this feature is already present, I
+</I>&gt;<i> would appreciate any hint :-)
+</I>&gt;<i>
+</I>&gt;<i>
+</I>&gt;<i> _______________________________________________
+</I>&gt;<i> Gecode users mailing list
+</I>&gt;<i> <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+</I>&gt;<i> <A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+</I>
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003030">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Christian Schulte</h2></div>
+          <p><time>Tue Aug 31 10:17:44 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi Felix,
+
+I have been thinking about your idea and I very much like it.
+
+How about the following generalization: one can pass to a brancher a filter
+function (that is, a member function of the space). If a filter function is
+passed it is used for selecting variables for branching: only if the filter
+function returns true for a variable, the variable is considered for normal
+selection. The function can be passed through the normal options for
+branching (VarBranch) that is also used for tie breaking and randomized
+selection.
+
+Would that make sense? It is less general than what Guido proposed but
+easily available to the average modeler. I thought about it a little and I
+know how to efficiently implement it.
+
+Cheers
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Felix Brandt
+Sent: Saturday, August 28, 2010 9:52 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: [gecode-users] Idea for extending ViewBrancher
+
+Hi,
+
+for a recent project I wrote a custom brancher (similar to the
+ViewBrancher) that only branches variables within a certain interval.
+The variables, which do not intersect the interval, are considered as if
+they are already assigned.
+
+In my case I wasn't interested in the values if they did not match the
+given interval, but also did not want to add auxiliary variables and
+constraints to be able to use standard branchers. Furthermore, I could
+not just assign border values without breaking constraints. I assume
+that such a brancher can also be advantageous in other setups, where one
+wants to apply varying branching strategies to different parts of the
+variable domains.
+
+If this idea is of interest for the project, I could try to extend the
+current ViewValueBrancher. Right now, I'm not sure where to start.
+Probably adapting ViewBrancher&lt;ViewSel&gt;::status(const Space&amp;) is a good
+starting point, but it's quite deep in the object hierarchy so I assume
+it's not *that* easy. Additionally, inheriting from ViewBrancher seems
+to produce a lot of duplicated code (for brancher assembly and strategy
+selection). Any suggestions?
+
+Regards,
+Felix
+
+PS: If I miss something obvious or this feature is already present, I
+would appreciate any hint :-)
+
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003031">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Gustavo Gutierrez</h2></div>
+          <p><time>Tue Aug 31 10:35:57 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>2010/8/31 Christian Schulte &lt;<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>&gt;
+
+&gt;<i> lecting variables for branching: only if the filter
+</I>&gt;<i> function returns true for a variable, the variable is considered for normal
+</I>&gt;<i> selection. The function can be passed through the normal options for
+</I>&gt;<i> branching (VarBranch) that is also used fo
+</I>&gt;<i>
+</I>
+I'd really like to have this functionality, and this is because in the
+solver that I am working on I had to implement exactly that, of course, the
+implementation duplicates a lot of code from the existing ViewValBracher and
+it is just to not take into account only the return value of assigned() but
+to add an extra condition.
+
+Regards,
+Gustavo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100831/7e529a4d/attachment.htm">http://www.gecode.org/pipermail/users/attachments/20100831/7e529a4d/attachment.htm</A>&gt;
+</PRE>
+
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-003034">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Aug 31 13:33:35 CEST 2010</time><small>August 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Christian Schulte wrote:
+&gt;<i> How about the following generalization: one can pass to a brancher a filter
+</I>&gt;<i> function (that is, a member function of the space). If a filter function is
+</I>&gt;<i> passed it is used for selecting variables for branching: only if the filter
+</I>&gt;<i> function returns true for a variable, the variable is considered for normal
+</I>&gt;<i> selection. The function can be passed through the normal options for
+</I>&gt;<i> branching (VarBranch) that is also used for tie breaking and randomized
+</I>&gt;<i> selection.
+</I>&gt;<i>
+</I>&gt;<i> Would that make sense? It is less general than what Guido proposed but
+</I>&gt;<i> easily available to the average modeler. I thought about it a little and I
+</I>&gt;<i> know how to efficiently implement it.
+</I>
+The filter function could get the index of the variable in addition to the variable itself. That would make it just as general as my approach, I think (you could use a different interval for each variable without having to go through the whole array to find out which variable you are dealing with).
+
+Cheers,
+	Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-003035">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Christian Schulte</h2></div>
+          <p><time>Wed Sep 1 16:42:36 CEST 2010</time><small>September 2010</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I just added the idea to the trunk. Please find attached an excerpt of MPG
+describing the idea.
+
+Comments?
+
+Best
+Christian
+
+--
+Christian Schulte, www.ict.kth.se/~cschulte/
+
+
+-----Original Message-----
+From: Guido Tack [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">tack at gecode.org</A>]
+Sent: Tuesday, August 31, 2010 1:34 PM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">cschulte at kth.se</A>
+Cc: 'Felix Brandt'; <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] Idea for extending ViewBrancher
+
+Christian Schulte wrote:
+&gt;<i> How about the following generalization: one can pass to a brancher a
+</I>filter
+&gt;<i> function (that is, a member function of the space). If a filter function
+</I>is
+&gt;<i> passed it is used for selecting variables for branching: only if the
+</I>filter
+&gt;<i> function returns true for a variable, the variable is considered for
+</I>normal
+&gt;<i> selection. The function can be passed through the normal options for
+</I>&gt;<i> branching (VarBranch) that is also used for tie breaking and randomized
+</I>&gt;<i> selection.
+</I>&gt;<i>
+</I>&gt;<i> Would that make sense? It is less general than what Guido proposed but
+</I>&gt;<i> easily available to the average modeler. I thought about it a little and I
+</I>&gt;<i> know how to efficiently implement it.
+</I>
+The filter function could get the index of the variable in addition to the
+variable itself. That would make it just as general as my approach, I think
+(you could use a different interval for each variable without having to go
+through the whole array to find out which variable you are dealing with).
+
+Cheers,
+	Guido
+
+--
+Guido Tack, <A HREF="http://people.cs.kuleuven.be/~guido.tack/">http://people.cs.kuleuven.be/~guido.tack/</A>
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: filter.pdf
+Type: application/pdf
+Size: 50156 bytes
+Desc: not available
+URL: &lt;<A HREF="http://www.gecode.org/pipermail/users/attachments/20100901/44281ee4/attachment-0001.pdf">http://www.gecode.org/pipermail/users/attachments/20100901/44281ee4/attachment-0001.pdf</A>&gt;
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

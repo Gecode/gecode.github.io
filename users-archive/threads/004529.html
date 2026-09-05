@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="First contact with gecode — 4 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>First contact with gecode | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>4 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · October 2014</p><h1 data-pagefind-meta="title">First contact with gecode</h1></header>
+      <p class="archive-thread-summary">4 messages · October 2014</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-004529">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Frederic C</h2></div>
+          <p><time>Fri Oct 3 19:33:32 CEST 2014</time><small>October 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I am new to gecode and I have a simple question.
+
+I am trying to find one possible solution for the following system:
+
+1A + 1B &gt;  0
+1A + 0B &gt;  0
+1A + 1B &gt;  0
+0A + 0B &lt;= 0
+
+Obviously, there are many solutions. For instance, A=1 and B=1.
+
+My code is the following:
+
+class SolverSpace : public Gecode::Space
+{
+   IntVarArray s;
+
+public:
+   SolverSpace() :
+     s(*this, 2, -1000000, 1000000) // lots of possible values, to be on
+the safe side
+   {
+     { // 1A + 1B &gt;  0
+       IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 1A + 0B &gt;  0
+       IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 1A + 1B &gt;  0
+       IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+       linear(*this, coeffs, s, IRT_GT, int(0));
+     }
+     { // 0A + 0B &lt;= 0
+       IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+       linear(*this, coeffs, s, IRT_LE, int(0));
+     }
+
+     branch(*this, s, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+   }
+
+   SolverSpace(bool share, SolverSpace&amp; e) :
+     Gecode::Space(share, e)
+   {
+     s.update(*this, share, e.s);
+   }
+
+   virtual Space *copy(bool share)
+   {
+     return new SolverSpace(share, *this);
+   }
+
+   void print()
+   {
+     for (int i = 0; i &lt; 2; i++)
+       std::cout &lt;&lt; s[i] &lt;&lt; &quot;, &quot;;
+     std::cout &lt;&lt; std::endl;
+   }
+}
+
+Calling code:
+
+SolverSpace*m = new SolverSpace();
+DFS&lt;SolverSpace&gt; e(m);
+delete m;
+if (SolverSpace *s = e.next()) {
+   s-&gt;print(); delete s;
+}
+
+To my surprise, no solution is found. What am I doing wrong?
+
+Thank you,
+
+Fred
+
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004530">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Chris Mears</h2></div>
+          <p><time>Mon Oct 6 00:29:40 CEST 2014</time><small>October 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello Fred,
+
+&gt;<i>      { // 1A + 1B &gt;  0
+</I>&gt;<i>        IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+</I>&gt;<i>        linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;<i>      }
+</I>
+I am not sure how you got this to compile, because this should be
+&quot;IRT_GR&quot;.
+
+&gt;<i>      { // 1A + 0B &gt;  0
+</I>&gt;<i>        IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+</I>&gt;<i>        linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;<i>      }
+</I>&gt;<i>      { // 1A + 1B &gt;  0
+</I>&gt;<i>        IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+</I>&gt;<i>        linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;<i>      }
+</I>&gt;<i>      { // 0A + 0B &lt;= 0
+</I>&gt;<i>        IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+</I>&gt;<i>        linear(*this, coeffs, s, IRT_LE, int(0));
+</I>&gt;<i>      }
+</I>
+Here you want IRT_LQ ( &lt;= ) instead of IRT_LE ( &lt; ).
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004531">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Frederic C</h2></div>
+          <p><time>Mon Oct 6 08:19:21 CEST 2014</time><small>October 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>I changed IRT_LE for IRT_LQ and it works, thank you. I'm silly, if
+coefficients are all zeros, it helps if the right hand size can also be
+zero!
+
+Fred
+
+Le 06/10/2014 00:29, Chris Mears a &#233;crit :
+&gt;<i> Hello Fred,
+</I>&gt;<i>
+</I>&gt;&gt;<i>       { // 1A + 1B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;<i> I am not sure how you got this to compile, because this should be
+</I>&gt;<i> &quot;IRT_GR&quot;.
+</I>&gt;<i>
+</I>&gt;&gt;<i>       { // 1A + 0B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       { // 1A + 1B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       { // 0A + 0B &lt;= 0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_LE, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;<i> Here you want IRT_LQ ( &lt;= ) instead of IRT_LE ( &lt; ).
+</I>
+
+</PRE>
+
+
+</article>
+      </section><section class="archive-thread-message" id="message-004532">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Christian Schulte</h2></div>
+          <p><time>Mon Oct 6 09:38:15 CEST 2014</time><small>October 2014</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Just a tip: please read Sections 3.1 and 7.1 in MPG. It shows how to write
+normal C++ expressions for posting linear constraints.
+
+Cheers
+Christian
+
+--
+Christian Schulte, Professor of Computer Science, KTH,
+www.gecode.org/~schulte/
+
+-----Original Message-----
+From: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A> [mailto:<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users-bounces at gecode.org</A>] On Behalf
+Of Frederic C
+Sent: Monday, October 06, 2014 8:19 AM
+To: <A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+Subject: Re: [gecode-users] First contact with gecode
+
+I changed IRT_LE for IRT_LQ and it works, thank you. I'm silly, if
+coefficients are all zeros, it helps if the right hand size can also be
+zero!
+
+Fred
+
+Le 06/10/2014 00:29, Chris Mears a &#233;crit :
+&gt;<i> Hello Fred,
+</I>&gt;<i>
+</I>&gt;&gt;<i>       { // 1A + 1B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 1;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;<i> I am not sure how you got this to compile, because this should be
+</I>&gt;<i> &quot;IRT_GR&quot;.
+</I>&gt;<i>
+</I>&gt;&gt;<i>       { // 1A + 0B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 1;  coeffs[1] = 0;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       { // 1A + 1B &gt;  0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 1;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_GT, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;&gt;<i>       { // 0A + 0B &lt;= 0
+</I>&gt;&gt;<i>         IntArgs coeffs(2); coeffs[0] = 0;  coeffs[1] = 0;
+</I>&gt;&gt;<i>         linear(*this, coeffs, s, IRT_LE, int(0));
+</I>&gt;&gt;<i>       }
+</I>&gt;<i> Here you want IRT_LQ ( &lt;= ) instead of IRT_LE ( &lt; ).
+</I>
+
+_______________________________________________
+Gecode users mailing list
+<A HREF="http://www.gecode.org/cgi-bin/mailman/listinfo/users">users at gecode.org</A>
+<A HREF="https://www.gecode.org/mailman/listinfo/gecode-users">https://www.gecode.org/mailman/listinfo/gecode-users</A>
+
+
+</PRE>
+
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>

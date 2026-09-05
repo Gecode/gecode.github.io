@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="count/atleast: partial propagation towards y ? — 7 messages in the Gecode users mailing-list archive.">
+  <link rel="icon" href="/images/gecode-logo.ico" sizes="any">
+  <link rel="stylesheet" href="/users-archive/archive.css">
+  <script src="/users-archive/archive.js" defer></script>
+  <title>count/atleast: partial propagation towards y ? | Gecode</title>
+</head>
+<body class="archive-page archive-thread-page">
+  <a class="archive-skip" href="#archive-main">Skip to content</a>
+  <header class="archive-mobile-header" data-pagefind-ignore>
+    <a href="/users-archive/">Gecode users archive</a>
+    <div><a class="archive-mobile-home" href="/">Gecode home</a><button type="button" data-search-open aria-keyshortcuts="Meta+K Control+K">Search</button><button type="button" data-nav-open aria-controls="archive-navigation">Browse</button></div>
+  </header>
+  <aside class="archive-sidebar" id="archive-navigation" aria-label="Archive navigation" data-pagefind-ignore>
+    <button class="archive-nav-close" type="button" data-nav-close>Close navigation</button>
+    <div class="archive-sidebar-heading"><a class="archive-title" href="/users-archive/">Gecode users archive</a><span>7 messages</span></div>
+    <button class="archive-search-trigger" type="button" data-search-open aria-keyshortcuts="Meta+K Control+K"><span>Search messages</span><kbd>⌘ K</kbd></button>
+    <nav class="archive-primary-navigation" aria-label="Gecode and archive"><a class="archive-home-link" href="/"><span aria-hidden="true">←</span> Gecode home</a><a href="/users-archive/">Archive overview</a></nav>
+    <p class="archive-calendar-heading">Browse by date</p>
+    <div class="archive-calendar-navigation" data-archive-calendar aria-label="Browse archive by year and month"><p class="archive-calendar-loading">Loading archive…</p></div>
+    <noscript><p class="archive-calendar-noscript"><a href="/users-archive/">Browse all archive months</a></p></noscript>
+    <p class="archive-sidebar-note">A read-only record of the Gecode users mailing list, 2003–2018.</p>
+  </aside>
+  <div class="archive-shade" data-nav-close></div>
+  <div class="archive-column">
+    <a class="archive-logo" href="/" aria-label="Gecode home" data-pagefind-ignore><img src="/images/gecode-logo-120.png" alt="" width="98" height="63"></a>
+    <main class="archive-main" id="archive-main" tabindex="-1" data-pagefind-body>
+      <header class="archive-page-heading"><p>Mailing-list thread · February 2008</p><h1 data-pagefind-meta="title">count/atleast: partial propagation towards y ?</h1></header>
+      <p class="archive-thread-summary">7 messages · February 2008</p>
+      <div class="archive-thread"><section class="archive-thread-message" id="message-001304">
+        <header class="archive-thread-message-heading">
+          <div><span>01</span><h2>Didier Loiseau</h2></div>
+          <p><time>Sat Feb 2 18:15:56 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I am trying to post a propagator for the constraint
+   x' = x or x' = epsilon
+with x and x' integer variables and epsilon some constant not in dom(x).
+
+I first thought to use reified equality constraints but it would achieve
+very few propagation (for example, removing values from x would not
+remove them from x' as long as epsilon is in dom(x'))
+
+Then I thought I could do the same with the count constraint: posting
+   #(X | x_i = y) = 1
+with X = [x, epsilon] and y = x'
+
+But the count propagator (for #(X | x_i = y) &gt;= 1) does not seem to
+achieve domain-consistency towards y in this case: values that are not
+present in the union of the domains of the x_i's are not removed from y.
+
+To test this I wrote this little program:
+
+class TestCount : public Example {
+protected:
+  IntVar v, w, x;
+public:
+  TestCount(const Options&amp; opt)
+    : v(this, 1, 10), w(this, 2, 4), x(this, 7, 9) {
+        IntVarArray tab(this, 2);
+        tab[0] = w; tab[1] = x;
+        exactly(this, tab, v, 1);
+        branch(this, tab, INT_VAR_SIZE_MIN, INT_VAL_MIN);
+  }
+
+  // &#8230;
+}
+
+and I obtain solutions like v=[1..10] w=2 x=7. Shouldn't it propagate
+v={2,7} ? Did I do something wrong ?
+
+If what I am trying to do is not possible using count, what is the best
+way to implement it, achieving domain consistency ?
+
+Thank you in advance for your help.
+
+Didier
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001305">
+        <header class="archive-thread-message-heading">
+          <div><span>02</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Sun Feb 3 13:08:38 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+On 2 feb 2008, at 18.15, Didier Loiseau wrote:
+&gt;<i> I am trying to post a propagator for the constraint
+</I>&gt;<i>   x' = x or x' = epsilon
+</I>&gt;<i> with x and x' integer variables and epsilon some constant not in
+</I>&gt;<i> dom(x).
+</I>&gt;<i>
+</I>&gt;<i> I first thought to use reified equality constraints but it would
+</I>&gt;<i> achieve
+</I>&gt;<i> very few propagation (for example, removing values from x would not
+</I>&gt;<i> remove them from x' as long as epsilon is in dom(x'))
+</I>&lt;snip&gt;
+&gt;<i> If what I am trying to do is not possible using count, what is the
+</I>&gt;<i> best
+</I>&gt;<i> way to implement it, achieving domain consistency ?
+</I>
+Hi,
+
+You can model this using set-constraints.  Given are variables x', x,
+and epsilon. Using a temporary set-variable S, add the following
+constraints
+
+	rel(this, SOT_DUNION, [x,epsilon], S)
+
+	rel(this, S, SRT_SUP, x')
+
+The first will make S be the union of the (disjoint) domains of x and
+epsilon. The second makes sure that x' is a member of that set.
+
+
+If you are concerned with efficieny, then you could add a custom
+propagator for this constraint.
+
+
+Cheers,
+Mikael
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001306">
+        <header class="archive-thread-message-heading">
+          <div><span>03</span><h2>Mikael Zayenz Lagerkvist</h2></div>
+          <p><time>Mon Feb 4 13:19:22 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>On Feb 3, 2008 1:08 PM, Mikael Zayenz Lagerkvist &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">zayenz at gmail.com</A>&gt; wrote:
+&gt;<i> On 2 feb 2008, at 18.15, Didier Loiseau wrote:
+</I>&gt;<i> &gt; I am trying to post a propagator for the constraint
+</I>&gt;<i> &gt;   x' = x or x' = epsilon
+</I>&gt;<i> &gt; with x and x' integer variables and epsilon some constant not in
+</I>&gt;<i> &gt; dom(x).
+</I>
+&gt;<i> If you are concerned with efficieny, then you could add a custom
+</I>&gt;<i> propagator for this constraint.
+</I>
+I realised that I actually implemented this constraint about a year
+ago, and dug it out. The code below can be used to propagate &quot;x=y |
+x=z&quot;  for integer variables x, y, and z by using Extra::diseq(home, x,
+y, z). I haven't tested it thoroughly, but I believe that it works.
+
+Cheers,
+Mikael
+
+&lt;code&gt;
+/*
+ *  Main authors:
+ *     Mikael Lagerkvist &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">lagerkvist at gecode.org</A>&gt;
+ *
+ *  Copyright:
+ *     Mikael Lagerkvist, 2007
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining
+ *  a copy of this software and associated documentation files (the
+ *  &quot;Software&quot;), to deal in the Software without restriction, including
+ *  without limitation the rights to use, copy, modify, merge, publish,
+ *  distribute, sublicense, and/or sell copies of the Software, and to
+ *  permit persons to whom the Software is furnished to do so, subject to
+ *  the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be
+ *  included in all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ *  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ *  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ *  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#include &quot;gecode/kernel.hh&quot;
+#include &quot;gecode/int.hh&quot;
+#include &quot;gecode/iter.hh&quot;
+#include &quot;gecode/int/rel.hh&quot;
+
+namespace Extra {
+  using namespace ::Gecode;
+
+  /**
+   * \brief Domain-consistent propagator for \f$ x_1=x_2\lor x_1=x_3\f$.
+   */
+  template &lt;class View&gt;
+  class DisEq : public TernaryPropagator&lt;View,Int::PC_INT_DOM&gt; {
+  protected:
+    using TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;::x0;
+    using TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;::x1;
+    using TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;::x2;
+
+    /// Constructor for cloning \a p
+    DisEq(Space* home, bool share, DisEq&amp; p);
+    /// Constructor for posting
+    DisEq(Space* home, View x0, View x1, View x2);
+  public:
+    /// Constructor for rewriting \a p during cloning
+    DisEq(Space* home, bool share, Propagator&amp; p, View x0, View x1, View x2);
+    /// Copy propagator during cloning
+    virtual Actor* copy(Space* home, bool share);
+    /// Perform propagation
+    virtual ExecStatus propagate(Space* home);
+    /// Post propagator
+    static  ExecStatus post(Space* home, View x0, View x1, View x2);
+  };
+
+  template &lt;class View&gt;
+  inline
+  DisEq&lt;View&gt;::DisEq(Space* home, View x0, View x1, View x2)
+    : TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;(home,x0,x1,x2) {}
+
+  template &lt;class View&gt;
+  ExecStatus
+  DisEq&lt;View&gt;::post(Space* home, View x0, View x1, View x2) {
+    (void) new (home) DisEq&lt;View&gt;(home,x0,x1,x2);
+    return ES_OK;
+  }
+
+  template &lt;class View&gt;
+  inline
+  DisEq&lt;View&gt;::DisEq(Space* home, bool share, DisEq&lt;View&gt;&amp; p)
+    : TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;(home,share,p) {}
+
+  template &lt;class View&gt;
+  inline
+  DisEq&lt;View&gt;::DisEq(Space* home, bool share, Propagator&amp; p,
+                     View x0, View x1, View x2)
+    : TernaryPropagator&lt;View,Int::PC_INT_DOM&gt;(home,share,p,x0,x1,x2) {}
+
+  template &lt;class View&gt;
+  Actor*
+  DisEq&lt;View&gt;::copy(Space* home, bool share) {
+    return new (home) DisEq&lt;View&gt;(home,share,*this);
+  }
+
+  template &lt;class View&gt;
+  ExecStatus
+  DisEq&lt;View&gt;::propagate(Space* home) {
+    typedef Int::ViewRanges&lt;View&gt; Ranges;
+
+    Ranges vr1(x1), vr2(x2);
+    Iter::Ranges::Union&lt;Ranges, Ranges&gt; u12(vr1, vr2);
+    GECODE_ME_CHECK(x1.inter_r(home, u12, false));
+
+    if (rtest_nq_dom(x0, x1) == Int::RT_TRUE)
+      GECODE_REWRITE(this,
+                     (Int::Rel::EqDom&lt;View, View&gt;::post(home, x0, x2)));
+    if (rtest_nq_dom(x0, x2) == Int::RT_TRUE)
+      GECODE_REWRITE(this,
+                     (Int::Rel::EqDom&lt;View, View&gt;::post(home, x0, x1)));
+
+    return x0.assigned() &amp;&amp; (x1.assigned() || x2.assigned()) ?
+      ES_SUBSUMED(this,home) : ES_FIX;
+  }
+
+  /** \brief Post propagator for \f$ x_1=x_2\lor x_1=x_3\f$
+   */
+  void diseq(Space* home, IntVar x1, IntVar x2, IntVar x3) {
+    Int::IntView v1(x1), v2(x2), v3(x3);
+    GECODE_ES_FAIL(home,DisEq&lt;Int::IntView&gt;::post(home, v1, v2, v3));
+  }
+}
+&lt;/code&gt;
+
+
+
+--
+Mikael Zayenz Lagerkvist, <A HREF="http://www.ict.kth.se/~zayenz/">http://www.ict.kth.se/~zayenz/</A>
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001307">
+        <header class="archive-thread-message-heading">
+          <div><span>04</span><h2>Didier Loiseau</h2></div>
+          <p><time>Mon Feb 4 18:40:17 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hi,
+
+I figured out I only answered to Mikael so I forward my response below.
+
+Thank you Mikael for your implementation.
+
+Mikael Zayenz Lagerkvist wrote :
+&gt;<i> You can model this using set-constraints.  Given are variables x',
+</I>x,
+&gt;<i> and epsilon. Using a temporary set-variable S, add the following
+</I>&gt;<i> constraints
+</I>&gt;<i>
+</I>&gt;<i>       rel(this, SOT_DUNION, [x,epsilon], S)
+</I>&gt;<i>
+</I>&gt;<i>       rel(this, S, SRT_SUP, x')
+</I>&gt;<i>
+</I>&gt;<i> The first will make S be the union of the (disjoint) domains of x
+</I>and
+&gt;<i> epsilon. The second makes sure that x' is a member of that set.
+</I>
+Ok I just tried this on my little example, and it solves the problem
+I have with count, but it is not enough alone: if epsilon is removed
+from dom(x') it will not propagate x = x' until x' is assigned
+(which adds its value to the glb of S, if I'm not wrong)
+
+I suppose it will work if I combine it with count/exactly.
+
+Thank you very much for your help.
+
+I would appreciate to understand why it does not work with count alone,
+if anybody knows&#8230;
+
+Didier
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001308">
+        <header class="archive-thread-message-heading">
+          <div><span>05</span><h2>stanio at cs.tu-berlin.de</h2></div>
+          <p><time>Mon Feb 4 21:26:51 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>
+Hello to all,
+
+A question:
+
+When I post a constraint on a solved space, it seems to be not
+always propagated ... And this _not_always_ is what I am
+worrying about - I want to know what is the rule. What I
+mean is prety much like this:
+---- code -----
+int
+get_weight(){
+	IntVar weight(this, 0, Limits::Int::int_max);
+	linear(this, this-&gt;vars, IRT_EQ, weight);
+	/*
+	   this-&gt;status();
+	 */
+	return weight.val();
+}
+---- code -----
+
+I invoke this function like
+	solved_space-&gt;get_weight()
+from within the constrain() function (for BAB search).
+Without the line
+	   this-&gt;status();
+I experienced assertion fault due to weight.max() !=
+weight.min() : max, min remained the same as at the time of
+initialization of weight.
+
+Then I added the commented line and it worked fine.
+
+But... I have another function I invoke on solved spaces,
+which workes fine without the status() invocation.
+
+What do I have to know about constraints on solved spaces?
+Could you short explain, or give a hint for reading?
+
+Thank you in advance for your support!
+
+greetz
+stanio_
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001312">
+        <header class="archive-thread-message-heading">
+          <div><span>06</span><h2>Guido Tack</h2></div>
+          <p><time>Tue Feb 5 09:20:15 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE><A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">stanio at cs.tu-berlin.de</A> wrote:
+&gt;<i> A question:
+</I>&gt;<i>
+</I>&gt;<i> When I post a constraint on a solved space, it seems to be not
+</I>&gt;<i> always propagated ... And this _not_always_ is what I am
+</I>&gt;<i> worrying about - I want to know what is the rule.
+</I>
+The rule is that some easy inferences may be done immediately on
+posting the constraint, but full propagation only happens when you
+call status.
+
+&gt;<i> What I
+</I>&gt;<i> mean is prety much like this:
+</I>&gt;<i> ---- code -----
+</I>&gt;<i> int
+</I>&gt;<i> get_weight(){
+</I>&gt;<i> 	IntVar weight(this, 0, Limits::Int::int_max);
+</I>&gt;<i> 	linear(this, this-&gt;vars, IRT_EQ, weight);
+</I>&gt;<i> 	/*
+</I>&gt;<i> 	   this-&gt;status();
+</I>&gt;<i> 	 */
+</I>&gt;<i> 	return weight.val();
+</I>&gt;<i> }
+</I>&gt;<i> ---- code -----
+</I>&gt;<i>
+</I>&gt;<i> I invoke this function like
+</I>&gt;<i> 	solved_space-&gt;get_weight()
+</I>&gt;<i> from within the constrain() function (for BAB search).
+</I>&gt;<i> Without the line
+</I>&gt;<i> 	   this-&gt;status();
+</I>&gt;<i> I experienced assertion fault due to weight.max() !=
+</I>&gt;<i> weight.min() : max, min remained the same as at the time of
+</I>&gt;<i> initialization of weight.
+</I>
+Although this works (if you use status), it is not the recommended way
+of doing it.  What you should really do is:
+
+int
+get_weight() {
+   int w = 0;
+   for (int i=0; i&lt;vars.size(); i++)
+     w += vars[i].val();
+   return w;
+}
+
+The problem with your approach is that if you add variables and
+constraints, you're not guaranteed that all the variables will be
+assigned after calling status.  It works in the above example, because
+you add a single constraint, and the new variable can be computed as a
+function from the old variables.  As soon as you try something more
+involved, you may need a nested search to actually determine the
+values.  Another disadvantage is that your version will be
+considerably slower than a simple computation of the sum.
+
+
+&gt;<i> Then I added the commented line and it worked fine.
+</I>&gt;<i>
+</I>&gt;<i> But... I have another function I invoke on solved spaces,
+</I>&gt;<i> which workes fine without the status() invocation.
+</I>&gt;<i>
+</I>&gt;<i> What do I have to know about constraints on solved spaces?
+</I>&gt;<i> Could you short explain, or give a hint for reading?
+</I>
+Constraints on solved spaces are exactly the same as on unsolved
+spaces.  You're not guaranteed to get a solution without search.
+
+Cheers,
+	Guido
+
+
+
+</PRE>
+
+</article>
+      </section><section class="archive-thread-message" id="message-001314">
+        <header class="archive-thread-message-heading">
+          <div><span>07</span><h2>Stanimir Dragiev</h2></div>
+          <p><time>Wed Feb 6 12:00:56 CET 2008</time><small>February 2008</small></p>
+        </header>
+        <article class="archive-message" data-pagefind-weight="1">
+<PRE>Hello Guido,
+
+* Guido Tack &lt;<A HREF="https://www.ps.uni-sb.de/mailman/listinfo/users">tack at ps.uni-sb.de</A>&gt; [2008-02-05 09:32]:
+&gt;<i> The rule is that some easy inferences may be done immediately on
+</I>&gt;<i> posting the constraint, but full propagation only happens when you
+</I>&gt;<i> call status.
+</I>&gt;<i>
+</I>&gt;<i> [...]
+</I>&gt;<i>
+</I>&gt;<i> Constraints on solved spaces are exactly the same as on unsolved
+</I>&gt;<i> spaces.  You're not guaranteed to get a solution without search.
+</I>&gt;<i>
+</I>&gt;<i> [...]
+</I>&gt;<i>
+</I>&gt;<i> The problem with your approach is that if you add variables and
+</I>&gt;<i> constraints, you're not guaranteed that all the variables will be
+</I>&gt;<i> assigned after calling status.  It works in the above example, because
+</I>&gt;<i> you add a single constraint, and the new variable can be computed as a
+</I>&gt;<i> function from the old variables.  As soon as you try something more
+</I>&gt;<i> involved, you may need a nested search to actually determine the
+</I>&gt;<i> values.  Another disadvantage is that your version will be
+</I>&gt;<i> considerably slower than a simple computation of the sum.
+</I>
+
+The real functions actually return an IntVar, and for a
+solved space I take the .val(), for unsolved space I add
+some constraints on the Var.
+
+My intention was to have the computation code only once for
+the sake of simplicity and maintainability, sacrificing some
+(minimal, as I thought) efficiency.
+
+I didn't see the issue with the search.
+Thank you very much for your explanation.
+
+greetz
+stanio_
+
+
+</PRE>
+
+</article>
+      </section></div>
+    </main>
+    <footer data-pagefind-ignore>Gecode users archive · preserved from Mailman</footer>
+  </div>
+  <dialog class="archive-search-dialog" id="archive-search-dialog" aria-labelledby="archive-search-title">
+    <div class="archive-search-header"><h2 id="archive-search-title">Search the archive</h2><button class="archive-search-close" type="button" data-search-close aria-label="Close search">Close</button></div>
+    <form class="archive-search-form" role="search" data-search-form><label for="archive-search-input">Subject, author, or message text</label><div class="archive-search-field"><input id="archive-search-input" type="search" autocomplete="off" placeholder="Try “branching” or an author’s name" data-search-input><button type="submit">Search</button></div></form>
+    <p class="archive-search-status" aria-live="polite" data-search-status>Start typing to search messages from 2003–2018.</p><ol class="archive-search-results" data-search-results></ol>
+  </dialog>
+</body>
+</html>
