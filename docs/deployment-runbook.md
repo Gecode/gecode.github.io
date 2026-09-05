@@ -235,14 +235,21 @@ Worker route remains sufficient rollback.
    documentation Worker.
 5. Deploy the production documentation routes and rerun the smoke tests.
    Confirm `/doc/sitemap.xml` serves the selected version's index and that its
-   shards contain immutable versioned URLs.
+   shards contain only canonical `/doc/latest/...` URLs. Confirm versioned
+   content and `/doc-latest/...` return `X-Robots-Tag: noindex`, including PDFs.
+   `/robots.txt` must allow documentation crawling so search engines can read
+   those headers; it continues to exclude the users archive.
 6. Use the workflow's `remove-canary` operation with the `canary` environment.
    The narrow canary route is more specific than `/doc/*` and would otherwise
    keep intercepting that version.
 
-The production documentation routes are `/doc`, `/doc/*`, `/doc-latest`, and
-`/doc-latest/*`. The Worker selects aliases through `LATEST_DOC_VERSION`; it
-does not copy alias objects.
+The production documentation routes are `/doc`, `/doc/*`, `/doc-latest`,
+`/doc-latest/*` and `/robots.txt`. The Worker serves the same checked-in robots
+file as Astro so the indexing policy takes effect before the website cutover.
+It selects aliases through `LATEST_DOC_VERSION`; it does not copy alias objects.
+Only `https://www.gecode.dev/doc/latest/...` is indexable. Versioned URLs remain
+available for citations and downloads. Stored versioned sitemaps stay immutable;
+the Worker rewrites the selected sitemap responses to latest URLs.
 
 Set the documentation routes to fail closed: after documentation leaves the
 Pages artifact, fail-open traffic would reach a missing origin path. Set the

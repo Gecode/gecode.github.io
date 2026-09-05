@@ -1,5 +1,5 @@
 import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "./index";
 
 declare module "cloudflare:test" {
@@ -11,9 +11,9 @@ declare module "cloudflare:test" {
 
 const base = "https://www.gecode.dev";
 
-async function request(path: string, init?: RequestInit): Promise<Response> {
+async function request(path: string, init?: RequestInit, latestVersion = env.LATEST_DOC_VERSION): Promise<Response> {
   const context = createExecutionContext();
-  const response = await worker.fetch(new Request(`${base}${path}`, init), env, context);
+  const response = await worker.fetch(new Request(new URL(path, base), init), { ...env, LATEST_DOC_VERSION: latestVersion }, context);
   await waitOnExecutionContext(context);
   return response;
 }
@@ -39,9 +39,8 @@ describe("documentation worker", () => {
     expect(await page.text()).toBe("0123456789");
     expect(page.headers.get("cache-control")).toContain("immutable");
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    expect(page.headers.get("link")).toBe(
-      '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
-    );
+    expect(page.headers.get("link")).toBeNull();
+    expect(page.headers.get("x-robots-tag")).toBe("noindex");
 
     const index = await request("/doc/6.4.0/");
     expect(await index.text()).toBe("release home");
@@ -103,9 +102,11 @@ describe("documentation worker", () => {
       expect(await response.text()).toBe("0123456789");
       expect(response.headers.get("cache-control")).toContain("max-age=300");
       expect(response.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
-      expect(response.headers.get("link")).toBe(
-        '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
-      );
+      const canonical = path.startsWith("/doc/latest/");
+      expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
+      expect(response.headers.get("link")).toBe(canonical
+        ? '<https://www.gecode.dev/doc/latest/reference/PageChange.html>; rel="canonical"'
+        : null);
     },
   );
 
@@ -116,6 +117,125 @@ describe("documentation worker", () => {
     expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
     expect(response.headers.get("cache-control")).toContain("max-age=300");
     expect(response.headers.get("link")).toBeNull();
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("keeps historical versions and staging out of the index", async () => {
+    await env.DOCS.put("6.2.0/reference/PageChange.html", "historical content", {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    for (const path of [
+      "/doc/6.2.0/reference/PageChange.html",
+      "/doc/6.4.0/reference/PageChange.html",
+      "https://docs-staging.gecode.dev/doc/latest/reference/PageChange.html",
+      "https://preview.workers.dev/doc/latest/reference/PageChange.html",
+    ]) {
+      const response = await request(path);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(response.headers.get("link")).toBeNull();
+    }
+  });
+
+  it("applies the current indexing policy even to cached headers", async () => {
+    const match = vi.spyOn(caches.default, "match").mockImplementation(async () => new Response("cached content", {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        Link: '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
+        "X-Robots-Tag": "index",
+      },
+    }));
+    try {
+      const immutable = await request("/doc/6.4.0/reference/PageChange.html");
+      expect(await immutable.text()).toBe("cached content");
+      expect(immutable.headers.get("x-robots-tag")).toBe("noindex");
+      expect(immutable.headers.get("link")).toBeNull();
+      const latest = await request("/doc/latest/reference/PageChange.html");
+      expect(await latest.text()).toBe("cached content");
+      expect(latest.headers.get("x-robots-tag")).toBeNull();
+      expect(latest.headers.get("link")).toBe(
+        '<https://www.gecode.dev/doc/latest/reference/PageChange.html>; rel="canonical"',
+      );
+    } finally {
+      match.mockRestore();
+    }
+  });
+
+  it("selects new latest content without reusing the preceding release's cache", async () => {
+    await request("/doc/latest/reference/PageChange.html");
+    await env.DOCS.put("7.0.0/reference/PageChange.html", "new release", {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    const response = await request("/doc/latest/reference/PageChange.html", undefined, "7.0.0");
+    expect(await response.text()).toBe("new release");
+    expect(response.headers.get("x-gecode-documentation-version")).toBe("7.0.0");
+    expect(response.headers.get("link")).toBe(
+      '<https://www.gecode.dev/doc/latest/reference/PageChange.html>; rel="canonical"',
+    );
+  });
+
+  it("rewrites selected sitemap indexes and shards without changing versioned objects", async () => {
+    const version = "6.5.0";
+    const indexXml = '<sitemapindex><sitemap><loc>https://www.gecode.dev/doc/6.5.0/sitemap-1.xml</loc></sitemap></sitemapindex>';
+    const shardXml = '<urlset><url><loc>https://www.gecode.dev/doc/6.5.0/reference/PageChange.html</loc></url></urlset>';
+    await env.DOCS.put(`${version}/sitemap.xml`, indexXml, { httpMetadata: { contentType: "application/xml" } });
+    await env.DOCS.put(`${version}/sitemap-1.xml`, shardXml, { httpMetadata: { contentType: "application/xml" } });
+    // Entries cached before the indexing-policy change must not leak old URLs.
+    await caches.default.put(new Request(`${base}/doc/sitemap.xml`), new Response(indexXml, {
+      headers: { "Cache-Control": "public, max-age=300", "Content-Type": "application/xml" },
+    }));
+    for (const path of ["/doc/sitemap.xml", "/doc/latest/sitemap.xml", "/doc-latest/sitemap.xml"]) {
+      const response = await request(path, undefined, version);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe(indexXml.replaceAll(`/doc/${version}/`, "/doc/latest/"));
+    }
+    const shard = await request("/doc/latest/sitemap-1.xml", undefined, version);
+    expect(await shard.text()).toBe(shardXml.replaceAll(`/doc/${version}/`, "/doc/latest/"));
+    expect(shard.headers.get("x-robots-tag")).toBeNull();
+    const historical = await request(`/doc/${version}/sitemap-1.xml`, undefined, version);
+    expect(await historical.text()).toBe(shardXml);
+    expect(historical.headers.get("x-robots-tag")).toBe("noindex");
+    expect(await (await env.DOCS.get(`${version}/sitemap-1.xml`))!.text()).toBe(shardXml);
+  });
+
+  it("uses rewritten sitemap lengths and validators for GET, HEAD and conditional requests", async () => {
+    const xml = '<urlset><url><loc>https://www.gecode.dev/doc/6.4.0/reference/例.html</loc></url></urlset>';
+    const stored = await env.DOCS.put("6.4.0/sitemap-1.xml", xml, { httpMetadata: { contentType: "application/xml" } });
+    const expected = xml.replaceAll("/doc/6.4.0/", "/doc/latest/");
+    const path = "/doc/latest/sitemap-1.xml";
+    const response = await request(path);
+    const etag = response.headers.get("etag")!;
+    expect(etag).not.toBe(stored.httpEtag);
+    expect(response.headers.get("content-length")).toBe(String(new TextEncoder().encode(expected).byteLength));
+    expect(await response.text()).toBe(expected);
+    const head = await request(path, { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe("");
+    expect(head.headers.get("etag")).toBe(etag);
+    expect(head.headers.get("content-length")).toBe(response.headers.get("content-length"));
+    const conditional = await request(path, { headers: { "If-None-Match": `W/${etag}` } });
+    expect(conditional.status).toBe(304);
+    expect(await conditional.text()).toBe("");
+    expect(conditional.headers.get("etag")).toBe(etag);
+    const oldValidator = await request(path, { headers: { "If-None-Match": stored.httpEtag } });
+    expect(oldValidator.status).toBe(200);
+    const range = await request(path, { headers: { Range: "bytes=0-10" } });
+    expect(range.status).toBe(200);
+    expect(range.headers.get("content-range")).toBeNull();
+    expect(await range.text()).toBe(expected);
+  });
+
+  it("serves shared robots rules that allow latest documentation crawling", async () => {
+    const response = await request("/robots.txt");
+    const body = await response.text();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(body).not.toMatch(/^Disallow:\s*\/doc(?:\/latest|-latest)/m);
+    expect(body).toContain("Sitemap: https://www.gecode.dev/doc/sitemap.xml");
+    expect(response.headers.get("cache-control")).toContain("max-age=300");
+    const head = await request("/robots.txt", { method: "HEAD" });
+    expect(await head.text()).toBe("");
+    expect(head.headers.get("content-length")).toBe(String(new TextEncoder().encode(body).byteLength));
   });
 
   it("supports HEAD and conditional requests", async () => {
@@ -128,6 +248,24 @@ describe("documentation worker", () => {
       headers: { "If-None-Match": head.headers.get("etag")! },
     });
     expect(cached.status).toBe(304);
+    expect(cached.headers.get("x-robots-tag")).toBe("noindex");
+    expect(cached.headers.get("link")).toBeNull();
+  });
+
+  it("keeps PDF indexing headers consistent on GET, HEAD, ranges and 304 responses", async () => {
+    const object = await env.DOCS.put("6.4.0/MPG.pdf", "0123456789", {
+      httpMetadata: { contentType: "application/pdf" },
+    });
+    for (const path of ["/doc/6.4.0/MPG.pdf", "/doc/latest/MPG.pdf", "/doc-latest/MPG.pdf", "https://docs-staging.gecode.dev/doc/latest/MPG.pdf"]) {
+      for (const init of [undefined, { method: "HEAD" }, { headers: { Range: "bytes=0-3" } }, { headers: { "If-None-Match": object.httpEtag } }]) {
+        const response = await request(path, init);
+        const canonical = path === "/doc/latest/MPG.pdf";
+        expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
+        expect(response.headers.get("link")).toBe(canonical
+          ? '<https://www.gecode.dev/doc/latest/MPG.pdf>; rel="canonical"'
+          : null);
+      }
+    }
   });
 
   it("supports byte and suffix ranges", async () => {

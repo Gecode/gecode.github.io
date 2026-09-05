@@ -1,3 +1,5 @@
+import robots from "../../../robots.txt";
+
 export interface Env {
   DOCS: R2Bucket;
   LATEST_DOC_VERSION: string;
@@ -108,11 +110,59 @@ function applyObjectHeaders(headers: Headers, object: R2Object, resolved: Resolv
       ? "public, max-age=300, s-maxage=300"
       : "public, max-age=3600, s-maxage=31536000, immutable",
   );
-  if (object.httpMetadata?.contentType?.toLowerCase().startsWith("text/html")) {
-    const canonicalPath = resolved.key.split("/").map(encodeURIComponent).join("/");
-    headers.set("Link", `<https://www.gecode.dev/doc/${canonicalPath}>; rel="canonical"`);
-  }
   for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+}
+
+function applyIndexingPolicy(request: Request, response: Response, env: Env): Response {
+  const url = new URL(request.url);
+  const decoded = safeDecodePath(url.pathname);
+  const resolved = resolvePath(url.pathname, env.LATEST_DOC_VERSION);
+  const indexable = url.origin === "https://www.gecode.dev"
+    && decoded?.startsWith("/doc/latest/")
+    && resolved !== null
+    && [200, 206, 304].includes(response.status);
+  const headers = new Headers(response.headers);
+  // Apply this after cache reads too: a previous deployment may have cached
+  // version-specific canonical links or different indexing instructions.
+  headers.delete("Link");
+  if (indexable) {
+    headers.delete("X-Robots-Tag");
+    if (/^(?:text\/html|application\/pdf)(?:;|$)/i.test(headers.get("Content-Type") ?? "")) {
+      const relative = resolved.key.slice(resolved.version.length + 1);
+      const canonicalPath = relative.split("/").map(encodeURIComponent).join("/");
+      headers.set("Link", `<https://www.gecode.dev/doc/latest/${canonicalPath}>; rel="canonical"`);
+    }
+  } else {
+    headers.set("X-Robots-Tag", "noindex");
+  }
+  return new Response(request.method === "HEAD" ? null : response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function sitemapResponse(request: Request, object: R2ObjectBody, resolved: ResolvedPath): Promise<Response> {
+  const source = await object.text();
+  const text = source.replaceAll(
+    `https://www.gecode.dev/doc/${resolved.version}/`,
+    "https://www.gecode.dev/doc/latest/",
+  );
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const headers = new Headers();
+  applyObjectHeaders(headers, object, resolved);
+  headers.set("Content-Type", "application/xml; charset=utf-8");
+  headers.set("Content-Length", String(bytes.byteLength));
+  headers.set("ETag", `"${hash}"`);
+  headers.delete("Accept-Ranges");
+  const validators = request.headers.get("If-None-Match")?.split(",").map((value) => value.trim().replace(/^W\//, ""));
+  if (validators?.some((value) => value === "*" || value === headers.get("ETag"))) {
+    return new Response(null, { status: 304, headers });
+  }
+  // XML ranges refer to the stored bytes, so serve the complete rewritten XML.
+  return new Response(request.method === "HEAD" ? null : bytes, { status: 200, headers });
 }
 
 async function serve(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
@@ -121,6 +171,15 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
   }
 
   const url = new URL(request.url);
+  if (url.pathname === "/robots.txt") {
+    return new Response(request.method === "HEAD" ? null : robots, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Length": String(new TextEncoder().encode(robots).byteLength),
+        "Cache-Control": "public, max-age=300, s-maxage=300",
+      },
+    });
+  }
   const redirect = (pathname: string) => {
     const destination = new URL(url);
     destination.pathname = pathname;
@@ -146,6 +205,9 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     && !request.headers.has("If-None-Match");
   const cacheUrl = new URL(request.url);
   cacheUrl.search = "";
+  // Do not reuse old sitemap bodies, or an alias entry from another release.
+  cacheUrl.searchParams.set("__gecode_docs_policy", "latest-index-v1");
+  cacheUrl.searchParams.set("__gecode_docs_version", resolved.version);
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   if (cacheableRequest) {
     try {
@@ -154,6 +216,18 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     } catch (error) {
       console.error(JSON.stringify({ event: "cache_read_failed", message: String(error) }));
     }
+  }
+
+  if (resolved.isAlias && /^sitemap(?:-\d+)?\.xml$/.test(resolved.key.slice(resolved.version.length + 1))) {
+    const object = await env.DOCS.get(resolved.key);
+    if (!object) return missingObject();
+    const response = await sitemapResponse(request, object, resolved);
+    if (cacheableRequest) {
+      context.waitUntil(caches.default.put(cacheKey, response.clone()).catch((error) => {
+        console.error(JSON.stringify({ event: "cache_write_failed", message: String(error) }));
+      }));
+    }
+    return response;
   }
 
   // Range applies only to GET. HEAD describes the complete representation.
@@ -222,6 +296,7 @@ export default {
       }));
       response = errorResponse(503, "Documentation is temporarily unavailable", { "Retry-After": "60" });
     }
+    response = applyIndexingPolicy(request, response, env);
     console.log(JSON.stringify({
       method: request.method,
       path: new URL(request.url).pathname,

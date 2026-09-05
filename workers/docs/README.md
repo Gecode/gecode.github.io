@@ -14,9 +14,12 @@ The bucket stores releases at its root:
 
 The Worker maps `/doc/<version>/...` directly to those keys. It maps both
 `/doc/latest/...` and `/doc-latest/...` to `LATEST_DOC_VERSION`; aliases are not
-copied into R2. HTML responses include an HTTP `Link` canonical that points to
-the immutable versioned URL. Search engines may index versioned documentation;
-`robots.txt` excludes both aliases to avoid duplicate indexing.
+copied into R2. Only production `/doc/latest/...` documentation is indexable,
+and its HTML canonical points to the corresponding latest URL. All immutable
+version URLs, including PDFs, carry `X-Robots-Tag: noindex`. The
+`/doc-latest/...` compatibility alias still serves content with HTTP 200 and
+`noindex`; staging documentation is also `noindex`. These paths remain
+crawlable so search engines can read the indexing headers.
 
 ## Local validation
 
@@ -160,6 +163,7 @@ described in the release contract. Existing alias responses can remain cached fo
 therefore bounded rather than instantaneous. Do not remove an older prefix.
 
 The Worker exposes the selected release's `sitemap.xml` at the stable
-`/doc/sitemap.xml` URL advertised by `robots.txt`. Sitemap shards and all page
-URLs remain immutable, versioned `/doc/<version>/...` URLs; aliases are not
-listed.
+`/doc/sitemap.xml` URL advertised by `robots.txt`. It rewrites sitemap index
+and shard responses to use only `/doc/latest/...` URLs. Stored immutable R2
+sitemaps may retain versioned URLs; those artifacts are never submitted
+directly and do not need to be republished when the indexing policy changes.

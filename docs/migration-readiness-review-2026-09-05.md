@@ -167,6 +167,19 @@ Production deployment smoke checks allow for the five-minute alias cache TTL.
 Email Routing is ready, but delivery-event access requires Zone Analytics Read;
 real delivery remains unverified.
 
+## Documentation indexing policy
+
+The requested policy is to index only `https://www.gecode.dev/doc/latest/...`.
+Versioned URLs, PDFs included, remain accessible with `X-Robots-Tag: noindex`.
+The `/doc-latest/...` compatibility alias and staging hosts also return noindex.
+Latest HTML and PDF responses identify their own latest URL as canonical.
+
+The Worker rewrites the selected sitemap responses to latest URLs while leaving
+immutable R2 artifacts intact. The shared robots file permits documentation
+crawling, because crawlers must fetch a URL to see its noindex header. The
+production Worker also serves `/robots.txt` so this policy can take effect before
+Astro is deployed. Search results will change as search engines recrawl the URLs.
+
 ## Gecode and MPG release plan
 
 Use the existing [release-support task list](/Users/zayenz/gecode/release-support/.zdev/cf/TASKS.md).
