@@ -15,8 +15,9 @@ small Pages fallback files.
 As checked on 5 September 2026, Cloudflare is authoritative for `gecode.dev`.
 Cloudflare proxies the apex GitHub Pages A records and the `www` CNAME to
 `gecode.github.io` with Full (strict) TLS and Always Use HTTPS. GitHub Pages
-still serves the active website. All nine historical documentation versions
-and both latest aliases now use R2. Astro has not been deployed.
+serves the Astro active website and mail archive. All nine historical
+documentation versions and both latest aliases use R2. Classic active-site
+URLs redirect to their canonical directory URLs through the redirect Worker.
 
 Cloudflare Email Routing is ready. Its managed MX, SPF, and DKIM records are
 authoritative, both forwarding destinations are verified, and the catch-all
@@ -39,17 +40,29 @@ records the local fixes, rollback build, verification limits and remaining
 work. Phases 2–4 below describe the original migration sequence; DNS delegation
 and infrastructure setup are largely complete. Staging deployment through
 GitHub and clean-checkout website CI pass. The website migration is merged
-in PR #7, with follow-up fixes in PRs #8 and #9; Pages remains manual.
+in PR #7, with follow-up fixes in PRs #8 and #9.
 Production deployment and canary cleanup passed. The final checks completed
-on 5 September at about 14:15 UTC. Continue with the one-day documentation
-soak; do not deploy Astro before 6 September, 16:30 Europe/Stockholm.
+on 5 September at about 14:15 UTC. The cutover gate is a fresh passing production smoke check, a review of
+Worker errors, passing website CI and a verified rollback archive. A fixed
+24-hour wait is not required; the owner approved proceeding on this basis.
+
+Astro deployment [33972798507](https://github.com/Gecode/gecode.github.io/actions/runs/33972798507)
+and redirect deployment [33973076305](https://github.com/Gecode/gecode.github.io/actions/runs/33973076305)
+succeeded on 5 September. All 23 canonical pages and classic redirects pass
+live checks, including query preservation. Archive search and thread reading
+work at mobile width; documentation smoke checks still pass. Redirect Worker version `1165ee03-782b-4f83-a687-0164a68d3087` is live. All twelve
+redirect routes fail open to Pages fallbacks; both documentation routes remain
+fail closed. The production redirect workflow sets and verifies this route
+setting on every deployment with `scripts/set-redirects-fail-open.mjs`.
+The pre-cutover Worker query reported 1,116 requests and zero
+execution errors from 14:10 to 14:45:53 UTC.
 
 ## Cutover overview
 
 Keep each traffic change separate. Finish the preparation and bulk transfer
 without changing production, move DNS while GitHub Pages still serves the
 entire old site, move documentation, and publish Astro only after the
-documentation path has soaked.
+documentation health checks pass and rollback is ready.
 
 | Phase | When | Mostly unattended work | Attended checkpoint | Safe state afterward |
 | --- | --- | --- | --- | --- |
@@ -57,8 +70,8 @@ documentation path has soaked.
 | 2. Prepare Cloudflare and GitHub | After phase 1; no maintenance window required | Create the pending zone, bucket, lifecycle rule, environments, and secrets. | Verify the Email Routing destinations and prepare the disabled routing Worker. | The public site is unchanged; Cloudflare has no traffic. |
 | 3. Copy documentation | After the R2 token exists; run overnight if useful | Upload and verify 6.4.0, then all historical immutable versions. | Review the manifests and representative files before DNS delegation. | GitHub Pages still serves production; R2 holds a verified copy. |
 | 4. Delegate DNS | In a short attended window after phases 2 and 3 | Wait for nameserver propagation and the Cloudflare zone to become active. | Test the website, TLS, apex redirect, and every mail alias. Restore the Namecheap nameservers if any of them fail. | GitHub Pages still serves the entire site through Cloudflare. No Worker production routes exist. |
-| 5. Move documentation | After DNS is stable; use a separate attended window | Let the production documentation routes soak for at least one day. | Test one version through the canary route, deploy the production routes, retest, and remove the canary. | R2 serves `/doc/*` and `/doc-latest/*`; GitHub Pages still contains the old documentation for quick rollback. |
-| 6. Publish Astro | After the documentation soak; use a separate attended window | Let the Pages deployment and monitoring run. | Deploy the reviewed Astro artifact and check the parity routes at desktop and mobile sizes. | Astro serves the website; R2 continues to serve documentation. Redeploy the previous Pages artifact to roll back Astro. |
+| 5. Move documentation | After DNS is stable; use a separate attended window | Check production documentation responses and Worker errors before proceeding. | Test one version through the canary route, deploy the production routes, retest, and remove the canary. | R2 serves `/doc/*` and `/doc-latest/*`; GitHub Pages still contains the old documentation for quick rollback. |
+| 6. Publish Astro | After documentation health checks pass; use a separate attended step | Let the Pages deployment and monitoring run. | Deploy the reviewed Astro artifact and check the parity routes at desktop and mobile sizes. | Astro serves the website; R2 continues to serve documentation. Redeploy the previous Pages artifact to roll back Astro. |
 | 7. Enable permanent active-site redirects | After Astro is confirmed healthy, either later that day or the next day | Monitor redirect and origin errors. | Deploy the redirect Worker and test every classic active-site `.html` URL. | Classic URLs return `308`; Pages fallback files remain available if the redirect Worker fails. |
 | 8. Add release automation and the web manual | After the cutover is stable | Build, validate, upload, and verify future documentation from release workflows. | Approve immutable publication and the separate `latest` change. | New Doxygen and modeling-manual releases follow the coordinated release pipeline. |
 
@@ -66,14 +79,15 @@ Phases 2 and 3 contain most of the work and can run while unattended. Phases 4
 through 7 are deliberately short and separated by stable, working states. At
 no point does a scheduled wait require `gecode.dev` to be unavailable.
 
-Do not deploy the active-site redirect Worker before phase 6. The current
-Jekyll origin serves `/download.html` and similar classic URLs but returns 404
+Do not deploy the active-site redirect Worker before phase 6. The pre-cutover
+Jekyll origin served `/download.html` and similar classic URLs but returned 404
 for their new directory forms. The Astro artifact includes fallback redirect
 files, so deploying the redirect Worker after Astro is safe.
 
-Keep the Pages deploy job manual-only throughout the migration. Pushes and pull
-requests still build and validate the artifact. Restore automatic default-branch
-deployment in a separate change after the Astro deployment is stable.
+Pages now deploys validated pushes to `main`; manual deployment from `main`
+remains available. Pull requests only build and check. Push and manual runs
+share concurrency for their branch so builds cannot publish out of order,
+and production deployments are serialized.
 
 The first R2 migration does not depend on the rewritten *Modeling and
 Programming with Gecode* site. Reserve `modeling/` in each release tree now and
@@ -358,7 +372,9 @@ bucket-wide deletion.
 During the first canary, remove the canary route to return that version to the
 existing GitHub Pages archive. Before the Astro cutover, remove the production
 documentation routes for the same rollback. If Astro itself must be rolled
-back, redeploy a retained, verified Pages artifact. New Pages artifacts have 30-day
+back, disable the Pages workflow and cancel pending/running push and manual
+deployments before restoring a retained, verified Pages artifact. Rerunning
+`pages.yml` rebuilds Astro; it does not restore the classic archive. New Pages artifacts have 30-day
 retention. The July 2026 artifact has expired; prepare the small classic-site
 rollback described below before the first cutover. Remove
 the redirect Worker while the old artifact is active because that artifact
@@ -385,7 +401,10 @@ the existing Bundler dependencies installed. It creates
 an existing output directory. The 5 September rehearsal produced 91,168,795
 uncompressed bytes. A verified copy is retained at
 `/Users/zayenz/gecode/website-rollback/classic-site-2026-07-15.tar.gz`;
-restore its contents as the Pages artifact when needed.
+restore its contents as the Pages artifact when needed. Executable restoration
+instructions are retained beside it as `restore-classic-pages.md`. They use a
+temporary payload branch and a manual restore workflow on `main`, preserving
+the existing Pages environment restrictions.
 
 Before Astro, removing the documentation routes restores the existing origin
 archive. After Astro, restore the previous Worker deployment for a serving

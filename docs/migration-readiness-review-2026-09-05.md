@@ -9,9 +9,11 @@ trees were preserved.
 
 DNS migration, full historical R2 verification, staging/canary checks and the
 production documentation cutover are complete. The final production checks
-passed on 5 September at about 14:15 UTC. Jekyll still serves the active website.
-Allow at least one day of documentation soak before the separate Astro cutover
-(no earlier than 6 September, 16:30 Europe/Stockholm). Future coordinated releases have a
+passed on 5 September at about 14:15 UTC. Astro and active-site redirects
+were subsequently deployed and verified on the same day.
+The owner approved proceeding after fresh production health checks, passing
+website CI and verification of the retained rollback archive; no fixed
+24-hour wait is required. Future coordinated releases have a
 working local preparation slice; their publication coordinator is unfinished.
 
 The hosting arrangement is Cloudflare DNS/proxy, Workers and private R2, with
@@ -24,12 +26,12 @@ or Workers is a separate project and is unnecessary for this cutover.
 | --- | --- |
 | DNS | Cloudflare nameservers `milan` and `tegan` are authoritative; the zone is active. MX and SPF use Cloudflare Email Routing. |
 | TLS | Cloudflare uses Full (strict) and Always Use HTTPS. Public HTTP redirects to HTTPS and the apex redirects to `www`. GitHub reports `https_enforced: false`; reconcile the origin setting separately. |
-| Production website | `/download.html` returns 200; `/download/` returns 404. Jekyll remains live. |
+| Production website | Astro is live. All 23 canonical pages return 200; their classic URLs return 308 with queries preserved. The twelve redirect routes fail open to Pages fallbacks. |
 | Production documentation | All nine historical versions and both aliases use R2. Only `/doc/latest/...` is indexable. The two production route patterns are fail-closed; the canary and superseded routes have been removed. |
 | Staging documentation | The reviewed Worker was deployed through GitHub. Its tests and live HTTP smoke checks pass for immutable 6.4.0, both aliases, canonical links, redirects, static assets and PDF range behavior. |
 | R2 | Public `r2.dev` access is disabled. The 14-day lifecycle applies only to staging. All nine archives were fully verified: 52,385 objects / 1,138,898,740 bytes, with no missing objects or hash failures. The 326 historical image-map MIME declarations are documented below. |
 | Email | Email Routing destinations and catch-all Worker configuration are present. Real delivery and delivery alerts were not exercised. |
-| GitHub | The latest production Pages run remains the [15 July deployment](https://github.com/Gecode/gecode.github.io/actions/runs/29430643821). The [5 September staging Worker run](https://github.com/Gecode/gecode.github.io/actions/runs/33964652752) passed. The migration is merged on `main`; clean-checkout [CI passed](https://github.com/Gecode/gecode.github.io/actions/runs/33967188164), with Pages deployment skipped. |
+| GitHub | [Astro deployment](https://github.com/Gecode/gecode.github.io/actions/runs/33972798507) and [redirect deployment](https://github.com/Gecode/gecode.github.io/actions/runs/33973076305) passed. Validated `main` pushes deploy automatically; PRs only build and check. |
 | Deployment credentials | All three Cloudflare environments now contain the account ID and dedicated `gecode-github-workers` token. Production accepts only `main` and `release/*-website` branches; the existing `zayenz` reviewer and approval settings were preserved. |
 
 ## Fixes completed
@@ -82,11 +84,11 @@ After Astro, recover the previous Worker deployment for serving failures.
 Changing `LATEST_DOC_VERSION` repairs aliases only, not explicit version URLs.
 Do not delete immutable R2 objects during rollback.
 
-## Remaining cutover sequence
+## Cutover sequence and completion
 
 1. **Website code landed.** The migration, archive and Worker changes are on
-   `main`, and clean-checkout CI passed. Pages deployment remains manual and
-   the classic rollback archive is retained outside the checkout. MPG and
+   `main`, and clean-checkout CI passed. The classic rollback archive and
+   executable restoration instructions are retained outside the checkout. MPG and
    release-support changes still need separate commits and producer rehearsal.
 2. **Deployment access verified.** The dedicated Worker token is installed in
    `cloudflare-staging`, `cloudflare-canary` and `cloudflare-production`.
@@ -97,20 +99,21 @@ Do not delete immutable R2 objects during rollback.
 3. **Operational checks partly complete.** Historical uploads and fail-closed
    documentation routes are verified. Native documentation logs are enabled.
    Real mail delivery and useful failure alerts remain to be checked; redirect
-   routes will be checked after Astro. Keep the current DNS delegation.
+   routes now have their verified fail-open setting. Keep the current DNS delegation.
 4. **Canary documentation verified.** The 6.4.0 deployment passed HTML, source
    folding, changelog fragment, CSS/JS/image, PDF ranges, missing paths,
-   canonical links and sitemap checks. Ordinary Jekyll pages remain unchanged.
+   canonical links and sitemap checks. Ordinary Jekyll pages stayed unchanged during this step.
 5. **Documentation moved.** Production routes, every historical version and
-   both aliases pass verification. The canary is removed. Allow at least one
-   day with the Jekyll origin still available as fallback before Astro.
-6. **Publish Astro.** Deploy `build:pages` from reviewed `main`. Verify ordinary
-   pages, downloads, publications, archive search/browsing and mobile layout,
-   plus R2 documentation. The Pages artifact must contain no documentation tree.
-7. **Enable redirects and routine updates.** Deploy the classic URL redirect
-   Worker only after directory routes work. Check query and fragment behavior;
-   documentation and archive `.html` URLs remain content. Once stable, enable
-   automatic `main` Pages deployment and record the deployed Worker revision.
+   both aliases pass verification. The canary is removed. Before Astro, check
+   public documentation and Worker errors again and verify the rollback archive.
+6. **Astro published.** The reviewed `main` artifact passed CI and deployed.
+   All 23 canonical pages, downloads, publications, archive search-to-thread
+   navigation and mobile layout pass. R2 documentation smoke checks pass.
+7. **Redirects and routine updates enabled.** All classic active-site URLs
+   redirect after the directory routes were verified. Documentation and archive
+   `.html` URLs remain content. Validated `main` pushes deploy automatically.
+   Production redirect deployments also set and verify route fail-open behavior.
+   Live redirect Worker version: `1165ee03-782b-4f83-a687-0164a68d3087`.
 
 The installed Worker token has Account Settings Read, Workers Scripts Write
 and Workers R2 Storage Read, plus Zone Read and Workers Routes Write scoped to
@@ -269,7 +272,7 @@ Completed locally:
 - The 91 MB classic rollback build from the exact July commit succeeds.
 
 Still required: a complete coordinated Gecode producer rehearsal, the
-documentation soak, Astro cutover, real mail delivery, and failure-alert setup.
+real mail delivery and failure-alert setup.
 Clean-checkout CI and internal lychee checks pass; nonblocking external checks
-include new Astro URLs that are not live yet and broken historical external links. The archive browser samples are not
+include broken historical external links. The archive browser samples are not
 an exhaustive accessibility or Lighthouse audit.
