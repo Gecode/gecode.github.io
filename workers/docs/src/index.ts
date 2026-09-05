@@ -185,7 +185,7 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     destination.pathname = pathname;
     return Response.redirect(destination.href, 308);
   };
-  if (url.pathname === "/doc" || url.pathname === "/doc/") return redirect("/documentation/");
+  if (url.pathname === "/doc" || url.pathname === "/doc/") return redirect("/documentation.html");
   const resolved = resolvePath(url.pathname, env.LATEST_DOC_VERSION);
   if (!resolved) return errorResponse(400, "Invalid documentation path");
 
@@ -285,6 +285,18 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
 
 export default {
   async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const ownsPath = pathname === "/robots.txt"
+      || pathname === "/doc" || pathname.startsWith("/doc/")
+      || pathname === "/doc-latest" || pathname.startsWith("/doc-latest/");
+    // Wildcard routes also receive /documentation.html and similarly named
+    // website paths. Leave their origin response and indexing headers intact.
+    if (!ownsPath) {
+      if (url.hostname === "www.gecode.dev") return fetch(request);
+      return applyIndexingPolicy(request, errorResponse(404, "Page not found"), env);
+    }
+
     let response: Response;
     try {
       response = await serve(request, env, context);
