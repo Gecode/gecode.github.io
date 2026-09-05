@@ -1,0 +1,38 @@
+name: Verify documentation staging
+on:
+  push:
+    branches: [codex/verify-docs-staging-20260905]
+permissions:
+  contents: read
+concurrency:
+  group: edge-workers-staging
+  cancel-in-progress: false
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    environment: cloudflare-staging
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check staging destination
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('workers/docs/wrangler.jsonc', 'utf8'));
+          assert.equal(config.name, 'gecode-documentation-staging');
+          assert.deepEqual(config.routes, [{pattern: 'docs-staging.gecode.dev', custom_domain: true}]);
+          JS
+      - name: Validate documentation Worker
+        run: npm run test:docs-worker && npm run check:docs-worker
+      - name: Deploy documentation Worker to staging
+        run: npx wrangler deploy --env="" --config workers/docs/wrangler.jsonc
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Verify deployed documentation
+        run: node scripts/docs/smoke-worker.mjs https://docs-staging.gecode.dev 6.4.0

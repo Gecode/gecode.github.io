@@ -1,24 +1,51 @@
 {
   "name": "gecode-github-io",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "build:css": "npx @tailwindcss/cli -i ./assets/css/tailwind.css -o ./assets/css/site.css --minify",
-    "build:setup": "./scripts/setup-jekyll.sh",
-    "build:site": "BUNDLE_PATH=vendor/bundle bundle exec jekyll build --destination ./_site",
-    "build": "npm run build:css && npm run build:setup && npm run build:site",
+    "prepare:static": "node ./scripts/prepare-static.mjs",
+    "build": "npm run prepare:static && astro build && node ./scripts/create-sitemap-alias.mjs && node ./scripts/create-classic-redirects.mjs",
+    "build:pages": "npm run build && node ./scripts/copy-users-archive.mjs",
+    "build:deploy": "npm run build && node ./scripts/copy-archives.mjs",
     "check:html": "./scripts/check-html.sh",
-    "check:css": "./scripts/check-generated-css.sh",
+    "check:canonical-urls": "node ./scripts/check-canonical-urls.mjs",
+    "check:site-semantics": "node ./scripts/check-site-semantics.mjs",
+    "check:docs-hosting": "npm run test:docs-tools && npm run test:docs-worker && npm run check:docs-worker",
+    "check:docs-worker": "wrangler deploy --dry-run --env canary --config workers/docs/wrangler.jsonc --outdir .wrangler/docs-canary-dry-run && wrangler deploy --dry-run --env production --config workers/docs/wrangler.jsonc --outdir .wrangler/docs-dry-run",
+    "check:email-worker": "wrangler deploy --dry-run --config workers/email/wrangler.jsonc --outdir .wrangler/email-dry-run",
+    "check:redirect-worker": "wrangler deploy --dry-run --env production --config workers/redirects/wrangler.jsonc --outdir .wrangler/redirects-dry-run",
     "check:mode": "./scripts/check-executable-bits.sh",
-    "check:quality": "npm run build && npm run check:css && npm run check:mode && npm run check:html",
-    "watch:css": "npx @tailwindcss/cli -i ./assets/css/tailwind.css -o ./assets/css/site.css --watch",
-    "serve:jekyll": "BUNDLE_PATH=vendor/bundle bundle exec jekyll serve --livereload --incremental",
-    "dev:setup": "./scripts/setup-jekyll.sh",
-    "dev": "npm run dev:setup && concurrently --names \"css,jekyll\" --prefix-colors \"green,blue\" \"npm:watch:css\" \"npm:serve:jekyll\""
+    "check:quality": "npm run build && npm run check:mode && npm run check:html && npm run check:canonical-urls && npm run check:site-semantics && npm run test:content && npm run check:docs-hosting && npm run test:redirect-worker && npm run check:redirect-worker && npm run test:email-worker && npm run check:email-worker",
+    "dev": "node ./scripts/dev.mjs",
+    "preview": "astro preview",
+    "test:docs-tools": "node --test scripts/docs/*.test.mjs",
+    "test:content": "node --test src/lib/*.test.mjs",
+    "test:docs-worker": "vitest run --config workers/docs/vitest.config.mts",
+    "test:email-worker": "vitest run --config workers/email/vitest.config.mts",
+    "test:redirect-worker": "vitest run --config workers/redirects/vitest.config.mts"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.1.0",
-    "concurrently": "^9.2.1",
-    "html-validate": "^10.7.0",
-    "tailwindcss": "^4.1.0"
+    "@astrojs/react": "^6.0.2",
+    "@astrojs/sitemap": "^3.7.3",
+    "@cloudflare/vitest-pool-workers": "^0.20.3",
+    "@cloudflare/workers-types": "^5.20260809.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.2.0",
+    "html-validate": "^10.17.0",
+    "pagefind": "^1.5.2",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.120.0"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "overrides": {
+    "minimatch": "^10.2.4"
   }
 }
