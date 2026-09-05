@@ -243,8 +243,15 @@ Worker route remains sufficient rollback.
    The narrow canary route is more specific than `/doc/*` and would otherwise
    keep intercepting that version.
 
-The production documentation routes are `/doc`, `/doc/*`, `/doc-latest`,
-`/doc-latest/*` and `/robots.txt`. The Worker serves the same checked-in robots
+The production route patterns are `www.gecode.dev/doc*` and
+`www.gecode.dev/robots.txt*`. Cloudflare matches query strings too, so the
+trailing wildcards cover bare entry points with queries. The Worker handles
+only `/doc`, `/doc/...`, `/doc-latest`, `/doc-latest/...` and `/robots.txt`;
+it passes other matching website paths through to the origin unchanged.
+`/doc` redirects to `/documentation.html`, which works during the classic-site
+soak and through the Astro fallback afterward.
+
+The Worker serves the same checked-in robots
 file as Astro so the indexing policy takes effect before the website cutover.
 It selects aliases through `LATEST_DOC_VERSION`; it does not copy alias objects.
 Only `https://www.gecode.dev/doc/latest/...` is indexable. Versioned URLs remain

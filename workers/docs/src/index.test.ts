@@ -317,7 +317,53 @@ describe("documentation worker", () => {
       expect(response.headers.get("location")).toBe(`${base}${path}/?view=1`);
     }
     expect((await request("/doc/6.4.0/missing-directory")).status).toBe(404);
-    expect((await request("/doc")).headers.get("location")).toBe(`${base}/documentation/`);
+    for (const path of ["/doc", "/doc/", "/doc?smoke=1", "/doc/?smoke=1"]) {
+      const response = await request(path);
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe(`${base}/documentation.html${path.includes("?") ? "?smoke=1" : ""}`);
+    }
+  });
+
+  it("passes neighboring website paths through without changing requests or responses", async () => {
+    const originFetch = vi.spyOn(globalThis, "fetch");
+    try {
+      for (const [path, method, status] of [
+        ["/documentation.html?smoke=1", "GET", 200],
+        ["/documentation/", "HEAD", 404],
+        ["/documents/submit?draft=1", "POST", 201],
+        ["/doc-latest-news.html", "GET", 200],
+        ["/robots.txt.bak?download=1", "GET", 404],
+      ] as const) {
+        const incoming = new Request(`${base}${path}`, {
+          method, headers: { "X-Request-Test": "preserved" },
+          body: method === "POST" ? "submission bytes" : undefined,
+        });
+        const upstream = new Response(method === "HEAD" ? null : "origin content", {
+          status,
+          headers: {
+            "Content-Type": "text/html",
+            "X-Robots-Tag": "index, follow",
+            Link: '<https://www.gecode.dev/documentation/>; rel="canonical"',
+          },
+        });
+        originFetch.mockResolvedValueOnce(upstream);
+        const context = createExecutionContext();
+        const response = await worker.fetch(incoming, env, context);
+        await waitOnExecutionContext(context);
+        expect(originFetch).toHaveBeenLastCalledWith(incoming);
+        expect(response).toBe(upstream);
+        expect(response.status).toBe(status);
+        expect(response.headers.get("x-robots-tag")).toBe("index, follow");
+        expect(response.headers.get("link")).toBe('<https://www.gecode.dev/documentation/>; rel="canonical"');
+        if (method === "POST") expect(await incoming.text()).toBe("submission bytes");
+      }
+      const staging = await request("https://docs-staging.gecode.dev/documentation.html");
+      expect(staging.status).toBe(404);
+      expect(staging.headers.get("x-robots-tag")).toBe("noindex");
+      expect(originFetch).toHaveBeenCalledTimes(5);
+    } finally {
+      originFetch.mockRestore();
+    }
   });
 
   it("returns explicit errors", async () => {
@@ -325,7 +371,7 @@ describe("documentation worker", () => {
     const method = await request("/doc/6.4.0/index.html", { method: "POST" });
     expect(method.status).toBe(405);
     expect(method.headers.get("allow")).toBe("GET, HEAD");
-    expect((await request("/doc/%2e%2e/secret")).status).toBe(400);
+    expect((await request("/doc/6.4.0/%")).status).toBe(400);
     expect((await request("/doc/6.4.0/%252e%252e/secret")).status).toBe(400);
     expect((await request("/doc/6.4.0/reference%2fPageChange.html")).status).toBe(400);
   });

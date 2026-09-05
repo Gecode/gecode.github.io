@@ -46,8 +46,20 @@ for (const prefix of immutableOnly ? [`/doc/${version}`] : [`/doc/${version}`, "
 
 if (!immutableOnly) {
   await check("/doc?smoke=1", 308, {}, (response) => {
-    assert.equal(response.headers.get("location"), `${origin}/documentation/?smoke=1`);
+    assert.equal(response.headers.get("location"), `${origin}/documentation.html?smoke=1`);
   });
+  await check("/robots.txt?smoke=1", 200, {}, async (response) => {
+    assert.match(response.headers.get("content-type"), /text\/plain/);
+    const body = await response.text();
+    assert.doesNotMatch(body, /^Disallow:\s*\/doc(?:\/latest|-latest)/m);
+    assert.match(body, /^Sitemap: https:\/\/www\.gecode\.dev\/doc\/sitemap\.xml$/m);
+  });
+  if (production) {
+    await check("/documentation.html?smoke=1", 200, { redirect: "follow" }, (response) => {
+      assertNoindex(response, false);
+      assert.equal(response.headers.get("x-gecode-documentation-version"), null);
+    });
+  }
 }
 await check(`/doc/${version}/reference/doxygen.css`, 200, {}, (response) => {
   assert.match(response.headers.get("content-type"), /text\/css/);

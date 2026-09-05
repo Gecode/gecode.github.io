@@ -29,8 +29,8 @@ The active Astro site remains free on GitHub Pages.
 
 ```text
 www.gecode.dev/*                  GitHub Pages (Astro)
-www.gecode.dev/doc/*              Cloudflare Worker route
-www.gecode.dev/doc-latest/*       Cloudflare Worker route
+www.gecode.dev/doc*               Cloudflare Worker route
+www.gecode.dev/robots.txt*        Cloudflare Worker route
                                       |
                                       v
                               private R2 bucket
@@ -221,7 +221,9 @@ versioned key in R2.
 - Proxy the `www` record while retaining its GitHub Pages CNAME origin.
 - Test the staging custom domain, then deploy the checked-in canary environment.
 - After the canary passes, install the production routes for
-  `www.gecode.dev/doc/*` and `www.gecode.dev/doc-latest/*`.
+  `www.gecode.dev/doc*` and `www.gecode.dev/robots.txt*`. The trailing wildcard
+  includes query strings; the Worker passes similarly prefixed website paths
+  outside its documentation namespace to the origin unchanged.
 - Remove the canary after the production smoke test so its more-specific route
   no longer intercepts the selected version.
 - Compare status, body digest, MIME type, cache headers, and range behavior

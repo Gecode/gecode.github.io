@@ -21,6 +21,13 @@ version URLs, including PDFs, carry `X-Robots-Tag: noindex`. The
 `noindex`; staging documentation is also `noindex`. These paths remain
 crawlable so search engines can read the indexing headers.
 
+Production routes use `doc*` and `robots.txt*` because Cloudflare matches query
+strings against route patterns. Requests outside the exact documentation
+namespaces, such as `/documentation.html`, pass through to the production
+origin without documentation indexing headers. Unknown staging paths return
+404, avoiding a fetch back into the custom-domain Worker. The `/doc` landing
+redirect uses `/documentation.html`, which exists before and after Astro.
+
 ## Local validation
 
 Run all Worker integration tests and compile the production configuration:
