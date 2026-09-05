@@ -30,7 +30,7 @@ npm run check:docs-worker
 The tests use a local R2 implementation. They do not require Cloudflare
 credentials and do not make network requests.
 
-## Prepare a release
+## Prepare a manifest
 
 Assemble a clean release tree, create its page inventory, write the sitemap
 index and shards into that tree, and then create the immutable publication
@@ -57,6 +57,13 @@ The manifest command refuses symbolic links. This is why it must receive a
 clean release directory, never `doc/latest` or `doc-latest`. The second
 manifest includes `sitemap.xml` and its shards, so publication and later
 verification cannot omit them.
+
+## Historical migration publisher
+
+For ordinary releases, follow [the release contract](../../docs/gecode-release-pipeline.md).
+The commands below are historical migration tools, not the coordinated release
+path. Run only one publisher for any version. Promotion requires rclone 1.75.0
+or newer for conditional R2 manifest writes.
 
 Bulk uploads use `rclone`, which is better suited to tens of thousands of
 objects than one-object-at-a-time Wrangler uploads. The publishing command is
@@ -98,24 +105,45 @@ node scripts/docs/promote-version.mjs \
   --confirm-promotion
 ```
 
-Promotion verifies the staged objects, copies them to the final immutable
-prefix, verifies the final objects again, and stores the reviewed manifest at
-`_manifests/<version>.json`. A final release can also be checked later by
+Promotion first rejects a conflicting completion manifest. An identical
+completed release is verified without requiring staging or writing objects.
+For an unfinished release it verifies staged content and any matching partial
+final tree before copying, then verifies the final tree and conditionally
+creates `_manifests/<version>.json`. The readback must match exactly. It never
+extends a completed version or replaces an existing completion manifest. A final release can also be checked later by
 downloading that manifest and replacing `--build-id ...` with `--final` in the
 verification command.
 
 ## Provision and deploy
 
-The bucket, DNS proxy, secrets, and billing alerts are intentionally not
-created by this repository. Both Workers read the same private production
-bucket; only their routes and selected `latest` versions differ. After an
+The bucket, lifecycle rule, DNS proxy, Email Routing, secrets, and billing
+alerts are intentionally not created by this repository. The staging, canary,
+and production Workers read the same private production bucket; only their
+routes and selected `latest` versions differ. Configure the bucket to expire
+`staging/` keys after 14 days. After an
 operator creates the bucket named in `wrangler.jsonc` and the
 `docs-staging.gecode.dev` Worker custom domain:
 
 ```sh
 npx wrangler deploy --env="" --config workers/docs/wrangler.jsonc
+npx wrangler deploy --env canary --config workers/docs/wrangler.jsonc
 npx wrangler deploy --env production --config workers/docs/wrangler.jsonc
 ```
+
+The checked-in canary environment owns only the current immutable version
+route, such as `/doc/6.4.0/*`. Update both the route and
+`LATEST_DOC_VERSION` before each canary deployment. Do not create a temporary
+dashboard route: a later Wrangler deployment would replace it. Remove the
+canary after the production smoke test because its more-specific route takes
+precedence over the production `/doc/*` route:
+
+```sh
+npx wrangler delete --env canary --config workers/docs/wrangler.jsonc --force
+```
+
+The `Deploy edge workers` workflow exposes the same action as
+`remove-canary`. Select the `canary` environment and `documentation` Worker
+when deploying or removing the canary.
 
 After promotion, test the explicit immutable version through the proxied
 `docs-staging.gecode.dev/doc/<version>/...` route before selecting it as
@@ -125,9 +153,10 @@ During the first production canary, keep the documentation in the GitHub Pages
 artifact. Removing the documentation Worker routes then restores the current
 origin without rebuilding the site.
 
-To select a new release, change `LATEST_DOC_VERSION` in both Wrangler
-environments, deploy staging, run smoke tests, and deploy production. Existing
-alias responses can remain cached for at most five minutes; the promotion is
+For a Worker-code change, validate staging before production. For an ordinary
+content release, verify the immutable version through the existing production
+Worker, then deploy its approved production `LATEST_DOC_VERSION` selection as
+described in the release contract. Existing alias responses can remain cached for at most five minutes; the promotion is
 therefore bounded rather than instantaneous. Do not remove an older prefix.
 
 The Worker exposes the selected release's `sitemap.xml` at the stable

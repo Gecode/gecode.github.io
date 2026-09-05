@@ -3,6 +3,14 @@ name: Deploy edge workers
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Deployment operation
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - remove-canary
       environment:
         description: Cloudflare environment
         required: true
@@ -10,16 +18,18 @@ on:
         type: choice
         options:
           - staging
+          - canary
           - production
       worker:
         description: Worker to deploy
         required: true
-        default: both
+        default: documentation
         type: choice
         options:
           - both
           - documentation
           - redirects
+          - email
 
 permissions:
   contents: read
@@ -34,6 +44,35 @@ jobs:
     runs-on: ubuntu-latest
     environment: cloudflare-${{ inputs.environment }}
     steps:
+      - name: Validate production ref
+        if: inputs.environment == 'production'
+        env:
+          DEPLOY_REF: ${{ github.ref }}
+          DEPLOY_WORKER: ${{ inputs.worker }}
+        run: |
+          if [[ "$DEPLOY_REF" == refs/heads/main ]]; then exit 0; fi
+          if [[ "$DEPLOY_WORKER" == documentation && "$DEPLOY_REF" =~ ^refs/heads/release/[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?-website$ ]]; then exit 0; fi
+          echo "Production requires main, or an approved release website branch for documentation." >&2
+          exit 2
+
+      - name: Validate operation
+        if: inputs.operation == 'remove-canary' && inputs.environment != 'canary'
+        run: |
+          echo "remove-canary requires the canary environment" >&2
+          exit 2
+
+      - name: Validate canary worker
+        if: inputs.environment == 'canary' && inputs.worker != 'documentation'
+        run: |
+          echo "canary operations require the documentation worker" >&2
+          exit 2
+
+      - name: Validate email environment
+        if: inputs.worker == 'email' && inputs.environment != 'production'
+        run: |
+          echo "the email worker is deployed only through the production environment" >&2
+          exit 2
+
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -54,21 +93,59 @@ jobs:
         if: inputs.worker == 'both' || inputs.worker == 'redirects'
         run: npm run test:redirect-worker && npm run check:redirect-worker
 
+      - name: Validate email Worker
+        if: inputs.worker == 'email'
+        run: npm run test:email-worker && npm run check:email-worker
+
       - name: Deploy documentation Worker to staging
-        if: inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
         run: npx wrangler deploy --env="" --config workers/docs/wrangler.jsonc
 
+      - name: Verify staging documentation
+        if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).vars.LATEST_DOC_VERSION")
+          for attempt in 1 2 3 4 5 6; do
+            if node scripts/docs/smoke-worker.mjs https://docs-staging.gecode.dev "$version"; then exit 0; fi
+            if [ "$attempt" -eq 6 ]; then exit 1; fi
+            echo "Waiting for the staging deployment to propagate (attempt $attempt)."
+            sleep 10
+          done
+
       - name: Deploy documentation Worker to production
-        if: inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'documentation')
         run: npx wrangler deploy --env production --config workers/docs/wrangler.jsonc
 
+      - name: Deploy documentation Worker to canary
+        if: inputs.operation == 'deploy' && inputs.environment == 'canary' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        run: npx wrangler deploy --env canary --config workers/docs/wrangler.jsonc
+
+      - name: Verify documentation canary
+        if: inputs.operation == 'deploy' && inputs.environment == 'canary' && inputs.worker == 'documentation'
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).env.canary.vars.LATEST_DOC_VERSION")
+          for attempt in 1 2 3 4 5 6; do
+            if node scripts/docs/smoke-worker.mjs https://www.gecode.dev "$version" --immutable-only; then exit 0; fi
+            if [ "$attempt" -eq 6 ]; then exit 1; fi
+            echo "Waiting for the canary deployment to propagate (attempt $attempt)."
+            sleep 10
+          done
+
+      - name: Remove documentation canary
+        if: inputs.operation == 'remove-canary'
+        run: npx wrangler delete --env canary --config workers/docs/wrangler.jsonc --force
+
       - name: Deploy redirect Worker to staging
-        if: inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'redirects')
         run: npx wrangler deploy --env="" --config workers/redirects/wrangler.jsonc
 
       - name: Deploy redirect Worker to production
-        if: inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
         run: npx wrangler deploy --env production --config workers/redirects/wrangler.jsonc
+
+      - name: Deploy email Worker to production
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && inputs.worker == 'email'
+        run: npx wrangler deploy --config workers/email/wrangler.jsonc
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

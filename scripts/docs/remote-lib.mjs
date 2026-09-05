@@ -26,7 +26,7 @@ export async function runRclone(args) {
   if (exitCode !== 0) throw new Error(`rclone exited with status ${exitCode ?? "unknown"}`);
 }
 
-async function captureRclone(args) {
+async function captureRclone(args, { allowMissing = false } = {}) {
   const child = spawn("rclone", args, { stdio: ["ignore", "pipe", "inherit"] });
   let output = "";
   child.stdout.setEncoding("utf8");
@@ -35,12 +35,20 @@ async function captureRclone(args) {
     child.on("error", reject);
     child.on("close", resolve);
   });
+  if (allowMissing && (exitCode === 3 || exitCode === 4)) return null;
   if (exitCode !== 0) throw new Error(`rclone exited with status ${exitCode ?? "unknown"}`);
   return output;
 }
 
-export async function readRemoteFile(remotePath) {
-  return captureRclone(["cat", remotePath]);
+export async function readRemoteFile(remotePath, options) {
+  return captureRclone(["cat", remotePath], options);
+}
+
+export async function requireConditionalUploadSupport() {
+  const version = (await captureRclone(["version"])).match(/^rclone v(\d+)\.(\d+)\./m);
+  if (!version || Number(version[1]) < 1 || (Number(version[1]) === 1 && Number(version[2]) < 75)) {
+    throw new Error("rclone 1.75.0 or newer is required for conditional R2 manifest writes");
+  }
 }
 
 export async function loadAndVerifyManifest(manifestPath, root, version) {
@@ -55,7 +63,7 @@ export async function loadAndVerifyManifest(manifestPath, root, version) {
   return expected;
 }
 
-export async function verifyRemoteManifest(remotePath, expectedManifest) {
+export async function verifyRemoteManifest(remotePath, expectedManifest, { allowPartial = false } = {}) {
   const listing = JSON.parse(await captureRclone([
     "lsjson",
     remotePath,
@@ -63,7 +71,7 @@ export async function verifyRemoteManifest(remotePath, expectedManifest) {
     "--files-only",
     "--metadata",
     "--hash",
-  ]));
+  ], { allowMissing: allowPartial }) ?? "[]");
   const expectedByPath = new Map(expectedManifest.files.map((file) => [file.path, file]));
   const compatibleContentType = (actual, expected) => {
     if (expected === "application/octet-stream") return Boolean(actual);
@@ -73,7 +81,7 @@ export async function verifyRemoteManifest(remotePath, expectedManifest) {
     return new Set([actualBase, expectedBase]).size === 2
       && [actualBase, expectedBase].every((value) => value === "text/javascript" || value === "application/javascript");
   };
-  if (listing.length !== expectedByPath.size) throw new Error(`Remote object count differs at ${remotePath}`);
+  if (!allowPartial && listing.length !== expectedByPath.size) throw new Error(`Remote object count differs at ${remotePath}`);
   for (const remoteObject of listing) {
     const expected = expectedByPath.get(remoteObject.Path);
     if (!expected) throw new Error(`Unexpected remote object: ${remoteObject.Path}`);
@@ -81,6 +89,13 @@ export async function verifyRemoteManifest(remotePath, expectedManifest) {
     if (!compatibleContentType(remoteObject.MimeType, expected.contentType)) {
       throw new Error(`Remote content type differs for ${remoteObject.Path}: ${remoteObject.MimeType ?? "missing"}`);
     }
+  }
+
+  if (allowPartial) {
+    const present = new Set(listing.map((object) => object.Path));
+    const files = expectedManifest.files.filter((file) => present.has(file.path));
+    expectedManifest = { ...expectedManifest, files, fileCount: files.length, totalBytes: files.reduce((sum, file) => sum + file.bytes, 0) };
+    if (files.length === 0) return;
   }
 
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "gecode-doc-verify-"));

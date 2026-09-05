@@ -1,65 +1,104 @@
 # Gecode release documentation pipeline
 
-The Gecode source repository should build and publish documentation as part of
-its GitHub release workflow. This website repository supplies the publication
-tools and owns the serving Worker; it should not rebuild documentation from
-vendored output.
+This document defines the intended steady-state release path after the Astro and
+Cloudflare migration. Implementation is tracked in release-support’s `cf-001`
+through `cf-005`; the current coordinator is not yet ready for this path. The one-time migration and DNS cutover are covered in
+the [deployment runbook](deployment-runbook.md).
 
-## Release contract
+Release-support is the publication authority. It coordinates the Gecode
+source release, *Modeling and Programming with Gecode* (MPG), this website,
+and Cloudflare. It must publish and verify the documentation before the Gecode
+GitHub release becomes public. A `release.published` event may run
+post-publication checks, but it must not start the authoritative release.
 
-A release job must assemble one clean directory with this shape:
+This coordination is one-way. A Gecode release requires changes and deployment
+work in the website repository, but an ordinary website change does not enter
+the Gecode release process. The website is expected to deploy much more often
+than Gecode releases.
+
+## Ownership and release contract
+
+The repositories have separate responsibilities:
+
+- Gecode produces publication-ready Doxygen HTML and the matching tag file
+  from the exact approved source revision.
+- MPG produces its versioned modeling website and PDF from the exact approved
+  MPG revision.
+- Release-support pins both inputs, builds them once, assembles the combined
+  tree, publishes it to R2, and coordinates public release operations.
+- This website owns the documentation manifest and sitemap formats, the
+  documentation Worker, and the Pages and Worker deployment workflows. It does
+  not contain or rebuild generated documentation.
+
+The release job assembles one clean directory:
 
 ```text
 release-tree/
   reference/       Doxygen output
-  modeling/        Modeling and Programming HTML output
-  MPG.pdf           PDF manual, while published
+  modeling/        MPG website
+  MPG.pdf           MPG PDF
 ```
 
-The job derives the version from the release tag and rejects a mismatch with
-the generated Gecode version. Each producer may build independently, but the
-job publishes only after the combined tree passes internal-link validation.
+The pinned Gecode and MPG versions, commits, and tool versions must agree with
+the coordinated release state. Generated output must already be ready for its
+final URL. Fix generators in their producer repositories; do not patch
+Doxygen or MPG HTML in the ordinary release-support path.
 
-The current CMake build creates Doxygen output with:
+## Build the producer artifacts once
+
+The Gecode CMake build creates Doxygen output with:
 
 ```sh
 cmake -S . -B build-docs
 cmake --build build-docs --target doc
 ```
 
-Its output is `build-docs/doc/html/`, which becomes `release-tree/reference/`.
-Add the modeling-manual generator as a second producer when its command and
-output contract stabilize.
+Copy `build-docs/doc/html/` to `release-tree/reference/`.
 
-## GitHub job boundary
+Use MPG's release packaging contract to create its versioned bundle. Copy the
+packaged modeling site to `release-tree/modeling/` and the matching PDF to
+`release-tree/MPG.pdf`. Validate MPG's own release manifest before assembling
+the combined tree.
 
-Run publication on the `release.published` event in a protected
-`documentation-production` environment. The job should:
+Release-support builds these artifacts from its pinned inputs. Producer CI may
+validate the same inputs, but its output is not a second source of publication
+bytes.
 
-1. Check out the exact release tag.
-2. Build Doxygen and the HTML modeling manual.
-3. Assemble and validate `release-tree/`.
-4. Check out a pinned revision of this website repository as tooling.
-5. Run the generated-HTML compatibility patch and validate its output.
-6. Create a page manifest, write the documentation sitemap into the release
-   tree, and create the final SHA-256 manifest.
-7. Upload to `staging/<run-id>/<version>` in R2.
-8. Re-download the entire staged tree and verify its manifest and MIME types.
-9. Promote it to the immutable `<version>/` prefix.
-10. Re-download and verify the promoted tree.
-11. Persist the reviewed manifest at `_manifests/<version>.json`.
+## Use a pinned website revision as tooling
 
-Steps 5–10 are implemented by `scripts/docs/`. The upload and promotion
-commands require separate confirmation flags, so a malformed build cannot
-reach the final prefix through an omitted default.
+Check out a reviewed commit of this repository as `website-tools`. Do not run
+production release tooling from a moving branch. Use that checkout only to
+create the page manifest, documentation sitemaps, and final manifest:
 
-Use these GitHub environment secrets:
+```sh
+node website-tools/scripts/docs/create-manifest.mjs \
+  --root release-tree --version "$VERSION" --output pages-manifest.json
+
+node website-tools/scripts/docs/create-sitemaps.mjs \
+  --manifest pages-manifest.json --output release-tree
+
+node website-tools/scripts/docs/create-manifest.mjs \
+  --root release-tree --version "$VERSION" --output manifest.json
+```
+
+Record the website-tool commit and final manifest digest in release state.
+The final manifest's SHA-256 values identify the approved local release tree;
+do not describe them as hashes recomputed by R2.
+
+The ordinary release must not invoke this repository's historical Doxygen
+patcher, staging publisher, staging verifier, or promotion scripts. Those
+scripts may remain useful for the one-time migration of historical content,
+but they are not the steady-state release contract.
+
+## Publish the immutable tree to R2
+
+Release-support owns the bucket-scoped R2 object credentials:
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 
-Configure rclone from environment variables rather than writing a credential
+Configure rclone from environment variables instead of writing a credential
 file to the runner:
 
 ```yaml
@@ -72,56 +111,127 @@ env:
   RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
 ```
 
-The R2 token should have object read/write access only to the documentation
-bucket. It does not need DNS, Worker, or account-administration permissions.
+The token needs object read/write access only to the documentation bucket. It
+does not need DNS, Worker, or account-administration permissions. Cloudflare
+does not provide a persistent bucket token that can upload without also being
+able to list and delete objects, so protect and rotate this credential. Prefer
+short-lived, prefix-scoped credentials if the workflow can mint them.
 
-The central publication commands are:
+Copy the combined tree directly to the immutable `<version>/` prefix with
+`rclone copy` and immutable semantics. Never use `sync`: publication must not
+delete remote objects. Refuse to overwrite an existing object with different
+content. A retry may resume a partial upload only when every existing object
+matches the approved local tree.
 
-```sh
-node website-tools/scripts/docs/patch-doxygen-html.mjs \
-  release-tree/reference
+After upload, run `rclone check` against the final prefix. Require all of the
+following without downloading the complete tree:
 
-node website-tools/scripts/docs/create-manifest.mjs \
-  --root release-tree --version "$VERSION" --output pages-manifest.json
+- the complete relative-path set matches;
+- every object size matches; and
+- every object MD5 matches between the local and R2 backends.
 
-node website-tools/scripts/docs/create-sitemaps.mjs \
-  --manifest pages-manifest.json --output release-tree
+These documentation files use ordinary single-part uploads, so a missing
+common hash or a size-only result is a publication failure. Do not make a
+staging-to-final copy and do not re-download the full tree during an ordinary
+release.
 
-node website-tools/scripts/docs/create-manifest.mjs \
-  --root release-tree --version "$VERSION" --output manifest.json
+Check any existing completion record before writing release objects. A completed
+identical version is verification-only; a conflicting completed version fails.
+Run one publisher per version. For R2 completion records, rclone 1.75.0 or newer
+supports `--header-upload "If-None-Match: *"`; combine that with
+`--ignore-existing` and exact readback. Do not rely on `copyto --immutable` to
+protect the manifest.
 
-node website-tools/scripts/docs/publish-version.mjs \
-  --root release-tree --version "$VERSION" --manifest manifest.json \
-  --build-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-  --remote r2:gecode-documentation --confirm-upload
+Only after the final prefix passes the check, write
+`_manifests/<version>.json` as its completion record and read that exact object
+back. An existing conflicting object or manifest stops publication without
+deleting or replacing anything. Record the immutable version, object count,
+total bytes, final manifest digest, and website-tool commit.
 
-node website-tools/scripts/docs/verify-version.mjs \
-  --version "$VERSION" --manifest manifest.json \
-  --build-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-  --remote r2:gecode-documentation
+## Prepare the website candidate
 
-node website-tools/scripts/docs/promote-version.mjs \
-  --version "$VERSION" --manifest manifest.json \
-  --build-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-  --remote r2:gecode-documentation --confirm-promotion
+Uploading immutable documentation does not select it as `latest`. Prepare a
+website-only candidate from a pinned, current website `main`. For an ordinary
+content release, the candidate updates:
+
+- `src/data/site.ts`;
+- the transitional `_data/versions.yaml` with equivalent values;
+- the release news item, using immutable documentation URLs; and
+- the production `LATEST_DOC_VERSION` selection.
+
+Keep generated documentation and R2 credentials out of the candidate. Use
+`latest` aliases for human entry points, but use immutable version URLs in
+release news and citations.
+
+Run the configured website quality command and validate the release,
+download, and documentation pages. Before changing either alias, smoke-test
+the new immutable routes through the existing production Worker, including
+reference HTML, modeling assets, `MPG.pdf` range requests, anchors, and 404s.
+
+Publish the candidate with exact-base checks:
+
+1. Update `release/<version>-website` from its recorded prior value to the
+   approved candidate SHA.
+2. Update `main` from the pinned current-main SHA to that candidate.
+3. Accept only the Pages push run whose `headSha` is the approved candidate
+   SHA, and wait for it to succeed.
+4. Confirm that `release/<version>-website` still resolves to the approved
+   candidate SHA.
+5. Dispatch `workers.yml` from that exact branch with
+   `operation=deploy`, `environment=production`, and
+   `worker=documentation`.
+6. Verify the Worker's run SHA, workflow identity, dispatch event, protected
+   environment, and inputs.
+
+Then verify both aliases and the resolved-version header:
+
+```text
+/doc/latest/reference/index.html
+/doc-latest/reference/index.html
+X-Gecode-Documentation-Version: <version>
 ```
 
-Pin `website-tools` to a reviewed commit or release tag. Do not run publication
-tools directly from a moving branch in a production release job.
+Also verify immutable and alias modeling assets, PDF range requests, a
+documentation 404, ordinary Astro pages, and the release-news anchor. Alias
+caches may serve the previous version for up to five minutes. Roll back an
+alias failure by redeploying the previous `LATEST_DOC_VERSION`; immutable
+versions remain unchanged.
 
-## Selecting `latest`
+Staging and canary Worker deployments belong to the initial migration or to a
+Worker-code change. They are not required for an ordinary content-only
+release.
 
-Uploading a release and selecting it as `latest` are separate operations. The
-release pipeline should first smoke-test the immutable version through
-`docs-staging.gecode.dev/doc/<version>/...`, including HTML, CSS, source views,
-PDF ranges, fragments, and 404 behavior.
+## Keep website work independent
 
-After those checks, a protected promotion job updates
-`LATEST_DOC_VERSION`, deploys the staging Worker, tests both alias forms, and
-then deploys the production Worker. Alias caches can serve the previous release
-for at most five minutes. A failed promotion does not damage any immutable
-release and can be rolled back by redeploying the previous version.
+Normal website development and deployment continue while release-support
+prepares a release. A website-only change follows the website's normal Pages
+workflow: it needs no Gecode or MPG build, release-support state, R2
+publication, alias change, or coordinated release approval. Do not reserve or
+lock website `main`.
 
-Keep Worker deployment credentials separate from the R2 upload token. This
-lets ordinary release automation publish immutable documentation without also
-granting it permission to change production routing.
+If `main` advances before the candidate lands, reject the stale expected-base
+update. Refresh only the website input, reapply the deterministic release
+metadata and Worker selection, rerun website validation, and obtain a new
+publish approval when the approved website or alias operations changed. Do
+not rebuild Gecode or MPG, republish R2 objects, or invalidate their approved
+release state.
+
+Once the approved candidate has reached `main` and its exact Pages run has
+succeeded, later unrelated website commits do not invalidate that deployment
+proof.
+
+## Public release order
+
+The coordinated release finishes in this order:
+
+1. Publish and verify the immutable R2 documentation tree.
+2. Land the exact website candidate and verify its Pages deployment.
+3. Deploy the production documentation Worker from the exact candidate ref
+   and verify the aliases.
+4. Publish MPG.
+5. Publish Gecode last.
+
+Keep Worker deployment credentials in this website's protected Cloudflare
+environment. Keep R2 object credentials in release-support. This separation
+lets release-support publish immutable documentation without permission to
+change production routing.

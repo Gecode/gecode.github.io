@@ -14,10 +14,16 @@ paid plan. R2 places no limit on the number of objects in a bucket. See the
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/)
 and [R2 limits](https://developers.cloudflare.com/r2/platform/limits/).
 
-The current documentation fits within R2's free tier: 10 GB-month of Standard
-storage, one million Class A operations, and ten million Class B operations per
-month. Standard storage above the allowance costs $0.015 per GB-month, and R2
-does not charge for Internet egress. See [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+The current archive contains 52,368 files and 1.131 GB of object data. It fits
+within R2's free tier: 10 GB-month of Standard storage, one million Class A
+operations, and ten million Class B operations per month. Standard storage
+above the allowance costs $0.015 per GB-month, and R2 does not charge for
+Internet egress. See [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+
+Workers Free allows 100,000 requests per UTC day across the account. Worker
+cache hits still count. Workers Paid starts at $5 per month and includes ten
+million monthly requests; it is the likely first paid upgrade if traffic grows.
+The active Astro site remains free on GitHub Pages.
 
 ## Target architecture
 
@@ -34,6 +40,15 @@ Put the `www.gecode.dev` DNS record behind Cloudflare and attach Worker routes
 only to the two documentation prefixes. Unmatched requests continue to the
 GitHub Pages origin. This keeps the website on GitHub Pages and preserves every
 existing documentation URL.
+
+Moving authoritative DNS away from Namecheap disables Namecheap's free email
+forwarding even if its old MX records are copied. Configure Cloudflare Email
+Routing, verify its destinations, and recreate every alias before delegation.
+After the zone becomes active, test every alias before enabling Worker routes.
+See Namecheap's [custom-nameserver
+warning](https://www.namecheap.com/support/api/methods/domains-dns/set-custom/)
+and Cloudflare's [Email Routing
+pricing](https://developers.cloudflare.com/email-service/platform/pricing/).
 
 If proxying the GitHub Pages hostname proves unreliable, use
 `docs.gecode.dev` as the Worker custom domain and leave small HTML redirects at
@@ -77,6 +92,11 @@ Use stable subdirectories for each documentation product:
 Treat versioned prefixes as immutable. A release pipeline may create a new
 prefix, but it must never replace an existing prefix silently.
 
+Expire keys below `staging/` after 14 days with an R2 lifecycle rule. Staging
+trees help diagnose a recent failed publication but must not accumulate. Never
+apply expiration or storage-tier transitions to versioned prefixes.
+See [R2 object lifecycles](https://developers.cloudflare.com/r2/buckets/object-lifecycles/).
+
 Do not store `doc/latest` or `doc-latest` copies. Configure the Worker with a
 single `LATEST_DOC_VERSION` value and resolve both aliases to the selected
 version. A request for `/doc/latest/reference/index.html` reads
@@ -112,6 +132,10 @@ change. Alias responses should use a five-minute cache and expose the resolved
 version through a response header. Allow that bounded cache to converge after
 promotion.
 
+Ordinary uncached GETs should use one R2 `get()` operation. Use `head()` only
+for HEAD and range handling, where the object size is needed before composing
+the response.
+
 Keep the bucket private and disable its `r2.dev` endpoint. Bind the bucket to
 the Worker rather than exposing it directly. Cloudflare recommends a custom
 domain for production R2 traffic; the development endpoint is rate-limited.
@@ -119,54 +143,31 @@ See [R2 public access limits](https://developers.cloudflare.com/r2/platform/limi
 
 ## Publishing pipeline
 
-Build and publish documentation from the repository that owns each source.
-The Gecode release workflow should publish Doxygen output. The MPG workflow
-should publish the new modeling manual. A small coordinator job can combine
-their manifests before promoting a release.
-
-Each producer should perform these steps:
-
-1. Generate its documentation into a clean directory.
-2. Reject symbolic links, absolute links to build paths, and files outside the
-   expected product prefix.
-3. Record the file count, total bytes, MIME type, SHA-256 digest, and relative
-   path in a manifest.
-4. Validate internal links against the combined release tree.
-5. Split generated sitemaps at 45,000 URLs, below the protocol limit of 50,000
-   URLs or 50 MB, and write a sitemap index. See
-   [Google's sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap).
-6. Upload to `staging/<build-id>/` with a narrowly scoped R2 token.
-7. Compare the remote object count and manifest with the local build.
-8. Smoke-test representative HTML, CSS, JavaScript, image, source, and PDF
-   objects through the Worker.
-9. Copy the verified objects to a new immutable `<version>/` prefix.
-10. Update `LATEST_DOC_VERSION`, deploy the Worker, rerun the alias smoke
-    tests, and allow the bounded five-minute alias cache to converge.
-
-The Gecode source repository should own this release job because it owns the
-Doxygen configuration and the modeling-manual generator. On a GitHub release,
-its protected documentation job should assemble the complete version tree and
-call the tools in this repository. The website repository continues to own the
-Worker code and routes. Give the release job write access only to R2; keep the
-production Worker deployment and `latest` selection in a separately protected
-environment. The concrete job contract and command sequence are in
+The authoritative steady-state contract is
 [Gecode release documentation pipeline](gecode-release-pipeline.md).
+Release-support pins Gecode, MPG and website tooling, builds the producer
+artifacts once, assembles `reference/`, `modeling/` and `MPG.pdf`, and publishes
+the immutable R2 tree before either public release. Producer repositories own
+the generators; the website owns the Worker and deployment workflow.
 
-Both the staging and production Workers read the same private bucket. Staged
-objects remain unreachable below `staging/`. After verification and promotion,
-the staging Worker smoke-tests the explicit immutable `/doc/<version>/` path.
-Only then does the production deployment select that version as `latest`.
+Ordinary releases upload directly to the final unused version prefix with
+`rclone copy`, verify the complete path set, sizes and MD5 hashes, and then
+write the completion manifest. They do not use the historical staged publisher
+or download the complete tree again. Existing completed versions are immutable,
+including their file set. Keep one publisher per version. Check existing
+completion records before any writes and use a conditional create for the
+manifest; `rclone copyto --immutable` is not a no-overwrite guarantee.
 
-Use `rclone` for bulk transfer. Cloudflare recommends it for directory uploads,
-whereas Wrangler uploads one object at a time. See
-[R2 upload methods](https://developers.cloudflare.com/r2/objects/upload-objects/).
-Use `copy`, not `sync`, for immutable release prefixes; an incorrect `sync`
-could delete valid release objects.
+Release-support owns bucket-scoped object credentials. Protected website
+operations own Worker deployment and `latest` selection. Verify immutable URLs
+before changing either alias. Staging and canary deployments are for migration
+and Worker-code changes, not ordinary content releases. Alias caches converge
+within five minutes. Publish MPG and then Gecode only after the website and
+aliases are verified.
 
-Give each publishing workflow an upload-only token for its staging and release
-prefixes. Store credentials as environment-scoped GitHub Actions secrets.
-Keep production promotion in a protected environment with manual approval
-until several releases have completed successfully.
+The coordinator implementation is tracked in release-support's `.zdev/cf`
+tasks and is not yet production-ready. The historical commands in the Worker
+README remain available for archive repair and migration only.
 
 ## Migration sequence
 
@@ -183,13 +184,15 @@ because they affect external infrastructure.
 - Generate a manifest for every tracked object below `doc/`.
 - Record existing symlinks and resolve `doc/latest` and `doc-latest` as aliases.
 - Measure file counts and bytes by version, extension, and documentation product.
-- Create the private documentation bucket and deploy the read-only staging
-  Worker at `docs-staging.gecode.dev`.
+- Create the private documentation bucket, add the `staging/` lifecycle rule,
+  and deploy the staging Worker at `docs-staging.gecode.dev`. The Worker code is
+  read-only, although Wrangler cannot enforce a read-only R2 binding.
 - Upload Gecode 6.4.0 and test directory indexes, fragments, source pages,
-  downloads, ranges, MIME types, caching, and 404s.
+  downloads, ranges, MIME types, and 404s locally. Run cache tests on the
+  staging custom domain after the Cloudflare zone becomes active.
 
-Exit criterion: the staging host passes automated link checks and browser tests
-against the local archive.
+Exit criterion: manifests, local Worker tests, and direct remote verification
+pass, and the staging custom domain is ready for testing after DNS delegation.
 
 ### Phase 2: migrate historical releases
 
@@ -205,10 +208,14 @@ versioned key in R2.
 ### Phase 3: preserve production URLs
 
 - Move `gecode.dev` DNS to Cloudflare if necessary.
+- Replace Namecheap forwarding with Cloudflare Email Routing and verify every
+  alias immediately after delegation.
 - Proxy the `www` record while retaining its GitHub Pages CNAME origin.
-- Install Worker routes for `www.gecode.dev/doc/*` and
-  `www.gecode.dev/doc-latest/*`.
-- Test the routes with a canary prefix before enabling the full patterns.
+- Test the staging custom domain, then deploy the checked-in canary environment.
+- After the canary passes, install the production routes for
+  `www.gecode.dev/doc/*` and `www.gecode.dev/doc-latest/*`.
+- Remove the canary after the production smoke test so its more-specific route
+  no longer intercepts the selected version.
 - Compare status, body digest, MIME type, cache headers, and range behavior
   between the old and new origins.
 
@@ -259,15 +266,32 @@ Automate these checks before changing DNS:
 - sitemap size and URL-count limits;
 - ordinary `www.gecode.dev` pages bypassing the documentation Worker.
 
+Set documentation routes to fail closed after the Pages archive is removed;
+fail-open requests would reach a missing origin path. Set redirect routes to
+fail open because the Pages artifact contains fallback redirect files.
+
 Monitor R2 storage, Class A writes, Class B reads, Worker errors, cache hit rate,
-and documentation 404s. Set billing alerts before enabling production traffic.
+documentation 404s and 503s, GitHub Pages availability, and Email Routing
+failures. Check Worker usage daily during cutover and weekly afterward. Workers
+Free allows 100,000 requests per UTC day across the account, including cache
+hits. Use 70,000 and 90,000 requests as warning thresholds and move to Workers
+Paid before ordinary traffic approaches the limit. Set billing notifications
+before enabling production traffic.
+
+Keep manifests and a recoverable source or release artifact for every version.
+Immutable prefixes simplify rollback but do not protect against account loss or
+a bucket-wide deletion.
 
 ## Rollback
 
 Keep the current GitHub Pages documentation artifact available during the
-canary period. If the Worker or R2 path fails, remove the two Worker routes and
-turn the `www` record back to DNS-only service. GitHub Pages will resume serving
-the checked-in documentation without a content rebuild.
+canary period. If the Worker or R2 path fails, remove the documentation route
+set and turn the `www` record back to DNS-only service. GitHub Pages will resume
+serving the checked-in documentation without a content rebuild.
+
+If DNS or Cloudflare Email Routing fails during delegation, restore Namecheap's
+nameservers; copying the old forwarding MX records into Cloudflare is not a
+working mail rollback.
 
 After the repository cleanup, rollback means restoring the Worker route to the
 previous version or reverting `LATEST_DOC_VERSION`. Since release prefixes are
@@ -277,7 +301,7 @@ immutable, both operations avoid data restoration.
 
 Create separate implementation issues for:
 
-1. R2 bucket, token, DNS, and billing-alert setup.
+1. R2 bucket, lifecycle rule, token, DNS, Email Routing, and billing-alert setup.
 2. Worker routing, cache, MIME, range, and security behavior.
 3. Historical manifest generation and upload.
 4. Documentation link and browser regression tests.

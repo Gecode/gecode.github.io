@@ -11,8 +11,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -51,6 +51,9 @@ jobs:
       - name: Validate classic URL redirects
         run: npm run test:redirect-worker && npm run check:redirect-worker
 
+      - name: Validate email routing
+        run: npm run test:email-worker && npm run check:email-worker
+
       - name: Collect active HTML pages
         id: active_pages
         run: |
@@ -68,6 +71,8 @@ jobs:
         with:
           args: >-
             --verbose --no-progress --offline --exclude-mail
+            --root-dir '${{ github.workspace }}/_site'
+            --exclude '^file://.*/_site/doc(-latest)?(/|$)'
             ${{ steps.active_pages.outputs.pages }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,6 +83,8 @@ jobs:
         with:
           args: >-
             --verbose --no-progress --exclude-mail
+            --root-dir '${{ github.workspace }}/_site'
+            --exclude '^file://.*/_site/doc(-latest)?(/|$)'
             ${{ steps.active_pages.outputs.pages }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,9 +96,15 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./_site
+          retention-days: 30
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    # Keep production deployment manual until the Astro cutover is complete.
+    # Pushes and pull requests still build and validate the full Pages artifact.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

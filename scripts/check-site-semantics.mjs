@@ -70,9 +70,9 @@ for (const file of activePages) {
   if (/\{%|{{/.test(html)) failures.push(`${file}: unresolved Liquid syntax`);
 }
 
-const contentCounts = { news: (await getNews()).length, publications: (await getPublications()).length };
-if (contentCounts.news !== 45) failures.push(`expected 45 news entries, found ${contentCounts.news}`);
-if (contentCounts.publications !== 11) failures.push(`expected 11 publications, found ${contentCounts.publications}`);
+for (const item of await getNews()) {
+  if (!news.includes(`id="${item.date}-${item.slug}"`)) failures.push(`news/index.html: missing news entry ${item.date}-${item.slug}`);
+}
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));

@@ -45,6 +45,7 @@ describe("documentation worker", () => {
 
     const index = await request("/doc/6.4.0/");
     expect(await index.text()).toBe("release home");
+    expect((await request("/doc/6.4.0/%69ndex.html")).status).toBe(200);
   });
 
   it("serves repeat requests from the edge cache", async () => {
@@ -57,12 +58,42 @@ describe("documentation worker", () => {
   });
 
   it("returns 503 when R2 fails", async () => {
-    const originalHead = env.DOCS.head.bind(env.DOCS);
-    env.DOCS.head = async () => { throw new Error("test outage"); };
+    const originalGet = env.DOCS.get.bind(env.DOCS);
+    env.DOCS.get = async () => { throw new Error("test outage"); };
     const response = await request("/doc/6.4.0/outage-test.html");
-    env.DOCS.head = originalHead;
+    env.DOCS.get = originalGet;
     expect(response.status).toBe(503);
     expect(response.headers.get("retry-after")).toBe("60");
+  });
+
+  it("uses one R2 read for an ordinary cache miss", async () => {
+    await env.DOCS.put("6.4.0/one-read.html", "one read", {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    const originalGet = env.DOCS.get.bind(env.DOCS);
+    const originalHead = env.DOCS.head.bind(env.DOCS);
+    let gets = 0;
+    let heads = 0;
+    env.DOCS.get = async (...args) => {
+      gets += 1;
+      return originalGet(...args);
+    };
+    env.DOCS.head = async (...args) => {
+      heads += 1;
+      return originalHead(...args);
+    };
+
+    let response: Response;
+    try {
+      response = await request("/doc/6.4.0/one-read.html");
+    } finally {
+      env.DOCS.get = originalGet;
+      env.DOCS.head = originalHead;
+    }
+
+    expect(response.status).toBe(200);
+    expect(gets).toBe(1);
+    expect(heads).toBe(0);
   });
 
   it.each(["/doc/latest/reference/PageChange.html", "/doc-latest/reference/PageChange.html"])(
@@ -113,6 +144,42 @@ describe("documentation worker", () => {
     const response = await request("/doc/6.4.0/reference/PageChange.html", { headers: { Range: "bytes=20-30" } });
     expect(response.status).toBe(416);
     expect(response.headers.get("content-range")).toBe("bytes */10");
+  });
+
+  it("resumes PDFs only when If-Range matches the current representation", async () => {
+    const object = await env.DOCS.put("6.4.0/MPG.pdf", "new PDF bytes", {
+      httpMetadata: { contentType: "application/pdf" },
+    });
+    for (const validator of ['"old-etag"', `W/${object.httpEtag}`, "Thu, 01 Jan 1970 00:00:00 GMT"]) {
+      const response = await request("/doc/latest/MPG.pdf", {
+        headers: { Range: "bytes=4-6", "If-Range": validator },
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-range")).toBeNull();
+      expect(new TextDecoder().decode(await response.arrayBuffer())).toBe("new PDF bytes");
+    }
+    const matching = await request("/doc/latest/MPG.pdf", {
+      headers: { Range: "bytes=4-6", "If-Range": object.httpEtag },
+    });
+    expect(matching.status).toBe(206);
+    expect(new TextDecoder().decode(await matching.arrayBuffer())).toBe("PDF");
+    const head = await request("/doc/latest/MPG.pdf", {
+      method: "HEAD", headers: { Range: "bytes=4-6" },
+    });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-length")).toBe("13");
+  });
+
+  it("redirects directory entry points while preserving queries and relative links", async () => {
+    await env.DOCS.put("6.4.0/reference/index.html", "reference home");
+    await env.DOCS.put("6.4.0/modeling/chapter/index.html", "chapter");
+    for (const path of ["/doc/6.4.0", "/doc/latest", "/doc-latest", "/doc/6.4.0/reference", "/doc/latest/modeling/chapter"]) {
+      const response = await request(`${path}?view=1`);
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe(`${base}${path}/?view=1`);
+    }
+    expect((await request("/doc/6.4.0/missing-directory")).status).toBe(404);
+    expect((await request("/doc")).headers.get("location")).toBe(`${base}/documentation/`);
   });
 
   it("returns explicit errors", async () => {

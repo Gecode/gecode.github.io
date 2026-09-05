@@ -120,8 +120,26 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     return errorResponse(405, "Method not allowed", { Allow: "GET, HEAD" });
   }
 
-  const resolved = resolvePath(new URL(request.url).pathname, env.LATEST_DOC_VERSION);
+  const url = new URL(request.url);
+  const redirect = (pathname: string) => {
+    const destination = new URL(url);
+    destination.pathname = pathname;
+    return Response.redirect(destination.href, 308);
+  };
+  if (url.pathname === "/doc" || url.pathname === "/doc/") return redirect("/documentation/");
+  const resolved = resolvePath(url.pathname, env.LATEST_DOC_VERSION);
   if (!resolved) return errorResponse(400, "Invalid documentation path");
+
+  if (resolved.key === `${resolved.version}/index.html`
+      && !url.pathname.endsWith("/") && !safeDecodePath(url.pathname)!.endsWith("/index.html")) {
+    return redirect(`${url.pathname}/`);
+  }
+  const missingObject = async () => {
+    if (!url.pathname.endsWith("/") && await env.DOCS.head(`${resolved.key}/index.html`)) {
+      return redirect(`${url.pathname}/`);
+    }
+    return errorResponse(404, "Documentation page not found");
+  };
 
   const cacheableRequest = request.method === "GET"
     && !request.headers.has("Range")
@@ -138,36 +156,50 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     }
   }
 
-  const metadata = await env.DOCS.head(resolved.key);
-  if (!metadata) return errorResponse(404, "Documentation page not found");
+  // Range applies only to GET. HEAD describes the complete representation.
+  const rangeHeader = request.method === "GET" ? request.headers.get("Range") : null;
+  if (request.method === "HEAD" || rangeHeader) {
+    const metadata = await env.DOCS.head(resolved.key);
+    if (!metadata) return missingObject();
 
+    const headers = new Headers();
+    applyObjectHeaders(headers, metadata, resolved);
+    if (request.headers.get("If-None-Match") === metadata.httpEtag) {
+      return new Response(null, { status: 304, headers });
+    }
+
+    const ifRange = request.headers.get("If-Range");
+    const rangeMatches = !ifRange || ifRange === metadata.httpEtag
+      || (!ifRange.startsWith('"') && !ifRange.startsWith("W/")
+        && Date.parse(ifRange) === Math.floor(metadata.uploaded.getTime() / 1000) * 1000);
+    const range = rangeHeader && rangeMatches ? parseRange(rangeHeader, metadata.size) : null;
+    if (range === "invalid") {
+      headers.set("Content-Range", `bytes */${metadata.size}`);
+      return new Response(null, { status: 416, headers });
+    }
+    if (range) {
+      headers.set("Content-Length", String(range.length));
+      headers.set("Content-Range", `bytes ${range.offset}-${range.offset + range.length - 1}/${metadata.size}`);
+      const object = await env.DOCS.get(resolved.key, { range });
+      if (!object) throw new Error(`R2 object disappeared during range read: ${resolved.key}`);
+      return new Response(object.body, { status: 206, headers });
+    }
+
+    headers.set("Content-Length", String(metadata.size));
+    if (request.method === "HEAD") return new Response(null, { status: 200, headers });
+    const object = await env.DOCS.get(resolved.key);
+    if (!object) throw new Error(`R2 object disappeared during full read: ${resolved.key}`);
+    return new Response(object.body, { status: 200, headers });
+  }
+
+  const object = await env.DOCS.get(resolved.key);
+  if (!object) return missingObject();
   const headers = new Headers();
-  applyObjectHeaders(headers, metadata, resolved);
-
-  if (request.headers.get("If-None-Match") === metadata.httpEtag) {
+  applyObjectHeaders(headers, object, resolved);
+  if (request.headers.get("If-None-Match") === object.httpEtag) {
     return new Response(null, { status: 304, headers });
   }
-
-  const rangeHeader = request.headers.get("Range");
-  const range = rangeHeader ? parseRange(rangeHeader, metadata.size) : null;
-  if (range === "invalid") {
-    headers.set("Content-Range", `bytes */${metadata.size}`);
-    return new Response(null, { status: 416, headers });
-  }
-
-  if (range) {
-    headers.set("Content-Length", String(range.length));
-    headers.set("Content-Range", `bytes ${range.offset}-${range.offset + range.length - 1}/${metadata.size}`);
-    if (request.method === "HEAD") return new Response(null, { status: 206, headers });
-    const object = await env.DOCS.get(resolved.key, { range });
-    if (!object) throw new Error(`R2 object disappeared during range read: ${resolved.key}`);
-    return new Response(object.body, { status: 206, headers });
-  }
-
-  headers.set("Content-Length", String(metadata.size));
-  if (request.method === "HEAD") return new Response(null, { status: 200, headers });
-  const object = await env.DOCS.get(resolved.key);
-  if (!object) throw new Error(`R2 object disappeared during read: ${resolved.key}`);
+  headers.set("Content-Length", String(object.size));
   const response = new Response(object.body, { status: 200, headers });
   if (cacheableRequest) {
     context.waitUntil(caches.default.put(cacheKey, response.clone()).catch((error) => {
