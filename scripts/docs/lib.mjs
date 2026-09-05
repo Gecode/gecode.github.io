@@ -12,7 +12,6 @@ const contentTypes = new Map([
   [".jpg", "image/jpeg"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
-  [".map", "application/json; charset=utf-8"],
   [".pdf", "application/pdf"],
   [".png", "image/png"],
   [".svg", "image/svg+xml"],
@@ -22,6 +21,7 @@ const contentTypes = new Map([
 ]);
 
 export function contentType(filename) {
+  if (/\.(?:[cm]?js|css)\.map$/i.test(filename)) return "application/json; charset=utf-8";
   return contentTypes.get(path.extname(filename).toLowerCase()) ?? "application/octet-stream";
 }
 

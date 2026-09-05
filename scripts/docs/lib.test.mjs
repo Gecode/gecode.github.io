@@ -3,9 +3,18 @@ import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createManifest, sitemapDocuments, validateVersion } from "./lib.mjs";
+import { contentType, createManifest, sitemapDocuments, validateVersion } from "./lib.mjs";
 import { loadAndVerifyManifest, validateBuildId, validateRemote } from "./remote-lib.mjs";
 import { patchDoxygenHtml } from "./patch-doxygen-html.mjs";
+
+test("distinguishes JavaScript and CSS source maps from Graphviz image maps", () => {
+  for (const filename of ["app.js.map", "app.mjs.map", "app.cjs.map", "style.css.map", "APP.JS.MAP"]) {
+    assert.equal(contentType(filename), "application/json; charset=utf-8");
+  }
+  for (const filename of ["classGecode.map", "directory.MAP", "unknown.map"]) {
+    assert.equal(contentType(filename), "application/octet-stream");
+  }
+});
 
 test("creates a sorted, content-addressed version manifest", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "gecode-manifest-"));

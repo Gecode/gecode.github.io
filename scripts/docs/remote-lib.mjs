@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createManifest } from "./lib.mjs";
+import { contentType, createManifest } from "./lib.mjs";
 
 export function validateRemote(remote) {
   if (!/^[A-Za-z0-9_-]+:[^/].*$/.test(remote)) {
@@ -73,10 +73,12 @@ export async function verifyRemoteManifest(remotePath, expectedManifest, { allow
     "--hash",
   ], { allowMissing: allowPartial }) ?? "[]");
   const expectedByPath = new Map(expectedManifest.files.map((file) => [file.path, file]));
+  const legacyMaps = new Set();
+  const mimeBase = (value) => value?.split(";", 1)[0].trim().toLowerCase();
   const compatibleContentType = (actual, expected) => {
     if (expected === "application/octet-stream") return Boolean(actual);
-    const actualBase = actual?.split(";", 1)[0].trim().toLowerCase();
-    const expectedBase = expected.split(";", 1)[0].trim().toLowerCase();
+    const actualBase = mimeBase(actual);
+    const expectedBase = mimeBase(expected);
     if (actualBase === expectedBase) return true;
     return new Set([actualBase, expectedBase]).size === 2
       && [actualBase, expectedBase].every((value) => value === "text/javascript" || value === "application/javascript");
@@ -87,7 +89,13 @@ export async function verifyRemoteManifest(remotePath, expectedManifest, { allow
     if (!expected) throw new Error(`Unexpected remote object: ${remoteObject.Path}`);
     if (remoteObject.Size !== expected.bytes) throw new Error(`Remote size differs: ${remoteObject.Path}`);
     if (!compatibleContentType(remoteObject.MimeType, expected.contentType)) {
-      throw new Error(`Remote content type differs for ${remoteObject.Path}: ${remoteObject.MimeType ?? "missing"}`);
+      if (/\.map$/i.test(expected.path) && contentType(expected.path) === "application/octet-stream"
+        && mimeBase(expected.contentType) === "application/json"
+        && mimeBase(remoteObject.MimeType) === "application/octet-stream") {
+        legacyMaps.add(expected.path);
+      } else {
+        throw new Error(`Remote content type differs for ${remoteObject.Path}: ${remoteObject.MimeType ?? "missing"}`);
+      }
     }
   }
 
@@ -102,6 +110,21 @@ export async function verifyRemoteManifest(remotePath, expectedManifest, { allow
   try {
     await runRclone(["copy", remotePath, temporaryDirectory, "--checksum", "--fast-list", "--metadata", "--progress"]);
     const actual = await createManifest(temporaryDirectory, expectedManifest.documentationVersion);
+    // Historical manifests mislabeled Graphviz image maps as JSON. Accept only
+    // recognizable map content whose downloaded bytes still match the manifest.
+    for (const file of actual.files) {
+      if (!legacyMaps.has(file.path)) continue;
+      const body = await readFile(path.join(temporaryDirectory, file.path), "utf8");
+      const expected = expectedByPath.get(file.path);
+      if (!/^(?:<(?:map|area)(?:\s|>)|base referer\r?\nrect\s)/.test(body) || file.sha256 !== expected.sha256) {
+        throw new Error(`Remote tree ${remotePath} does not match the SHA-256 manifest or historical image-map format: ${file.path}`);
+      }
+    }
+    expectedManifest = {
+      ...expectedManifest,
+      files: expectedManifest.files.map((file) => legacyMaps.has(file.path)
+        ? { ...file, contentType: "application/octet-stream" } : file),
+    };
     if (JSON.stringify(actual) !== JSON.stringify(expectedManifest)) {
       throw new Error(`Remote tree ${remotePath} does not match the SHA-256 manifest`);
     }

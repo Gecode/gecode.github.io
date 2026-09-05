@@ -120,6 +120,17 @@ jobs:
         if: inputs.operation == 'deploy' && inputs.environment == 'canary' && (inputs.worker == 'both' || inputs.worker == 'documentation')
         run: npx wrangler deploy --env canary --config workers/docs/wrangler.jsonc
 
+      - name: Verify production documentation
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'documentation')
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).env.production.vars.LATEST_DOC_VERSION")
+          for attempt in 1 2 3 4 5 6; do
+            if node scripts/docs/smoke-worker.mjs https://www.gecode.dev "$version"; then exit 0; fi
+            if [ "$attempt" -eq 6 ]; then exit 1; fi
+            echo "Waiting for the production deployment to propagate (attempt $attempt)."
+            sleep 10
+          done
+
       - name: Verify documentation canary
         if: inputs.operation == 'deploy' && inputs.environment == 'canary' && inputs.worker == 'documentation'
         run: |

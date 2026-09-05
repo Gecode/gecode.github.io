@@ -5,9 +5,39 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createManifest } from "./lib.mjs";
+import { verifyRemoteManifest } from "./remote-lib.mjs";
 
 let hasRclone = false;
 try { execFileSync("rclone", ["version"], { stdio: "ignore" }); hasRclone = true; } catch {}
+
+test("verifies legacy Graphviz map manifests without accepting arbitrary bytes or corrupted hashes", { skip: !hasRclone && "rclone is not installed" }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gecode-legacy-map-"));
+  try {
+    const mapPath = path.join(root, "graph.map");
+    const legacyManifest = async (body) => {
+      await writeFile(mapPath, body);
+      const manifest = await createManifest(root, "1.3.1");
+      manifest.files[0].contentType = "application/json; charset=utf-8";
+      return manifest;
+    };
+    for (const body of [
+      '<map id="graph">\n<area href="class.html">\n</map>\n',
+      '<area shape="rect" href="class.html" coords="7,8,85,56">\n',
+      "base referer\nrect class.html 7,8 85,56\n",
+    ]) {
+      const manifest = await legacyManifest(body);
+      await verifyRemoteManifest(root, manifest);
+      assert.equal(manifest.files[0].contentType, "application/json; charset=utf-8");
+      const corrupt = structuredClone(manifest);
+      corrupt.files[0].sha256 = "0".repeat(64);
+      await assert.rejects(verifyRemoteManifest(root, corrupt), /SHA-256 manifest/);
+    }
+    const arbitrary = await legacyManifest("arbitrary data masquerading as a map\n");
+    await assert.rejects(verifyRemoteManifest(root, arbitrary), /historical image-map format/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("promotion preserves completed versions and resumes only matching partial uploads", { skip: !hasRclone && "rclone is not installed" }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "gecode-promotion-"));
