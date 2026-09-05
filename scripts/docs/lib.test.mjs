@@ -93,3 +93,16 @@ test("patches modern Doxygen HTML idempotently", async () => {
   assert.match(patched, /href="https:\/\/www\.gecode\.dev\/"/);
   assert.deepEqual(await patchDoxygenHtml(root), { changed: 0, visited: 1 });
 });
+
+test("continues accepting historical SHA-256-only manifests", async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "gecode-old-manifest-"));
+  const root = path.join(temporary, "source");
+  await mkdir(root);
+  await writeFile(path.join(root, "index.html"), "legacy");
+  const manifest = await createManifest(root, "6.4.0");
+  assert.match(manifest.files[0].md5, /^[a-f0-9]{32}$/);
+  delete manifest.files[0].md5;
+  const manifestPath = path.join(temporary, "manifest.json");
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  await loadAndVerifyManifest(manifestPath, root, "6.4.0");
+});

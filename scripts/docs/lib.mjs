@@ -33,9 +33,13 @@ export function validateVersion(version) {
 }
 
 async function hashFile(filename) {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(filename)) hash.update(chunk);
-  return hash.digest("hex");
+  const sha256 = createHash("sha256");
+  const md5 = createHash("md5");
+  for await (const chunk of createReadStream(filename)) {
+    sha256.update(chunk);
+    md5.update(chunk);
+  }
+  return { sha256: sha256.digest("hex"), md5: md5.digest("hex") };
 }
 
 async function findFiles(root, directory = root) {
@@ -67,7 +71,7 @@ export async function createManifest(root, version) {
       path: relativePath,
       key: `${version}/${relativePath}`,
       bytes: stat.size,
-      sha256: await hashFile(filename),
+      ...await hashFile(filename),
       contentType: contentType(filename),
     });
   }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import { validateVersion } from "./lib.mjs";
-import { readRemoteFile, requireConditionalUploadSupport, runRclone, validateBuildId, validateRemote, verifyRemoteManifest } from "./remote-lib.mjs";
+import { conditionalUploadArgs, publicationPaths, readRemoteFile, requireConditionalUploadSupport, runRclone, verifyRemoteManifest } from "./remote-lib.mjs";
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -12,8 +12,9 @@ const version = option("--version");
 const remote = option("--remote");
 const manifestPath = option("--manifest");
 const buildId = option("--build-id");
+const revision = option("--revision");
 if (!version || !remote || !manifestPath || !buildId || !process.argv.includes("--confirm-promotion")) {
-  console.error("Usage: promote-version.mjs --version <x.y.z> --manifest <file> --build-id <id> --remote <remote:bucket> --confirm-promotion");
+  console.error("Usage: promote-version.mjs --version <x.y.z> --manifest <file> --build-id <id> --remote <remote:bucket> [--revision <id>] --confirm-promotion");
   process.exit(2);
 }
 validateVersion(version);
@@ -21,10 +22,8 @@ validateVersion(version);
 const manifestText = await readFile(manifestPath, "utf8");
 const manifest = JSON.parse(manifestText);
 if (manifest.documentationVersion !== version) throw new Error("Manifest and requested versions do not match");
-const base = validateRemote(remote);
-const staging = `${base}/staging/${validateBuildId(buildId)}/${version}`;
-const production = `${base}/${version}`;
-const remoteManifest = `${base}/_manifests/${version}.json`;
+const { staging, production, manifest: remoteManifest } = publicationPaths(remote, version, { revision, buildId });
+const uploadArgs = conditionalUploadArgs(manifest);
 
 await requireConditionalUploadSupport();
 const completed = await readRemoteFile(remoteManifest, { allowMissing: true });
@@ -39,9 +38,9 @@ console.log(`Verifying staged release ${staging}`);
 await verifyRemoteManifest(staging, manifest);
 await verifyRemoteManifest(production, manifest, { allowPartial: true });
 console.log(`Promoting ${staging} to immutable prefix ${production}`);
-await runRclone(["copy", staging, production, "--checksum", "--fast-list", "--immutable", "--metadata", "--progress"]);
+await runRclone(["copy", staging, production, "--checksum", "--fast-list", "--metadata", "--progress", ...uploadArgs]);
 console.log(`Verifying promoted release ${production}`);
 await verifyRemoteManifest(production, manifest);
 console.log(`Persisting reviewed manifest at ${remoteManifest}`);
-await runRclone(["copyto", manifestPath, remoteManifest, "--ignore-existing", "--header-upload", "If-None-Match: *"]);
+await runRclone(["copyto", manifestPath, remoteManifest, ...uploadArgs]);
 if (await readRemoteFile(remoteManifest) !== manifestText) throw new Error("Persisted remote manifest differs from the reviewed manifest");

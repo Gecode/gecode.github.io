@@ -104,11 +104,27 @@ jobs:
       - name: Verify staging documentation
         if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
         run: |
-          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).vars.LATEST_DOC_VERSION")
           for attempt in 1 2 3 4 5 6; do
-            if node scripts/docs/smoke-worker.mjs https://docs-staging.gecode.dev "$version"; then exit 0; fi
+            if node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          const config = JSON.parse(readFileSync('workers/docs/wrangler.jsonc', 'utf8'));
+          const vars = config.vars;
+          const revisions = JSON.parse(vars.DOC_REVISIONS ?? '{}');
+          const selected = new Map([[vars.LATEST_DOC_VERSION, revisions[vars.LATEST_DOC_VERSION]]]);
+          for (const [version, revision] of Object.entries(revisions)) selected.set(version, revision);
+          let passed = true;
+          for (const [version, revision] of selected) {
+            const args = ['scripts/docs/smoke-worker.mjs', 'https://docs-staging.gecode.dev', version];
+            if (revision) args.push('--revision', revision);
+            if (version !== vars.LATEST_DOC_VERSION) args.push('--immutable-only');
+            if (spawnSync(process.execPath, args, { stdio: 'inherit' }).status !== 0) passed = false;
+          }
+          process.exit(passed ? 0 : 1);
+          NODE
+            then exit 0; fi
             if [ "$attempt" -eq 6 ]; then exit 1; fi
-            echo "Waiting for the staging deployment to propagate (attempt $attempt)."
+            echo "Waiting for the documentation deployment and selected revisions to propagate (attempt $attempt)."
             sleep 10
           done
 
@@ -123,22 +139,53 @@ jobs:
       - name: Verify production documentation
         if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'documentation')
         run: |
-          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).env.production.vars.LATEST_DOC_VERSION")
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            if node scripts/docs/smoke-worker.mjs https://www.gecode.dev "$version"; then exit 0; fi
+            if node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          const config = JSON.parse(readFileSync('workers/docs/wrangler.jsonc', 'utf8'));
+          const vars = config.env.production.vars;
+          const revisions = JSON.parse(vars.DOC_REVISIONS ?? '{}');
+          const selected = new Map([[vars.LATEST_DOC_VERSION, revisions[vars.LATEST_DOC_VERSION]]]);
+          for (const [version, revision] of Object.entries(revisions)) selected.set(version, revision);
+          let passed = true;
+          for (const [version, revision] of selected) {
+            const args = ['scripts/docs/smoke-worker.mjs', 'https://www.gecode.dev', version];
+            if (revision) args.push('--revision', revision);
+            if (version !== vars.LATEST_DOC_VERSION) args.push('--immutable-only');
+            if (spawnSync(process.execPath, args, { stdio: 'inherit' }).status !== 0) passed = false;
+          }
+          process.exit(passed ? 0 : 1);
+          NODE
+            then exit 0; fi
             if [ "$attempt" -eq 12 ]; then exit 1; fi
-            echo "Waiting for the production deployment to propagate (attempt $attempt)."
+            echo "Waiting for the documentation deployment and selected revisions to propagate (attempt $attempt)."
             sleep 30
           done
 
       - name: Verify documentation canary
         if: inputs.operation == 'deploy' && inputs.environment == 'canary' && inputs.worker == 'documentation'
         run: |
-          version=$(node -p "JSON.parse(require('fs').readFileSync('workers/docs/wrangler.jsonc', 'utf8')).env.canary.vars.LATEST_DOC_VERSION")
           for attempt in 1 2 3 4 5 6; do
-            if node scripts/docs/smoke-worker.mjs https://www.gecode.dev "$version" --immutable-only; then exit 0; fi
+            if node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { spawnSync } from 'node:child_process';
+          const config = JSON.parse(readFileSync('workers/docs/wrangler.jsonc', 'utf8'));
+          const vars = config.env.canary.vars;
+          const revisions = JSON.parse(vars.DOC_REVISIONS ?? '{}');
+          const selected = new Map([[vars.LATEST_DOC_VERSION, revisions[vars.LATEST_DOC_VERSION]]]);
+          let passed = true;
+          for (const [version, revision] of selected) {
+            const args = ['scripts/docs/smoke-worker.mjs', 'https://www.gecode.dev', version];
+            if (revision) args.push('--revision', revision);
+            args.push('--immutable-only');
+            if (spawnSync(process.execPath, args, { stdio: 'inherit' }).status !== 0) passed = false;
+          }
+          process.exit(passed ? 0 : 1);
+          NODE
+            then exit 0; fi
             if [ "$attempt" -eq 6 ]; then exit 1; fi
-            echo "Waiting for the canary deployment to propagate (attempt $attempt)."
+            echo "Waiting for the documentation deployment and selected revisions to propagate (attempt $attempt)."
             sleep 10
           done
 

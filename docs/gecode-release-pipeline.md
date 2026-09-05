@@ -1,8 +1,8 @@
 # Gecode release documentation pipeline
 
-This document defines the intended steady-state release path after the Astro and
-Cloudflare migration. Implementation is tracked in release-support’s `cf-001`
-through `cf-005`; the current coordinator is not yet ready for this path. The one-time migration and DNS cutover are covered in
+This document defines the coordinated release path and documentation-only
+updates for the Astro and Cloudflare website. The one-time migration and DNS
+cutover are covered in
 the [deployment runbook](deployment-runbook.md).
 
 Release-support is the publication authority. It coordinates the Gecode
@@ -34,6 +34,7 @@ The release job assembles one clean directory:
 
 ```text
 release-tree/
+  index.html       documentation entry page
   reference/       Doxygen output
   modeling/        MPG website
   MPG.pdf           MPG PDF
@@ -82,10 +83,11 @@ node website-tools/scripts/docs/create-manifest.mjs \
 ```
 
 Record the website-tool commit and final manifest digest in release state.
-The final manifest's SHA-256 values identify the approved local release tree;
-do not describe them as hashes recomputed by R2.
+The final manifest contains SHA-256 and MD5 values. SHA-256 identifies the
+approved local bytes; R2 verification normally compares MD5 from object
+metadata. Do not describe the local SHA-256 values as hashes recomputed by R2.
 
-Stored sitemap artifacts may contain immutable version URLs. The Worker
+Stored sitemap artifacts may contain version URLs. The Worker
 rewrites the selected release's published sitemap index and shards to
 `/doc/latest/...`; submit only `/doc/sitemap.xml`. Do not rewrite completed R2
 objects to change indexing policy.
@@ -122,36 +124,49 @@ does not provide a persistent bucket token that can upload without also being
 able to list and delete objects, so protect and rotate this credential. Prefer
 short-lived, prefix-scoped credentials if the workflow can mint them.
 
-Copy the combined tree directly to the immutable `<version>/` prefix with
-`rclone copy` and immutable semantics. Never use `sync`: publication must not
-delete remote objects. Refuse to overwrite an existing object with different
-content. A retry may resume a partial upload only when every existing object
-matches the approved local tree.
+Choose a new revision ID for this exact combined tree. Copy it directly to
+`_revisions/<version>/<revision>/` with the pinned publication tool:
 
-After upload, run `rclone check` against the final prefix. Require all of the
-following without downloading the complete tree:
+```sh
+node website-tools/scripts/docs/publish-release.mjs \
+  --root release-tree --version "$VERSION" --revision "$REVISION" \
+  --manifest manifest.json --remote r2:gecode-documentation --confirm-upload
+```
 
-- the complete relative-path set matches;
-- every object size matches; and
-- every object MD5 matches between the local and R2 backends.
+For a tree with many small files, optional environment settings
+`RCLONE_TRANSFERS=32` and `RCLONE_CHECKERS=32` increase upload and check
+concurrency. They do not change publication semantics or persistent defaults.
+An interrupted upload resumes with the same revision and reviewed manifest.
 
-These documentation files use ordinary single-part uploads, so a missing
-common hash or a size-only result is a publication failure. Do not make a
-staging-to-final copy and do not re-download the full tree during an ordinary
-release.
+The tool validates the local manifest, checks any existing completion record,
+and refuses conflicting existing objects. Matching partial uploads can resume;
+matching completed revisions are verification-only. It does not make a
+staging-to-final copy and never uses `sync` or deletes remote objects.
 
-Check any existing completion record before writing release objects. A completed
-identical version is verification-only; a conflicting completed version fails.
-Run one publisher per version. For R2 completion records, rclone 1.75.0 or newer
-supports `--header-upload "If-None-Match: *"`; combine that with
-`--ignore-existing` and exact readback. Do not rely on `copyto --immutable` to
-protect the manifest.
+Every upload uses `If-None-Match: *`, including the completion record. This
+requires rclone 1.75 or newer and protects against a concurrent writer after the
+initial check. Server-side CopyObject is disabled because its destination
+conditions differ from PutObject. Uploads use a single PUT; individual objects
+must be smaller than 5 GiB.
 
-Only after the final prefix passes the check, write
-`_manifests/<version>.json` as its completion record and read that exact object
-back. An existing conflicting object or manifest stops publication without
-deleting or replacing anything. Record the immutable version, object count,
-total bytes, final manifest digest, and website-tool commit.
+For new MD5 manifests, remote verification uses a fast listing to compare the
+complete relative-path set and every object's size and hash. It requests MIME
+metadata for one representative of each expected content type, rather than
+issuing a serial HEAD request for every file. Live deployment smoke checks also
+exercise HTML, CSS, JavaScript, JSON, XML, and PDF responses. This is representative
+MIME validation, not a claim to inspect every object's Content-Type header.
+
+Normal R2 verification does not download the release tree. Historical manifests
+without MD5 retain per-object metadata checks. Objects without comparable hashes
+and historical image-map format checks use a targeted download fallback rather
+than accepting a size-only result.
+
+Only after verification succeeds, the tool conditionally writes
+`_manifests/<version>/<revision>.json` and reads that exact object back. Record
+the version, revision, object count, total bytes, final manifest digest, and
+website-tool commit. Omitting `--revision` retains the historical `<version>/`
+and `_manifests/<version>.json` layout; documentation updates must use new
+revision IDs rather than alter those completed prefixes.
 
 ## Prepare the website candidate
 
@@ -162,19 +177,21 @@ content release, the candidate updates:
 - `src/data/site.ts`;
 - the transitional `_data/versions.yaml` with equivalent values;
 - the release news item, using immutable documentation URLs; and
-- the production `LATEST_DOC_VERSION` selection.
+- the production `DOC_REVISIONS[version]` selection and `LATEST_DOC_VERSION`.
 
 Keep generated documentation and R2 credentials out of the candidate. Use
-`/doc/latest/...` for human entry points and immutable version URLs in release
-news and citations. Only the production latest URLs are indexable and
-canonical. Immutable version URLs, including PDFs, and the HTTP 200
+`/doc/latest/...` for human entry points, `/doc/<version>/...` for a version's
+selected documentation, and `/doc/<version>/revisions/<revision>/...` when a
+citation must identify immutable documentation bytes. Only the production latest URLs are indexable and
+canonical. Version and explicit revision URLs, including PDFs, and the HTTP 200
 `/doc-latest/...` compatibility alias carry `X-Robots-Tag: noindex`; staging
 documentation is also `noindex`. Producer HTML must not contain conflicting
 versioned canonical links; the Worker owns the served canonical selection.
 
 Run the configured website quality command and validate the release,
 download, and documentation pages. Before changing either alias, smoke-test
-the new immutable routes through the existing production Worker, including
+the new explicit `/doc/<version>/revisions/<revision>/...` routes through the
+existing production Worker, including
 reference HTML, modeling assets, `MPG.pdf` range requests, anchors, and 404s.
 
 Publish the candidate with exact-base checks:
@@ -192,19 +209,19 @@ Publish the candidate with exact-base checks:
 6. Verify the Worker's run SHA, workflow identity, dispatch event, protected
    environment, and inputs.
 
-Then verify both aliases and the resolved-version header:
+Then verify both aliases and both selection headers:
 
 ```text
 /doc/latest/reference/index.html
 /doc-latest/reference/index.html
 X-Gecode-Documentation-Version: <version>
+X-Gecode-Documentation-Revision: <revision>
 ```
 
 Also verify immutable and alias modeling assets, PDF range requests, a
-documentation 404, ordinary Astro pages, and the release-news anchor. Alias
-caches may serve the previous version for up to five minutes. Roll back an
-alias failure by redeploying the previous `LATEST_DOC_VERSION`; immutable
-versions remain unchanged.
+documentation 404, ordinary Astro pages, and the release-news anchor. Selected version routes and alias caches may serve previous selections for up
+to five minutes. Roll back by restoring the previous `DOC_REVISIONS` and, if
+changed, `LATEST_DOC_VERSION`. Stored revisions remain unchanged.
 
 Check indexing headers on HTML and PDFs: only production `/doc/latest/...`
 may be indexed. Verify latest HTML canonicals and that the published sitemap
@@ -215,6 +232,35 @@ observe their `noindex` headers.
 Staging and canary Worker deployments belong to the initial migration or to a
 Worker-code change. They are not required for an ordinary content-only
 release.
+
+## Update documentation without releasing Gecode
+
+Use release-support's `scripts/documentation.py` commands to prepare the
+combined tree from an existing reference build and a validated MPG package,
+publish a new revision, verify its explicit preview route, and edit the
+website's production selection. `select` edits configuration only; it does
+not deploy, publish Gecode, publish MPG, change release news, or change
+`LATEST_DOC_VERSION` unless `--latest` is explicitly requested.
+
+Review and land the `DOC_REVISIONS` change on website `main`, then dispatch
+`workers.yml` from `main` with `operation=deploy`, `environment=production`,
+and `worker=documentation`. The documentation-only CLI does not create an
+approved `docs/...-website` deployment branch. Production keeps its existing
+`main` and normal `release/<version>-website` ref rules.
+
+Verify the newly selected version and, if it is latest, both aliases:
+
+```sh
+node scripts/docs/smoke-worker.mjs https://www.gecode.dev "$VERSION" \
+  --revision "$REVISION"
+```
+
+Add `--immutable-only` when updating a non-latest version. The deployment
+workflow reads `DOC_REVISIONS`, checks both version and revision headers, and
+also checks other selected versions so an old revision cannot pass merely
+because the Gecode version is unchanged. HTML, modeling search assets,
+reference CSS, sitemaps, exact PDF ranges, indexing policy, and 404s are part
+of these checks.
 
 ## Keep website work independent
 

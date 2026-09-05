@@ -3,13 +3,34 @@ import robots from "../../../robots.txt";
 export interface Env {
   DOCS: R2Bucket;
   LATEST_DOC_VERSION: string;
+  DOC_REVISIONS?: string;
 }
 
 type ResolvedPath = {
   key: string;
   version: string;
+  relative: string;
+  revision?: string;
   isAlias: boolean;
+  isRevision: boolean;
 };
+
+const versionPattern = /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/;
+const revisionPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+function configuredRevisions(value: string | undefined): Record<string, string> {
+  if (value === undefined) return {};
+  const revisions: unknown = JSON.parse(value);
+  if (!revisions || typeof revisions !== "object" || Array.isArray(revisions)) {
+    throw new Error("DOC_REVISIONS must be a JSON object mapping versions to revisions");
+  }
+  for (const [version, revision] of Object.entries(revisions)) {
+    if (!versionPattern.test(version) || typeof revision !== "string" || !revisionPattern.test(revision)) {
+      throw new Error(`Invalid DOC_REVISIONS entry for ${version}`);
+    }
+  }
+  return revisions as Record<string, string>;
+}
 
 const securityHeaders = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -70,12 +91,19 @@ function resolvePath(pathname: string, latestVersion: string): ResolvedPath | nu
     if (!match) return null;
     version = match[1];
     relative = match[2] ?? "";
-    if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version)) return null;
+    if (!versionPattern.test(version)) return null;
   }
 
-  if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version)) return null;
+  if (!versionPattern.test(version)) return null;
+  let revision: string | undefined;
+  if (relative === "revisions" || relative.startsWith("revisions/")) {
+    const match = relative.match(/^revisions\/([^/]+)(?:\/(.*))?$/);
+    if (isAlias || !match || !revisionPattern.test(match[1])) return null;
+    revision = match[1];
+    relative = match[2] ?? "";
+  }
   if (relative === "" || relative.endsWith("/")) relative += "index.html";
-  return { key: `${version}/${relative}`, version, isAlias };
+  return { key: `${version}/${relative}`, version, relative, revision, isAlias, isRevision: revision !== undefined };
 }
 
 function parseRange(value: string, size: number): { offset: number; length: number } | "invalid" {
@@ -104,11 +132,12 @@ function applyObjectHeaders(headers: Headers, object: R2Object, resolved: Resolv
   headers.set("Last-Modified", object.uploaded.toUTCString());
   headers.set("Accept-Ranges", "bytes");
   headers.set("X-Gecode-Documentation-Version", resolved.version);
+  headers.set("X-Gecode-Documentation-Revision", resolved.revision ?? "legacy");
   headers.set(
     "Cache-Control",
-    resolved.isAlias
-      ? "public, max-age=300, s-maxage=300"
-      : "public, max-age=3600, s-maxage=31536000, immutable",
+    resolved.isRevision
+      ? "public, max-age=31536000, immutable"
+      : "public, max-age=300, s-maxage=300",
   );
   for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
 }
@@ -120,6 +149,7 @@ function applyIndexingPolicy(request: Request, response: Response, env: Env): Re
   const indexable = url.origin === "https://www.gecode.dev"
     && decoded?.startsWith("/doc/latest/")
     && resolved !== null
+    && !resolved.isRevision
     && [200, 206, 304].includes(response.status);
   const headers = new Headers(response.headers);
   // Apply this after cache reads too: a previous deployment may have cached
@@ -128,8 +158,7 @@ function applyIndexingPolicy(request: Request, response: Response, env: Env): Re
   if (indexable) {
     headers.delete("X-Robots-Tag");
     if (/^(?:text\/html|application\/pdf)(?:;|$)/i.test(headers.get("Content-Type") ?? "")) {
-      const relative = resolved.key.slice(resolved.version.length + 1);
-      const canonicalPath = relative.split("/").map(encodeURIComponent).join("/");
+      const canonicalPath = resolved.relative.split("/").map(encodeURIComponent).join("/");
       headers.set("Link", `<https://www.gecode.dev/doc/latest/${canonicalPath}>; rel="canonical"`);
     }
   } else {
@@ -188,8 +217,13 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
   if (url.pathname === "/doc" || url.pathname === "/doc/") return redirect("/documentation.html");
   const resolved = resolvePath(url.pathname, env.LATEST_DOC_VERSION);
   if (!resolved) return errorResponse(400, "Invalid documentation path");
+  const revisions = configuredRevisions(env.DOC_REVISIONS);
+  resolved.revision ??= revisions[resolved.version];
+  if (resolved.revision) {
+    resolved.key = `_revisions/${resolved.version}/${resolved.revision}/${resolved.relative}`;
+  }
 
-  if (resolved.key === `${resolved.version}/index.html`
+  if (resolved.relative === "index.html"
       && !url.pathname.endsWith("/") && !safeDecodePath(url.pathname)!.endsWith("/index.html")) {
     return redirect(`${url.pathname}/`);
   }
@@ -205,9 +239,10 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     && !request.headers.has("If-None-Match");
   const cacheUrl = new URL(request.url);
   cacheUrl.search = "";
-  // Do not reuse old sitemap bodies, or an alias entry from another release.
-  cacheUrl.searchParams.set("__gecode_docs_policy", "latest-index-v1");
-  cacheUrl.searchParams.set("__gecode_docs_version", resolved.version);
+  // Promotion changes the physical key, including when the public version stays
+  // the same. The policy also avoids old immutable version-URL cache entries.
+  cacheUrl.searchParams.set("__gecode_docs_policy", "revisions-v1");
+  cacheUrl.searchParams.set("__gecode_docs_object", resolved.key);
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   if (cacheableRequest) {
     try {
@@ -218,7 +253,7 @@ async function serve(request: Request, env: Env, context: ExecutionContext): Pro
     }
   }
 
-  if (resolved.isAlias && /^sitemap(?:-\d+)?\.xml$/.test(resolved.key.slice(resolved.version.length + 1))) {
+  if (resolved.isAlias && /^sitemap(?:-\d+)?\.xml$/.test(resolved.relative)) {
     const object = await env.DOCS.get(resolved.key);
     if (!object) return missingObject();
     const response = await sitemapResponse(request, object, resolved);

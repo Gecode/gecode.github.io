@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -79,6 +79,84 @@ test("promotion preserves completed versions and resumes only matching partial u
     promote();
     assert.equal(await readFile(path.join(final, "extra.html"), "utf8"), "new page");
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("direct publication keeps revisions immutable and leaves legacy versions untouched", { skip: !hasRclone && "rclone is not installed" }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gecode-direct-publication-"));
+  try {
+    const source = path.join(root, "source");
+    const manifestPath = path.join(root, "manifest.json");
+    const bucket = path.join(root, "bucket");
+    const version = "6.4.0";
+    await mkdir(source);
+    await mkdir(path.join(bucket, version), { recursive: true });
+    await writeFile(path.join(bucket, version, "index.html"), "legacy");
+    const env = { ...process.env, RCLONE_CONFIG_REVIEW_TYPE: "alias", RCLONE_CONFIG_REVIEW_REMOTE: root };
+    const publish = (revision, confirmed = true) => execFileSync(process.execPath, [
+      "scripts/docs/publish-release.mjs", "--root", source, "--version", version,
+      "--revision", revision, "--manifest", manifestPath, "--remote", "review:bucket",
+      ...(confirmed ? ["--confirm-upload"] : []),
+    ], { env, stdio: "pipe", encoding: "utf8" });
+    await writeFile(path.join(source, "index.html"), "first revision");
+    await writeFile(manifestPath, JSON.stringify(await createManifest(source, version)));
+    publish("first", false);
+    await assert.rejects(readFile(path.join(bucket, "_revisions", version, "first", "index.html")), { code: "ENOENT" });
+    publish("first");
+    assert.match(publish("first"), /no upload needed/);
+    await writeFile(path.join(source, "index.html"), "second revision");
+    await writeFile(manifestPath, JSON.stringify(await createManifest(source, version)));
+    assert.throws(() => publish("first"), /different manifest/);
+    publish("second");
+    assert.equal(await readFile(path.join(bucket, version, "index.html"), "utf8"), "legacy");
+    assert.equal(await readFile(path.join(bucket, "_revisions", version, "first", "index.html"), "utf8"), "first revision");
+    assert.equal(await readFile(path.join(bucket, "_revisions", version, "second", "index.html"), "utf8"), "second revision");
+    assert.equal(await readFile(path.join(bucket, "_manifests", version, "second.json"), "utf8"), await readFile(manifestPath, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("verifies every MD5 with a fast listing and samples MIME once per content type", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gecode-md5-listing-"));
+  const originalPath = process.env.PATH;
+  try {
+    const source = path.join(root, "source");
+    await mkdir(source);
+    await writeFile(path.join(source, "index.html"), "release");
+    await writeFile(path.join(source, "second.html"), "another");
+    await writeFile(path.join(source, "style.css"), "body{}");
+    const manifest = await createManifest(source, "6.4.0");
+    const listing = manifest.files.map((file) => ({ Path: file.path, Size: file.bytes, Hashes: { MD5: file.md5 } }));
+    const stats = manifest.files.map((file) => ({ Path: file.path, Size: file.bytes, MimeType: file.contentType, IsDir: false }));
+    const log = path.join(root, "commands.jsonl");
+    const fake = path.join(root, "rclone");
+    await writeFile(fake, `#!${process.execPath}
+const args = process.argv.slice(2);
+require("node:fs").appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
+if (args[0] !== "lsjson") { console.error("Unexpected object download"); process.exit(77); }
+if (args.includes("--stat")) {
+  console.log(JSON.stringify(${JSON.stringify(stats)}.find((file) => args[1] === "test:bucket/" + file.Path)));
+} else {
+  if (!["--recursive", "--files-only", "--hash", "--no-mimetype", "--no-modtime"].every((flag) => args.includes(flag)) || args.includes("--metadata")) process.exit(78);
+  console.log(${JSON.stringify(JSON.stringify(listing))});
+}
+`);
+    await chmod(fake, 0o755);
+    process.env.PATH = `${root}:${originalPath}`;
+    await verifyRemoteManifest("test:bucket", manifest);
+    const calls = (await readFile(log, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+    assert.equal(calls.length, 3);
+    assert.equal(calls.filter((args) => args.includes("--stat")).length, 2);
+    const corrupt = structuredClone(manifest);
+    corrupt.files.find((file) => file.path === "second.html").md5 = "0".repeat(32);
+    await assert.rejects(verifyRemoteManifest("test:bucket", corrupt), /MD5 manifest/);
+    const wrongMime = structuredClone(manifest);
+    wrongMime.files.find((file) => file.path === "style.css").contentType = "text/plain";
+    await assert.rejects(verifyRemoteManifest("test:bucket", wrongMime), /Remote content type differs/);
+  } finally {
+    process.env.PATH = originalPath;
     await rm(root, { recursive: true, force: true });
   }
 });

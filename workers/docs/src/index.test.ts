@@ -6,14 +6,15 @@ declare module "cloudflare:test" {
   interface ProvidedEnv {
     DOCS: R2Bucket;
     LATEST_DOC_VERSION: string;
+    DOC_REVISIONS?: string;
   }
 }
 
 const base = "https://www.gecode.dev";
 
-async function request(path: string, init?: RequestInit, latestVersion = env.LATEST_DOC_VERSION): Promise<Response> {
+async function request(path: string, init?: RequestInit, latestVersion = env.LATEST_DOC_VERSION, revisions = env.DOC_REVISIONS): Promise<Response> {
   const context = createExecutionContext();
-  const response = await worker.fetch(new Request(new URL(path, base), init), { ...env, LATEST_DOC_VERSION: latestVersion }, context);
+  const response = await worker.fetch(new Request(new URL(path, base), init), { ...env, LATEST_DOC_VERSION: latestVersion, DOC_REVISIONS: revisions }, context);
   await waitOnExecutionContext(context);
   return response;
 }
@@ -37,7 +38,8 @@ describe("documentation worker", () => {
     const page = await request("/doc/6.4.0/reference/PageChange.html");
     expect(page.status).toBe(200);
     expect(await page.text()).toBe("0123456789");
-    expect(page.headers.get("cache-control")).toContain("immutable");
+    expect(page.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300");
+    expect(page.headers.get("x-gecode-documentation-revision")).toBe("legacy");
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(page.headers.get("link")).toBeNull();
     expect(page.headers.get("x-robots-tag")).toBe("noindex");
@@ -375,4 +377,89 @@ describe("documentation worker", () => {
     expect((await request("/doc/6.4.0/%252e%252e/secret")).status).toBe(400);
     expect((await request("/doc/6.4.0/reference%2fPageChange.html")).status).toBe(400);
   });
+  it("promotes revisions without reusing the previous selection's cache", async () => {
+    const relative = "modeling/revision-test/index.html";
+    for (const [revision, body] of [["r1", "first"], ["r2", "second"]]) {
+      await env.DOCS.put(`_revisions/6.4.0/${revision}/${relative}`, body, {
+        httpMetadata: { contentType: "text/html" },
+      });
+    }
+    for (const prefix of ["/doc/6.4.0/", "/doc/latest/"]) {
+      const first = await request(prefix + relative, undefined, "6.4.0", '{"6.4.0":"r1"}');
+      expect(await first.text()).toBe("first");
+      const promoted = await request(prefix + relative, undefined, "6.4.0", '{"6.4.0":"r2"}');
+      expect(await promoted.text()).toBe("second");
+      expect(promoted.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
+      expect(promoted.headers.get("x-gecode-documentation-revision")).toBe("r2");
+      expect(promoted.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300");
+      const rollback = await request(prefix + relative, undefined, "6.4.0", '{"6.4.0":"r1"}');
+      expect(await rollback.text()).toBe("first");
+    }
+    // A selected incomplete bundle must not silently mix in the old release.
+    expect((await request("/doc/6.4.0/reference/PageChange.html", undefined, "6.4.0", '{"6.4.0":"r2"}')).status).toBe(404);
+  });
+
+  it("serves immutable revision previews without changing public canonical paths", async () => {
+    const revision = "manual-2026.09_2";
+    const prefix = `/doc/6.4.0/revisions/${revision}`;
+    await env.DOCS.put(`_revisions/6.4.0/${revision}/index.html`, "preview", {
+      httpMetadata: { contentType: "text/html" },
+    });
+    const preview = await request(prefix + "/", undefined, "6.4.0", '{"6.4.0":"other"}');
+    expect(await preview.text()).toBe("preview");
+    expect(preview.headers.get("x-gecode-documentation-revision")).toBe(revision);
+    expect(preview.headers.get("cache-control")).toContain("immutable");
+    expect(preview.headers.get("x-robots-tag")).toBe("noindex");
+    expect(preview.headers.get("link")).toBeNull();
+    expect((await request(prefix)).headers.get("location")).toBe(`${base}${prefix}/`);
+    expect((await request("/doc/latest/revisions/r1/")).status).toBe(400);
+  });
+
+  it("keeps PDF ranges and validators on the selected revision", async () => {
+    const object = await env.DOCS.put("_revisions/6.4.0/pdf-r2/MPG.pdf", "new PDF bytes", {
+      httpMetadata: { contentType: "application/pdf" },
+    });
+    const revisions = '{"6.4.0":"pdf-r2"}';
+    const path = "/doc/latest/MPG.pdf";
+    for (const init of [undefined, { method: "HEAD" }, { headers: { Range: "bytes=4-6" } }, { headers: { "If-None-Match": object.httpEtag } }]) {
+      const response = await request(path, init, "6.4.0", revisions);
+      expect(response.headers.get("x-gecode-documentation-revision")).toBe("pdf-r2");
+      expect(response.headers.get("link")).toBe('<https://www.gecode.dev/doc/latest/MPG.pdf>; rel="canonical"');
+      if (init?.headers && "Range" in init.headers) {
+        expect(response.status).toBe(206);
+        expect(new TextDecoder().decode(await response.arrayBuffer())).toBe("PDF");
+      }
+    }
+    const stale = await request(path, { headers: { Range: "bytes=4-6", "If-Range": '"old-revision"' } }, "6.4.0", revisions);
+    expect(stale.status).toBe(200);
+    expect(new TextDecoder().decode(await stale.arrayBuffer())).toBe("new PDF bytes");
+  });
+
+  it("rewrites selected revision sitemaps using only public version URLs", async () => {
+    const xml = '<urlset><url><loc>https://www.gecode.dev/doc/6.4.0/modeling/chapter/</loc></url></urlset>';
+    await env.DOCS.put("_revisions/6.4.0/sitemap-r2/sitemap.xml", xml, {
+      httpMetadata: { contentType: "application/xml" },
+    });
+    const revisions = '{"6.4.0":"sitemap-r2"}';
+    const latest = await request("/doc/sitemap.xml", undefined, "6.4.0", revisions);
+    expect(await latest.text()).toBe(xml.replaceAll("/doc/6.4.0/", "/doc/latest/"));
+    expect(latest.headers.get("x-gecode-documentation-revision")).toBe("sitemap-r2");
+    for (const path of ["/doc/6.4.0/sitemap.xml", "/doc/6.4.0/revisions/sitemap-r2/sitemap.xml"]) {
+      const response = await request(path, undefined, "6.4.0", revisions);
+      expect(await response.text()).toBe(xml);
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    }
+  });
+
+  it.each([
+    "{", "null", "[]", '{"6.4.0":null}', '{"6.4.0":42}',
+    '{"6.4.0":"../escape"}', '{"6.4.0":""}', '{"bad-version":"r1"}',
+    JSON.stringify({ "6.4.0": "r".repeat(129) }),
+  ])("fails closed for malformed revision configuration: %s", async (revisions) => {
+    await request("/doc/6.4.0/reference/PageChange.html");
+    const response = await request("/doc/6.4.0/reference/PageChange.html", undefined, "6.4.0", revisions);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
 });
