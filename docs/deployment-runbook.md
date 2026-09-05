@@ -15,15 +15,16 @@ small Pages fallback files.
 As checked on 5 September 2026, Cloudflare is authoritative for `gecode.dev`.
 Cloudflare proxies the apex GitHub Pages A records and the `www` CNAME to
 `gecode.github.io` with Full (strict) TLS and Always Use HTTPS. GitHub Pages
-still serves the production website and documentation; the Astro artifact has
-not been deployed.
+still serves the active website. The 6.4.0 documentation canary now uses R2;
+other versions and aliases await production rollout. Astro has not been deployed.
 
 Cloudflare Email Routing is ready. Its managed MX, SPF, and DKIM records are
 authoritative, both forwarding destinations are verified, and the catch-all
 rule sends mail through the checked-in `gecode-email-routing` Worker. The
 private R2 documentation archive and `docs-staging.gecode.dev` Worker custom
-domain are live and pass the phase 4 smoke tests. No canary or production
-documentation Worker routes exist yet.
+domain are live and pass the phase 4 smoke tests. Full R2 verification passed
+for all nine versions (52,385 files / 1,138,898,740 bytes). The 6.4.0 canary
+passes live checks and its two routes are fail-closed.
 
 The `cloudflare-staging`, `cloudflare-canary`, and `cloudflare-production`
 GitHub environments contain the stable Cloudflare account ID and the dedicated
@@ -36,7 +37,8 @@ The [5 September readiness review](migration-readiness-review-2026-09-05.md)
 records the local fixes, rollback build, verification limits and remaining
 work. Phases 2–4 below describe the original migration sequence; DNS delegation
 and infrastructure setup are largely complete. Staging deployment through
-GitHub now passes. Continue with clean-checkout website CI and phase 5 checks.
+GitHub and clean-checkout website CI pass. The website migration is merged
+in PR #7; Pages remains manual. Continue with phase 5 production rollout.
 
 ## Cutover overview
 
@@ -116,12 +118,14 @@ The successful [staging run](https://github.com/Gecode/gecode.github.io/actions/
 used commit `5ec53f3b111a46d92c42f8b996d79b86dc39cd80` on
 `codex/verify-docs-staging-20260905`. That branch contains a limited Worker
 snapshot with a staging-only push workflow and suppresses the old Pages
-workflow for its branch. Land the complete website migration separately.
+workflow for its branch. The complete website migration was subsequently
+merged in [PR #7](https://github.com/Gecode/gecode.github.io/pull/7).
 Worker tests, dry-run builds, deployment and all HTTP smoke checks passed.
 The deployed `gecode-documentation-staging` version is
 `f9295ce3-1641-4727-b3d9-8f0c7f31b016`. The pre-rehearsal version was
-`8bfa5cfb-1c96-4cb6-8f57-d5d2bb85080c`. Production and canary zone routes remain
-absent, and the classic production pages still return 200.
+`8bfa5cfb-1c96-4cb6-8f57-d5d2bb85080c`. The later
+[canary run](https://github.com/Gecode/gecode.github.io/actions/runs/33967976199)
+passed from merged `main`. Classic production pages still return 200.
 
 To replace the token, create a new token with those permissions, set
 `CLOUDFLARE_API_TOKEN` in all three environments, verify a staging deployment,
@@ -359,7 +363,8 @@ Run `python3 scripts/build-classic-rollback.py` from the website checkout with
 the existing Bundler dependencies installed. It creates
 `dist/classic-rollback/` and `dist/classic-rollback.tar.gz`, refusing to replace
 an existing output directory. The 5 September rehearsal produced 91,168,795
-uncompressed bytes. Keep the tarball outside this checkout before cutover;
+uncompressed bytes. A verified copy is retained at
+`/Users/zayenz/gecode/website-rollback/classic-site-2026-07-15.tar.gz`;
 restore its contents as the Pages artifact when needed.
 
 Before Astro, removing the documentation routes restores the existing origin
