@@ -323,6 +323,11 @@ caches may retain the preceding version for up to five minutes.
 
 ## 8. Monitor cost and availability
 
+The [operations guide](operations.md) describes the scheduled public checks,
+verified failure-notification setting and email Worker diagnostics. The
+availability workflow runs every fifteen minutes and does not require a
+Cloudflare token. Budget notifications remain separate.
+
 The migrated archive contains 52,385 documentation files and 1.139 GB of object
 data. R2 Standard includes 10 GB-month, one million Class A operations, and ten
 million Class B operations each month. The initial direct uploads and checksum
