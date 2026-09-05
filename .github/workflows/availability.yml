@@ -1,0 +1,31 @@
+name: Check production availability
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-availability
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check public website and documentation
+        run: |
+          for attempt in 1 2 3; do
+            if node scripts/check-availability.mjs; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            echo "Retrying public availability checks in 20 seconds (attempt $attempt)."
+            sleep 20
+          done
