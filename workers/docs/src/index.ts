@@ -171,6 +171,23 @@ function applyIndexingPolicy(request: Request, response: Response, env: Env): Re
   });
 }
 
+function injectAnalytics(request: Request, response: Response): Response {
+  if (request.method !== "GET"
+      || new URL(request.url).hostname !== "www.gecode.dev"
+      || response.status !== 200
+      || !/^text\/html(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.delete("Content-Length");
+  headers.delete("ETag");
+  headers.delete("Accept-Ranges");
+  const html = new HTMLRewriter()
+    .on("head", { element(element) { element.append('<script src="/e/init.js" defer></script>', { html: true }); } })
+    .transform(new Response(response.body, { status: response.status, statusText: response.statusText, headers }));
+  return html;
+}
+
 async function sitemapResponse(request: Request, object: R2ObjectBody, resolved: ResolvedPath): Promise<Response> {
   const source = await object.text();
   const text = source.replaceAll(
@@ -344,6 +361,7 @@ export default {
       response = errorResponse(503, "Documentation is temporarily unavailable", { "Retry-After": "60" });
     }
     response = applyIndexingPolicy(request, response, env);
+    response = injectAnalytics(request, response);
     console.log(JSON.stringify({
       method: request.method,
       path: new URL(request.url).pathname,

@@ -49,6 +49,28 @@ describe("documentation worker", () => {
     expect((await request("/doc/6.4.0/%69ndex.html")).status).toBe(200);
   });
 
+  it("adds analytics to Doxygen and MPG HTML without changing stored files", async () => {
+    for (const relative of ["reference/index.html", "modeling/index.html"]) {
+      const source = `<!doctype html><html><head><title>${relative}</title></head><body>page</body></html>`;
+      await env.DOCS.put(`6.4.0/${relative}`, source, {
+        httpMetadata: { contentType: "text/html; charset=utf-8" },
+      });
+      const response = await request(`/doc/latest/${relative}`);
+      expect(await response.text()).toContain('<script src="/e/init.js" defer></script>');
+      expect(response.headers.get("content-length")).toBeNull();
+      expect(response.headers.get("etag")).toBeNull();
+      expect(await (await env.DOCS.get(`6.4.0/${relative}`))!.text()).toBe(source);
+    }
+  });
+
+  it("does not add production analytics to staging documentation", async () => {
+    await env.DOCS.put("6.4.0/reference/analytics.html", "<html><head></head><body>page</body></html>", {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    const response = await request("https://docs-staging.gecode.dev/doc/latest/reference/analytics.html");
+    expect(await response.text()).not.toContain("/e/init.js");
+  });
+
   it("serves repeat requests from the edge cache", async () => {
     const url = "/doc/6.4.0/reference/PageChange.html?cache-test=1";
     expect((await request(url)).status).toBe(200);

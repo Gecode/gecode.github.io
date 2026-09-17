@@ -197,9 +197,31 @@ jobs:
         if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'redirects')
         run: npx wrangler deploy --env="" --config workers/redirects/wrangler.jsonc
 
+      - name: Validate PostHog project token
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        env:
+          POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
+        run: |
+          if [[ -z "$POSTHOG_PROJECT_TOKEN" ]]; then
+            echo "POSTHOG_PROJECT_TOKEN is not configured in the cloudflare-production environment." >&2
+            exit 2
+          fi
+
       - name: Deploy redirect Worker to production
         if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
         run: npx wrangler deploy --env production --config workers/redirects/wrangler.jsonc
+
+      - name: Configure PostHog project token
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
+        env:
+          POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
+        run: |
+          if [[ -z "$POSTHOG_PROJECT_TOKEN" ]]; then
+            echo "POSTHOG_PROJECT_TOKEN is not configured in the cloudflare-production environment." >&2
+            exit 2
+          fi
+          printf '%s' "$POSTHOG_PROJECT_TOKEN" | npx wrangler secret put POSTHOG_PROJECT_TOKEN \
+            --env production --config workers/redirects/wrangler.jsonc
 
       - name: Preserve origin fallback for production redirects
         if: inputs.operation == 'deploy' && inputs.environment == 'production' && (inputs.worker == 'both' || inputs.worker == 'redirects')
