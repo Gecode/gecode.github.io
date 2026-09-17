@@ -46,7 +46,8 @@ events otherwise.
 The production configuration uses exact top-level routes plus the
 `/publications` prefix. Clean publication requests pass through to the GitHub
 Pages origin. Cloudflare route subrequests reach that origin without invoking
-the same route again.
+the same route again. Those compatibility redirects fail open to their static
+fallback pages; the `/e/*` analytics route remains fail closed.
 
 Validate locally with:
 

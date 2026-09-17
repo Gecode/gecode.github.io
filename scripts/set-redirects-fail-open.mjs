@@ -3,13 +3,16 @@ import { readFile } from "node:fs/promises";
 
 const config = JSON.parse(await readFile("workers/redirects/wrangler.jsonc", "utf8")).env.production;
 assert.equal(config.name, "gecode-classic-url-redirects", "Unexpected production redirect Worker");
-const patterns = config.routes.map((route) => {
+const configuredPatterns = config.routes.map((route) => {
   assert.equal(route.zone_name, "gecode.dev", "Unexpected redirect zone");
-  assert(/^www\.gecode\.dev\/(?:[a-z-]+\.html|publications)\*$/.test(route.pattern),
-    "Unexpected active-site redirect pattern");
+  assert(/^www\.gecode\.dev\/(?:[a-z-]+\.html|publications)\*$/.test(route.pattern)
+    || route.pattern === "www.gecode.dev/e/*", "Unexpected edge route pattern");
   return route.pattern;
 });
-assert(patterns.length > 0 && new Set(patterns).size === patterns.length, "Invalid redirect pattern set");
+assert(configuredPatterns.length > 0 && new Set(configuredPatterns).size === configuredPatterns.length,
+  "Invalid edge route pattern set");
+const redirectPatterns = configuredPatterns.filter((pattern) => pattern !== "www.gecode.dev/e/*");
+assert.equal(configuredPatterns.length, redirectPatterns.length + 1, "Expected exactly one analytics route");
 
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
 const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -35,21 +38,22 @@ assert.equal(zones[0].name, "gecode.dev", "Unexpected zone");
 assert.equal(zones[0].account.id, account, "Unexpected zone account");
 const routePath = `/zones/${zones[0].id}/workers/routes`;
 
-function redirectRoutes(routes) {
+function ownedRoutes(routes) {
   const owned = routes.filter((route) => route.script === config.name);
-  assert.deepEqual(owned.map((route) => route.pattern).sort(), [...patterns].sort(),
-    "Live redirect routes must match the production configuration");
-  for (const pattern of patterns) {
+  assert.deepEqual(owned.map((route) => route.pattern).sort(), [...configuredPatterns].sort(),
+    "Live edge routes must match the production configuration");
+  for (const pattern of configuredPatterns) {
     const matches = routes.filter((route) => route.pattern === pattern);
-    assert.equal(matches.length, 1, "Expected exactly one route for each redirect pattern");
-    assert.equal(matches[0].script, config.name, "Redirect route belongs to another Worker");
+    assert.equal(matches.length, 1, "Expected exactly one route for each configured pattern");
+    assert.equal(matches[0].script, config.name, "Edge route belongs to another Worker");
   }
   return owned;
 }
 
 // Wrangler does not configure this flag. Apply it only after checking the
 // complete redirect route set, so documentation routes remain fail closed.
-for (const route of redirectRoutes(await api(routePath))) {
+for (const route of ownedRoutes(await api(routePath))) {
+  if (!redirectPatterns.includes(route.pattern)) continue;
   if (route.request_limit_fail_open === true) continue;
   await api(`${routePath}/${route.id}`, "PUT", {
     pattern: route.pattern,
@@ -57,6 +61,10 @@ for (const route of redirectRoutes(await api(routePath))) {
     request_limit_fail_open: true,
   });
 }
-assert(redirectRoutes(await api(routePath)).every((route) => route.request_limit_fail_open === true),
+const verifiedRoutes = ownedRoutes(await api(routePath));
+assert(verifiedRoutes.filter((route) => redirectPatterns.includes(route.pattern))
+  .every((route) => route.request_limit_fail_open === true),
   "Redirect routes did not retain fail-open behavior");
-console.log(`Verified fail-open behavior for ${patterns.length} production redirect routes.`);
+assert(verifiedRoutes.find((route) => route.pattern === "www.gecode.dev/e/*")
+  ?.request_limit_fail_open !== true, "Analytics route must remain fail closed");
+console.log(`Verified fail-open behavior for ${redirectPatterns.length} production redirect routes.`);
