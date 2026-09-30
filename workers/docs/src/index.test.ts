@@ -38,7 +38,7 @@ describe("documentation worker", () => {
     const page = await request("/doc/6.4.0/reference/PageChange.html");
     expect(page.status).toBe(200);
     expect(await page.text()).toBe("0123456789");
-    expect(page.headers.get("cache-control")).toBe("public, max-age=300");
+    expect(page.headers.get("cache-control")).toBe("public, max-age=86400");
     expect(page.headers.get("cloudflare-cdn-cache-control")).toBe(
       "public, max-age=2592000, stale-while-revalidate=604800, stale-if-error=2592000",
     );
@@ -119,7 +119,7 @@ describe("documentation worker", () => {
     async (path) => {
       const response = await request(path);
       expect(await response.text()).toBe("0123456789");
-      expect(response.headers.get("cache-control")).toContain("max-age=300");
+      expect(response.headers.get("cache-control")).toContain("max-age=86400");
       expect(response.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
       const canonical = path.startsWith("/doc/latest/");
       expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
@@ -385,7 +385,7 @@ describe("documentation worker", () => {
       expect(await promoted.text()).toBe("second");
       expect(promoted.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
       expect(promoted.headers.get("x-gecode-documentation-revision")).toBe("r2");
-      expect(promoted.headers.get("cache-control")).toBe("public, max-age=300");
+      expect(promoted.headers.get("cache-control")).toBe("public, max-age=86400");
       const rollback = await request(prefix + relative, undefined, "6.4.0", '{"6.4.0":"r1"}');
       expect(await rollback.text()).toBe("first");
     }

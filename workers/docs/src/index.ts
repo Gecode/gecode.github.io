@@ -132,6 +132,7 @@ function parseRange(value: string, size: number): { offset: number; length: numb
 }
 
 function applyObjectHeaders(headers: Headers, object: R2Object, resolved: ResolvedPath): void {
+  const isSitemap = /^sitemap(?:-\d+)?\.xml$/.test(resolved.relative);
   object.writeHttpMetadata(headers);
   headers.set("ETag", object.httpEtag);
   headers.set("Last-Modified", object.uploaded.toUTCString());
@@ -142,11 +143,11 @@ function applyObjectHeaders(headers: Headers, object: R2Object, resolved: Resolv
     "Cache-Control",
     resolved.isRevision
       ? "public, max-age=31536000, immutable"
-      : "public, max-age=300",
+      : isSitemap ? "public, max-age=300" : "public, max-age=86400",
   );
   headers.set("Cloudflare-CDN-Cache-Control", resolved.isRevision
     ? "public, max-age=31536000, stale-while-revalidate=604800, stale-if-error=2592000"
-    : /^sitemap(?:-\d+)?\.xml$/.test(resolved.relative) ? sitemapEdgeCache : documentationEdgeCache);
+    : isSitemap ? sitemapEdgeCache : documentationEdgeCache);
   for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
 }
 
@@ -239,7 +240,7 @@ async function serve(request: Request, env: Env): Promise<Response> {
     destination.pathname = pathname;
     return new Response(null, { status: 308, headers: {
       Location: destination.href,
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": "public, max-age=86400",
       "Cloudflare-CDN-Cache-Control": documentationEdgeCache,
     } });
   };

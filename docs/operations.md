@@ -74,7 +74,8 @@ Two active Cache Rules refine that default:
 Keep `/doc*` out of the website rule. The documentation Worker owns its cache
 policy. The prepared Workers Cache change gives selected routes and aliases
 thirty days of edge freshness plus seven days of stale-while-revalidate, while
-browsers retain five-minute freshness. Explicit revisions retain a one-year
+browsers retain one-day freshness. Sitemaps and robots.txt retain five-minute
+browser freshness. Explicit revisions retain a one-year
 policy. See the [Worker runbook](../workers/docs/README.md#response-caching) for
 the policy and staging checks. On 30 September 2026, the change was deployed to
 staging from [PR #13](https://github.com/Gecode/gecode.github.io/pull/13), but not
@@ -84,7 +85,8 @@ returns 206 for HEAD requests carrying Range; the handler previously ignored
 Range on HEAD and returned 200. Plain HEAD and the remaining smoke assertions
 passed in a separate diagnostic run. Cloudflare rejected a request-header rule
 to remove Range because that header is protected; no transform rule was created.
-Production promotion awaits a decision on this compatibility difference.
+The HEAD-with-Range behavior is now accepted, and the smoke check tests it
+separately from plain HEAD. Production promotion awaits the updated staging run.
 
 Ordinary zone caching runs after Worker routing. Workers Cache sits before
 execution, but its hits still count as Worker requests. Neither response headers

@@ -23,7 +23,7 @@ IDs, for example `{"6.4.0":"20260905-rst2"}`. The Worker resolves
 The explicit `/doc/6.4.0/revisions/20260905-rst2/...` route always addresses that
 revision, independently of `DOC_REVISIONS`. Verify it before selecting a newly
 published revision. Only this explicit revision route has a one-year immutable
-browser cache policy; selected version routes and aliases have a five-minute
+browser cache policy; selected version routes and aliases have a one-day
 browser policy and a thirty-day edge policy.
 Responses identify both choices with `X-Gecode-Documentation-Version` and
 `X-Gecode-Documentation-Revision` (the latter is `legacy` for an unselected
@@ -54,7 +54,7 @@ count as billable Worker requests and against the Free request allowance.
 
 | Response | Browser freshness | Edge freshness | Stale while revalidating |
 | --- | --- | --- | --- |
-| Latest, compatibility alias, selected version, redirects | 5 minutes | 30 days | 7 days |
+| Latest, compatibility alias, selected version, redirects | 1 day | 30 days | 7 days |
 | Explicit revision | 1 year, immutable | 1 year | 7 days |
 | Selected sitemap and robots.txt | 5 minutes | 1 day | 1 day |
 | 404 | No storage | 5 minutes | None |
@@ -67,18 +67,16 @@ in the edge header: [Workers Cache disables stale serving with `s-maxage`](https
 `cross_version_cache: false` isolates each Worker deployment's cache. Promoting
 or rolling back a revision requires deploying the changed configuration; the
 new deployment does not reuse the previous deployment's cached aliases. Browser
-copies can remain fresh for five minutes. Immutable R2 objects must never be
+copies can remain fresh for one day after a release or rollback. Immutable R2 objects must never be
 overwritten. Cache lifetime is not a retention guarantee: eviction and distinct
 query strings can still cause misses.
 
 Before the first production rollout, validate this configuration on staging:
 
-Staging note (30 September 2026): native Workers Cache returns 206 for HEAD
-requests carrying Range. The existing smoke check expects 200, matching the
-handler's behavior, and currently blocks promotion. Plain HEAD, GET ranges,
-and stale If-Range checks pass. Cloudflare does not allow a Request Header
-Transform Rule to remove Range. Keep the smoke assertion until the deployment
-contract explicitly accepts this edge behavior.
+Native Workers Cache returns 206 for HEAD requests carrying Range, with range
+metadata and no body. This edge behavior is accepted; the deployment smoke
+check covers it separately from plain HEAD, which returns full metadata with
+status 200. Direct handler tests still expect HEAD to ignore Range.
 
 1. Check repeated GETs for cache hits and confirm only misses execute the Worker
    using Workers Cache metrics and execution logs. Zone cache statistics alone
@@ -221,7 +219,7 @@ node scripts/docs/smoke-worker.mjs https://www.gecode.dev 6.4.0 \
 For a selected version that is not latest, add `--immutable-only` to skip
 latest aliases. Revision checks cover the modeling entry page, Pagefind index
 and runtime assets, reference HTML, sitemap headers, exact PDF ranges, and 404s.
-Previously browser-cached selected routes may remain visible for up to five minutes.
+Previously browser-cached selected routes may remain visible for up to one day.
 Rollback restores the previous `DOC_REVISIONS` entry (or removes it to select
 historical objects), without changing stored documentation.
 

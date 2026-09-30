@@ -154,13 +154,20 @@ await check(`/doc/${version}/readiness-missing-page.html`, 404);
 for (const prefix of prefixes) {
   const pdf = `${prefix}/MPG.pdf`;
   let etag;
-  await check(pdf, 200, { method: "HEAD", headers: { Range: "bytes=0-15" } }, (response) => {
+  await check(pdf, 200, { method: "HEAD" }, (response) => {
     assert.match(response.headers.get("content-type"), /application\/pdf/);
     assert(Number(response.headers.get("content-length")) > 16);
     assert.equal(response.headers.get("content-range"), null);
     assertCanonical(response, prefix, "MPG.pdf");
     etag = response.headers.get("etag");
     assert(etag);
+  });
+  // Workers Cache applies Range to HEAD as well as GET.
+  await check(pdf, 206, { method: "HEAD", headers: { Range: "bytes=0-15" } }, async (response) => {
+    assert.match(response.headers.get("content-range"), /^bytes 0-15\/\d+$/);
+    assert.equal(response.headers.get("content-length"), "16");
+    assertCanonical(response, prefix, "MPG.pdf");
+    assert.equal((await response.arrayBuffer()).byteLength, 0);
   });
   await check(pdf, 206, { headers: { Range: "bytes=0-15", "If-Range": etag } }, async (response) => {
     assert.match(response.headers.get("content-range"), /^bytes 0-15\/\d+$/);
