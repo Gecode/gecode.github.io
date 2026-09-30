@@ -78,15 +78,14 @@ browsers retain one-day freshness. Sitemaps and robots.txt retain five-minute
 browser freshness. Explicit revisions retain a one-year
 policy. See the [Worker runbook](../workers/docs/README.md#response-caching) for
 the policy and staging checks. On 30 September 2026, the change was deployed to
-staging from [PR #13](https://github.com/Gecode/gecode.github.io/pull/13), but not
-to production. A fresh URL returned MISS, HIT, HIT, with one execution visible
-in Worker logs. The deployment smoke test failed because native Workers Cache
-returns 206 for HEAD requests carrying Range; the handler previously ignored
-Range on HEAD and returned 200. Plain HEAD and the remaining smoke assertions
-passed in a separate diagnostic run. Cloudflare rejected a request-header rule
-to remove Range because that header is protected; no transform rule was created.
-The HEAD-with-Range behavior is now accepted, and the smoke check tests it
-separately from plain HEAD. Production promotion awaits the updated staging run.
+staging from [PR #13](https://github.com/Gecode/gecode.github.io/pull/13).
+The updated [staging deployment and smoke checks passed](https://github.com/Gecode/gecode.github.io/actions/runs/36679599037).
+A fresh URL returned MISS, HIT, HIT with `Cache-Control: public, max-age=86400`.
+An earlier probe confirmed one Worker execution for three requests. The smoke
+check accepts native Workers Cache's 206 response to HEAD with Range and checks
+plain HEAD separately. Production deployment remains subject to the protected
+environment's approval. Short-TTL SWR and live revision rollback have not yet
+been exercised against the native cache.
 
 Ordinary zone caching runs after Worker routing. Workers Cache sits before
 execution, but its hits still count as Worker requests. Neither response headers
