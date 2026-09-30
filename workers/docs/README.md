@@ -73,6 +73,13 @@ query strings can still cause misses.
 
 Before the first production rollout, validate this configuration on staging:
 
+Staging note (30 September 2026): native Workers Cache returns 206 for HEAD
+requests carrying Range. The existing smoke check expects 200, matching the
+handler's behavior, and currently blocks promotion. Plain HEAD, GET ranges,
+and stale If-Range checks pass. Cloudflare does not allow a Request Header
+Transform Rule to remove Range. Keep the smoke assertion until the deployment
+contract explicitly accepts this edge behavior.
+
 1. Check repeated GETs for cache hits and confirm only misses execute the Worker
    using Workers Cache metrics and execution logs. Zone cache statistics alone
    do not establish the execution avoidance rate.

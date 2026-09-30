@@ -76,8 +76,15 @@ policy. The prepared Workers Cache change gives selected routes and aliases
 thirty days of edge freshness plus seven days of stale-while-revalidate, while
 browsers retain five-minute freshness. Explicit revisions retain a one-year
 policy. See the [Worker runbook](../workers/docs/README.md#response-caching) for
-the policy and staging checks. As of 30 September 2026, this change is prepared
-locally, not verified or deployed in production.
+the policy and staging checks. On 30 September 2026, the change was deployed to
+staging from [PR #13](https://github.com/Gecode/gecode.github.io/pull/13), but not
+to production. A fresh URL returned MISS, HIT, HIT, with one execution visible
+in Worker logs. The deployment smoke test failed because native Workers Cache
+returns 206 for HEAD requests carrying Range; the handler previously ignored
+Range on HEAD and returned 200. Plain HEAD and the remaining smoke assertions
+passed in a separate diagnostic run. Cloudflare rejected a request-header rule
+to remove Range because that header is protected; no transform rule was created.
+Production promotion awaits a decision on this compatibility difference.
 
 Ordinary zone caching runs after Worker routing. Workers Cache sits before
 execution, but its hits still count as Worker requests. Neither response headers
