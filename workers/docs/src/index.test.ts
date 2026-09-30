@@ -38,7 +38,10 @@ describe("documentation worker", () => {
     const page = await request("/doc/6.4.0/reference/PageChange.html");
     expect(page.status).toBe(200);
     expect(await page.text()).toBe("0123456789");
-    expect(page.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300");
+    expect(page.headers.get("cache-control")).toBe("public, max-age=86400");
+    expect(page.headers.get("cloudflare-cdn-cache-control")).toBe(
+      "public, max-age=2592000, stale-while-revalidate=604800, stale-if-error=2592000",
+    );
     expect(page.headers.get("x-gecode-documentation-revision")).toBe("legacy");
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(page.headers.get("link")).toBeNull();
@@ -71,15 +74,6 @@ describe("documentation worker", () => {
     expect(await response.text()).not.toContain("/e/init.js");
   });
 
-  it("serves repeat requests from the edge cache", async () => {
-    const url = "/doc/6.4.0/reference/PageChange.html?cache-test=1";
-    expect((await request(url)).status).toBe(200);
-    await env.DOCS.delete("6.4.0/reference/PageChange.html");
-    const cached = await request("/doc/6.4.0/reference/PageChange.html?different-query=1");
-    expect(cached.status).toBe(200);
-    expect(await cached.text()).toBe("0123456789");
-  });
-
   it("returns 503 when R2 fails", async () => {
     const originalGet = env.DOCS.get.bind(env.DOCS);
     env.DOCS.get = async () => { throw new Error("test outage"); };
@@ -87,6 +81,7 @@ describe("documentation worker", () => {
     env.DOCS.get = originalGet;
     expect(response.status).toBe(503);
     expect(response.headers.get("retry-after")).toBe("60");
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store");
   });
 
   it("uses one R2 read for an ordinary cache miss", async () => {
@@ -124,7 +119,7 @@ describe("documentation worker", () => {
     async (path) => {
       const response = await request(path);
       expect(await response.text()).toBe("0123456789");
-      expect(response.headers.get("cache-control")).toContain("max-age=300");
+      expect(response.headers.get("cache-control")).toContain("max-age=86400");
       expect(response.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
       const canonical = path.startsWith("/doc/latest/");
       expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
@@ -161,31 +156,7 @@ describe("documentation worker", () => {
     }
   });
 
-  it("applies the current indexing policy even to cached headers", async () => {
-    const match = vi.spyOn(caches.default, "match").mockImplementation(async () => new Response("cached content", {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        Link: '<https://www.gecode.dev/doc/6.4.0/reference/PageChange.html>; rel="canonical"',
-        "X-Robots-Tag": "index",
-      },
-    }));
-    try {
-      const immutable = await request("/doc/6.4.0/reference/PageChange.html");
-      expect(await immutable.text()).toBe("cached content");
-      expect(immutable.headers.get("x-robots-tag")).toBe("noindex");
-      expect(immutable.headers.get("link")).toBeNull();
-      const latest = await request("/doc/latest/reference/PageChange.html");
-      expect(await latest.text()).toBe("cached content");
-      expect(latest.headers.get("x-robots-tag")).toBeNull();
-      expect(latest.headers.get("link")).toBe(
-        '<https://www.gecode.dev/doc/latest/reference/PageChange.html>; rel="canonical"',
-      );
-    } finally {
-      match.mockRestore();
-    }
-  });
-
-  it("selects new latest content without reusing the preceding release's cache", async () => {
+  it("selects new latest content when the release configuration changes", async () => {
     await request("/doc/latest/reference/PageChange.html");
     await env.DOCS.put("7.0.0/reference/PageChange.html", "new release", {
       httpMetadata: { contentType: "text/html; charset=utf-8" },
@@ -204,14 +175,11 @@ describe("documentation worker", () => {
     const shardXml = '<urlset><url><loc>https://www.gecode.dev/doc/6.5.0/reference/PageChange.html</loc></url></urlset>';
     await env.DOCS.put(`${version}/sitemap.xml`, indexXml, { httpMetadata: { contentType: "application/xml" } });
     await env.DOCS.put(`${version}/sitemap-1.xml`, shardXml, { httpMetadata: { contentType: "application/xml" } });
-    // Entries cached before the indexing-policy change must not leak old URLs.
-    await caches.default.put(new Request(`${base}/doc/sitemap.xml`), new Response(indexXml, {
-      headers: { "Cache-Control": "public, max-age=300", "Content-Type": "application/xml" },
-    }));
     for (const path of ["/doc/sitemap.xml", "/doc/latest/sitemap.xml", "/doc-latest/sitemap.xml"]) {
       const response = await request(path, undefined, version);
       expect(response.status).toBe(200);
       expect(await response.text()).toBe(indexXml.replaceAll(`/doc/${version}/`, "/doc/latest/"));
+      expect(response.headers.get("cloudflare-cdn-cache-control")).toContain("max-age=86400,");
     }
     const shard = await request("/doc/latest/sitemap-1.xml", undefined, version);
     expect(await shard.text()).toBe(shardXml.replaceAll(`/doc/${version}/`, "/doc/latest/"));
@@ -306,6 +274,7 @@ describe("documentation worker", () => {
     const response = await request("/doc/6.4.0/reference/PageChange.html", { headers: { Range: "bytes=20-30" } });
     expect(response.status).toBe(416);
     expect(response.headers.get("content-range")).toBe("bytes */10");
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store");
   });
 
   it("resumes PDFs only when If-Range matches the current representation", async () => {
@@ -375,7 +344,7 @@ describe("documentation worker", () => {
         const response = await worker.fetch(incoming, env, context);
         await waitOnExecutionContext(context);
         expect(originFetch).toHaveBeenLastCalledWith(incoming);
-        expect(response).toBe(upstream);
+        expect(response.headers.get("cloudflare-cdn-cache-control")).toBe("no-store");
         expect(response.status).toBe(status);
         expect(response.headers.get("x-robots-tag")).toBe("index, follow");
         expect(response.headers.get("link")).toBe('<https://www.gecode.dev/documentation/>; rel="canonical"');
@@ -391,7 +360,10 @@ describe("documentation worker", () => {
   });
 
   it("returns explicit errors", async () => {
-    expect((await request("/doc/6.4.0/missing.html")).status).toBe(404);
+    const missing = await request("/doc/6.4.0/missing.html");
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("cache-control")).toBe("no-store");
+    expect(missing.headers.get("cloudflare-cdn-cache-control")).toBe("public, max-age=300");
     const method = await request("/doc/6.4.0/index.html", { method: "POST" });
     expect(method.status).toBe(405);
     expect(method.headers.get("allow")).toBe("GET, HEAD");
@@ -399,7 +371,7 @@ describe("documentation worker", () => {
     expect((await request("/doc/6.4.0/%252e%252e/secret")).status).toBe(400);
     expect((await request("/doc/6.4.0/reference%2fPageChange.html")).status).toBe(400);
   });
-  it("promotes revisions without reusing the previous selection's cache", async () => {
+  it("promotes and rolls back the selected revision", async () => {
     const relative = "modeling/revision-test/index.html";
     for (const [revision, body] of [["r1", "first"], ["r2", "second"]]) {
       await env.DOCS.put(`_revisions/6.4.0/${revision}/${relative}`, body, {
@@ -413,7 +385,7 @@ describe("documentation worker", () => {
       expect(await promoted.text()).toBe("second");
       expect(promoted.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
       expect(promoted.headers.get("x-gecode-documentation-revision")).toBe("r2");
-      expect(promoted.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300");
+      expect(promoted.headers.get("cache-control")).toBe("public, max-age=86400");
       const rollback = await request(prefix + relative, undefined, "6.4.0", '{"6.4.0":"r1"}');
       expect(await rollback.text()).toBe("first");
     }

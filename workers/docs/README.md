@@ -23,7 +23,8 @@ IDs, for example `{"6.4.0":"20260905-rst2"}`. The Worker resolves
 The explicit `/doc/6.4.0/revisions/20260905-rst2/...` route always addresses that
 revision, independently of `DOC_REVISIONS`. Verify it before selecting a newly
 published revision. Only this explicit revision route has a one-year immutable
-cache policy; selected version routes and aliases have a five-minute policy.
+browser cache policy; selected version routes and aliases have a one-day
+browser policy and a thirty-day edge policy.
 Responses identify both choices with `X-Gecode-Documentation-Version` and
 `X-Gecode-Documentation-Revision` (the latter is `legacy` for an unselected
 historical prefix).
@@ -40,6 +41,52 @@ namespaces, such as `/documentation.html`, pass through to the production
 origin without documentation indexing headers. Unknown staging paths return
 404, avoiding a fetch back into the custom-domain Worker. The `/doc` landing
 redirect uses `/documentation.html`, which exists before and after Astro.
+
+## Response caching
+
+The checked-in configuration enables [Workers Cache](https://developers.cloudflare.com/workers/cache/).
+Cloudflare checks this cache before executing the Worker and stores the final
+response, including indexing headers and analytics injection. The Worker no
+longer uses `caches.default`. Cache hits avoid execution and R2 reads, but still
+count as billable Worker requests and against the Free request allowance.
+
+`Cloudflare-CDN-Cache-Control` separates edge freshness from browser freshness:
+
+| Response | Browser freshness | Edge freshness | Stale while revalidating |
+| --- | --- | --- | --- |
+| Latest, compatibility alias, selected version, redirects | 1 day | 30 days | 7 days |
+| Explicit revision | 1 year, immutable | 1 year | 7 days |
+| Selected sitemap and robots.txt | 5 minutes | 1 day | 1 day |
+| 404 | No storage | 5 minutes | None |
+
+Successful responses also allow stale delivery for thirty days on an origin
+error. Other errors are not stored. Neighboring website paths bypass Workers
+Cache and retain their origin's browser policy. Use `max-age`, not `s-maxage`,
+in the edge header: [Workers Cache disables stale serving with `s-maxage`](https://developers.cloudflare.com/workers/cache/configuration/).
+
+`cross_version_cache: false` isolates each Worker deployment's cache. Promoting
+or rolling back a revision requires deploying the changed configuration; the
+new deployment does not reuse the previous deployment's cached aliases. Browser
+copies can remain fresh for one day after a release or rollback. Immutable R2 objects must never be
+overwritten. Cache lifetime is not a retention guarantee: eviction and distinct
+query strings can still cause misses.
+
+Before the first production rollout, validate this configuration on staging:
+
+Native Workers Cache returns 206 for HEAD requests carrying Range, with range
+metadata and no body. This edge behavior is accepted; the deployment smoke
+check covers it separately from plain HEAD, which returns full metadata with
+status 200. Direct handler tests still expect HEAD to ignore Range.
+
+1. Check repeated GETs for cache hits and confirm only misses execute the Worker
+   using Workers Cache metrics and execution logs. Zone cache statistics alone
+   do not establish the execution avoidance rate.
+2. Check cold and warm HEAD, PDF ranges, redirects, canonical headers, sitemaps,
+   and errors. Local tests call the handler directly, not the pre-Worker cache.
+3. Exercise SWR with a temporary short staging TTL, then restore the configured
+   policy. Verify a deployment changing the selected revision serves new content
+   and that rollback restores the previous selection.
+4. Run the existing smoke checks before promoting through the protected workflow.
 
 ## Local validation
 
@@ -172,7 +219,7 @@ node scripts/docs/smoke-worker.mjs https://www.gecode.dev 6.4.0 \
 For a selected version that is not latest, add `--immutable-only` to skip
 latest aliases. Revision checks cover the modeling entry page, Pagefind index
 and runtime assets, reference HTML, sitemap headers, exact PDF ranges, and 404s.
-Previously cached selected routes may remain visible for up to five minutes.
+Previously browser-cached selected routes may remain visible for up to one day.
 Rollback restores the previous `DOC_REVISIONS` entry (or removes it to select
 historical objects), without changing stored documentation.
 
