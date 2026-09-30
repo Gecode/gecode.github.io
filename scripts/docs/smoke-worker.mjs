@@ -108,7 +108,11 @@ if (!immutableOnly) {
   await check("/robots.txt?smoke=1", 200, {}, async (response) => {
     assert.match(response.headers.get("content-type"), /text\/plain/);
     const body = await response.text();
-    assert.doesNotMatch(body, /^Disallow:\s*\/doc(?:\/latest|-latest)/m);
+    assert.match(body, /^Disallow: \/doc\/$/m);
+    assert.match(body, /^Disallow: \/doc-latest$/m);
+    assert.match(body, /^Allow: \/doc\/latest\/$/m);
+    assert.match(body, /^Allow: \/doc\/sitemap\.xml$/m);
+    assert.doesNotMatch(body, /^Disallow:\s*\/$/m);
     assert.match(body, /^Sitemap: https:\/\/www\.gecode\.dev\/doc\/sitemap\.xml$/m);
   });
   if (production) {

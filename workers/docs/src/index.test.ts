@@ -45,7 +45,7 @@ describe("documentation worker", () => {
     expect(page.headers.get("x-gecode-documentation-revision")).toBe("legacy");
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(page.headers.get("link")).toBeNull();
-    expect(page.headers.get("x-robots-tag")).toBe("noindex");
+    expect(page.headers.get("x-robots-tag")).toBe("noindex, nofollow");
 
     const index = await request("/doc/6.4.0/");
     expect(await index.text()).toBe("release home");
@@ -72,6 +72,35 @@ describe("documentation worker", () => {
     });
     const response = await request("https://docs-staging.gecode.dev/doc/latest/reference/analytics.html");
     expect(await response.text()).not.toContain("/e/init.js");
+  });
+
+  it("serves the large Doxygen crawl index intact without passing it through HTMLRewriter", async () => {
+    const source = '<html><head><title>Validator / crawler helper</title></head><body>'
+      + '<a href="classGecode_1_1Space.html"/>'.repeat(40_000) + '</body></html>';
+    const relative = "reference/doxygen_crawl.html";
+    const metadata = { httpMetadata: { contentType: "text/html; charset=utf-8" } };
+    const object = await env.DOCS.put(`6.4.0/${relative}`, source, metadata);
+    const revision = await env.DOCS.put(`_revisions/6.4.0/r1/${relative}`, source, metadata);
+    for (const prefix of ["/doc/latest", "/doc-latest", "/doc/6.4.0", "/doc/6.4.0/revisions/r1"]) {
+      const response = await request(`${prefix}/${relative}?check=1`);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe(source);
+      expect(response.headers.get("content-length")).toBe(String(source.length));
+      expect(response.headers.get("etag")).toBe(prefix.endsWith("/r1") ? revision.httpEtag : object.httpEtag);
+      expect(response.headers.get("accept-ranges")).toBe("bytes");
+    }
+  });
+
+  it("adds matching robots metadata to excluded HTML while leaving latest indexable", async () => {
+    await env.DOCS.put("6.4.0/reference/index.html", "<html><head></head><body>page</body></html>", {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    for (const prefix of ["/doc/6.4.0", "/doc-latest", "/doc/latest"]) {
+      const response = await request(`${prefix}/reference/index.html`);
+      const html = await response.text();
+      expect(html.includes('<meta name="robots" content="noindex, nofollow">')).toBe(prefix !== "/doc/latest");
+      expect(html).toContain('<script src="/e/init.js" defer></script>');
+    }
   });
 
   it("returns 503 when R2 fails", async () => {
@@ -122,7 +151,7 @@ describe("documentation worker", () => {
       expect(response.headers.get("cache-control")).toContain("max-age=86400");
       expect(response.headers.get("x-gecode-documentation-version")).toBe("6.4.0");
       const canonical = path.startsWith("/doc/latest/");
-      expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
+      expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex, nofollow");
       expect(response.headers.get("link")).toBe(canonical
         ? '<https://www.gecode.dev/doc/latest/reference/PageChange.html>; rel="canonical"'
         : null);
@@ -136,7 +165,7 @@ describe("documentation worker", () => {
     expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
     expect(response.headers.get("cache-control")).toContain("max-age=300");
     expect(response.headers.get("link")).toBeNull();
-    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   });
 
   it("keeps historical versions and staging out of the index", async () => {
@@ -151,7 +180,7 @@ describe("documentation worker", () => {
     ]) {
       const response = await request(path);
       expect(response.status).toBe(200);
-      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
       expect(response.headers.get("link")).toBeNull();
     }
   });
@@ -186,7 +215,7 @@ describe("documentation worker", () => {
     expect(shard.headers.get("x-robots-tag")).toBeNull();
     const historical = await request(`/doc/${version}/sitemap-1.xml`, undefined, version);
     expect(await historical.text()).toBe(shardXml);
-    expect(historical.headers.get("x-robots-tag")).toBe("noindex");
+    expect(historical.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(await (await env.DOCS.get(`${version}/sitemap-1.xml`))!.text()).toBe(shardXml);
   });
 
@@ -217,12 +246,16 @@ describe("documentation worker", () => {
     expect(await range.text()).toBe(expected);
   });
 
-  it("serves shared robots rules that allow latest documentation crawling", async () => {
+  it("excludes historical and duplicate docs from crawling while allowing latest and its sitemap", async () => {
     const response = await request("/robots.txt");
     const body = await response.text();
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
-    expect(body).not.toMatch(/^Disallow:\s*\/doc(?:\/latest|-latest)/m);
+    expect(body).toMatch(/^Disallow: \/doc\/$/m);
+    expect(body).toMatch(/^Disallow: \/doc-latest$/m);
+    expect(body).toMatch(/^Allow: \/doc\/latest\/$/m);
+    expect(body).toMatch(/^Allow: \/doc\/sitemap\.xml$/m);
+    expect(body).not.toMatch(/^Disallow:\s*\/$/m);
     expect(body).toContain("Sitemap: https://www.gecode.dev/doc/sitemap.xml");
     expect(response.headers.get("cache-control")).toContain("max-age=300");
     const head = await request("/robots.txt", { method: "HEAD" });
@@ -240,7 +273,7 @@ describe("documentation worker", () => {
       headers: { "If-None-Match": head.headers.get("etag")! },
     });
     expect(cached.status).toBe(304);
-    expect(cached.headers.get("x-robots-tag")).toBe("noindex");
+    expect(cached.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(cached.headers.get("link")).toBeNull();
   });
 
@@ -252,7 +285,7 @@ describe("documentation worker", () => {
       for (const init of [undefined, { method: "HEAD" }, { headers: { Range: "bytes=0-3" } }, { headers: { "If-None-Match": object.httpEtag } }]) {
         const response = await request(path, init);
         const canonical = path === "/doc/latest/MPG.pdf";
-        expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex");
+        expect(response.headers.get("x-robots-tag")).toBe(canonical ? null : "noindex, nofollow");
         expect(response.headers.get("link")).toBe(canonical
           ? '<https://www.gecode.dev/doc/latest/MPG.pdf>; rel="canonical"'
           : null);
@@ -352,7 +385,7 @@ describe("documentation worker", () => {
       }
       const staging = await request("https://docs-staging.gecode.dev/documentation.html");
       expect(staging.status).toBe(404);
-      expect(staging.headers.get("x-robots-tag")).toBe("noindex");
+      expect(staging.headers.get("x-robots-tag")).toBe("noindex, nofollow");
       expect(originFetch).toHaveBeenCalledTimes(5);
     } finally {
       originFetch.mockRestore();
@@ -403,7 +436,7 @@ describe("documentation worker", () => {
     expect(await preview.text()).toBe("preview");
     expect(preview.headers.get("x-gecode-documentation-revision")).toBe(revision);
     expect(preview.headers.get("cache-control")).toContain("immutable");
-    expect(preview.headers.get("x-robots-tag")).toBe("noindex");
+    expect(preview.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(preview.headers.get("link")).toBeNull();
     expect((await request(prefix)).headers.get("location")).toBe(`${base}${prefix}/`);
     expect((await request("/doc/latest/revisions/r1/")).status).toBe(400);
@@ -441,7 +474,7 @@ describe("documentation worker", () => {
     for (const path of ["/doc/6.4.0/sitemap.xml", "/doc/6.4.0/revisions/sitemap-r2/sitemap.xml"]) {
       const response = await request(path, undefined, "6.4.0", revisions);
       expect(await response.text()).toBe(xml);
-      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     }
   });
 
@@ -453,7 +486,7 @@ describe("documentation worker", () => {
     await request("/doc/6.4.0/reference/PageChange.html");
     const response = await request("/doc/6.4.0/reference/PageChange.html", undefined, "6.4.0", revisions);
     expect(response.status).toBe(503);
-    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   });
 
 });

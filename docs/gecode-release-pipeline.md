@@ -184,8 +184,8 @@ Keep generated documentation and R2 credentials out of the candidate. Use
 selected documentation, and `/doc/<version>/revisions/<revision>/...` when a
 citation must identify immutable documentation bytes. Only the production latest URLs are indexable and
 canonical. Version and explicit revision URLs, including PDFs, and the HTTP 200
-`/doc-latest/...` compatibility alias carry `X-Robots-Tag: noindex`; staging
-documentation is also `noindex`. Producer HTML must not contain conflicting
+`/doc-latest/...` compatibility alias carry `X-Robots-Tag: noindex, nofollow`; staging
+documentation carries the same header. Producer HTML must not contain conflicting
 versioned canonical links; the Worker owns the served canonical selection.
 
 Run the configured website quality command and validate the release,
@@ -226,8 +226,10 @@ changed, `LATEST_DOC_VERSION`. Stored revisions remain unchanged.
 Check indexing headers on HTML and PDFs: only production `/doc/latest/...`
 may be indexed. Verify latest HTML canonicals and that the published sitemap
 index and every shard contain only latest URLs, including after alias
-promotion. Keep immutable and compatibility paths crawlable so crawlers can
-observe their `noindex` headers.
+promotion. The shared robots rules allow latest docs and their sitemap but
+exclude versioned, immutable and compatibility paths. These advisory exclusions
+prioritize reducing crawl traffic; excluded pages cannot be fetched to read
+their `noindex` headers.
 
 Staging and canary Worker deployments belong to the initial migration or to a
 Worker-code change. They are not required for an ordinary content-only

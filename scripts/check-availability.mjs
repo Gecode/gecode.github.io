@@ -63,8 +63,12 @@ await check("/robots.txt?availability=1", 200, async (response) => {
   assert.match(response.headers.get("content-type"), /text\/plain/);
   const text = (await bytes(response)).toString();
   assert(text.includes(`Sitemap: ${origin}/doc/sitemap.xml`));
-  assert.doesNotMatch(text, /^Disallow:\s*\/(?:\s*$|doc(?:\/latest)?\/?\s*$|doc-latest)/m,
-    "Robots rules must allow latest documentation crawling");
+  assert.match(text, /^Disallow: \/doc\/$/m);
+  assert.match(text, /^Disallow: \/doc-latest$/m);
+  assert.match(text, /^Allow: \/doc\/latest\/$/m);
+  assert.match(text, /^Allow: \/doc\/sitemap\.xml$/m);
+  assert.doesNotMatch(text, /^Disallow:\s*\/$/m,
+    "Robots rules must not exclude the entire website");
 });
 await check("/doc/latest/reference/index.html", 200, async (response) => {
   docsHeaders(response, "reference/index.html", true);

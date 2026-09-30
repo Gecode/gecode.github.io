@@ -32,8 +32,23 @@ historical prefix).
 Only production `/doc/latest/...` documentation is indexable. HTML and PDF
 responses there have a canonical Link header for the corresponding latest URL.
 Version routes, explicit revision routes, the HTTP 200 `/doc-latest/...`
-compatibility alias, and staging documentation carry `X-Robots-Tag: noindex`.
-These paths remain crawlable so search engines can read the indexing headers.
+compatibility alias, and staging documentation carry `X-Robots-Tag: noindex, nofollow`.
+Production HTML repeats this directive in a robots meta tag. The shared
+`robots.txt` excludes `/doc/` and `/doc-latest`, with exceptions for
+`/doc/latest/` and `/doc/sitemap.xml`. This excludes all versioned copies,
+including the current version and immutable revisions, without release-specific
+rules. Published sitemaps continue to advertise only canonical latest URLs.
+
+These are advisory rules, not access controls. Crawlers that obey `robots.txt`
+will not fetch excluded pages to read their indexing headers, so this policy
+prioritizes reducing crawling over removing existing search results.
+See [Google's robots guidance](https://developers.google.com/search/docs/crawling-indexing/block-indexing).
+
+The Doxygen `doxygen_crawl.html` helper bypasses HTML rewriting, including
+analytics and robots meta injection. Its thousands of self-closing anchors
+exhaust the HTML parser; serving the stored bytes preserves the complete body,
+ETag and range support. Response-header directives still apply. Ordinary
+documentation HTML retains analytics.
 
 Production routes use `doc*` and `robots.txt*` because Cloudflare matches query
 strings against route patterns. Requests outside the exact documentation

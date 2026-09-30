@@ -106,10 +106,13 @@ minutes; promotion is not instantaneous.
 
 Only production `/doc/latest/...` documentation is indexable. Its HTML uses
 the corresponding latest URL as its canonical. Every immutable
-`/doc/<version>/...` response, including PDFs, carries `X-Robots-Tag: noindex`.
+`/doc/<version>/...` response, including PDFs, carries `X-Robots-Tag: noindex, nofollow`.
 The `/doc-latest/...` compatibility alias continues to serve content with HTTP
-200 and `noindex`; all staging documentation also carries `noindex`.
-Keep these paths crawlable so search engines can read the indexing headers.
+200 and `noindex, nofollow`; staging documentation carries the same header.
+The shared robots rules exclude versioned and compatibility paths from crawling,
+while allowing `/doc/latest/` and `/doc/sitemap.xml`. These advisory exclusions
+reduce crawling; they do not guarantee removal of already indexed URLs, because
+compliant crawlers cannot fetch excluded pages to read `noindex`.
 
 Submit `/doc/sitemap.xml`, which exposes the selected release using only
 `/doc/latest/...` sitemap and page URLs. The Worker rewrites stored sitemap

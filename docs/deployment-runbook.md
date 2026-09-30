@@ -256,9 +256,11 @@ Worker route remains sufficient rollback.
    replacements are verified; Wrangler may retain old patterns.
    Confirm `/doc/sitemap.xml` serves the selected version's index and that its
    shards contain only canonical `/doc/latest/...` URLs. Confirm versioned
-   content and `/doc-latest/...` return `X-Robots-Tag: noindex`, including PDFs.
-   `/robots.txt` must allow documentation crawling so search engines can read
-   those headers; it continues to exclude the users archive.
+   content and `/doc-latest/...` return `X-Robots-Tag: noindex, nofollow`, including PDFs.
+   `/robots.txt` must exclude versioned and compatibility documentation while
+   allowing `/doc/latest/` and `/doc/sitemap.xml`; it continues to exclude the
+   users archive. These rules discourage crawling, not human access, and do not
+   guarantee removal of already indexed URLs.
 6. Use the workflow's `remove-canary` operation with the `canary` environment.
    The narrow canary route is more specific than `/doc/*` and would otherwise
    keep intercepting that version.

@@ -170,7 +170,7 @@ function applyIndexingPolicy(request: Request, response: Response, env: Env): Re
       headers.set("Link", `<https://www.gecode.dev/doc/latest/${canonicalPath}>; rel="canonical"`);
     }
   } else {
-    headers.set("X-Robots-Tag", "noindex");
+    headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return new Response(request.method === "HEAD" ? null : response.body, {
     status: response.status,
@@ -179,9 +179,13 @@ function applyIndexingPolicy(request: Request, response: Response, env: Env): Re
   });
 }
 
-function injectAnalytics(request: Request, response: Response): Response {
+function rewriteHtml(request: Request, response: Response): Response {
+  const url = new URL(request.url);
+  // Doxygen's machine-readable crawl index contains thousands of self-closing
+  // anchors that exhaust HTMLRewriter's parser. Serve its bytes unchanged.
   if (request.method !== "GET"
-      || new URL(request.url).hostname !== "www.gecode.dev"
+      || url.hostname !== "www.gecode.dev"
+      || safeDecodePath(url.pathname)?.endsWith("/doxygen_crawl.html")
       || response.status !== 200
       || !/^text\/html(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
     return response;
@@ -191,7 +195,12 @@ function injectAnalytics(request: Request, response: Response): Response {
   headers.delete("ETag");
   headers.delete("Accept-Ranges");
   const html = new HTMLRewriter()
-    .on("head", { element(element) { element.append('<script src="/e/init.js" defer></script>', { html: true }); } })
+    .on("head", { element(element) {
+      if (headers.get("X-Robots-Tag") === "noindex, nofollow") {
+        element.append('<meta name="robots" content="noindex, nofollow">', { html: true });
+      }
+      element.append('<script src="/e/init.js" defer></script>', { html: true });
+    } })
     .transform(new Response(response.body, { status: response.status, statusText: response.statusText, headers }));
   return html;
 }
@@ -351,7 +360,7 @@ export default {
       response = errorResponse(503, "Documentation is temporarily unavailable", { "Retry-After": "60" });
     }
     response = applyIndexingPolicy(request, response, env);
-    response = injectAnalytics(request, response);
+    response = rewriteHtml(request, response);
     console.log(JSON.stringify({
       method: request.method,
       path: new URL(request.url).pathname,
