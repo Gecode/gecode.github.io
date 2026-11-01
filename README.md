@@ -1,3 +1,10 @@
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/gecode-web-banner-dark.png">
+    <img src="brand/gecode-web-banner-light.png" alt="Gecode website" width="640">
+  </picture>
+</p>
+
 # Gecode Website (Astro + GitHub Pages)
 
 This repository hosts the Gecode website and is built with Astro and Tailwind
