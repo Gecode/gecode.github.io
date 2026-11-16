@@ -30,6 +30,7 @@ on:
           - documentation
           - redirects
           - email
+          - website
 
 permissions:
   contents: read
@@ -67,6 +68,12 @@ jobs:
           echo "canary operations require the documentation worker" >&2
           exit 2
 
+      - name: Validate website environment
+        if: inputs.worker == 'website' && inputs.environment == 'canary'
+        run: |
+          echo "the website has staging and production environments only" >&2
+          exit 2
+
       - name: Validate email environment
         if: inputs.worker == 'email' && inputs.environment != 'production'
         run: |
@@ -96,6 +103,18 @@ jobs:
       - name: Validate email Worker
         if: inputs.worker == 'email'
         run: npm run test:email-worker && npm run check:email-worker
+
+      - name: Build website
+        if: inputs.worker == 'website'
+        run: npm run build:pages && npm run check:website-worker
+
+      - name: Deploy website to staging
+        if: inputs.operation == 'deploy' && inputs.environment == 'staging' && inputs.worker == 'website'
+        run: npx wrangler deploy --env="" --config workers/website/wrangler.jsonc
+
+      - name: Deploy website to production
+        if: inputs.operation == 'deploy' && inputs.environment == 'production' && inputs.worker == 'website'
+        run: npx wrangler deploy --env production --config workers/website/wrangler.jsonc
 
       - name: Deploy documentation Worker to staging
         if: inputs.operation == 'deploy' && inputs.environment == 'staging' && (inputs.worker == 'both' || inputs.worker == 'documentation')
