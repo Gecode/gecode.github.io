@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-# Gecode Website (Astro + GitHub Pages)
+# Gecode Website (Astro + Cloudflare Workers)
 
 This repository hosts the Gecode website and is built with Astro and Tailwind
 CSS 4. React is available for future interactive islands, but the current site
@@ -52,8 +52,8 @@ This command:
 - checks content transformations, metadata, and canonical URLs
 - validates the documentation and redirect Workers
 
-For the GitHub Pages artifact, including the mailing-list archive but excluding
-documentation now served from R2, run:
+For the deployed website, including the mailing-list archive but excluding
+documentation served from R2, run:
 
 ```bash
 npm run build:pages
@@ -65,8 +65,14 @@ The legacy rollback/comparison build still copies both frozen archives:
 npm run build:deploy
 ```
 
-That legacy artifact exceeds GitHub Pages' 1 GB published-site limit and must
-not be used by the production workflow.
+That legacy artifact must not be used by the production workflow.
+
+## Deployment
+
+Pushes to `main` build the site and deploy `_site` to the `gecode-website`
+Cloudflare Worker (static assets) on `www.gecode.dev`. See
+[Website hosting and TLS](docs/operations.md#website-hosting-and-tls) for the
+setup, rollback and monitoring.
 
 ## Notes on Scope
 

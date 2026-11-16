@@ -12,12 +12,15 @@ The tested R2 Worker now serves generated documentation in production. The
 Astro artifact pairs a redirect Worker for classic active `.html` URLs with
 small Pages fallback files.
 
-As checked on 5 September 2026, Cloudflare is authoritative for `gecode.dev`.
-Cloudflare proxies the apex GitHub Pages A records and the `www` CNAME to
-`gecode.github.io` with Full (strict) TLS and Always Use HTTPS. GitHub Pages
-serves the Astro active website and mail archive. All nine historical
+Cloudflare is authoritative for `gecode.dev`. Since 16 November 2026 the
+website is served by the `gecode-website` Worker (static assets only) on the
+`www.gecode.dev` Custom Domain, and a Cloudflare redirect rule sends the apex to
+`www`. GitHub Pages no longer serves any part of the site. All nine historical
 documentation versions and both latest aliases use R2. Classic active-site
-URLs redirect to their canonical directory URLs through the redirect Worker.
+URLs redirect to their canonical directory URLs through the redirect Worker and
+the website's `_redirects` file. See [Website hosting and
+TLS](operations.md#website-hosting-and-tls) for the setup, deployment and
+rollback.
 
 Cloudflare Email Routing is ready. Its managed MX, SPF, and DKIM records are
 authoritative, both forwarding destinations are verified, and the catch-all
@@ -303,11 +306,9 @@ old URLs when that Worker is unavailable.
 8. Watch Pages, Worker, and R2 errors and documentation 404s during the first
    day.
 
-After the Astro deployment is stable, restore automatic Pages deployment for
-default-branch pushes in a separate reviewed change.
-
-GitHub Pages receives an artifact comfortably below its 1 GB published-site
-limit because generated documentation is no longer copied into it.
+Pushes to `main` now deploy the website automatically to the `gecode-website`
+Worker. The phase descriptions above refer to the GitHub Pages hosting used
+until November 2026.
 
 ## 7. Complete release automation
 
@@ -366,7 +367,7 @@ Monitor these signals during the first day and review them monthly afterward:
 - documentation 404 and 503 responses;
 - cache hit ratio and R2 Class A/Class B operations;
 - R2 Standard storage, including the size of `staging/`;
-- GitHub Pages origin availability; and
+- website Worker deployments and edge certificate expiry; and
 - Cloudflare Email Routing delivery failures.
 
 Keep a release manifest and a recoverable source for every immutable version.
@@ -375,6 +376,10 @@ R2 immutability conventions do not protect against account loss or a
 bucket-wide deletion.
 
 ## Rollback
+
+The website rolls back to an earlier Worker version; see [Website hosting and
+TLS](operations.md#website-hosting-and-tls). The paragraphs below describe the
+migration-era Pages rollback and are kept for history.
 
 During the first canary, remove the canary route to return that version to the
 existing GitHub Pages archive. Before the Astro cutover, remove the production
