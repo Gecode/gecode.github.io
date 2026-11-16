@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { connect } from "node:tls";
 
 const origin = "https://www.gecode.dev";
+// Cloudflare Universal SSL renews edge certificates well before expiry.
+// Less than 14 days left means renewal has failed; see docs/operations.md.
+const minCertificateDays = 14;
 const config = JSON.parse(await readFile("workers/docs/wrangler.jsonc", "utf8")).env.production.vars;
 const version = config.LATEST_DOC_VERSION;
 const revision = JSON.parse(config.DOC_REVISIONS ?? "{}")[version];
@@ -43,6 +47,21 @@ function docsHeaders(response, relative, indexable) {
     ? `<${origin}/doc/latest/${relative}>; rel="canonical"` : null, "Documentation canonical");
 }
 
+// Check the public edge certificate directly so a failed renewal is reported
+// before browsers start rejecting it.
+function edgeCertificate(servername) {
+  return new Promise((resolvePromise, reject) => {
+    const socket = connect({ host: servername, port: 443, servername });
+    socket.setTimeout(10_000, () => socket.destroy(new Error("TLS timeout")));
+    socket.once("error", reject);
+    socket.once("secureConnect", () => {
+      const certificate = socket.getPeerCertificate();
+      socket.end();
+      resolvePromise(certificate);
+    });
+  });
+}
+
 for (const path of ["/", "/download/"]) {
   await check(path, 200, async (response) => {
     assert.match(response.headers.get("content-type"), /text\/html/);
@@ -52,6 +71,10 @@ for (const path of ["/", "/download/"]) {
     assert(!/\bnoindex\b/i.test(response.headers.get("x-robots-tag") ?? ""), "Website must remain indexable");
   });
 }
+await check(`/news/?availability=${Date.now()}`, 200, async (response) => {
+  assert.match(response.headers.get("content-type"), /text\/html/);
+  assert.match((await bytes(response)).toString(), /<meta name="generator" content="Astro /, "Astro page");
+});
 await check("/download.html?availability=1", 308, (response) => {
   assert.equal(response.headers.get("location"), `${origin}/download/?availability=1`);
 });
@@ -113,4 +136,19 @@ if (revision) {
     assert((await bytes(response)).length > 0, "Modeling search runtime");
   });
 }
+const apex = await fetch("https://gecode.dev/news/?availability=1", {
+  redirect: "manual", signal: AbortSignal.timeout(10_000),
+});
+assert.equal(apex.status, 301, "Apex redirect status");
+assert.equal(apex.headers.get("location"), `${origin}/news/?availability=1`, "Apex redirect target");
+console.log("GET https://gecode.dev/news/?availability=1: 301");
+
+for (const servername of ["www.gecode.dev", "gecode.dev"]) {
+  const certificate = await edgeCertificate(servername);
+  const days = (Date.parse(certificate.valid_to) - Date.now()) / 86_400_000;
+  assert(days >= minCertificateDays,
+    `Edge certificate for ${servername} expires ${certificate.valid_to} (${days.toFixed(1)} days)`);
+  console.log(`TLS ${servername}: valid until ${certificate.valid_to} (${Math.floor(days)} days)`);
+}
+
 console.log(`Production availability passed: documentation ${version}, revision ${revision ?? "legacy"}.`);

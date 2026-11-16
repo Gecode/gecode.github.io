@@ -1,9 +1,9 @@
 # Classic URL redirects and analytics proxy
 
-The active Astro site uses directory output, so GitHub Pages serves
-`community/index.html` at the canonical `/community/` URL and redirects
-`/community` to that directory form. A separate `community.html` fallback page
-preserves compatibility before the edge Worker is deployed.
+The active Astro site uses directory output, so the website Worker serves
+`community/index.html` at the canonical `/community/` URL. Its `_redirects`
+file sends `/community` and `/community.html` to that directory form, so the
+classic URLs keep working even without this Worker.
 
 This Worker supplies that missing edge behavior. It returns a permanent `308`
 from each classic active-site `.html` URL to its trailing-slash canonical URL,
