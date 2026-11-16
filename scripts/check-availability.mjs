@@ -78,7 +78,10 @@ await check(`/news/?availability=${Date.now()}`, 200, async (response) => {
 await check("/download.html?availability=1", 308, (response) => {
   assert.equal(response.headers.get("location"), `${origin}/download/?availability=1`);
 });
-await check("/users-archive/index.html", 200, async (response) => {
+await check("/users-archive/index.html", 307, (response) => {
+  assert.equal(response.headers.get("location"), "/users-archive/");
+});
+await check("/users-archive/", 200, async (response) => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match((await bytes(response)).toString(), /Gecode users archive/);
 });

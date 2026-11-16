@@ -99,6 +99,13 @@ environment accepts only `main` and holds two secrets:
   Settings Read on the Gecode account, and Zone Read and Workers Routes Write
   on `gecode.dev`. It cannot change DNS, SSL or rules.
 
+The Custom Domain owns the `www` DNS record, so it does not appear as an
+ordinary record in the DNS list. Cloudflare refuses to attach a Custom Domain
+while another record exists for the hostname, and Wrangler does not replace it
+in CI. If the domain is ever detached and must be reattached, delete any `www`
+record and add the domain under Workers & Pages, `gecode-website`, Domains in
+the same minute: resolvers may cache the missing name for 30 minutes.
+
 The same build can be deployed by hand from the Workers workflow
 (`worker=website`) to `www-staging.gecode.dev` or, with the
 `cloudflare-production` approval, to production.
