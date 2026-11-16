@@ -8,10 +8,10 @@ export const site = {
 } as const;
 
 export const versions = {
-  release: "6.5.0",
-  releaseDate: "2026-10-31",
-  releaseDateLong: "31 October 2026",
-  documentation: "6.5.0",
+  release: "6.6.0",
+  releaseDate: "2026-11-16",
+  releaseDateLong: "16 November 2026",
+  documentation: "6.6.0",
 } as const;
 
 export const navigation = [
