@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const target = path.join(root, ".astro-public");
-const entries = ["images", "papers", "download", "CNAME", "robots.txt"];
+const entries = ["images", "papers", "download", "robots.txt", "_headers"];
 const incremental = process.argv.includes("--incremental");
 
 // Production builds must not inherit an archive prepared by the dev server.

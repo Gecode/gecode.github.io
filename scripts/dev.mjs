@@ -84,7 +84,6 @@ async function activeDevServer() {
 async function staticAssetsReady() {
   const required = [
     ".astro-public/images/gecode-logo.ico",
-    ".astro-public/CNAME",
     ".astro-public/robots.txt",
     ".astro-public/users-archive/index.html",
     ".astro-public/users-archive/archive.css",

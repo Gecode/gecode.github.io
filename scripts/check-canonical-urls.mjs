@@ -36,15 +36,12 @@ for (const route of routes) {
   }
 }
 
+const redirectRules = new Set((await readFile(path.join(siteRoot, "_redirects"), "utf8")).trim().split("\n"));
+if (!redirectRules.has("/index.html / 308")) failures.push("_redirects: expected /index.html / 308");
 for (const route of routes.filter((route) => route.file !== "index.html")) {
-  const classicFile = route.file.replace(/\/index\.html$/, ".html");
-  const html = await readFile(path.join(siteRoot, classicFile), "utf8");
-  const destination = `https://www.gecode.dev${route.canonical}`;
-  if (!html.includes(`<link rel="canonical" href="${destination}">`)) {
-    failures.push(`${classicFile}: expected redirect canonical ${destination}`);
-  }
-  if (!html.includes(`http-equiv="refresh" content="0;url=${route.canonical}"`)) {
-    failures.push(`${classicFile}: expected redirect to ${route.canonical}`);
+  const page = route.canonical.slice(0, -1);
+  for (const rule of [`${page}.html ${route.canonical} 308`, `${page} ${route.canonical} 308`]) {
+    if (!redirectRules.has(rule)) failures.push(`_redirects: expected ${rule}`);
   }
 }
 
